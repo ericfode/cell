@@ -1,0 +1,7 @@
+# Binaries
+cell
+*.exe
+
+# IDE
+.idea/
+.vscode/
