@@ -1,0 +1,99 @@
+-- Cell Pour — execute .cell files using the native cell CLI.
+--
+-- This is the production formula for running Cell programs. It uses the compiled
+-- cell binary for parsing, validation, DAG analysis, and execution.
+--
+-- Unlike cell-forge (which bootstraps the parser), this formula just runs programs.
+-- It handles: parameter passing, preset selection, import resolution, live vs mock
+-- execution, and result reporting via beads.
+
+## cell-pour
+
+  input param.cell_file : str required
+  input param.preset : str
+  input param.live : boolean default("false")
+  input param.params : str
+
+  # validate : script
+    system>
+      Parse and validate the Cell program, then inspect its DAG.
+    ```bash
+    echo "=== Building cell binary ==="
+    go build -o /tmp/cell-bin ./cmd/cell/ 2>&1
+
+    echo "=== Validating {{param.cell_file}} ==="
+    /tmp/cell-bin validate {{param.cell_file}}
+
+    echo "=== DAG ==="
+    /tmp/cell-bin dag {{param.cell_file}}
+    ```
+  #/
+
+  # check-inputs : llm
+    - validate
+    system>
+      You verify that all required inputs for a Cell program are provided.
+    user>
+      The Cell file {{param.cell_file}} was validated successfully.
+      Validation output: {{validate}}
+
+      Provided params: {{param.params}}
+      Preset: {{param.preset}}
+
+      Check:
+      1. Parse the Cell file's input declarations from the validation output
+      2. Split the provided params on commas, then on '=' to get key-value pairs
+      3. For each required input, verify a value was provided
+      4. If a preset was specified, verify it exists in the .cell file
+      5. Merge preset values with provided params (explicit params override preset)
+
+      If a required input is missing and has no default, report it.
+    format> input_check
+      { valid: boolean, missing: [str], resolved_params: str }
+  #/
+
+  # pour : script
+    - check-inputs
+    system>
+      Execute the Cell program.
+    ```bash
+    MODE="mock"
+    if [ "{{param.live}}" = "true" ]; then
+      MODE="llm"
+    fi
+
+    PARAMS_FLAG=""
+    if [ -n "{{param.params}}" ]; then
+      PARAMS_FLAG="--params={{param.params}}"
+    fi
+
+    echo "=== Pouring {{param.cell_file}} (mode: $MODE) ==="
+    /tmp/cell-bin run {{param.cell_file}} --mode=$MODE $PARAMS_FLAG 2>&1
+    ```
+  #/
+
+  # report : llm
+    - pour
+    system>
+      You summarize Cell program execution results concisely.
+    user>
+      The Cell program {{param.cell_file}} has been executed.
+
+      Execution output:
+      {{pour}}
+
+      Summarize:
+      - Total cells executed
+      - Execution time
+      - Per-cell output summaries
+      - Any oracle verdicts
+      - Terminal cell outputs (cells with no downstream dependencies)
+
+      These terminal outputs are the molecule's final results.
+    format> summary
+      { cells_executed: number, execution_time: str, terminal_outputs: [{ cell: str, output: str }] }
+  #/
+
+  validate -> check-inputs -> pour -> report
+
+##/

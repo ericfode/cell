@@ -1,0 +1,216 @@
+-- Cell Forge — the bootstrap formula that converges on a Cell parser and runtime.
+--
+-- This is the bridge between the TOML formula world and the Cell world.
+-- It works anywhere you have beads. No Gas Town infrastructure required.
+--
+-- The Forge:
+-- 1. Reads .cell source files (the corpus)
+-- 2. Pours cell-reader against each file (LLM parses Cell source)
+-- 3. Validates parse results against the Cell grammar oracle
+-- 4. Runs cell-zero to observe execution patterns
+-- 5. Distills consistent patterns into deterministic rules
+-- 6. Repeats until convergence
+
+## cell-forge
+
+  input param.corpus_dir : str default("docs/examples")
+  input param.spec_file : str default("docs/plans/2026-03-08-cell-language-spec.md")
+  input param.max_iterations : number default("10")
+  input param.convergence_threshold : number default("0.95")
+
+  # inventory : script
+    system>
+      You inventory the Cell corpus — list and count all .cell files.
+    ```bash
+    echo "=== Cell Corpus Inventory ==="
+    count=$(ls -1 {{param.corpus_dir}}/*.cell 2>/dev/null | wc -l)
+    echo "Files found: $count"
+    ls -1 {{param.corpus_dir}}/*.cell 2>/dev/null
+    ```
+  #/
+
+  # read-spec : llm
+    - inventory
+    system>
+      You are a language specification reader. Internalize the Cell grammar.
+    user>
+      Read the Cell language specification. This is the oracle's source of truth.
+
+      The spec defines:
+      - Lexical structure (section 2)
+      - Lexer modes: NORMAL, PROMPT, HARD_BLOCK, SOFT_BLOCK (section 2.1)
+      - Grammar productions (section 3)
+      - Prompt sections (section 4)
+      - Distillation lifecycle (section 22)
+
+      Spec file: {{param.spec_file}}
+
+      Internalize the lexer mode transitions and grammar productions.
+      You will use them as the oracle for every parse.
+    format> spec
+      { lexer_modes: [str], grammar_sections: [str], key_rules: [str] }
+  #/
+
+  # pour-reader : llm
+    - read-spec
+    system>
+      YOU ARE THE CELL RUNTIME. Execute cell-reader against each file in the corpus.
+    user>
+      Read cell-reader.cell first: {{param.corpus_dir}}/cell-reader.cell
+
+      For each .cell file in the corpus:
+      1. **Lex**: Break source into tokens using the 4-mode lexer
+         - NORMAL mode: structure tokens (COMMENT, MOL_OPEN, CELL_OPEN, etc)
+         - PROMPT mode: after SECTION_TAG, all indented lines are PROMPT_LINE
+         - HARD_BLOCK: inside ```...```, all lines are BODY_LINE
+         - SOFT_BLOCK: after distill>/format>, all lines are BODY_LINE until cell-level token
+
+      2. **Parse**: Build AST from token stream
+         - Molecule -> cells -> body elements
+         - Validate against oracle: all cells have types, all types are valid
+
+      3. **Validate**: Check semantic constraints
+         - Dependencies resolve, DAG is acyclic, refs exist
+
+      4. **Record**: For each file, write a one-line summary:
+         filename | tokens | cells | valid | errors
+
+      Start with the 5 simplest files (hello.cell, rule-of-five.cell, survey.cell,
+      security-audit.cell, shiny.cell). Then do 5 medium. Then 5 complex.
+      Stop after 15 files or when you find a pattern breaking.
+    format> results
+      { files_parsed: number, success_rate: number, bugs_found: [str], table: [str] }
+  #/
+
+  # analyze-patterns : llm
+    - pour-reader
+    system>
+      YOU ARE CELL-ZERO'S ANALYZE CELL. Examine the parse results for distillation candidates.
+    user>
+      For each cell in cell-reader (lex, parse, validate, emit):
+      1. How consistent were the outputs across files?
+      2. Which token patterns repeated identically? (distillation candidates)
+      3. Which parse rules always produced the same AST shape?
+      4. Which validate checks always passed?
+
+      A cell is a distillation candidate when:
+      - It produced consistent output across >{{param.convergence_threshold}} of files
+      - Its output shape is stable (same keys, similar structure)
+      - Input->output mapping is learnable
+
+      Parse results: {{pour-reader}}
+
+      Identify the top 3 distillation candidates.
+    format> analysis
+      { candidates: [{ name: str, consistency: number, reason: str }] }
+  #/
+
+  # propose-distillation : llm
+    - analyze-patterns
+    system>
+      YOU ARE CELL-ZERO'S PROPOSE CELL. Generate distill> blocks for top candidates.
+    user>
+      For each distillation candidate from the analysis:
+
+      Generate a concrete distill> block that captures the input->output mapping.
+
+      Example for the lex cell (most likely first candidate):
+      ```
+      distill>
+        input_pattern: "(source text)"
+        output_map: {
+          "^--.*$" -> { type: "COMMENT", value: "(matched)" },
+          "^##\\s+\\w+" -> { type: "MOL_OPEN", value: "(matched)" },
+          "^##/" -> { type: "MOL_CLOSE", value: "##/" },
+          ...
+        }
+        fallback: llm
+      ```
+
+      Candidates: {{analyze-patterns}}
+
+      For each candidate, produce:
+      1. The distill> block content
+      2. Coverage percentage (how many inputs does it handle?)
+      3. Confidence (how consistent was this mapping?)
+    format> proposals
+      { distill_blocks: [{ cell: str, coverage: number, confidence: number, block: str }] }
+  #/
+
+  # validate-distillation : llm
+    - propose-distillation
+    system>
+      YOU ARE CELL-ZERO'S VALIDATE CELL. Test each proposed distillation against the corpus.
+    user>
+      For each distill> block:
+      1. Take 5 .cell files not used in the analysis
+      2. Apply the distilled rules (regex matching for lex, pattern matching for parse)
+      3. Compare output against what you would produce as an LLM
+      4. Report match rate
+
+      A distillation is valid if match rate >= 0.9.
+
+      If a distillation fails:
+      - Document why (which inputs didn't match?)
+      - Propose additional patterns to cover the gaps
+      - These gaps become the next iteration's focus
+
+      Proposals: {{propose-distillation}}
+    format> validation
+      { results: [{ cell: str, match_rate: number, gaps: [str] }] }
+  #/
+
+  # freeze-or-iterate : llm
+    - validate-distillation
+    system>
+      You are the convergence decision maker for the Cell Forge.
+    user>
+      Decision point. For each validated distillation:
+
+      If match_rate >= 0.9:
+        FREEZE — the distilled cell is ready. Record the frozen rules.
+        The frozen cell has type "distilled" instead of "llm".
+
+      If match_rate < 0.9:
+        ITERATE — document gaps, plan next pour cycle.
+
+      Track convergence:
+      - Iteration 1: expect ~60% of lex rules to distill
+      - Iteration 3: expect ~90% of lex rules, ~50% of parse rules
+      - Iteration 5: expect full lex distillation, ~80% parse
+      - Iteration 10: expect near-complete distillation
+
+      Validation results: {{validate-distillation}}
+    format> decision
+      { frozen: [str], iterate: [str], convergence: number, next_focus: str }
+  #/
+
+  # report : llm
+    - freeze-or-iterate
+    system>
+      You write concise forge cycle reports.
+    user>
+      Write the forge cycle report.
+
+      Summary:
+      - Files in corpus: from {{inventory}}
+      - Parse results: from {{pour-reader}}
+      - Distillation candidates: from {{analyze-patterns}}
+      - Validation: from {{validate-distillation}}
+      - Decision: from {{freeze-or-iterate}}
+
+      The forge has produced:
+      1. Parse results for the corpus (training data)
+      2. Distilled rules (partial parser)
+      3. Bug reports (grammar improvements)
+      4. Convergence tracking (how close to a full parser?)
+
+      When convergence reaches {{param.convergence_threshold}}, the distilled rules
+      ARE the Cell parser. Extract them into a standalone tool.
+    format> report
+      { files_parsed: number, success_rate: number, rules_frozen: number, convergence: number, next_steps: str }
+  #/
+
+  inventory -> read-spec -> pour-reader -> analyze-patterns -> propose-distillation -> validate-distillation -> freeze-or-iterate -> report
+
+##/
