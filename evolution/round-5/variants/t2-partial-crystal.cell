@@ -1,0 +1,26 @@
+⊢ summarize
+  given text
+  yield summary, word-count, ratio
+
+  ∴ Summarize «text» in 2-3 sentences. Also report the
+    word count of the summary and the compression ratio
+    (original words / summary words).
+
+  ⊨ summary is 2-3 sentences
+  ⊨ word-count = number of words in summary
+  ⊨ ratio = len(«text».split()) / word-count
+  ⊨ ratio > 1.0
+
+⊢ summarize ▸ partial
+  given text
+  yield summary, word-count, ratio
+
+  ∴ Summarize «text» in 2-3 sentences.
+
+  ⊢= word-count ← split(summary, " ").length
+  ⊢= ratio ← split(«text», " ").length / word-count
+
+  ⊨ summary is 2-3 sentences
+  ⊨ word-count = number of words in summary ✓ [crystal]
+  ⊨ ratio = len(«text».split()) / word-count ✓ [crystal]
+  ⊨ ratio > 1.0 ✓ [crystal]

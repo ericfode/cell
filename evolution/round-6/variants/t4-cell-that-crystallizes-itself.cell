@@ -1,0 +1,41 @@
+⊢ reverse-string
+  given text
+  yield reversed
+
+  ∴ Reverse «text» character by character.
+
+  ⊨ reversed has same length as «text»
+  ⊨ reversed[i] = «text»[len(«text»)-1-i] for all i
+
+⊢ crystallize
+  given §target
+  given test-cases[]
+  yield §target', is-faithful
+
+  ∴ Read «§target». Write a deterministic ⊢= expression
+    that replaces the ∴ block. Test it against «test-cases».
+    Report whether the crystallized version passes all oracles
+    on all test cases.
+
+  ⊨ §target' uses ⊢= instead of ∴
+  ⊨ §target' has same given/yield/⊨ as «§target»
+  ⊨ is-faithful is a boolean
+
+⊢ verify-crystal
+  given §reverse-string
+  given crystallize(§reverse-string, test-cases)→§target'
+  given crystallize→is-faithful
+  given test-cases[] ≡ [
+    ("hello", "olleh"),
+    ("", ""),
+    ("a", "a"),
+    ("ab", "ba")
+  ]
+  yield approved
+
+  ∴ Run §target' on each test case. Compare its output
+    to the expected output. Also check that §target'
+    satisfies all of §reverse-string's ⊨ oracles.
+
+  ⊨ approved is a boolean
+  ⊨ if approved and is-faithful then §target' may replace §reverse-string

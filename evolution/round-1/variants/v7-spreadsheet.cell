@@ -1,0 +1,4 @@
+| cell  | in             | out          | formula                                        | check                    |
+|-------|----------------|--------------|------------------------------------------------|--------------------------|
+| greet | name           | message      | Say hello to {name} warmly, one sentence.      | contains {name}; 1 sent  |
+| wrap  | greet.message  | text, emoji  | Pass through as text. Pick a fitting emoji.    | text={in}; emoji=1 char  |

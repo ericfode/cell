@@ -1,0 +1,11 @@
+@greet(name) → message
+  You receive a name. Say hello to them warmly.
+  Your output is just the greeting message.
+  ? message contains name
+  ? message is one sentence
+
+@wrap(greet.message) → text, emoji
+  You receive a greeting message.
+  Pass it through as text, and pick a fitting emoji.
+  ? text is the original message unchanged
+  ? emoji is exactly one emoji character

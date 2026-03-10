@@ -1,0 +1,32 @@
+⊢ original
+  given text ≡ "The quick brown fox jumps over the lazy dog"
+  yield word-count, longest-word, reversed
+
+  ∴ Count the words in «text», find the longest word,
+    and reverse the entire string.
+
+  ⊨ word-count is a positive integer
+  ⊨ longest-word appears in «text»
+  ⊨ reversed read backwards equals «text»
+
+⊢ factor
+  given §target
+  yield cells[]
+
+  ∴ Read «§target». Split it into cells that each
+    compute exactly one output.
+
+  ⊨ each cell in cells has exactly one yield
+  ⊨ composing cells reproduces §target's behavior
+
+⊢ run-factored
+  given factor(§original)→cells
+  given text ≡ "The quick brown fox jumps over the lazy dog"
+  yield word-count, longest-word, reversed
+
+  ∴ Execute «factor→cells» in order with «text» as input.
+    Collect word-count, longest-word, and reversed.
+
+  ⊨ word-count = «original→word-count»
+  ⊨ longest-word = «original→longest-word»
+  ⊨ reversed = «original→reversed»

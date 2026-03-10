@@ -1,0 +1,52 @@
+⊢ haiku
+  given topic ≡ "autumn leaves"
+  yield poem
+
+  ∴ Write a haiku about «topic».
+    A haiku has exactly 3 lines:
+    line 1 = 5 syllables, line 2 = 7 syllables, line 3 = 5 syllables.
+
+  ⊨ poem has exactly 3 lines
+  ⊨ poem line 1 has 5 syllables
+  ⊨ poem line 2 has 7 syllables
+  ⊨ poem line 3 has 5 syllables
+
+  ⊨? on failure:
+    retry with «oracle.failures» appended to prompt
+    max 3 attempts
+
+⊢ haiku ▸ attempt 1
+  given topic ≡ "autumn leaves"
+  yield poem ≡ "Golden leaves falling\nWhispering through the cool breeze\nNature says goodbye"
+
+  ⊨ poem has exactly 3 lines ✓
+  ⊨ poem line 1 has 5 syllables ✗ (7 syllables: Gol-den-leaves-fall-ing = 5... actually Golden = 2, leaves = 1, falling = 2 = 5)
+  ⊨ poem line 2 has 7 syllables ✓
+  ⊨ poem line 3 has 5 syllables ✓
+
+⊢ haiku ▸ attempt 1 — wait, let me recount
+  "Golden leaves falling"
+  Gold-en = 2, leaves = 1, fall-ing = 2 → 5 ✓
+  Actually all oracles pass. Let me construct a failure case:
+
+⊢ haiku ▸ attempt 1 (failed)
+  given topic ≡ "autumn leaves"
+  yield poem ≡ "Beautiful autumn leaves\nDancing in the gentle wind\nFalling to the ground"
+
+  ⊨ poem has exactly 3 lines ✓
+  ⊨ poem line 1 has 5 syllables ✗ [got 7: Beau-ti-ful-au-tumn-leaves = wait...
+     Beau-ti-ful = 3, au-tumn = 2, leaves = 1 → 6 syllables]
+  ⊨ poem line 2 has 7 syllables ✓ [Dan-cing-in-the-gen-tle-wind = 7]
+  ⊨ poem line 3 has 5 syllables ✓ [Fall-ing-to-the-ground = 5]
+
+  ⊨? oracle.failures = ["line 1 has 6 syllables, expected 5"]
+
+⊢ haiku ▸ attempt 2
+  given topic ≡ "autumn leaves"
+  given oracle.failures ≡ ["line 1 has 6 syllables, expected 5"]
+  yield poem ≡ "Crimson leaves drift down\nDancing in the gentle wind\nFalling to the ground"
+
+  ⊨ poem has exactly 3 lines ✓
+  ⊨ poem line 1 has 5 syllables ✓ [Crim-son-leaves-drift-down = 5]
+  ⊨ poem line 2 has 7 syllables ✓
+  ⊨ poem line 3 has 5 syllables ✓

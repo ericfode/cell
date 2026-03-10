@@ -1,0 +1,22 @@
+⊢ fib
+  given n ≡ 10
+  yield result
+
+  ∴ Compute the «n»th Fibonacci number.
+    fib(0)=0, fib(1)=1, fib(n)=fib(n-1)+fib(n-2).
+
+  ⊨ result = 55
+
+⊢ fib-trace
+  given n ≡ 10
+  yield result, trace[]
+
+  ∴ Compute the «n»th Fibonacci number.
+    Show each step: fib(0)=0, fib(1)=1, ..., fib(«n»)=?.
+    Output the full trace as a list of "fib(k)=v" strings.
+
+  ⊨ result = 55
+  ⊨ trace has «n»+1 entries
+  ⊨ trace[0] = "fib(0)=0"
+  ⊨ trace[1] = "fib(1)=1"
+  ⊨ each trace[k] for k≥2: value = trace[k-1].value + trace[k-2].value

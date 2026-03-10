@@ -1,0 +1,40 @@
+⊢ eval-one
+  given §program
+  yield §program', stepped-cell
+
+  ∴ Read «§program». Find all cells whose given inputs
+    are fully bound (all ≡ values present). Pick ONE
+    such cell. Execute it (fill in its yield ≡ values).
+    Return the updated program with that one cell executed.
+    Report which cell was stepped.
+
+  ⊨ §program' differs from «§program» in exactly one cell
+  ⊨ stepped-cell names the cell that was executed
+  ⊨ the stepped cell's yields now have ≡ bindings
+  ⊨ all other cells in §program' are unchanged
+
+⊢ is-done
+  given §program
+  yield done
+
+  ∴ Check whether all cells in «§program» have their
+    yields fully bound. If so, the program is complete.
+
+  ⊨ done is a boolean
+
+⊢ hash
+  given §program
+  yield digest
+
+  ∴ Compute a content hash of «§program».
+
+  ⊨ digest is a string
+  ⊨ same §program always produces same digest
+
+⊢∘ run(§target-program)
+  through eval-one, hash
+  until is-done(eval-one→§program')
+  max 100
+
+  ⊨ final §program' has all yields bound
+  ⊨ each step produces a unique hash (no cycles)

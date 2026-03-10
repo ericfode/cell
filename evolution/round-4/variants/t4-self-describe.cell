@@ -1,0 +1,35 @@
+⊢ target
+  given x, y
+  yield sum, product
+
+  ∴ Compute «x» + «y» as sum and «x» × «y» as product.
+
+  ⊨ sum = «x» + «y»
+  ⊨ product = «x» × «y»
+
+⊢ describe
+  given §cell
+  yield input-names[], output-names[], oracle-count
+
+  ∴ Read «§cell» and extract:
+    - The names of all inputs (given lines)
+    - The names of all outputs (yield lines)
+    - The number of oracle assertions (⊨ lines)
+
+  ⊨ input-names is a list of strings
+  ⊨ output-names is a list of strings
+  ⊨ oracle-count is a non-negative integer
+
+⊢ check
+  given describe(§target)→input-names
+  given describe(§target)→output-names
+  given describe(§target)→oracle-count
+  yield correct
+
+  ∴ Verify:
+    - input-names should be ["x", "y"]
+    - output-names should be ["sum", "product"]
+    - oracle-count should be 2
+    Report whether all three match.
+
+  ⊨ correct is a boolean

@@ -1,0 +1,32 @@
+⊢ greet
+  given name ≡ "Alice"
+  yield message
+
+  ∴ Greet «name» warmly. One sentence only.
+
+  ⊨ message contains «name»
+  ⊨ message is exactly one sentence
+
+⊢ judge
+  given greet→message
+  yield quality, improved
+
+  ∴ Rate «greet→message» on warmth 1-10.
+    If quality < 7, output an improved version of
+    the greet cell that would score higher.
+
+  ⊨ quality is an integer 1-10
+  ⊨ if quality < 7 then improved is a valid §greet replacement
+  ⊨ if quality ≥ 7 then improved is empty
+
+⊢ apply
+  given judge→improved
+  given §greet
+  yield §greet'
+
+  ∴ If «judge→improved» is not empty, produce a new
+    version of «§greet» with the improvement applied.
+    Otherwise pass «§greet» through unchanged.
+
+  ⊨ §greet' is a valid cell definition
+  ⊨ §greet' has same given/yield signature as «§greet»

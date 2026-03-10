@@ -1,0 +1,50 @@
+⊢ tokenize ▸ crystallized
+  given text ≡ "hello world"
+  yield tokens[]
+
+  ⊢= tokens ← split(«text», " ")
+
+  ⊨ tokens is a list of strings
+
+⊢ count
+  given tokenize→tokens
+  yield n
+
+  ∴ Count the elements in «tokenize→tokens».
+
+  ⊨ n = len(«tokenize→tokens»)
+
+⊢ describe
+  given tokenize→tokens
+  given count→n
+  yield summary
+
+  ∴ Write a one-sentence summary: "Found «count→n» tokens: «tokenize→tokens»."
+
+  ⊨ summary contains str(«count→n»)
+  ⊨ summary is one sentence
+
+―――――――――――――――――――――――――――――――
+eval-one step 0 → step 1:
+  Ready cells: [tokenize] (text≡"hello world" is bound, cell is crystallized)
+  Execute: tokenize (⊢= — no LLM needed)
+  Result: tokens ≡ ["hello", "world"]
+  Cost: 0 tokens (deterministic)
+  Hash: h0 → h1
+
+eval-one step 1 → step 2:
+  Ready cells: [count] (tokenize→tokens≡["hello","world"] is bound)
+  Execute: count (∴ — LLM call)
+  Result: n ≡ 2
+  Cost: ~50 tokens
+  Hash: h1 → h2
+
+eval-one step 2 → step 3:
+  Ready cells: [describe] (tokenize→tokens and count→n both bound)
+  Execute: describe (∴ — LLM call)
+  Result: summary ≡ "Found 2 tokens: hello, world."
+  Cost: ~100 tokens
+  Hash: h2 → h3
+
+is-done: all yields bound → done ≡ true
+Total LLM cost: ~150 tokens (tokenize was free)

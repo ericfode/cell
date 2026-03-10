@@ -1,0 +1,11 @@
+λ greet : name → message
+  ∴ Greet the person called «name» with a warm,
+    friendly hello. One sentence only.
+  ⊨ «name» ∈ message
+  ⊨ |sentences(message)| = 1
+
+λ wrap : greet.message → text, emoji
+  ∴ Pass «greet.message» through as text unchanged.
+    Choose one emoji that matches the greeting's mood.
+  ⊨ text = «greet.message»
+  ⊨ emoji ∈ Unicode.Emoji ∧ |emoji| = 1

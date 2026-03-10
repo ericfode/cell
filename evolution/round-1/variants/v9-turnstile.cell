@@ -1,0 +1,20 @@
+⊢ greet
+  given name
+  yield message
+
+  ∴ Greet the person called «name» with a warm,
+    friendly hello. One sentence only.
+
+  ⊨ message contains «name»
+  ⊨ message is exactly one sentence
+
+⊢ wrap
+  given greet→message
+  yield text, emoji
+
+  ∴ Take «greet→message» and pass it through unchanged
+    as text. Choose a single emoji that fits the mood
+    of the greeting.
+
+  ⊨ text = «greet→message»
+  ⊨ emoji is a single unicode emoji character

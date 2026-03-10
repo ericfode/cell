@@ -1,0 +1,19 @@
+── greet ──────────────────────────
+│ name → message
+│
+│ Greet the person by name.
+│ Produce a friendly hello message.
+│
+│ ✓ message is a single sentence
+│ ✓ message contains the name
+──────────────────────────────────
+
+── wrap ───────────────────────────
+│ greet.message → text, emoji
+│
+│ Take the greeting and wrap it
+│ with an appropriate emoji.
+│
+│ ✓ text equals the original message
+│ ✓ emoji is a single unicode emoji
+──────────────────────────────────

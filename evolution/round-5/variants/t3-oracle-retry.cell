@@ -1,0 +1,14 @@
+⊢ haiku
+  given topic ≡ "autumn leaves"
+  yield poem
+
+  ∴ Write a haiku about «topic».
+    A haiku has exactly 3 lines:
+    line 1 = 5 syllables, line 2 = 7 syllables, line 3 = 5 syllables.
+
+  ⊨ poem has exactly 3 lines
+  ⊨ poem line 1 has 5 syllables
+  ⊨ poem line 2 has 7 syllables
+  ⊨ poem line 3 has 5 syllables
+
+  ⊨? retry(3) on failure

@@ -1,0 +1,35 @@
+⊢ greet
+  given name
+  yield message
+
+  ∴ Greet the person called «name» with a warm,
+    friendly hello. One sentence only.
+
+  ⊨ message contains «name»
+  ⊨ message is exactly one sentence
+
+⊢ judge
+  given greet→message
+  yield quality, spawn
+
+  ∴ Read «greet→message». Judge whether this greeting
+    is warm enough. If it scores below 7/10, spawn a
+    new cell called "retry" that tries again with more
+    enthusiasm. Output quality as a number 1-10.
+    Output spawn as either a new ⊢ block or empty.
+
+  ⊨ quality is an integer 1-10
+  ⊨ spawn is either empty or a valid ⊢ cell definition
+
+⊢ wrap
+  given greet→message
+  given judge→quality
+  yield text, emoji
+
+  ∴ Take «greet→message» and pass it through as text.
+    Choose an emoji that reflects the quality score
+    «judge→quality» — more enthusiastic emoji for
+    higher scores.
+
+  ⊨ text = «greet→message»
+  ⊨ emoji is a single unicode emoji

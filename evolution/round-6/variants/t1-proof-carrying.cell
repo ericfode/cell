@@ -1,0 +1,35 @@
+⊢ solve
+  given equation ≡ "2x + 3 = 11"
+  yield x, proof[]
+
+  ∴ Solve «equation» for x. Show your work as a
+    list of algebraic steps, each of the form
+    "operation: resulting equation".
+
+  ⊨ x is a number
+  ⊨ proof is a list of steps
+  ⊨ proof[0] starts from «equation»
+  ⊨ each proof[k] follows from proof[k-1] by a valid algebraic operation
+  ⊨ proof[-1] is of the form "x = «x»"
+
+⊢ check-proof ▸ crystallized
+  given solve→x
+  given solve→proof
+  given equation ≡ "2x + 3 = 11"
+  yield valid, errors[]
+
+  ⊢= valid ← verify_algebra_chain(proof, equation, x)
+
+  ⊨ valid is a boolean
+  ⊨ if valid then errors is empty
+  ⊨ if not valid then errors lists specific step failures
+
+⊢ substitute ▸ crystallized
+  given solve→x
+  given equation ≡ "2x + 3 = 11"
+  yield holds
+
+  ⊢= holds ← eval(lhs, x=solve→x) == eval(rhs, x=solve→x)
+
+  ⊨ holds is a boolean
+  ⊨ holds = true (if solve is correct)

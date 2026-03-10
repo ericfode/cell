@@ -1,0 +1,25 @@
+theorem greet
+  assume name : String
+  show message : String
+
+  proof:
+    Greet the person called «name» with a warm,
+    friendly hello. One sentence only.
+
+  check:
+    «name» appears in message
+    message is exactly one sentence
+
+
+theorem wrap
+  assume greet→message : String
+  show text : String
+  show emoji : String
+
+  proof:
+    Pass «greet→message» through unchanged as text.
+    Choose a single emoji that matches the mood.
+
+  check:
+    text equals «greet→message»
+    emoji is a single unicode emoji

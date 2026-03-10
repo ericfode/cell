@@ -1,0 +1,45 @@
+⊢ add
+  given a ≡ 3
+  given b ≡ 5
+  yield sum
+
+  ∴ Compute «a» + «b».
+
+  ⊨ sum = «a» + «b»
+
+⊢ double
+  given add→sum
+  yield result
+
+  ∴ Compute «add→sum» × 2.
+
+  ⊨ result = «add→sum» × 2
+
+⊢ format
+  given double→result
+  yield text
+
+  ∴ Format «double→result» as "The answer is «double→result»."
+
+  ⊨ text = "The answer is " + str(«double→result») + "."
+
+―――――――――――――――――――――――――――――――
+eval-one step 0 → step 1:
+  Ready cells: [add] (a≡3 and b≡5 are bound)
+  Execute: add
+  Result: sum ≡ 8
+  Hash: h0 → h1
+
+eval-one step 1 → step 2:
+  Ready cells: [double] (add→sum≡8 is now bound)
+  Execute: double
+  Result: result ≡ 16
+  Hash: h1 → h2
+
+eval-one step 2 → step 3:
+  Ready cells: [format] (double→result≡16 is now bound)
+  Execute: format
+  Result: text ≡ "The answer is 16."
+  Hash: h2 → h3
+
+is-done: all yields bound → done ≡ true

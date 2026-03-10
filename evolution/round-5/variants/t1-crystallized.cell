@@ -1,0 +1,26 @@
+⊢ word-count
+  given text
+  yield count
+
+  ∴ Count the number of words in «text».
+
+  ⊨ count is a non-negative integer
+  ⊨ count = number of whitespace-separated tokens in «text»
+
+⊢ word-count ▸ crystallized
+  given text
+  yield count
+
+  ⊢= split(«text», " ").length
+
+  ⊨ count is a non-negative integer
+  ⊨ count = number of whitespace-separated tokens in «text»
+
+⊢ word-count ▸▸ verified
+  given text ≡ "The quick brown fox jumps over the lazy dog"
+  yield count ≡ 9
+
+  ⊢= split(«text», " ").length
+
+  ⊨ count is a non-negative integer ✓
+  ⊨ count = number of whitespace-separated tokens in «text» ✓

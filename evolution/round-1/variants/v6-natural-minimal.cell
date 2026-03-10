@@ -1,0 +1,13 @@
+cell greet
+  in: name
+  out: message
+  do: Greet {name} warmly in one sentence.
+  ok: message mentions {name}
+  ok: message is one sentence
+
+cell wrap
+  in: greet.message
+  out: text, emoji
+  do: Pass the message through and pick an emoji for it.
+  ok: text is {greet.message} unchanged
+  ok: emoji is a single emoji

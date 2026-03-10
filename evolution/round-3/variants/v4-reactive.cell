@@ -1,0 +1,41 @@
+⊢ big-mess
+  given query
+  yield answer, sources, confidence
+
+  ∴ Research «query», find sources, synthesize an answer,
+    and rate your confidence 1-10.
+
+  ⊨ answer addresses «query»
+  ⊨ sources is a list of URLs
+  ⊨ confidence is an integer 1-10
+
+⊢ factor
+  given §target
+  yield cells[]
+  when §target is bound
+
+  ∴ Read «§target». This cell does too many things.
+    Split it into smaller cells that each do one thing.
+    Output the new cell definitions.
+
+  ⊨ each cell in cells has exactly one yield
+  ⊨ composing cells reproduces §target's behavior
+
+⊢ run
+  given query
+  given factored[]
+  when factored is bound, query is bound
+  yield answer, sources, confidence
+
+  ∴ Execute the cells from «factored» in order,
+    passing «query» as input. Collect their outputs
+    into answer, sources, and confidence.
+
+  ⊨ answer addresses «query»
+  ⊨ sources is a list of URLs
+  ⊨ confidence is an integer 1-10
+
+―――――――――――――――――――――――――――――――
+factor.target ← §big-mess
+run.query ← "What is Cell?"
+run.factored ← factor→cells

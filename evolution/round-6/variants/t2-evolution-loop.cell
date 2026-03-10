@@ -1,0 +1,37 @@
+⊢ greet
+  given name
+  yield message
+
+  ∴ Greet «name» warmly. One sentence only.
+
+  ⊨ message contains «name»
+  ⊨ message is exactly one sentence
+
+⊢ judge
+  given §cell
+  given cell→message
+  yield quality, feedback
+
+  ∴ Rate «cell→message» on warmth 1-10.
+    Provide specific feedback on what to improve.
+
+  ⊨ quality is an integer 1-10
+  ⊨ feedback is a string
+
+⊢ improve
+  given §cell
+  given judge→feedback
+  yield §cell'
+
+  ∴ Rewrite «§cell»'s ∴ block to address «judge→feedback».
+    Keep the same given/yield/⊨ structure.
+
+  ⊨ §cell' has same given/yield signature as «§cell»
+  ⊨ §cell' has same ⊨ oracles as «§cell»
+
+⊢∘ evolve(greet, name ≡ "Alice")
+  through judge, improve
+  until judge→quality ≥ 7
+  max 5
+
+  ⊨ final cell scores ≥ 7 on warmth

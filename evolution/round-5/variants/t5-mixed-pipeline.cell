@@ -1,0 +1,29 @@
+⊢ tokenize ▸ crystallized
+  given text ≡ "The quick brown fox"
+  yield tokens[]
+
+  ⊢= tokens ← split(«text», " ")
+
+  ⊨ tokens is a list of strings
+  ⊨ join(tokens, " ") = «text»
+
+⊢ analyze
+  given tokenize→tokens
+  yield sentiment, key-words[]
+
+  ∴ Analyze the tokens «tokenize→tokens».
+    Determine overall sentiment (positive/negative/neutral)
+    and extract key words (nouns and verbs).
+
+  ⊨ sentiment is one of "positive", "negative", "neutral"
+  ⊨ each key-word appears in «tokenize→tokens»
+
+⊢ format ▸ crystallized
+  given analyze→sentiment
+  given analyze→key-words
+  yield report
+
+  ⊢= report ← "Sentiment: " + sentiment + "\nKeywords: " + join(key-words, ", ")
+
+  ⊨ report contains sentiment
+  ⊨ report contains each key-word

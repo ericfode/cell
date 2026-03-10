@@ -1,0 +1,9 @@
+greet: name ⟶ message
+  「Greet the person by name. Produce a friendly hello.」
+  ◈ message contains name
+  ◈ message is one sentence
+
+wrap: greet.message ⟶ text, emoji
+  「Take the greeting, pass through as text, pick an emoji.」
+  ◈ text == greet.message
+  ◈ emoji is one unicode emoji

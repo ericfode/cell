@@ -1,0 +1,23 @@
+⊢ sort
+  given items[] ≡ [5, 3, 8, 1, 9, 2, 7, 4, 6]
+  yield sorted[]
+
+  ∴ Sort «items» in ascending order.
+
+  ⊨ sorted is in ascending order
+  ⊨ sorted has same length as «items»
+  ⊨ sorted is a permutation of «items»
+
+⊢ verify
+  given sort→sorted
+  given original[] ≡ [5, 3, 8, 1, 9, 2, 7, 4, 6]
+  yield ok, violations[]
+
+  ∴ Check that «sort→sorted» is correct:
+    1. Every element ≤ the next element.
+    2. Contains exactly the same elements as «original».
+    Report ok=true if both hold, otherwise list violations.
+
+  ⊨ ok is a boolean
+  ⊨ if ok then violations is empty
+  ⊨ if not ok then each violation describes a specific failure
