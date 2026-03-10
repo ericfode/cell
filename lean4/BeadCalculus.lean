@@ -6,3 +6,4 @@ import BeadCalculus.ProcessModel
 import BeadCalculus.Spreadsheet
 import BeadCalculus.Unified
 import BeadCalculus.GasCity
+import BeadCalculus.GraphOps
