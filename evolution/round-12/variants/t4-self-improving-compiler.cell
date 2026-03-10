@@ -1,0 +1,189 @@
+⊢ source-program
+  yield §source
+
+  ⊢= §source ← §(
+    ⊢ greet
+      given name
+      yield message
+
+      ∴ Write a greeting for «name».
+        Make it warm and professional.
+
+      ⊨ message mentions «name»
+      ⊨ message is 1-2 sentences
+
+    ⊢ respond
+      given greet→message
+      given tone ≡ "formal"
+      yield reply
+
+      ∴ Write a «tone» reply to «message».
+
+      ⊨ reply matches «tone»
+
+    ⊢ log
+      given greet→message
+      given respond→reply
+      yield entry
+
+      ⊢= entry ← {timestamp: now(), input: message, output: reply}
+  )
+
+⊢ parse
+  given source-program→§source
+  yield ast, cell-count, dependency-edges[]
+
+  ∴ Parse «§source» into an abstract syntax tree.
+    Each cell becomes an AST node with:
+    - name, type (⊢ or ⊢=), givens[], yields[], body, oracles[]
+    Each dependency (given x→y) becomes an edge in «dependency-edges».
+
+  ⊢= cell-count ← count(cells in §source)
+
+  ⊨ cell-count = 3 (greet, respond, log)
+  ⊨ dependency-edges contains {from: "greet", to: "respond", field: "message"}
+  ⊨ dependency-edges contains {from: "greet", to: "log", field: "message"}
+  ⊨ dependency-edges contains {from: "respond", to: "log", field: "reply"}
+  ⊨ each AST node has: name, type, givens[], yields[], body, oracles[]
+
+  ⊨? on failure:
+    retry with «oracle.failures» appended to prompt
+    max 2
+
+  ⊨? on exhaustion:
+    error-value(⊥)
+
+⊢ analyze
+  given parse→ast
+  given parse→dependency-edges
+  yield optimization-opportunities[], warnings[]
+
+  ∴ Analyze the AST for:
+    1. Cells that could be crystallized (their ∴ body is deterministic)
+    2. Redundant oracle checks (tautological on ⊢= cells)
+    3. Missing ⊥ propagation handlers (cells with soft upstream dependencies)
+    4. Unreachable cells (no path from roots)
+    5. Oracle coverage gaps (cells with no oracles)
+
+  ⊨ optimization-opportunities is non-empty (log cell could be crystallized)
+  ⊨ each opportunity has: cell-name, type (crystallize/remove-oracle/add-bottom-handler/etc.), reasoning
+  ⊨ warnings includes "respond has no ⊥ handler for greet→message"
+
+  given parse→ast ⊥? skip with optimization-opportunities ≡ [], warnings ≡ ["Parse failed — cannot analyze"]
+
+⊢ transform-crystallize
+  given parse→ast
+  given analyze→optimization-opportunities
+  yield §transformed-ast, changes-made[]
+
+  ∴ Apply crystallization opportunities from «optimization-opportunities».
+    For each cell that can be crystallized:
+    - Change its type from ⊢ to ⊢=
+    - Convert its ∴ body to a ⊢= formula
+    - Remove oracles that become tautological after crystallization
+    Do NOT change cells that genuinely require LLM execution.
+
+  ⊨ changes-made lists each transformation with before/after
+  ⊨ §transformed-ast preserves all dependency edges
+  ⊨ log cell in §transformed-ast has type ⊢= (it was already deterministic)
+  ⊨ greet cell in §transformed-ast still has type ⊢ (it requires LLM)
+
+  given analyze→optimization-opportunities ⊥? skip with §transformed-ast ≡ parse→ast, changes-made ≡ []
+
+  ⊨? on failure:
+    retry with «oracle.failures» appended to prompt
+    max 2
+
+  ⊨? on exhaustion:
+    partial-accept(best)
+
+⊢ transform-add-handlers
+  given transform-crystallize→§transformed-ast
+  given analyze→warnings
+  yield §hardened-ast, handlers-added[]
+
+  ∴ For each warning about missing ⊥ handlers in «warnings»:
+    - Add a ⊥? skip with clause to the affected cell
+    - Choose appropriate default values for the skip-with
+    - The default should be safe (fail-closed, not fail-open)
+
+  ⊨ handlers-added lists each handler with: cell-name, given-edge, skip-with-values
+  ⊨ respond cell in §hardened-ast has ⊥? handler for greet→message
+  ⊨ skip-with values are fail-safe (e.g., reply ≡ "Error: upstream failed")
+
+  given transform-crystallize→§transformed-ast ⊥? skip with §hardened-ast ≡ parse→ast, handlers-added ≡ []
+  given analyze→warnings ⊥? skip with §hardened-ast ≡ transform-crystallize→§transformed-ast, handlers-added ≡ []
+
+  ⊨? on failure:
+    retry with «oracle.failures» appended to prompt
+    max 1
+
+  ⊨? on exhaustion:
+    partial-accept(best)
+
+⊢ emit
+  given transform-add-handlers→§hardened-ast
+  given parse→cell-count
+  yield output-program, diff-summary
+
+  ∴ Convert «§hardened-ast» back into Cell syntax.
+    The output should be valid Cell that could be parsed again.
+    Write a «diff-summary» showing what changed from the original.
+
+  ⊨ output-program contains exactly «cell-count» cell definitions
+  ⊨ output-program is syntactically valid Cell
+  ⊨ diff-summary mentions each transformation applied
+  ⊨ log cell in output-program uses ⊢= (was crystallized)
+  ⊨ respond cell in output-program has ⊥? handler (was hardened)
+
+  given transform-add-handlers→§hardened-ast ⊥? skip with output-program ≡ source-program→§source, diff-summary ≡ "No transformations applied (upstream failures)"
+
+  ⊨? on failure:
+    retry with «oracle.failures» appended to prompt
+    max 2
+
+  ⊨? on exhaustion:
+    error-value(⊥)
+
+⊢ verify-roundtrip
+  given source-program→§source
+  given emit→output-program
+  yield preserves-semantics, preserves-structure, improvements[]
+
+  ∴ Compare «§source» (original) with «output-program» (improved).
+    Check that:
+    1. All cells are present (same names, same count)
+    2. All dependency edges are preserved
+    3. All oracles are preserved (none removed except tautological ones)
+    4. The improvements are genuine (crystallization, ⊥ handlers)
+
+  ⊢= preserves-structure ← cell-count(§source) = cell-count(output-program)
+
+  ⊨ preserves-semantics is true (output-program could replace §source)
+  ⊨ improvements lists at least 2 items (crystallize log + add ⊥ handler)
+  ⊨ if ¬preserves-structure then improvements mentions what was added/removed
+
+  given emit→output-program ⊥? skip with preserves-semantics ≡ false, preserves-structure ≡ false, improvements ≡ []
+
+⊢ meta-report
+  given verify-roundtrip→preserves-semantics
+  given verify-roundtrip→improvements
+  given emit→diff-summary
+  given analyze→optimization-opportunities
+  given analyze→warnings
+  yield report, compiler-quality
+
+  ⊢= compiler-quality ← if preserves-semantics ∧ length(improvements) ≥ 2 then "good"
+                          else if preserves-semantics then "adequate"
+                          else "broken"
+
+  ∴ Write a «report» summarizing the self-improving compiler's run:
+    - What optimizations were identified
+    - What transformations were applied
+    - Whether the output preserves the original's semantics
+    - Whether the compiler itself could be improved (meta-meta-analysis)
+
+  ⊨ report mentions each optimization opportunity
+  ⊨ report mentions the roundtrip verification result
+  ⊨ compiler-quality ∈ {"good", "adequate", "broken"}
+  ⊨ if compiler-quality = "good" then report concludes positively

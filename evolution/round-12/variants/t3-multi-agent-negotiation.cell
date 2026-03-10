@@ -1,0 +1,218 @@
+⊢ setup
+  given item ≡ "Industrial warehouse, 50,000 sqft, downtown district"
+  given buyer-budget ≡ 800000
+  given seller-minimum ≡ 950000
+  given max-rounds ≡ 5
+  yield negotiation-context, deadzone
+
+  ⊢= deadzone ← seller-minimum - buyer-budget
+
+  ∴ Establish «negotiation-context»: describe the property, the market conditions,
+    and any relevant factors that might affect negotiation. Note that the buyer's
+    budget («buyer-budget») is below the seller's minimum («seller-minimum»),
+    creating a «deadzone» of $«deadzone» that must be bridged through creative terms.
+
+  ⊨ negotiation-context mentions the property and both parties' constraints
+  ⊨ deadzone = 150000
+
+⊢ buyer-strategy
+  given setup→negotiation-context
+  given setup→buyer-budget
+  yield opening-offer, strategy, concessions[]
+
+  ∴ As the BUYER's advisor, develop a negotiation strategy for «negotiation-context».
+    Budget is $«buyer-budget». You know the market but NOT the seller's minimum.
+    «opening-offer» should be below budget (leave room to negotiate).
+    «strategy» describes the approach (aggressive, collaborative, etc.).
+    «concessions» lists things the buyer could offer beyond price (quick close,
+    as-is purchase, leaseback, etc.).
+
+  ⊨ opening-offer < buyer-budget
+  ⊨ opening-offer > 0
+  ⊨ concessions has at least 2 items
+  ⊨ strategy is 2-4 sentences
+
+⊢ seller-strategy
+  given setup→negotiation-context
+  given setup→seller-minimum
+  yield asking-price, strategy, walk-away-triggers[]
+
+  ∴ As the SELLER's advisor, develop a negotiation strategy for «negotiation-context».
+    Minimum acceptable price is $«seller-minimum». You know the market but NOT
+    the buyer's budget. «asking-price» should be above minimum (leave room).
+    «walk-away-triggers» lists conditions that would cause seller to abandon negotiation.
+
+  ⊨ asking-price > seller-minimum
+  ⊨ walk-away-triggers has at least 2 items
+  ⊨ strategy is 2-4 sentences
+
+⊢ mediator-assessment
+  given setup→negotiation-context
+  given setup→deadzone
+  yield feasibility, bridging-strategies[]
+
+  ⊢= feasibility ← if deadzone ≤ 100000 then "likely" else if deadzone ≤ 200000 then "possible" else "unlikely"
+
+  ∴ As an impartial MEDIATOR, assess the negotiation feasibility.
+    The price gap is $«deadzone». Identify «bridging-strategies» — creative ways
+    to bridge the gap (seller financing, earnouts, phased closing, etc.).
+
+  ⊨ feasibility ∈ {"likely", "possible", "unlikely"}
+  ⊨ bridging-strategies has at least 3 items
+  ⊨ each bridging-strategy explains how it reduces the effective gap
+
+⊢ round-1
+  given buyer-strategy→opening-offer
+  given buyer-strategy→concessions
+  given seller-strategy→asking-price
+  given seller-strategy→walk-away-triggers
+  given mediator-assessment→bridging-strategies
+  yield buyer-offer-1, seller-counter-1, round-1-status
+
+  ∴ ROUND 1:
+    Buyer opens at $«opening-offer». Seller sees this and responds.
+    If the offer is below any walk-away trigger, seller may reject (⊥).
+    Otherwise, seller counters with a price and terms.
+    Mediator suggests a bridging strategy if the gap is large.
+
+  ⊢= round-1-status ← if seller-counter-1 = ⊥ then "rejected"
+                        else if |buyer-offer-1 - seller-counter-1| < 50000 then "close"
+                        else "ongoing"
+
+  ⊨ buyer-offer-1 = opening-offer (buyer leads with their planned offer)
+  ⊨ seller-counter-1 ≠ ⊥ → seller-counter-1 ≤ asking-price
+  ⊨ round-1-status ∈ {"rejected", "close", "ongoing"}
+
+  ⊨? on failure:
+    retry with «oracle.failures» appended to prompt
+    max 1
+
+  ⊨? on exhaustion:
+    error-value(⊥)
+
+⊢ round-2
+  given round-1→buyer-offer-1
+  given round-1→seller-counter-1
+  given round-1→round-1-status
+  given buyer-strategy→concessions
+  given mediator-assessment→bridging-strategies
+  yield buyer-offer-2, seller-counter-2, round-2-status, terms-offered[]
+
+  given round-1→round-1-status ⊥? skip with buyer-offer-2 ≡ ⊥, seller-counter-2 ≡ ⊥, round-2-status ≡ "collapsed", terms-offered ≡ []
+  given round-1→seller-counter-1 ⊥? skip with buyer-offer-2 ≡ ⊥, seller-counter-2 ≡ ⊥, round-2-status ≡ "collapsed", terms-offered ≡ []
+
+  ∴ ROUND 2:
+    If round-1-status = "rejected", negotiation is over (⊥).
+    If round-1-status = "close", buyer raises slightly, seller lowers slightly.
+    If round-1-status = "ongoing":
+      Buyer raises offer and adds concessions from «concessions».
+      Seller lowers counter. Mediator introduces a bridging strategy.
+      «terms-offered» lists non-price terms now on the table.
+
+  ⊢= round-2-status ← if round-1-status = "rejected" then "collapsed"
+                        else if |buyer-offer-2 - seller-counter-2| < 25000 then "near-deal"
+                        else "ongoing"
+
+  ⊨ buyer-offer-2 > buyer-offer-1 (buyer must raise each round)
+  ⊨ seller-counter-2 < seller-counter-1 (seller must lower each round)
+  ⊨ round-2-status ∈ {"collapsed", "near-deal", "ongoing"}
+
+  ⊨? on failure:
+    retry with «oracle.failures» appended to prompt
+    max 1
+
+  ⊨? on exhaustion:
+    partial-accept(best)
+
+⊢ round-3
+  given round-2→buyer-offer-2
+  given round-2→seller-counter-2
+  given round-2→round-2-status
+  given round-2→terms-offered
+  given mediator-assessment→bridging-strategies
+  given seller-strategy→walk-away-triggers
+  yield buyer-offer-3, seller-counter-3, round-3-status, creative-terms
+
+  given round-2→round-2-status ⊥? skip with buyer-offer-3 ≡ ⊥, seller-counter-3 ≡ ⊥, round-3-status ≡ "collapsed", creative-terms ≡ ⊥
+
+  ∴ ROUND 3 — CRUNCH TIME:
+    If still "ongoing", the gap must narrow significantly or the deal dies.
+    Mediator's bridging strategies should be actively deployed.
+    «creative-terms» is a structured package (e.g., "$X price + seller financing
+    of $Y at Z% over N years + leaseback for M months").
+
+    The buyer and seller each make their best realistic offers.
+    Walk-away triggers are checked — if any trigger fires, seller counters with ⊥.
+
+  ⊢= round-3-status ← if seller-counter-3 = ⊥ then "walked-away"
+                        else if buyer-offer-3 ≥ seller-counter-3 then "deal"
+                        else if |buyer-offer-3 - seller-counter-3| < 10000 then "split-the-difference"
+                        else "impasse"
+
+  ⊨ round-3-status ∈ {"walked-away", "deal", "split-the-difference", "impasse"}
+  ⊨ if round-3-status = "deal" then buyer-offer-3 ≥ seller-counter-3
+  ⊨ creative-terms mentions at least one bridging strategy
+
+  ⊨? on failure:
+    retry with «oracle.failures» appended to prompt
+    max 2
+
+  ⊨? on exhaustion:
+    error-value(⊥)
+
+⊢ resolution
+  given round-3→round-3-status
+  given round-3→buyer-offer-3
+  given round-3→seller-counter-3
+  given round-3→creative-terms
+  given setup→buyer-budget
+  given setup→seller-minimum
+  given setup→deadzone
+  yield outcome, final-price, final-terms, analysis
+
+  given round-3→round-3-status ⊥? skip with outcome ≡ "FAILED", final-price ≡ ⊥, final-terms ≡ ⊥, analysis ≡ "Negotiation collapsed before resolution"
+
+  ⊢= final-price ← if round-3-status = "deal" then buyer-offer-3
+                     else if round-3-status = "split-the-difference" then (buyer-offer-3 + seller-counter-3) / 2
+                     else ⊥
+
+  ⊢= outcome ← if final-price ≠ ⊥ then "DEAL" else "NO-DEAL"
+
+  ∴ Write a negotiation «analysis» covering:
+    - How the deadzone ($«deadzone») was (or wasn't) bridged
+    - Which bridging strategies were effective
+    - Whether the final price is within buyer's budget and above seller's minimum
+    - If the deal includes creative terms, how they affect the effective price
+    - Lessons for future negotiations
+
+  ⊨ if outcome = "DEAL" then final-price is a number
+  ⊨ if outcome = "DEAL" then analysis explains how the deadzone was bridged
+  ⊨ if outcome = "NO-DEAL" then analysis explains why the gap couldn't be closed
+  ⊨ analysis is 3-5 paragraphs
+
+⊢ post-mortem
+  given resolution→outcome
+  given resolution→final-price
+  given resolution→analysis
+  given setup→buyer-budget
+  given setup→seller-minimum
+  yield buyer-satisfaction, seller-satisfaction, efficiency-score, verdict
+
+  ⊢= buyer-satisfaction ← if final-price = ⊥ then 0
+                           else if final-price ≤ buyer-budget then 100
+                           else max(0, 100 - ((final-price - buyer-budget) / buyer-budget) * 100)
+
+  ⊢= seller-satisfaction ← if final-price = ⊥ then 0
+                            else if final-price ≥ seller-minimum then 100
+                            else max(0, 100 - ((seller-minimum - final-price) / seller-minimum) * 100)
+
+  ⊢= efficiency-score ← if outcome = "NO-DEAL" then 0
+                         else (buyer-satisfaction + seller-satisfaction) / 2
+
+  ∴ Write a one-paragraph «verdict» on whether the negotiation process was
+    effective. Reference the satisfaction scores and efficiency.
+
+  ⊨ buyer-satisfaction ∈ [0, 100]
+  ⊨ seller-satisfaction ∈ [0, 100]
+  ⊨ efficiency-score ∈ [0, 100]
+  ⊨ verdict mentions both parties' satisfaction

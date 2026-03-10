@@ -1,0 +1,178 @@
+⊢ seed
+  given topic ≡ "What causes antibiotic resistance to spread between bacterial species?"
+  yield hypothesis, key-terms[], knowledge-gaps[]
+
+  ∴ Given «topic», formulate an initial «hypothesis» (1-2 sentences).
+    Identify 5 «key-terms» for literature search.
+    Identify 3 «knowledge-gaps» — specific questions the hypothesis doesn't answer.
+
+  ⊨ hypothesis is 1-2 sentences
+  ⊨ key-terms has exactly 5 items
+  ⊨ knowledge-gaps has exactly 3 items
+  ⊨ each knowledge-gap is a question (ends with ?)
+
+⊢⊢ search
+  given seed→key-terms
+  yield §queries[]
+  until all key-terms processed
+  max 5
+
+  ∴ For each key-term in «seed→key-terms», spawn a search cell that:
+    - Formulates 2 search queries using the key-term
+    - Simulates finding 3 relevant paper abstracts per query
+    - Yields: papers[] (title, abstract, relevance-score)
+
+  ⊨ §queries has same length as «seed→key-terms»
+  ⊨ each query yields papers[] with at least 2 entries
+
+⊢ extract-evidence
+  given search→§queries
+  given seed→hypothesis
+  yield supporting[], contradicting[], neutral[]
+
+  ∴ Across all papers from «search→§queries», classify each paper as
+    supporting, contradicting, or neutral relative to «seed→hypothesis».
+    For each paper, extract the key claim and its relationship to the hypothesis.
+
+  ⊨ supporting + contradicting + neutral = total papers found
+  ⊨ each entry has: paper-title, key-claim, relationship-reasoning
+  ⊨ if contradicting is non-empty then at least one has specific counter-evidence
+
+  ⊨? on failure:
+    retry with «oracle.failures» appended to prompt
+    max 2
+
+  ⊨? on exhaustion:
+    partial-accept(best)
+
+⊢ assess-gaps
+  given extract-evidence→supporting
+  given extract-evidence→contradicting
+  given seed→knowledge-gaps
+  yield filled-gaps[], remaining-gaps[], new-gaps[]
+
+  ∴ Check which of «seed→knowledge-gaps» are answered by the evidence.
+    A gap is "filled" if supporting or contradicting evidence directly addresses it.
+    Identify any «new-gaps» that emerged from the evidence (unexpected findings).
+
+  ⊢= filled-gaps ← filter(knowledge-gaps, g => any(supporting ++ contradicting, e => e.addresses(g)))
+  ⊢= remaining-gaps ← knowledge-gaps - filled-gaps
+
+  ⊨ filled-gaps ∪ remaining-gaps = seed→knowledge-gaps
+  ⊨ each new-gap is a question not in original knowledge-gaps
+
+⊢∘ refine-hypothesis
+  given seed→hypothesis
+  given extract-evidence→supporting
+  given extract-evidence→contradicting
+  given assess-gaps→remaining-gaps
+  given assess-gaps→new-gaps
+  through revise, design-experiments, run-experiments, update-evidence
+  until remaining-gaps is empty ∨ confidence ≥ 0.8
+  max 3
+  yield refined-hypothesis, confidence, revision-log[]
+
+⊢ revise
+  given §current-hypothesis
+  given contradicting[]
+  given remaining-gaps[]
+  yield §revised-hypothesis, revision-reasoning
+
+  ∴ Revise «§current-hypothesis» to account for «contradicting» evidence.
+    Address «remaining-gaps» where possible.
+    The revised hypothesis must be falsifiable and more specific than the original.
+    Preserve the given/yield/⊨ signature of the hypothesis cell.
+
+  ⊨ §revised-hypothesis is more specific than §current-hypothesis
+  ⊨ revision-reasoning explains each change with evidence citations
+  ⊨ §revised-hypothesis has same given/yield signature as §current-hypothesis
+
+  ⊨? on failure:
+    retry with «oracle.failures» appended to prompt
+    max 2
+
+  ⊨? on exhaustion:
+    partial-accept(best)
+
+⊢⊢ design-experiments
+  given assess-gaps→remaining-gaps
+  given assess-gaps→new-gaps
+  given revise→§revised-hypothesis
+  yield §experiments[]
+  until all gaps have experiments
+  max 6
+
+  ∴ For each gap in «remaining-gaps» ∪ «new-gaps», design a thought experiment
+    that could resolve the gap. Each experiment:
+    - States a testable prediction derived from «§revised-hypothesis»
+    - Describes what evidence would confirm or refute the prediction
+    - Yields: prediction, confirming-evidence-type, refuting-evidence-type, result
+
+  ⊨ §experiments has at least length(remaining-gaps) items
+  ⊨ each experiment has a testable prediction
+
+⊢⊢ run-experiments
+  given design-experiments→§experiments
+  yield §results[]
+  until all experiments processed
+  max 6
+
+  ∴ For each experiment in «§experiments», simulate running it:
+    - Generate plausible «result» based on current scientific knowledge
+    - Classify result as: confirms, refutes, or inconclusive
+    - Rate confidence in the simulated result (0-100)
+
+  ⊨ §results has same length as «§experiments»
+  ⊨ each result has: classification ∈ {confirms, refutes, inconclusive}, confidence ∈ [0, 100]
+
+  ⊨? on failure:
+    retry with «oracle.failures» appended to prompt
+    max 1
+
+  ⊨? on exhaustion:
+    error-value(⊥)
+
+⊢ update-evidence
+  given run-experiments→§results
+  given extract-evidence→supporting
+  given extract-evidence→contradicting
+  yield updated-supporting[], updated-contradicting[], confidence
+
+  ⊢= confidence ← (length(updated-supporting) / (length(updated-supporting) + length(updated-contradicting) + 1)) * (avg(results.confidence) / 100)
+
+  ∴ Merge experiment results into the evidence base.
+    Results that confirm the hypothesis go into «updated-supporting».
+    Results that refute go into «updated-contradicting».
+    Inconclusive results are noted but not classified.
+
+  ⊨ updated-supporting ⊇ supporting (original evidence preserved)
+  ⊨ updated-contradicting ⊇ contradicting (original evidence preserved)
+  ⊨ confidence ∈ [0.0, 1.0]
+
+  given run-experiments→§results ⊥? skip with updated-supporting ≡ supporting, updated-contradicting ≡ contradicting, confidence ≡ 0.0
+
+⊢ synthesize
+  given refine-hypothesis→refined-hypothesis
+  given refine-hypothesis→confidence
+  given refine-hypothesis→revision-log
+  given extract-evidence→supporting
+  given extract-evidence→contradicting
+  given assess-gaps→filled-gaps
+  given assess-gaps→remaining-gaps
+  yield report, conclusion-strength
+
+  ⊢= conclusion-strength ← if confidence ≥ 0.8 then "strong"
+                            else if confidence ≥ 0.5 then "moderate"
+                            else "weak"
+
+  ∴ Write a research «report» that:
+    - States the final refined hypothesis
+    - Summarizes supporting and contradicting evidence
+    - Lists which knowledge gaps were filled and which remain
+    - Traces the revision history from the original hypothesis
+    - Concludes with the strength of the conclusion
+
+  ⊨ report mentions the original hypothesis and the final refined version
+  ⊨ report cites at least 3 specific pieces of evidence
+  ⊨ report lists remaining gaps (if any)
+  ⊨ conclusion-strength matches the confidence level

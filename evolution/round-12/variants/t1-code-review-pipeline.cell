@@ -1,0 +1,188 @@
+⊢ parse-diff
+  given diff-text ≡ "--- a/auth.py\n+++ b/auth.py\n@@ -42,6 +42,12 @@\n+def verify_token(token):\n+    payload = jwt.decode(token, SECRET_KEY)\n+    user = db.query(f'SELECT * FROM users WHERE id = {payload[\"uid\"]}')\n+    if not user:\n+        return None\n+    return user"
+  yield files-changed[], hunks[], language
+
+  ∴ Parse «diff-text» into structured components.
+    Extract the list of files changed, the individual hunks (additions/deletions),
+    and detect the primary programming language.
+
+  ⊨ files-changed is non-empty
+  ⊨ each hunk has: file, line-start, additions[], deletions[]
+  ⊨ language ∈ {"python", "javascript", "typescript", "rust", "go", "java", "other"}
+
+⊢⊢ analyze
+  given parse-diff→hunks
+  given parse-diff→language
+  yield §reviewers[]
+  until all review-types processed
+  max 6
+
+  ∴ For each review type in [security, performance, correctness, style],
+    spawn a reviewer cell modeled on «§review-template».
+    Each reviewer:
+    - Receives all hunks and the language
+    - Analyzes the code through its specific lens
+    - Yields: findings[], severity (critical/warning/info), confidence (0-100)
+
+  ⊨ §reviewers has exactly 4 items
+  ⊨ each reviewer yields findings[], severity, confidence
+  ⊨ review types are: security, performance, correctness, style
+
+⊢ §review-template
+  given hunks[]
+  given language
+  given review-type
+  yield findings[], severity, confidence
+
+  ∴ Analyze «hunks» for issues related to «review-type» in «language».
+    For each finding, provide:
+    - file and line number
+    - description of the issue
+    - suggested fix
+    Rate overall «severity» and your «confidence» in the findings.
+
+  ⊨ each finding has: file, line, description, suggestion
+  ⊨ severity ∈ {"critical", "warning", "info"}
+  ⊨ confidence ∈ [0, 100]
+
+  ⊨? on failure:
+    retry with «oracle.failures» appended to prompt
+    max 2
+
+  ⊨? on exhaustion:
+    partial-accept(best)
+
+⊢ merge-reviews
+  given analyze→§reviewers
+  yield unified-findings[], has-critical, review-summary
+
+  ⊢= has-critical ← any(reviewers, r => r.severity = "critical")
+
+  ∴ Merge findings from all reviewers into a single «unified-findings» list.
+    Deduplicate findings that reference the same line.
+    Rank by severity (critical > warning > info), then by confidence.
+    Write a «review-summary» paragraph.
+
+  ⊨ unified-findings preserves all critical findings (none dropped)
+  ⊨ unified-findings is sorted by severity then confidence
+  ⊨ review-summary mentions the count of critical/warning/info findings
+
+  ⊨? on failure:
+    retry with «oracle.failures» appended to prompt
+    max 1
+
+  ⊨? on exhaustion:
+    error-value(⊥)
+
+⊢ prioritize
+  given merge-reviews→unified-findings
+  given merge-reviews→has-critical
+  yield action-items[], block-merge
+
+  ⊢= block-merge ← has-critical
+
+  ∴ Convert «unified-findings» into actionable items.
+    If «has-critical» is true, the first action-item must be the critical fix.
+    Each action-item has: priority (1-5), file, description, code-suggestion.
+
+  ⊨ if block-merge then action-items[0].priority = 1
+  ⊨ each action-item has: priority, file, description, code-suggestion
+  ⊨ action-items is sorted by priority ascending
+
+  given merge-reviews→unified-findings ⊥? skip with action-items ≡ [], block-merge ≡ true
+
+⊢⊢ generate-fixes
+  given prioritize→action-items
+  given parse-diff→language
+  yield §fix-cells[]
+  until all action-items processed
+  max 10
+
+  ∴ For each action-item in «prioritize→action-items», spawn a fix cell that:
+    - Takes the action-item's code-suggestion and file
+    - Generates a concrete code patch in «language»
+    - Yields: patch (unified diff format), explanation
+
+  ⊨ §fix-cells has same length as «prioritize→action-items»
+  ⊨ each fix-cell yields patch, explanation
+
+  given prioritize→action-items ⊥? skip with §fix-cells ≡ []
+
+⊢ §fix-template
+  given action-item
+  given language
+  yield patch, explanation
+
+  ∴ Generate a code patch for «action-item» in «language».
+    The «patch» must be in unified diff format.
+    The «explanation» describes why this fix addresses the issue.
+
+  ⊨ patch is valid unified diff format
+  ⊨ explanation references the original issue description
+
+  ⊨? on failure:
+    retry with «oracle.failures» appended to prompt
+    max 2
+
+  ⊨? on exhaustion:
+    error-value(⊥)
+
+⊢ apply-fixes
+  given generate-fixes→§fix-cells
+  given parse-diff→diff-text
+  yield patched-code, applied-count, failed-count
+
+  ⊢= applied-count ← count(fix-cells where patch ≠ ⊥)
+  ⊢= failed-count ← count(fix-cells where patch = ⊥)
+
+  ∴ Apply each fix-cell's «patch» to the original code (reconstructed from «diff-text»).
+    If a patch conflicts with a previous patch, skip it and increment failed-count.
+    Yield the final «patched-code».
+
+  ⊨ applied-count + failed-count = length(generate-fixes→§fix-cells)
+  ⊨ patched-code is syntactically valid «parse-diff→language» code
+
+  given generate-fixes→§fix-cells ⊥? skip with patched-code ≡ ⊥, applied-count ≡ 0, failed-count ≡ 0
+
+⊢⊢ re-analyze
+  given apply-fixes→patched-code
+  given parse-diff→language
+  yield §re-reviewers[]
+  until all review-types processed
+  max 6
+
+  ∴ Re-run the same 4 review types (security, performance, correctness, style)
+    on the «patched-code». Each re-reviewer checks whether the original findings
+    are resolved and whether new issues were introduced.
+    Each yields: resolved-findings[], new-findings[], regression (boolean)
+
+  ⊨ §re-reviewers has exactly 4 items
+  ⊨ each re-reviewer yields resolved-findings[], new-findings[], regression
+
+  given apply-fixes→patched-code ⊥? skip with §re-reviewers ≡ []
+
+⊢ final-verdict
+  given merge-reviews→review-summary
+  given merge-reviews→has-critical
+  given prioritize→block-merge
+  given apply-fixes→applied-count
+  given apply-fixes→failed-count
+  given re-analyze→§re-reviewers
+  yield verdict, report, can-merge
+
+  ⊢= can-merge ← ¬block-merge ∨ (applied-count > 0 ∧ all(re-reviewers, r => ¬r.regression))
+
+  ∴ Write a final «verdict» and «report» for the code review.
+    Include:
+    - Original review summary
+    - Number of fixes applied vs failed
+    - Whether any re-review found regressions
+    - Final merge recommendation
+
+  ⊨ verdict ∈ {"APPROVE", "REQUEST_CHANGES", "BLOCKED"}
+  ⊨ if has-critical ∧ applied-count = 0 then verdict = "BLOCKED"
+  ⊨ if any(re-reviewers, r => r.regression) then verdict = "REQUEST_CHANGES"
+  ⊨ report mentions the SQL injection in the original diff
+
+  given re-analyze→§re-reviewers ⊥? skip with can-merge ≡ false
+  given merge-reviews→review-summary ⊥? skip with verdict ≡ "BLOCKED", report ≡ "Review system failed — manual review required", can-merge ≡ false
