@@ -152,7 +152,7 @@ def TaskGraph.applyOp (g : TaskGraph) (op : GraphOp) : Option TaskGraph :=
     some { nodes := g.nodes.filter (·.spec.name != name) }
   | .rewrite name newSpec =>
     some { nodes := g.nodes.map fun n =>
-      if n.spec.name == name then { n with spec := newSpec } else n }
+      if n.spec.name == name then { n with spec := { newSpec with name := n.spec.name } } else n }
   | .addEdge from_ to_ =>
     some { nodes := g.nodes.map fun n =>
       if n.spec.name == to_ then
@@ -577,15 +577,13 @@ theorem distill_preserves_frozen (g : TaskGraph) (proposal : DistillProposal)
     -- changes the spec, not the execution state).
     let f : TaskNode → TaskNode := fun n =>
       if n.spec.name = proposal.cellName then
-        { spec := { name := nd.spec.name, type := proposal.newType, prompt := proposal.newPrompt,
+        { spec := { name := n.spec.name, type := proposal.newType, prompt := proposal.newPrompt,
                     refs := nd.spec.refs }, state := n.state }
       else n
     show ({ nodes := g.nodes.map f } : TaskGraph).isFrozen name = true
     have hf_name : ∀ n, (f n).spec.name = n.spec.name := by
       intro n; simp only [f]
-      split
-      · rename_i heq; simp [h_nd_name, heq]
-      · rfl
+      split <;> rfl
     have hf_state : ∀ n, (f n).state = n.state := by
       intro n; simp only [f]; split <;> rfl
     rw [isFrozen_preserved_by_map g f hf_name hf_state name]
