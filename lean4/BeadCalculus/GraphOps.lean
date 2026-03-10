@@ -82,6 +82,11 @@ def TaskGraph.isFrontier (g : TaskGraph) (name : String) : Bool :=
   | some n => match n.state with | .unexecuted => true | _ => false
   | none => false
 
+/-- A task graph has unique node names.
+    (Defined early so it can be used as a hypothesis in immutability proofs.) -/
+def TaskGraph.uniqueNames (g : TaskGraph) : Prop :=
+  g.nodeNames.Nodup
+
 -- ═══════════════════════════════════════════════════════════════
 -- SECTION 2: Constrained Graph Operations
 -- ═══════════════════════════════════════════════════════════════
@@ -166,6 +171,98 @@ def TaskGraph.applyOp (g : TaskGraph) (op : GraphOp) : Option TaskGraph :=
 -- SECTION 3: The Immutability Invariant
 -- ═══════════════════════════════════════════════════════════════
 
+/-! Helper lemmas for reasoning about findNode, unique names, and
+    map operations that preserve spec.name. -/
+
+/-- With unique node names, if a node is in the list with a given name,
+    then findNode returns exactly that node. -/
+private theorem findNode_unique (g : TaskGraph) (n : TaskNode) (name : String)
+    (h_unique : g.uniqueNames)
+    (h_mem : n ∈ g.nodes)
+    (h_name : n.spec.name = name) :
+    g.findNode name = some n := by
+  unfold TaskGraph.findNode
+  unfold TaskGraph.uniqueNames TaskGraph.nodeNames at h_unique
+  exact go h_unique h_mem h_name
+where
+  go {l : List TaskNode} {a : TaskNode} {name : String}
+      (h_nodup : (l.map (·.spec.name)).Nodup)
+      (h_mem : a ∈ l) (h_name : a.spec.name = name) :
+      l.find? (fun x => x.spec.name == name) = some a := by
+    induction l with
+    | nil => simp at h_mem
+    | cons hd tl ih =>
+      simp only [List.find?_cons]
+      rw [List.map_cons, List.nodup_cons] at h_nodup
+      by_cases heq : hd.spec.name == name
+      · simp [heq]
+        cases h_mem with
+        | head => rfl
+        | tail _ h_tl =>
+          exact absurd (beq_iff_eq.mp heq ▸
+            List.mem_map.mpr ⟨a, h_tl, h_name⟩) h_nodup.1
+      · simp [heq]
+        cases h_mem with
+        | head => simp [h_name] at heq
+        | tail _ h_tl => exact ih h_nodup.2 h_tl
+
+/-- With unique names, an executed node cannot share a name with a frontier node.
+    This is the key contradiction used by execute_irreversible and dropNode_preserves_frozen. -/
+private theorem executed_ne_frontier_name (g : TaskGraph) (n : TaskNode) (name out : String)
+    (h_unique : g.uniqueNames)
+    (h_mem : n ∈ g.nodes) (h_exec : n.state = .executed out)
+    (h_frontier : g.isFrontier name = true) :
+    n.spec.name ≠ name := by
+  intro h_eq
+  have hfind := findNode_unique g n name h_unique h_mem h_eq
+  simp only [TaskGraph.isFrontier] at h_frontier
+  rw [hfind] at h_frontier
+  simp [h_exec] at h_frontier
+
+/-- find? on a mapped list equals f applied to find? on the original, when f preserves spec.name. -/
+private theorem find_map_name_eq {nodes : List TaskNode} {name : String} {n : TaskNode}
+    {f : TaskNode → TaskNode}
+    (hf : ∀ n, (f n).spec.name = n.spec.name)
+    (h : nodes.find? (·.spec.name == name) = some n) :
+    (nodes.map f).find? (·.spec.name == name) = some (f n) := by
+  induction nodes with
+  | nil => simp at h
+  | cons hd tl ih =>
+    simp only [List.map_cons, List.find?_cons, List.find?_cons] at h ⊢
+    rw [hf]
+    split <;> rename_i heq
+    · simp [heq] at h; subst h; rfl
+    · simp [heq] at h; exact ih h
+
+/-- find? on a mapped list returns the mapped version of what find? returns on the original,
+    when f preserves spec.name. (Option-valued version.) -/
+private theorem find_map_option {nodes : List TaskNode} {name : String}
+    (f : TaskNode → TaskNode)
+    (hf_name : ∀ n, (f n).spec.name = n.spec.name) :
+    (nodes.map f).find? (·.spec.name == name) = (nodes.find? (·.spec.name == name)).map f := by
+  induction nodes with
+  | nil => simp
+  | cons hd tl ih =>
+    simp only [List.map_cons, List.find?_cons]
+    rw [hf_name]
+    split
+    · simp
+    · exact ih
+
+/-- isFrozen is preserved by any map that preserves spec.name and state. -/
+private theorem isFrozen_preserved_by_map (g : TaskGraph)
+    (f : TaskNode → TaskNode)
+    (hf_name : ∀ n, (f n).spec.name = n.spec.name)
+    (hf_state : ∀ n, (f n).state = n.state)
+    (name : String) :
+    (TaskGraph.isFrozen { nodes := g.nodes.map f } name) =
+    (TaskGraph.isFrozen g name) := by
+  simp only [TaskGraph.isFrozen, TaskGraph.findNode]
+  rw [find_map_option f hf_name]
+  cases g.nodes.find? (·.spec.name == name) with
+  | none => simp
+  | some nd => simp [hf_state nd]
+
 /-- The immutability invariant: executed nodes are never modified.
     For any valid operation, the output of every executed node
     is preserved in the resulting graph. -/
@@ -183,8 +280,10 @@ def frozenOutputsPreserved (g g' : TaskGraph) : Prop :=
       ∃ n', n' ∈ g'.nodes ∧ n'.spec.name = n.spec.name ∧ n'.state = .executed output)
 
 /-- Execute is irreversible: once executed, always executed.
-    This is the key invariant that makes the frozen region grow monotonically. -/
-theorem execute_irreversible (g : TaskGraph) (name output : String) (h : g.isFrontier name) :
+    This is the key invariant that makes the frozen region grow monotonically.
+    Requires unique node names to distinguish frontier from frozen nodes. -/
+theorem execute_irreversible (g : TaskGraph) (name output : String)
+    (h : g.isFrontier name) (h_unique : g.uniqueNames) :
     let g' := { nodes := g.nodes.map fun n =>
       if n.spec.name == name then { n with state := .executed output } else n : TaskGraph }
     ∀ n, n ∈ g.nodes →
@@ -192,21 +291,10 @@ theorem execute_irreversible (g : TaskGraph) (name output : String) (h : g.isFro
         ∃ n', n' ∈ g'.nodes ∧ n'.spec.name = n.spec.name ∧ n'.state = .executed out) := by
   intro g' n hn out hout
   refine ⟨n, List.mem_map.mpr ⟨n, hn, ?_⟩, rfl, hout⟩
-  -- n was already executed with output `out`.
-  -- The map only changes the node named `name`, which is on the frontier (unexecuted).
-  -- Since n is executed, n.spec.name ≠ name (a node can't be both frontier and executed).
-  simp only [TaskGraph.isFrontier, TaskGraph.findNode] at h
-  -- We need: if n.spec.name == name = true, contradiction with n being executed
-  by_cases heq : n.spec.name == name
-  · -- n.spec.name = name, but name is on the frontier (unexecuted).
-    -- We need to show this contradicts n.state = .executed out.
-    -- This requires that findNode returns the same node we found in the list.
-    -- For now, we'll use the structural argument:
-    simp [heq]
-    -- n is executed but name is unexecuted — if they're the same node, contradiction.
-    -- This is a limitation: we can't easily prove this without unique names.
-    sorry -- requires unique node names invariant
-  · simp [heq]
+  -- n is executed with output `out`, but name is on the frontier (unexecuted).
+  -- With unique names, n.spec.name ≠ name, so the map leaves n unchanged.
+  have hne := executed_ne_frontier_name g n name out h_unique hn hout h
+  simp [show (n.spec.name == name) = false from beq_eq_false_iff_ne.mpr hne]
 
 /-- addNode preserves all existing frozen outputs. -/
 theorem addNode_preserves_frozen (g : TaskGraph) (spec : CellSpec) :
@@ -214,15 +302,16 @@ theorem addNode_preserves_frozen (g : TaskGraph) (spec : CellSpec) :
   intro n hn out hout
   exact ⟨n, List.mem_append.mpr (Or.inl hn), rfl, hout⟩
 
-/-- dropNode preserves frozen outputs (it can only drop unexecuted nodes). -/
+/-- dropNode preserves frozen outputs (it can only drop unexecuted nodes).
+    Requires unique node names to ensure the dropped frontier node is not an executed node. -/
 theorem dropNode_preserves_frozen (g : TaskGraph) (name : String)
-    (h_frontier : g.isFrontier name) :
+    (h_frontier : g.isFrontier name) (h_unique : g.uniqueNames) :
     frozenOutputsPreserved g { nodes := g.nodes.filter (·.spec.name != name) } := by
   intro n hn out hout
   refine ⟨n, List.mem_filter.mpr ⟨hn, ?_⟩, rfl, hout⟩
-  -- n is executed, name is frontier. If n.spec.name = name, contradiction.
-  -- (same unique-names issue as above — we note it but focus on the structure)
-  sorry -- requires unique node names invariant
+  -- n is executed, name is on the frontier. With unique names, n.spec.name ≠ name.
+  have hne := executed_ne_frontier_name g n name out h_unique hn hout h_frontier
+  simp [bne, beq_eq_false_iff_ne.mpr hne]
 
 -- ═══════════════════════════════════════════════════════════════
 -- SECTION 4: Program Projection
@@ -286,10 +375,6 @@ def TaskGraph.applyProgram (g : TaskGraph) (prog : CellProgram) : Option TaskGra
 -- SECTION 5: Well-Formedness
 -- ═══════════════════════════════════════════════════════════════
 
-/-- A task graph has unique node names. -/
-def TaskGraph.uniqueNames (g : TaskGraph) : Prop :=
-  g.nodeNames.Nodup
-
 /-- A task graph is well-formed if:
     1. Node names are unique
     2. All refs point to existing nodes
@@ -327,7 +412,23 @@ theorem execute_grows_frozen (g : TaskGraph) (name output : String) :
     let g' := { nodes := g.nodes.map fun n =>
       if n.spec.name == name then { n with state := .executed output } else n : TaskGraph }
     ∀ n, n ∈ g.frozen → n ∈ g'.frozen := by
-  sorry -- Complex structural proof about frozen set preservation
+  intro g' n hn
+  simp only [TaskGraph.frozen, List.mem_map, List.mem_filter] at hn ⊢
+  obtain ⟨node, ⟨h_mem, h_exec⟩, h_name⟩ := hn
+  -- node is executed. Extract the output witness from the match-based predicate.
+  have h_is_exec : ∃ out, node.state = .executed out := by
+    revert h_exec; cases node.state <;> simp
+  obtain ⟨out, h_out⟩ := h_is_exec
+  -- Case split: does node.spec.name match the name being executed?
+  by_cases heq : node.spec.name == name
+  · -- Matched: state becomes .executed output (still executed, different output)
+    refine ⟨{ node with state := .executed output }, ⟨?_, ?_⟩, ?_⟩
+    · exact List.mem_map.mpr ⟨node, h_mem, by simp [heq]⟩
+    · simp
+    · subst h_name; simp
+  · -- Not matched: node is unchanged, still executed
+    refine ⟨node, ⟨List.mem_map.mpr ⟨node, h_mem, by simp [heq]⟩, ?_⟩, h_name⟩
+    rw [h_out]
 
 -- ═══════════════════════════════════════════════════════════════
 -- SECTION 7: Eval-One Semantics
@@ -366,13 +467,45 @@ def TaskGraph.evalOne (g : TaskGraph) (name : String) (output : String)
   else
     none
 
+/-- isReady implies isFrontier: a ready node is necessarily on the frontier. -/
+private theorem isReady_implies_isFrontier (g : TaskGraph) (name : String)
+    (h : g.isReady name = true) : g.isFrontier name = true := by
+  unfold TaskGraph.isReady TaskGraph.isFrontier at *
+  generalize g.findNode name = ofn at *
+  split at h
+  · split at h <;> simp_all
+  · simp at h
+
+/-- isFrontier means findNode returns some unexecuted node. -/
+private theorem isFrontier_findNode (g : TaskGraph) (name : String)
+    (h : g.isFrontier name = true) :
+    ∃ nd, g.findNode name = some nd ∧ nd.state = .unexecuted := by
+  unfold TaskGraph.isFrontier at h
+  split at h
+  · rename_i nd heq; split at h <;> simp at h
+    exact ⟨nd, heq, ‹_›⟩
+  · simp at h
+
 /-- After eval-one, the executed node is frozen. -/
 theorem evalOne_freezes (g : TaskGraph) (name output : String)
     (h : g.isReady name) :
     ∃ g', g.evalOne name output = some g' ∧ g'.isFrozen name = true := by
-  simp only [TaskGraph.evalOne, h, ite_true]
-  simp only [TaskGraph.applyOp]
-  sorry -- requires unfolding isValid + map behavior
+  have h_frontier := isReady_implies_isFrontier g name h
+  obtain ⟨nd, hfound, _⟩ := isFrontier_findNode g name h_frontier
+  -- evalOne reduces to applyOp (.execute name output) since isReady holds
+  have h_eval : g.evalOne name output = some { nodes := g.nodes.map fun n =>
+      if n.spec.name == name then { n with state := .executed output } else n } := by
+    simp [TaskGraph.evalOne, h, TaskGraph.applyOp, GraphOp.isValid, h_frontier]
+  rw [h_eval]
+  refine ⟨_, rfl, ?_⟩
+  -- Show isFrozen name on the result: findNode name returns the now-executed node
+  unfold TaskGraph.isFrozen TaskGraph.findNode
+  unfold TaskGraph.findNode at hfound
+  have h_name_eq : (nd.spec.name == name) = true := (List.find?_eq_some_iff_append.mp hfound).1
+  have hf : ∀ n : TaskNode, (if (n.spec.name == name) = true then
+    { n with state := ExecState.executed output } else n).spec.name = n.spec.name := by
+    intro n; split <;> simp
+  rw [find_map_name_eq hf hfound, h_name_eq]; simp
 
 -- ═══════════════════════════════════════════════════════════════
 -- SECTION 8: Distillation as Graph Rewriting
@@ -422,12 +555,42 @@ def TaskGraph.distill (g : TaskGraph) (proposal : DistillProposal) : Option Task
     g.applyOp (.rewrite proposal.cellName newSpec)
   | none => none
 
-/-- Distillation preserves the frozen set. -/
+/-- Distillation preserves the frozen set.
+    Distillation rewrites an unexecuted (frontier) cell's spec but preserves both
+    spec.name and execution state for every node, so isFrozen is unchanged. -/
 theorem distill_preserves_frozen (g : TaskGraph) (proposal : DistillProposal)
     (h : g.isFrontier proposal.cellName) :
     ∀ g', g.distill proposal = some g' →
       ∀ name, g.isFrozen name → g'.isFrozen name := by
-  sorry -- follows from rewrite only touching frontier nodes
+  intro g' hdist name hfrozen
+  simp only [TaskGraph.distill] at hdist
+  split at hdist
+  · rename_i nd hfind
+    have h_nd_name : nd.spec.name = proposal.cellName := by
+      unfold TaskGraph.findNode at hfind
+      exact beq_iff_eq.mp (List.find?_eq_some_iff_append.mp hfind).1
+    -- Reduce applyOp (.rewrite ...) to get the explicit mapped list
+    simp only [TaskGraph.applyOp, GraphOp.isValid, h] at hdist
+    simp at hdist; subst hdist
+    -- The map function preserves spec.name (because newSpec.name = nd.spec.name =
+    -- proposal.cellName = n.spec.name for matched nodes) and state (rewrite only
+    -- changes the spec, not the execution state).
+    let f : TaskNode → TaskNode := fun n =>
+      if n.spec.name = proposal.cellName then
+        { spec := { name := nd.spec.name, type := proposal.newType, prompt := proposal.newPrompt,
+                    refs := nd.spec.refs }, state := n.state }
+      else n
+    show ({ nodes := g.nodes.map f } : TaskGraph).isFrozen name = true
+    have hf_name : ∀ n, (f n).spec.name = n.spec.name := by
+      intro n; simp only [f]
+      split
+      · rename_i heq; simp [h_nd_name, heq]
+      · rfl
+    have hf_state : ∀ n, (f n).state = n.state := by
+      intro n; simp only [f]; split <;> rfl
+    rw [isFrozen_preserved_by_map g f hf_name hf_state name]
+    exact hfrozen
+  · simp at hdist
 
 -- ═══════════════════════════════════════════════════════════════
 -- SECTION 9: Non-Vacuity Witnesses

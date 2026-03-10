@@ -7,3 +7,4 @@ import BeadCalculus.Spreadsheet
 import BeadCalculus.Unified
 import BeadCalculus.GasCity
 import BeadCalculus.GraphOps
+import BeadCalculus.ProgramAlgebra
