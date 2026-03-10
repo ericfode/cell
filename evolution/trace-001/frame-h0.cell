@@ -1,0 +1,33 @@
+-- frame 0 of mixed-hard-soft
+-- hash: 0000000000000000
+-- frozen: (none)
+-- action: init
+
+⊢ solve
+  given equation ≡ "2x + 3 = 11"
+  yield x, proof[]
+
+  ∴ Solve «equation» for x. Show your work as «proof» (list of steps).
+
+  ⊨ x is a number
+
+⊢= substitute
+  given solve→x
+  given equation ≡ "2x + 3 = 11"
+  yield holds
+
+  ⊢= holds ← eval(2 * solve→x + 3) = 11
+
+  ⊨ holds = true
+
+⊢ explain
+  given solve→x
+  given solve→proof
+  given substitute→holds
+  yield explanation
+
+  ∴ If «substitute→holds» is true, explain the solution «solve→proof» in plain English.
+    If false, say "The solution x=«solve→x» is WRONG because substitution failed."
+
+  ⊨ explanation mentions the value of x
+  ⊨ if substitute→holds then explanation is positive
