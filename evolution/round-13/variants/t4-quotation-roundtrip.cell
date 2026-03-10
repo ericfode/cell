@@ -1,0 +1,56 @@
+-- t4-quotation-roundtrip.cell
+-- Tests § (section-sign quotation): cell definitions as data,
+-- structural inspection, modification, and execution roundtrip.
+
+⊢ greet
+  given name ≡ "Alice"
+  yield message
+
+  ∴ Write a one-sentence greeting for «name».
+
+  ⊨ message contains «name»
+  ⊨ message is exactly one sentence
+
+⊢ describe
+  given §greet
+  yield input-name, yield-name, body-type
+
+  ⊢= input-name ← first(given-names(§greet))
+  ⊢= yield-name ← first(yield-names(§greet))
+  ⊢= body-type ← if §greet contains ∴ then "soft" else "hard"
+
+  ⊨ input-name = "name"
+  ⊨ yield-name = "message"
+  ⊨ body-type = "soft"
+
+⊢ rebind
+  given §greet
+  yield §greet'
+
+  ∴ Copy «§greet» but replace the given name default
+    from "Alice" to "Bob". All else stays identical.
+
+  ⊨ §greet' has same given/yield signature as §greet
+  ⊨ §greet'.given.name default = "Bob"
+
+⊢ execute-modified
+  given rebind→§greet'
+  yield modified-message
+
+  ∴ Execute «§greet'» — interpret its ∴ body
+    with its bound givens. Return the message.
+
+  ⊨ modified-message contains "Bob"
+  ⊨ modified-message is exactly one sentence
+
+⊢ roundtrip
+  given greet→message
+  given execute-modified→modified-message
+  yield same-structure, name-only-diff
+
+  ∴ Compare «message» and «modified-message».
+    Do they share the same greeting structure,
+    differing only in the name (Alice → Bob)?
+
+  ⊨ same-structure ∈ {true, false}
+  ⊨ name-only-diff = same-structure
