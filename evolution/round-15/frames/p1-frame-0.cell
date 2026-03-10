@@ -1,0 +1,38 @@
+-- p1-parallel-confluence.cell — frame 0 (initial state)
+-- Ready set: { config } — only cell with all givens bound (topic ≡ "the moon")
+-- Blocked: { poet, scientist, child } — all need config→topic
+-- Blocked: { combine } — needs poet→poem, scientist→fact, child→question
+
+⊢ config
+  given topic ≡ "the moon"
+  yield topic
+
+  ⊨ topic is a noun phrase
+
+-- eval-one: evaluate config
+-- cell-kind: ⊢ (soft? no — topic is a literal. actually this is trivial)
+-- inputs: topic ≡ "the moon" (already bound as given)
+-- the ∴ body is absent — there's nothing to compute
+-- yield topic already has its value from the given
+
+-- OBSERVATION: config is a pass-through cell. It has a given with ≡
+-- and yields the same thing. There's no ∴ body. What does eval-one
+-- DO here? The value is already bound.
+--
+-- This reveals a design question: does eval-one need to "execute"
+-- config at all? The yield is already determined by the given.
+-- In the spec, eval-one means "find ready cell, evaluate it."
+-- But config doesn't need evaluation — it's a data cell.
+--
+-- Resolution: config is implicitly ⊢= (deterministic). Its yield
+-- is trivially ≡ the given. Eval-one should freeze it immediately.
+
+-- oracle check:
+--   ⊨ topic is a noun phrase → ✓ ("the moon" is a noun phrase)
+
+-- state after frame 0:
+⊢ config
+  given topic ≡ "the moon"
+  yield topic ≡ "the moon"
+
+  ⊨ topic is a noun phrase → ✓

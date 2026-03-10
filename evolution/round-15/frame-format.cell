@@ -1,0 +1,23 @@
+-- frame-format.cell: how eval-one steps are recorded
+--
+-- A frame bead IS a Cell document. Each eval-one step transforms
+-- the program text. The frame captures: which cell was evaluated,
+-- what its inputs resolved to, what output was produced, and the
+-- oracle results. The frame IS the diff between h(n) and h(n+1).
+
+⊢ frame
+  given step-number ≡ 0
+  given cell-name ≡ ""
+  given cell-kind ≡ ""
+  yield state-before, state-after, oracle-results[], notes
+
+  -- cell-kind ∈ { "⊢" (soft), "⊢=" (hard), "⊢⊢" (spawner), "⊢∘" (loop) }
+
+  ⊢= state-before ← §program-at-step-N
+  ⊢= state-after ← §program-at-step-N+1
+
+  -- oracle-results is a list of:
+  --   { assertion: "the oracle text", result: "✓" | "✗", reasoning: "..." }
+
+  -- notes captures observations about this step:
+  --   what was surprising, what was awkward, what the syntax forced

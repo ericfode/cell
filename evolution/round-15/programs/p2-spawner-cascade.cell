@@ -1,0 +1,53 @@
+-- p2-spawner-cascade.cell
+-- Tests: ⊢⊢ spawner generating dynamic cells, until clause
+--
+-- A research spawner generates sub-questions from a topic.
+-- Each sub-question becomes a cell. A collector aggregates answers.
+-- Tests whether spawned cells integrate correctly into the DAG.
+
+⊢ topic
+  given subject ≡ "Why do cats purr?"
+  yield subject, depth
+  ⊢= depth ← 1
+
+  ⊨ depth = 1
+
+⊢⊢ decompose
+  given topic→subject
+  given topic→depth
+  yield sub-questions[]
+  until length(sub-questions) ≥ 3
+  max 5
+
+  ∴ Break «topic→subject» into 3 independent sub-questions.
+    Each sub-question should be answerable on its own.
+    Each sub-question should cover a different aspect.
+
+  ⊨ length(sub-questions) ≥ 3
+  ⊨ each sub-question is a complete question
+
+  -- spawned cells: for each q in sub-questions, create:
+  --   ⊢ answer-{q.index}
+  --     given q
+  --     yield response
+  --     ∴ Answer «q» in 2 sentences.
+  --     ⊨ response answers the question
+
+⊢ synthesize
+  given decompose→sub-questions
+  given answer-*→response
+  yield summary
+
+  ∴ Given these sub-answers about «topic→subject»:
+    «answer-*→response»
+    Synthesize into a single coherent 3-sentence explanation.
+
+  ⊨ summary is 3 sentences
+  ⊨ summary addresses the original question
+
+  ⊨? on failure:
+    retry with "Be more concise — exactly 3 sentences" appended
+    max 2
+
+  ⊨? on exhaustion:
+    partial-accept(best)

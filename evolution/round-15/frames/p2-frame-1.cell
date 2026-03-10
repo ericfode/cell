@@ -1,0 +1,76 @@
+-- p2-spawner-cascade.cell — frame 1 (spawner fires)
+-- Ready set: { decompose }
+-- decompose is ⊢⊢ (spawner) — it produces cells, not just values
+
+⊢⊢ decompose
+  given topic→subject ≡ "Why do cats purr?"
+  given topic→depth ≡ 1
+  yield sub-questions[]
+  until length(sub-questions) ≥ 3
+  max 5
+
+  ∴ Break «Why do cats purr?» into 3 independent sub-questions.
+    Each sub-question should be answerable on its own.
+    Each sub-question should cover a different aspect.
+
+-- LLM evaluation (simulated):
+-- Output:
+
+  yield sub-questions ≡ [
+    "What physical mechanism in a cat's body produces the purring sound?",
+    "In what emotional or behavioral states do cats typically purr?",
+    "Does purring have any health benefits for cats or nearby humans?"
+  ]
+
+-- oracle checks:
+--   ⊨ length(sub-questions) ≥ 3 → ✓ (3 questions)
+--   ⊨ each sub-question is a complete question → ✓ (all end with ?)
+
+-- SPAWNER EFFECT: decompose spawns 3 new cells into the frontier:
+
+⊢ answer-0
+  given q ≡ "What physical mechanism in a cat's body produces the purring sound?"
+  yield response
+
+  ∴ Answer «q» in 2 sentences.
+
+  ⊨ response answers the question
+
+⊢ answer-1
+  given q ≡ "In what emotional or behavioral states do cats typically purr?"
+  yield response
+
+  ∴ Answer «q» in 2 sentences.
+
+  ⊨ response answers the question
+
+⊢ answer-2
+  given q ≡ "Does purring have any health benefits for cats or nearby humans?"
+  yield response
+
+  ∴ Answer «q» in 2 sentences.
+
+  ⊨ response answers the question
+
+-- OBSERVATION: the spawner template in the .cell file was a comment
+-- (-- spawned cells: ...) not formal syntax. The spec has no way to
+-- declare the SHAPE of spawned cells. The ⊢⊢ just yields values
+-- and the spawned cell structure is implicit.
+--
+-- This is a gap: how does the evaluator know what cells to create?
+-- Options:
+--   (a) Spawner body includes a §template for spawned cells
+--   (b) Spawner yields cell definitions as data (§ values)
+--   (c) Convention: spawner→sub-questions + template in ∴ body
+--
+-- The current spec uses (c) implicitly. The comment block was my
+-- attempt to document what gets spawned. But it's not parseable.
+--
+-- DESIGN RECOMMENDATION: spawners should yield §-values:
+--   yield §spawned-cells[]
+-- Then the evaluator instantiates them.
+
+-- state after frame 1:
+-- decompose frozen, 3 new cells (answer-0, answer-1, answer-2) in frontier
+-- Ready set: { answer-0, answer-1, answer-2 } — all ready simultaneously
+-- Blocked: { synthesize } — needs answer-*→response (wildcard dep)

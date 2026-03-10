@@ -1,0 +1,153 @@
+-- p5-self-describing.cell — full execution trace
+
+-- Ready set analysis:
+--   self: given §self-describing — § is parse-time, available immediately → READY
+--   predict: given self→cell-names, self→edge-list → BLOCKED (needs self's outputs)
+--   verify: given predict→execution-order, self→cell-names → BLOCKED
+--   reflect: given self→cell-count, predict→execution-order, verify→is-correct, verify→discrepancies → BLOCKED
+--
+-- Ready set: { self }
+-- This is interesting: §self-describing means self can read the ENTIRE
+-- program including itself. Self-reference via §.
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 0: self
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ self
+  given §self-describing ≡ "(the complete source of p5-self-describing.cell)"
+  yield cell-names[], edge-list[], cell-count
+
+  ∴ Parse «§self-describing» as data. Extract cells, edges, count.
+
+-- LLM evaluation (simulated):
+-- The LLM reads the entire program definition and extracts:
+
+  yield cell-names ≡ ["self", "predict", "verify", "reflect"]
+
+  yield edge-list ≡ [
+    "self→predict (cell-names, edge-list)",
+    "self→verify (cell-names)",
+    "self→reflect (cell-count)",
+    "predict→verify (execution-order)",
+    "predict→reflect (execution-order)",
+    "verify→reflect (is-correct, discrepancies)"
+  ]
+
+  yield cell-count ≡ 4
+
+-- oracle checks:
+--   ⊨ cell-count ≥ 4 → ✓ (exactly 4)
+--   ⊨ "self" ∈ cell-names → ✓
+--   ⊨ "predict" ∈ cell-names → ✓
+
+-- SELF-REFERENCE NOTE: self parsed its own definition and correctly
+-- identified itself in the cell list. The § mechanism makes this
+-- non-paradoxical: §self-describing is the SOURCE TEXT (static data),
+-- not the runtime state. Self isn't reading its output — it's reading
+-- its definition. No fixpoint needed.
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 1: predict
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ predict
+  given self→cell-names ≡ ["self", "predict", "verify", "reflect"]
+  given self→edge-list ≡ ["self→predict", "self→verify", "self→reflect", "predict→verify", "predict→reflect", "verify→reflect"]
+  yield execution-order[]
+
+  ∴ Compute topological sort via Kahn's algorithm.
+
+-- LLM evaluation:
+-- In-degree count:
+--   self: 0 (no incoming edges)
+--   predict: 1 (from self)
+--   verify: 2 (from self, predict)
+--   reflect: 3 (from self, predict, verify)
+--
+-- Kahn's: remove self (in-degree 0) → predict (now 0) → verify (now 0) → reflect (now 0)
+
+  yield execution-order ≡ [
+    "step 1: [self] — no dependencies, ready immediately",
+    "step 2: [predict] — needs self, now available",
+    "step 3: [verify] — needs self + predict, both available",
+    "step 4: [reflect] — needs self + predict + verify, all available"
+  ]
+
+-- oracle checks:
+--   ⊨ execution-order covers all cells → ✓ (all 4 present)
+--   ⊨ execution-order respects all edges → ✓ (self < predict < verify < reflect)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 2: verify
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ verify
+  given predict→execution-order ≡ ["step 1: [self]", "step 2: [predict]", "step 3: [verify]", "step 4: [reflect]"]
+  given self→cell-names ≡ ["self", "predict", "verify", "reflect"]
+  yield is-correct, discrepancies
+
+  ∴ self already executed. predict already executed. verify is executing NOW.
+    reflect has NOT yet executed. Does the prediction match?
+
+-- LLM evaluation:
+-- Predicted: self(1) → predict(2) → verify(3) → reflect(4)
+-- Actual:    self(0) → predict(1) → verify(2, executing) → reflect(not yet)
+-- The ORDER matches perfectly. The step numbers are off by 1 (predicted 1-4, actual 0-3)
+-- but the ordering is correct.
+
+  ⊢= is-correct ← true
+
+  yield is-correct ≡ true
+  yield discrepancies ≡ "No ordering errors. Prediction matched actual execution exactly: self < predict < verify < reflect. Minor: predicted steps numbered 1-4, actual frames numbered 0-3, but the relative order is identical."
+
+  ⊨ discrepancies lists any prediction errors → ✓
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 3: reflect
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ reflect
+  given self→cell-count ≡ 4
+  given predict→execution-order ≡ ["step 1: [self]", "step 2: [predict]", "step 3: [verify]", "step 4: [reflect]"]
+  given verify→is-correct ≡ true
+  given verify→discrepancies ≡ "No ordering errors..."
+  yield observations
+
+  ∴ Reflect on the self-description experiment.
+
+  yield observations ≡ "1. SELF-DESCRIPTION ACCURATE: cell-count=4 correct, all edges found, no missing or phantom cells. The § mechanism makes self-description trivial — the program text IS the data. 2. EXECUTION ORDER CORRECT: Kahn's algorithm predicted self→predict→verify→reflect, which is exactly what happened. The linear dependency chain means there's only ONE valid ordering (no parallelism). 3. METACIRCULAR IMPLICATIONS: Cell can describe Cell because § gives programs-as-data. This is weaker than Scheme's metacircular evaluator (which can EXECUTE programs) but sufficient for analysis. Cell-zero needs §+eval, not just §. 4. SELF-REFERENCE DIFFICULTY: surprisingly easy. § makes it non-paradoxical because it gives the static definition, not the dynamic state. The hard version would be: a cell that reads its own OUTPUT (fixpoint). That's impossible in Cell's immutability model — you can't read what you haven't yet produced."
+
+-- oracle checks:
+--   ⊨ observations addresses all 4 questions → ✓ (numbered 1-4)
+--   ⊨ observations references verify→is-correct → ✓ ("EXECUTION ORDER CORRECT")
+
+-- COMPLETE: 4 cells, 4 eval-one steps. Strictly linear (no parallelism).
+
+-- ═══════════════════════════════════════════════════════════════
+-- OBSERVATIONS
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ obs-self-ref-easy
+  given §p5-self-describing
+  yield observations
+
+  ⊢= observations ← "SELF-REFERENCE IS EASY: § makes it trivial. The program reads its own source as a string. No paradox, no fixpoint, no infinite regress. This is because § is STATIC — it gives the parse-tree, not the execution state. The hard self-reference (reading your own output before you produce it) is impossible in Cell by design. Immutability prevents it."
+
+⊢ obs-linear-boring
+  given §p5-self-describing
+  yield observations
+
+  ⊢= observations ← "STRICTLY LINEAR: this program has zero parallelism. Each cell depends on the previous one. The dependency graph is a chain: self→predict→verify→reflect. This means Kahn's algorithm always picks exactly one cell. Confluence is trivially satisfied (only one execution order exists). To test confluence properly, need branching deps like p1."
+
+⊢ obs-meta-vs-eval
+  given §p5-self-describing
+  yield observations
+
+  ⊢= observations ← "§ IS ANALYSIS, NOT EXECUTION: this program proved that Cell can DESCRIBE itself. But it cannot EXECUTE itself — that requires cell-zero's eval-one. § gives you the code as data. cell-zero gives you the ability to run code-as-data. The self-describing program is introspection; cell-zero is metacircular evaluation. Both use § but for fundamentally different purposes."
+
+⊢ obs-prediction-verification
+  given §p5-self-describing
+  yield observations
+
+  ⊢= observations ← "THE PREDICTION LOOP IS ELEGANT: self analyzes the program, predict computes the execution order, verify checks the prediction DURING execution, reflect synthesizes. This is a provably correct program — its output describes its own behavior, and the description can be verified. This pattern (analyze → predict → verify → reflect) could be a standard Cell idiom for self-testing programs."

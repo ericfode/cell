@@ -1,0 +1,68 @@
+-- p5-self-describing.cell
+-- Tests: self-reference, § on the whole program, metacircular property
+--
+-- A Cell program that reads its OWN structure, counts its cells,
+-- traces its dependency graph, and predicts its own execution order.
+-- Then verifies the prediction against the actual execution.
+-- The deepest test: can Cell describe Cell?
+
+⊢ self
+  given §self-describing
+  yield cell-names[], edge-list[], cell-count
+
+  ∴ You are given the complete definition of THIS program: «§self-describing».
+    Parse it as data. Extract:
+    - «cell-names»: list of all cell names declared with ⊢
+    - «edge-list»: list of all dependency edges (given X→Y means edge X→Y)
+    - «cell-count»: total number of cells
+
+  ⊨ cell-count ≥ 4
+  ⊨ "self" ∈ cell-names
+  ⊨ "predict" ∈ cell-names
+
+⊢ predict
+  given self→cell-names
+  given self→edge-list
+  yield execution-order[]
+
+  ∴ Given the cells «self→cell-names» and edges «self→edge-list»,
+    compute the topological sort (Kahn's algorithm).
+    Predict the eval-one execution order.
+    Note: cells with all inputs bound are ready simultaneously.
+    List them in groups: {step 1: [...], step 2: [...], ...}
+
+  ⊨ execution-order covers all cells in cell-names
+  ⊨ execution-order respects all edges in edge-list
+
+⊢ verify
+  given predict→execution-order
+  given self→cell-names
+  yield is-correct, discrepancies
+
+  ∴ You are executing this cell right now, which means:
+    - "self" has already executed (you have its outputs)
+    - "predict" has already executed (you have its outputs)
+    - "verify" is executing NOW
+    - "reflect" has NOT yet executed (it depends on you)
+    Does «predict→execution-order» match this reality?
+
+  ⊢= is-correct ← (predict says self < predict < verify < reflect)
+
+  ⊨ discrepancies lists any prediction errors
+
+⊢ reflect
+  given self→cell-count
+  given predict→execution-order
+  given verify→is-correct
+  given verify→discrepancies
+  yield observations
+
+  ∴ This program just described itself, predicted its own execution,
+    and verified the prediction. Reflect:
+    - Was the self-description accurate? (cell-count, edges)
+    - Was the execution order prediction correct?
+    - What does this say about Cell as a metacircular language?
+    - What was hardest about self-reference in Cell?
+
+  ⊨ observations addresses all 4 questions
+  ⊨ observations references verify→is-correct

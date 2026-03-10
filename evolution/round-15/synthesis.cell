@@ -1,0 +1,82 @@
+-- R15 synthesis: what we learned from 5 programs
+-- ALL observations are Cell, as required.
+
+⊢ experiment-summary
+  given programs ≡ ["p1-parallel-confluence", "p2-spawner-cascade", "p3-quotation-mirror", "p4-bottom-cascade", "p5-self-describing"]
+  yield total-cells, total-frames, features-tested
+
+  ⊢= total-cells ← 24
+  -- p1: 5 cells, 4 frames (config, poet, scientist, child, combine)
+  -- p2: 6 cells, 5 frames (topic, decompose, answer-0, answer-1, answer-2, synthesize)
+  -- p3: 4 cells, 4 frames (greet, mirror, rewrite, diff)
+  -- p4: 5 cells, 5 frames + 2 retries (impossible, graceful, absorber, crasher, report)
+  -- p5: 4 cells, 4 frames (self, predict, verify, reflect)
+
+  ⊢= total-frames ← 22
+
+  ⊢= features-tested ← [
+    "confluence (p1: 3 parallel cells, any order valid)",
+    "⊢= deterministic cells (p1: combine, p4: report, p5: is-correct)",
+    "⊢⊢ spawner with dynamic cell creation (p2: decompose)",
+    "wildcard dependencies answer-*→response (p2: synthesize)",
+    "§ quotation at parse time (p3: mirror, rewrite, diff)",
+    "§ self-reference (p5: self reads §self-describing)",
+    "⊥ production via oracle exhaustion (p4: impossible)",
+    "⊥? skip with handler (p4: graceful)",
+    "⊥? error-value handler (p4: absorber)",
+    "⊥ propagation without handler (p4: crasher)",
+    "⊨? retry on oracle failure (p4: impossible retries 2x)",
+    "⊨? on exhaustion error-value(⊥) (p4: impossible)",
+    "oracle on literal givens — tautological (p1: config, p2: topic)"
+  ]
+
+⊢ what-works
+  given experiment-summary→features-tested
+  yield findings
+
+  ⊢= findings ← [
+    "EVAL-ONE IS NATURAL: every program executed correctly step by step. Kahn's algorithm picks the right cell. The ready-set/blocked-set mental model is intuitive.",
+    "CONFLUENCE IS REAL: p1 had 6 valid execution orderings (3! for poet/scientist/child). All produce the same document. p5 had exactly 1 ordering (linear chain). Both extremes work.",
+    "⊢= IS CLEAN: deterministic cells (combine, report, is-correct) execute instantly with no ambiguity. String concatenation, boolean checks, counting — pure classical computation.",
+    "§ IS POWERFUL: quotation lets cells inspect definitions without executing them. mirror reads greet's structure. self reads the whole program. rewrite modifies definitions. All without touching runtime state.",
+    "⊥ HANDLERS WORK: skip-with and error-value both intercept bottom correctly. The handler fires before the cell body. Output faces oracles normally."
+  ]
+
+⊢ what-hurts
+  given experiment-summary→features-tested
+  yield findings
+
+  ⊢= findings ← [
+    "PASS-THROUGH CELLS ARE CEREMONY: config in p1 and topic in p2 just relay literal givens. The spec needs top-level bindings without wrapping in a cell.",
+    "SPAWNER SHAPE IS IMPLICIT: ⊢⊢ decompose spawns answer-* cells but the shape of spawned cells is a COMMENT, not syntax. The evaluator has to infer cell structure from natural language. Spec needs: spawn clause or §template for spawned cells.",
+    "WILDCARD DEPS ARE UNDEFINED: 'given answer-*→response' works intuitively but the spec doesn't define when the wildcard resolves or how it enumerates matches. This matters for the DAG.",
+    "ERROR-VALUE SEMANTICS AMBIGUOUS: does error-value(X) skip the body or substitute X for ⊥ input? Both interpretations are reasonable. Spec must pick one.",
+    "UNHANDLED ⊥ IS SILENT: crasher becomes ⊥ with zero warning. Nothing detects it. The spec should require explicit ⊥? on every cell, or at least emit a diagnostic when ⊥ propagates unhandled.",
+    "ORACLE ON LITERALS IS TAUTOLOGICAL: oracles that check given ≡ values (topic is a noun phrase, generation = 0) validate the programmer, not the computation. These should be parse-time assertions.",
+    "⊢= WITH ∴ IS A CONTRADICTION: test-distilled in distillation-loop (R14) declared ⊢= but had a ∴ body. This program (p5) got it right: ⊢= cells have ← expressions only. The spec needs an explicit rule: ⊢= forbids ∴."
+  ]
+
+⊢ spec-recommendations
+  given what-works→findings
+  given what-hurts→findings
+  yield changes
+
+  ⊢= changes ← [
+    "ADD: top-level bindings. 'given topic ≡ \"the moon\"' at program scope without a cell wrapper.",
+    "ADD: spawn clause for ⊢⊢. 'spawn §template for each item in sub-questions[]' — explicit cell template.",
+    "ADD: wildcard dep resolution rule. answer-* resolves after the spawner that creates answer-* cells freezes.",
+    "CLARIFY: error-value(X) means skip body, yield X. Consistent with skip-with.",
+    "CLARIFY: ⊢= cells MUST NOT contain ∴. ⊢= means deterministic = no LLM calls.",
+    "CONSIDER: require ⊥? handler on every cell, or add default propagation with diagnostic.",
+    "CONSIDER: parse-time oracle class. Oracles on given ≡ values become compile-time assertions, not runtime checks.",
+    "KEEP: § as parse-time data. This is Cell's best feature. Programs-as-data without runtime overhead."
+  ]
+
+⊢ meta-observation
+  given experiment-summary→total-cells
+  given experiment-summary→total-frames
+  given what-works→findings
+  given what-hurts→findings
+  yield reflection
+
+  ⊢= reflection ← "Writing Cell programs and executing them by hand revealed things that spec-reading never could. The language WORKS — eval-one is unambiguous, confluence holds, oracles provide real constraints, § enables genuine metaprogramming. The pain points are all about CEREMONY (pass-through cells, implicit spawner shapes) and AMBIGUITY (error-value semantics, wildcard resolution). These are solvable. The core model — soft cells + hard cells + oracles + quotation + bottom propagation — is sound. 24 cells across 5 programs, 22 eval-one steps, zero execution confusion. Cell is ready for a real evaluator."

@@ -1,0 +1,36 @@
+-- p1-parallel-confluence.cell — frame 1
+-- After config frozen: config→topic ≡ "the moon"
+-- Ready set: { poet, scientist, child } — ALL three ready simultaneously
+-- Blocked: { combine } — needs all three outputs
+--
+-- CONFLUENCE TEST: pick any one of { poet, scientist, child }.
+-- The final result must be the same regardless of which we pick.
+-- I pick: poet (arbitrary choice)
+
+⊢ poet
+  given config→topic ≡ "the moon"
+  yield poem
+
+  ∴ Write a haiku about «the moon».
+
+-- LLM evaluation (simulated):
+-- Input: "Write a haiku about the moon."
+-- Output:
+
+  yield poem ≡ "Silver disc above\nPulling tides across the dark\nOld companion, still"
+
+-- oracle checks:
+--   ⊨ poem is exactly 3 lines → ✓ (3 lines separated by \n)
+--   ⊨ poem follows 5-7-5 syllable pattern →
+--     "Sil-ver disc a-bove" = 5 ✓
+--     "Pull-ing tides a-cross the dark" = 7 ✓
+--     "Old com-pan-ion still" = 5 ✓
+--     → ✓
+
+-- state after frame 1:
+⊢ poet
+  given config→topic ≡ "the moon"
+  yield poem ≡ "Silver disc above\nPulling tides across the dark\nOld companion, still"
+
+  ⊨ poem is exactly 3 lines → ✓
+  ⊨ poem follows 5-7-5 syllable pattern → ✓

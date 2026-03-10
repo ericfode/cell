@@ -1,0 +1,49 @@
+-- p1-parallel-confluence.cell
+-- Tests: multiple cells ready simultaneously, confluence property
+--
+-- Three independent cells share ONE input. They should all be
+-- ready at once. Execution order shouldn't matter. A fourth cell
+-- depends on all three — it's blocked until all complete.
+
+⊢ config
+  given topic ≡ "the moon"
+  yield topic
+
+  ⊨ topic is a noun phrase
+
+⊢ poet
+  given config→topic
+  yield poem
+
+  ∴ Write a haiku about «config→topic».
+
+  ⊨ poem is exactly 3 lines
+  ⊨ poem follows 5-7-5 syllable pattern
+
+⊢ scientist
+  given config→topic
+  yield fact
+
+  ∴ State one surprising scientific fact about «config→topic» in a single sentence.
+
+  ⊨ fact is one sentence
+  ⊨ fact is factually accurate
+
+⊢ child
+  given config→topic
+  yield question
+
+  ∴ Ask a question about «config→topic» the way a curious 5-year-old would.
+
+  ⊨ question ends with a question mark
+  ⊨ question uses simple vocabulary
+
+⊢= combine
+  given poet→poem
+  given scientist→fact
+  given child→question
+  yield document
+
+  ⊢= document ← "POEM:\n" + poet→poem + "\n\nFACT:\n" + scientist→fact + "\n\nQUESTION:\n" + child→question
+
+  ⊨ document contains all three inputs

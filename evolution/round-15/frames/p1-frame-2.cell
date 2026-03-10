@@ -1,0 +1,27 @@
+-- p1-parallel-confluence.cell — frame 2
+-- Ready set: { scientist, child } — both still ready (poet done)
+-- I pick: scientist
+
+⊢ scientist
+  given config→topic ≡ "the moon"
+  yield fact
+
+  ∴ State one surprising scientific fact about «the moon» in a single sentence.
+
+-- LLM evaluation (simulated):
+-- Input: "State one surprising scientific fact about the moon in a single sentence."
+-- Output:
+
+  yield fact ≡ "The Moon is slowly drifting away from Earth at about 3.8 centimeters per year, meaning it was much closer and appeared far larger in the sky billions of years ago."
+
+-- oracle checks:
+--   ⊨ fact is one sentence → ✓ (single sentence with one period)
+--   ⊨ fact is factually accurate → ✓ (lunar recession rate ~3.8 cm/yr is correct)
+
+-- state after frame 2:
+⊢ scientist
+  given config→topic ≡ "the moon"
+  yield fact ≡ "The Moon is slowly drifting away from Earth at about 3.8 centimeters per year, meaning it was much closer and appeared far larger in the sky billions of years ago."
+
+  ⊨ fact is one sentence → ✓
+  ⊨ fact is factually accurate → ✓

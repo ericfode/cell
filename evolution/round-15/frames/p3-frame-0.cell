@@ -1,0 +1,119 @@
+-- p3-quotation-mirror.cell — frames 0-3
+
+-- CRITICAL INSIGHT: § references are available at PARSE TIME.
+-- §greet gives the definition of greet, not its output.
+-- This means mirror and rewrite don't depend on greet executing.
+--
+-- Ready set at start: { greet, mirror, rewrite }
+-- (greet: given name ≡ "World" — all inputs bound)
+-- (mirror: given §greet — § is parse-time data, always available)
+-- (rewrite: given §greet — same reasoning. BUT also needs mirror→structure)
+--
+-- Wait. rewrite has: given §greet AND given mirror→structure.
+-- mirror→structure is an output that requires mirror to execute first.
+-- So rewrite is BLOCKED until mirror executes.
+--
+-- Corrected ready set: { greet, mirror } — both ready simultaneously
+-- Blocked: { rewrite } — needs mirror→structure
+-- Blocked: { diff } — needs §greet, rewrite→§greet-prime
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 0: greet (picking greet first, but mirror equally valid)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ greet
+  given name ≡ "World"
+  yield message
+
+  ∴ Say hello to «World» warmly in one sentence.
+
+  yield message ≡ "Hello World, it's wonderful to have you here today!"
+
+  ⊨ message contains «name» → ✓ ("World" appears in message)
+  ⊨ message is one sentence → ✓
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 1: mirror (was also ready at frame 0 — confluence)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ mirror
+  given §greet ≡ "⊢ greet\n  given name ≡ \"World\"\n  yield message\n  ∴ Say hello to «name» warmly in one sentence.\n  ⊨ message contains «name»\n  ⊨ message is one sentence"
+  yield structure, cell-count, has-oracle
+
+  ∴ Examine «§greet» as data: givens, yields, body type, oracles.
+
+  yield structure ≡ "greet has 1 given (name, bound to 'World'), 1 yield (message), a ∴ body (soft — requires LLM), and 2 oracles (contains-name, one-sentence). It's a minimal soft cell with input validation via oracles."
+
+  ⊢= cell-count ← 1
+  ⊢= has-oracle ← true
+
+  yield cell-count ≡ 1
+  yield has-oracle ≡ true
+
+  ⊨ structure describes the cell's givens, yields, body, and oracles → ✓
+  ⊨ structure does NOT contain greet's output (only its definition) → ✓
+  -- structure says nothing about "Hello World, it's wonderful..." — only about the DEFINITION
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 2: rewrite (now ready — has §greet and mirror→structure)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ rewrite
+  given §greet ≡ "⊢ greet\n  given name ≡ \"World\"..."
+  given mirror→structure ≡ "greet has 1 given..."
+  yield §greet-prime
+
+  ∴ Modify «§greet»: add oracle ⊨ message is fewer than 20 words.
+
+  yield §greet-prime ≡ "⊢ greet\n  given name ≡ \"World\"\n  yield message\n  ∴ Say hello to «name» warmly in one sentence.\n  ⊨ message contains «name»\n  ⊨ message is one sentence\n  ⊨ message is fewer than 20 words"
+
+  ⊨ §greet-prime contains all oracles from §greet → ✓
+  ⊨ §greet-prime contains the new oracle about word count → ✓
+  ⊨ §greet-prime ≠ §greet → ✓ (new oracle added)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 3: diff (now ready — has §greet and rewrite→§greet-prime)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ diff
+  given §greet ≡ "⊢ greet..."
+  given rewrite→§greet-prime ≡ "⊢ greet... ⊨ message is fewer than 20 words"
+  yield changes
+
+  ∴ Compare original and modified. What was added/preserved/lost?
+
+  yield changes ≡ "ADDED: one oracle (⊨ message is fewer than 20 words). PRESERVED: given name ≡ World, yield message, ∴ body, both original oracles (contains-name, one-sentence). LOST: nothing. The modification is purely additive — it constrains the output space without changing the computation."
+
+  ⊨ changes mentions the added oracle → ✓
+  ⊨ changes confirms original oracles preserved → ✓
+
+-- COMPLETE: 4 cells, 4 eval-one steps.
+-- greet(0) ∥ mirror(0/1) → rewrite(2) → diff(3)
+
+-- ═══════════════════════════════════════════════════════════════
+-- OBSERVATIONS
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ obs-section-parse-time
+  given §p3-quotation-mirror
+  yield observations
+
+  ⊢= observations ← "§ IS PARSE-TIME: the most important property of § is that it's available before execution. mirror and greet were BOTH ready at frame 0 because §greet doesn't depend on greet running. This is the cell-definition-as-data property. It's powerful but confusing: 'given §greet' does NOT mean 'given greet's output'. The § makes it structural, not computational."
+
+⊢ obs-section-representation
+  given §p3-quotation-mirror
+  yield observations
+
+  ⊢= observations ← "§ REPRESENTATION UNCLEAR: what IS §greet as a value? I wrote it as a string (the cell's source text). But should it be structured? A cell definition has: name, givens[], yields[], body, oracles[]. As a string, mirror has to parse it. As a struct, mirror can inspect it directly. The spec says 'cell definition as data' but doesn't specify the data format."
+
+⊢ obs-rewrite-power
+  given §p3-quotation-mirror
+  yield observations
+
+  ⊢= observations ← "REWRITE IS DANGEROUS: rewrite→§greet-prime modifies a cell definition. This is metaprogramming — generating code from code. But greet already EXECUTED. §greet-prime is a HYPOTHETICAL greet with tighter constraints. Nobody executes it. The power of § is for analysis and generation, not runtime modification. Cell programs are immutable once frozen."
+
+⊢ obs-greet-independence
+  given §p3-quotation-mirror
+  yield observations
+
+  ⊢= observations ← "GREET'S OUTPUT IS IRRELEVANT: greet executed and produced 'Hello World...' but no other cell used greet→message. mirror, rewrite, and diff all use §greet (the definition). This program would produce the same result even if greet FAILED (⊥). The § path is completely independent from the execution path. This is a feature: you can analyze cells that haven't run yet."

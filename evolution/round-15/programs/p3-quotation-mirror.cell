@@ -1,0 +1,59 @@
+-- p3-quotation-mirror.cell
+-- Tests: § quotation, cell definitions as data, metaprogramming
+--
+-- A cell reads its OWN definition via §, describes what it sees,
+-- then a second cell modifies the definition and yields the diff.
+-- Pure metaprogramming: cells that reason about cells.
+
+⊢ greet
+  given name ≡ "World"
+  yield message
+
+  ∴ Say hello to «name» warmly in one sentence.
+
+  ⊨ message contains «name»
+  ⊨ message is one sentence
+
+⊢ mirror
+  given §greet
+  yield structure, cell-count, has-oracle
+
+  ∴ You are given the DEFINITION of a cell, not its output.
+    Examine «§greet» as data:
+    - How many givens does it have?
+    - How many yields?
+    - What is its body type (∴ or ⊢=)?
+    - How many oracles (⊨)?
+    Report the «structure» as a description.
+
+  ⊢= cell-count ← 1
+  ⊢= has-oracle ← true
+
+  ⊨ structure describes the cell's givens, yields, body, and oracles
+  ⊨ structure does NOT contain greet's output (only its definition)
+
+⊢ rewrite
+  given §greet
+  given mirror→structure
+  yield §greet-prime
+
+  ∴ Take the definition «§greet» and modify it:
+    Add a second oracle: ⊨ message is fewer than 20 words.
+    Return the modified definition as «§greet-prime».
+    Do NOT execute greet — only modify its definition.
+
+  ⊨ §greet-prime contains all oracles from §greet
+  ⊨ §greet-prime contains the new oracle about word count
+  ⊨ §greet-prime ≠ §greet
+
+⊢ diff
+  given §greet
+  given rewrite→§greet-prime
+  yield changes
+
+  ∴ Compare «§greet» and «rewrite→§greet-prime».
+    What was added? What was preserved? What was lost?
+    List each change.
+
+  ⊨ changes mentions the added oracle
+  ⊨ changes confirms original oracles preserved

@@ -1,0 +1,67 @@
+-- p4-bottom-cascade.cell
+-- Tests: ⊥ production, propagation, handlers, recovery
+--
+-- An impossible cell produces ⊥. Three downstream cells handle it
+-- differently: skip, error-value, and no handler (crash).
+-- Tests the full bottom propagation path.
+
+⊢ impossible
+  given constraint ≡ "Name a US state whose name contains exactly 4 letter Z's"
+  yield answer
+
+  ∴ «constraint»
+
+  ⊨ answer names a real US state
+  ⊨ answer's name contains exactly 4 letter Z's
+
+  ⊨? on failure:
+    retry with "Think carefully — is there really such a state?" appended
+    max 2
+
+  ⊨? on exhaustion:
+    error-value(⊥)
+
+⊢ graceful
+  given impossible→answer
+  yield output
+
+  ⊥? skip with "No valid state found — using fallback"
+
+  ∴ The state «impossible→answer» is interesting because...
+
+  ⊨ output is one sentence
+
+⊢ absorber
+  given impossible→answer
+  yield output
+
+  ⊥? error-value("UNKNOWN")
+
+  ∴ Capitalize the state name: «impossible→answer»
+
+  ⊨ output is uppercase
+
+⊢ crasher
+  given impossible→answer
+  yield output
+
+  -- NO ⊥ handler — this cell should propagate ⊥
+
+  ∴ Look up the population of «impossible→answer».
+
+  ⊨ output is a number
+
+⊢= report
+  given graceful→output
+  given absorber→output
+  yield summary, bottom-count
+
+  ⊢= bottom-count ← count(⊥ in [graceful→output, absorber→output])
+  ⊢= summary ← "graceful: " + graceful→output + " | absorber: " + absorber→output
+
+  ⊨ summary is a string
+
+  -- crasher is not in report's inputs because it has no ⊥ handler
+  -- and will propagate ⊥ — nothing can depend on it safely
+  -- unless it ALSO has a ⊥ handler. This is intentional: crasher
+  -- demonstrates what happens when you forget the handler.

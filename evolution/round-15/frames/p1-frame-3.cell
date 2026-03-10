@@ -1,0 +1,27 @@
+-- p1-parallel-confluence.cell — frame 3
+-- Ready set: { child } — last of the parallel trio
+-- I pick: child (only option)
+
+⊢ child
+  given config→topic ≡ "the moon"
+  yield question
+
+  ∴ Ask a question about «the moon» the way a curious 5-year-old would.
+
+-- LLM evaluation (simulated):
+-- Input: "Ask a question about the moon the way a curious 5-year-old would."
+-- Output:
+
+  yield question ≡ "If the moon is made of rock, why does it glow at night?"
+
+-- oracle checks:
+--   ⊨ question ends with a question mark → ✓
+--   ⊨ question uses simple vocabulary → ✓ ("rock", "glow", "night" — all simple)
+
+-- state after frame 3:
+⊢ child
+  given config→topic ≡ "the moon"
+  yield question ≡ "If the moon is made of rock, why does it glow at night?"
+
+  ⊨ question ends with a question mark → ✓
+  ⊨ question uses simple vocabulary → ✓

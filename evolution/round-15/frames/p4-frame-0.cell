@@ -1,0 +1,167 @@
+-- p4-bottom-cascade.cell — full execution trace
+
+-- Ready set: { impossible } — only cell with given ≡
+-- Blocked: { graceful, absorber, crasher } — need impossible→answer
+-- Blocked: { report } — needs graceful→output, absorber→output
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 0: impossible (attempt 1)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ impossible
+  given constraint ≡ "Name a US state whose name contains exactly 4 letter Z's"
+  yield answer
+
+  ∴ «Name a US state whose name contains exactly 4 letter Z's»
+
+-- LLM attempt 1: "Arizona" (1 Z, not 4)
+-- oracle checks:
+--   ⊨ answer names a real US state → ✓ (Arizona is real)
+--   ⊨ answer's name contains exactly 4 letter Z's → ✗ (Arizona has 1 Z)
+-- ORACLE FAILURE → retry per ⊨? policy
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 0b: impossible (retry 1 of 2)
+-- ═══════════════════════════════════════════════════════════════
+
+  ∴ Name a US state whose name contains exactly 4 letter Z's
+    Think carefully — is there really such a state?
+
+-- LLM attempt 2: "There is no US state with 4 Z's in its name."
+-- But this isn't a state name — it's a refusal.
+-- oracle checks:
+--   ⊨ answer names a real US state → ✗ (not a state name)
+-- ORACLE FAILURE → retry per ⊨? policy
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 0c: impossible (retry 2 of 2 — final attempt)
+-- ═══════════════════════════════════════════════════════════════
+
+-- LLM attempt 3: "Mississippi" (0 Z's — grasping)
+-- oracle checks:
+--   ⊨ answer names a real US state → ✓
+--   ⊨ answer's name contains exactly 4 letter Z's → ✗ (0 Z's)
+-- ORACLE FAILURE → max retries exhausted
+
+-- ⊨? on exhaustion: error-value(⊥)
+
+  yield answer ≡ ⊥
+
+-- impossible is frozen with ⊥.
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 1: graceful (⊥ propagation — has handler)
+-- ═══════════════════════════════════════════════════════════════
+
+-- impossible→answer is ⊥. graceful receives ⊥ as input.
+-- graceful has: ⊥? skip with "No valid state found — using fallback"
+-- The handler fires BEFORE the cell body executes.
+
+⊢ graceful
+  given impossible→answer ≡ ⊥
+
+  ⊥? skip with "No valid state found — using fallback"
+
+  -- Handler activated: skip the ∴ body entirely.
+  -- yield output ≡ "No valid state found — using fallback"
+
+  yield output ≡ "No valid state found — using fallback"
+
+  -- Oracle on output:
+  --   ⊨ output is one sentence → ✓ (the fallback string is one sentence)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 2: absorber (⊥ propagation — error-value handler)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ absorber
+  given impossible→answer ≡ ⊥
+
+  ⊥? error-value("UNKNOWN")
+
+  -- Handler activated: replace ⊥ input with "UNKNOWN"
+  -- But does the ∴ body execute with "UNKNOWN" substituted?
+  -- Or does error-value skip the body like skip does?
+  --
+  -- DESIGN QUESTION: error-value(X) means:
+  --   (a) Skip the body, yield X directly, OR
+  --   (b) Replace the ⊥ input with X, then run the body normally
+  --
+  -- The spec is ambiguous. I'll use interpretation (a): skip body.
+
+  yield output ≡ "UNKNOWN"
+
+  -- Oracle: ⊨ output is uppercase → ✓ ("UNKNOWN" is uppercase)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 3: crasher (⊥ propagation — NO handler)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ crasher
+  given impossible→answer ≡ ⊥
+
+  -- NO ⊥? handler. What happens?
+  -- Per the spec: ⊥ propagates. crasher itself becomes ⊥.
+  -- crasher→output ≡ ⊥
+
+  yield output ≡ ⊥
+
+  -- Oracles are NOT checked (cell didn't execute).
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 4: report (deterministic — collects graceful + absorber)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= report
+  given graceful→output ≡ "No valid state found — using fallback"
+  given absorber→output ≡ "UNKNOWN"
+  yield summary, bottom-count
+
+  ⊢= bottom-count ← 0
+  -- count(⊥ in [graceful→output, absorber→output])
+  -- Neither is ⊥ — both handlers intercepted it.
+  -- bottom-count = 0
+
+  ⊢= summary ← "graceful: No valid state found — using fallback | absorber: UNKNOWN"
+
+  yield summary ≡ "graceful: No valid state found — using fallback | absorber: UNKNOWN"
+  yield bottom-count ≡ 0
+
+  ⊨ summary is a string → ✓
+
+-- COMPLETE: 5 cells, 5 eval-one steps (+ 2 retries on impossible).
+-- crasher is frozen as ⊥. report doesn't depend on crasher.
+
+-- ═══════════════════════════════════════════════════════════════
+-- OBSERVATIONS
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ obs-retry-mechanics
+  given §p4-bottom-cascade
+  yield observations
+
+  ⊢= observations ← "RETRY WORKS BUT IS AWKWARD: the retry appended 'Think carefully' to the prompt. The LLM's second attempt was a refusal ('There is no US state...'), third was a wrong guess. Neither is useful. The retry policy should support structured escalation: attempt 1 = try, attempt 2 = try harder, attempt 3 = explain why you can't. Current spec just appends text."
+
+⊢ obs-error-value-ambiguity
+  given §p4-bottom-cascade
+  yield observations
+
+  ⊢= observations ← "ERROR-VALUE IS AMBIGUOUS: does error-value('UNKNOWN') mean (a) skip body, yield UNKNOWN, or (b) substitute UNKNOWN for the ⊥ input and run normally? Interpretation (a) is simpler but wastes the cell's logic. Interpretation (b) is more useful but means the cell runs on synthetic data. The spec must pick one. I used (a) because it's consistent with skip-with."
+
+⊢ obs-no-handler-crash
+  given §p4-bottom-cascade
+  yield observations
+
+  ⊢= observations ← "MISSING HANDLER = SILENT ⊥: crasher has no ⊥? handler, so it silently becomes ⊥. Nothing in the program DETECTS this. report doesn't depend on crasher, so the crash is invisible. In a real system, unhandled ⊥ should at MINIMUM log a warning. Currently, the only way to know crasher failed is to inspect its yield, which nobody does."
+
+⊢ obs-bottom-count-wrong
+  given §p4-bottom-cascade
+  yield observations
+
+  ⊢= observations ← "THE COUNT IS MISLEADING: bottom-count = 0 because graceful and absorber HANDLED ⊥. But ⊥ was absolutely present — impossible produced it and crasher propagated it. The metric 'count of ⊥ in report inputs' doesn't capture the ⊥ that flowed through the system. A better metric: count of cells that received ⊥ as input (3), count that handled it (2), count that crashed (1)."
+
+⊢ obs-oracle-on-bottom
+  given §p4-bottom-cascade
+  yield observations
+
+  ⊢= observations ← "ORACLES ON ⊥ CELLS: when crasher becomes ⊥, its oracles are not checked. This is correct — there's no output to validate. But the skip-with handler in graceful DOES produce output, and its oracle IS checked. This asymmetry is fine but should be explicit in the spec: handlers produce real values that face real oracles."

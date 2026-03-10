@@ -1,0 +1,17 @@
+-- p2-spawner-cascade.cell — frame 0
+-- Ready set: { topic } — only cell with all givens bound
+-- Blocked: { decompose } — needs topic→subject, topic→depth
+-- Blocked: { synthesize } — needs decompose→sub-questions, answer-*→response
+
+⊢ topic
+  given subject ≡ "Why do cats purr?"
+  yield subject ≡ "Why do cats purr?", depth
+  ⊢= depth ← 1
+
+  yield depth ≡ 1
+
+-- oracle check:
+--   ⊨ depth = 1 → ✓
+
+-- state after frame 0: topic frozen.
+-- Ready set becomes: { decompose }

@@ -1,0 +1,40 @@
+-- p2-spawner-cascade.cell — frames 2-4 (answering sub-questions)
+-- Ready set: { answer-0, answer-1, answer-2 } — all parallel
+-- Executing in order (any order valid by confluence)
+
+-- frame 2: answer-0
+⊢ answer-0
+  given q ≡ "What physical mechanism in a cat's body produces the purring sound?"
+  yield response
+
+  ∴ Answer «q» in 2 sentences.
+
+  yield response ≡ "Cats purr through rapid rhythmic contractions of their laryngeal muscles, which dilate and constrict the glottis about 25-150 times per second. This creates pressure changes during both inhalation and exhalation, producing the characteristic continuous rumbling vibration."
+
+  ⊨ response answers the question → ✓
+
+-- frame 3: answer-1
+⊢ answer-1
+  given q ≡ "In what emotional or behavioral states do cats typically purr?"
+  yield response
+
+  ∴ Answer «q» in 2 sentences.
+
+  yield response ≡ "Cats purr not only when content and relaxed but also when stressed, injured, or seeking comfort — it's a self-soothing behavior as much as a social signal. Mother cats purr during nursing, and kittens begin purring at just a few days old to communicate with their mothers."
+
+  ⊨ response answers the question → ✓
+
+-- frame 4: answer-2
+⊢ answer-2
+  given q ≡ "Does purring have any health benefits for cats or nearby humans?"
+  yield response
+
+  ∴ Answer «q» in 2 sentences.
+
+  yield response ≡ "The frequency of cat purring (25-50 Hz) falls within a range shown to promote bone density and tissue healing, which may explain why cats recover from injuries faster than dogs. Some studies suggest that living with a purring cat correlates with lower human blood pressure and reduced risk of heart attack."
+
+  ⊨ response answers the question → ✓
+
+-- state after frame 4:
+-- all answer-* cells frozen
+-- Ready set: { synthesize }

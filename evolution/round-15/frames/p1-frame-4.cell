@@ -1,0 +1,48 @@
+-- p1-parallel-confluence.cell — frame 4 (final)
+-- Ready set: { combine } — all three inputs now bound
+-- combine is ⊢= (deterministic) — no LLM call needed
+
+⊢= combine
+  given poet→poem ≡ "Silver disc above\nPulling tides across the dark\nOld companion, still"
+  given scientist→fact ≡ "The Moon is slowly drifting away from Earth at about 3.8 centimeters per year, meaning it was much closer and appeared far larger in the sky billions of years ago."
+  given child→question ≡ "If the moon is made of rock, why does it glow at night?"
+  yield document
+
+  ⊢= document ← "POEM:\n" + poet→poem + "\n\nFACT:\n" + scientist→fact + "\n\nQUESTION:\n" + child→question
+
+  yield document ≡ "POEM:\nSilver disc above\nPulling tides across the dark\nOld companion, still\n\nFACT:\nThe Moon is slowly drifting away from Earth at about 3.8 centimeters per year, meaning it was much closer and appeared far larger in the sky billions of years ago.\n\nQUESTION:\nIf the moon is made of rock, why does it glow at night?"
+
+-- oracle checks:
+--   ⊨ document contains all three inputs → ✓
+
+-- COMPLETE: all cells frozen. 5 cells, 4 eval-one steps.
+-- (config was trivial — 1 step. poet/scientist/child — 3 parallel steps.
+--  combine — 1 deterministic step.)
+
+-- ═══════════════════════════════════════════════════════════════
+-- OBSERVATIONS (as Cell — not markdown)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ obs-confluence
+  given §p1-parallel-confluence
+  yield observations
+
+  ⊢= observations ← "CONFLUENCE: poet, scientist, child were all ready after frame 0. I executed them poet→scientist→child but any order works. The program has 3! = 6 valid execution orderings for frames 1-3. Confluence guarantees same final document."
+
+⊢ obs-pass-through
+  given §p1-parallel-confluence
+  yield observations
+
+  ⊢= observations ← "DESIGN SMELL: config is a pass-through cell. It takes a given with ≡ and yields the same value. This is boilerplate. The spec should support top-level bindings: 'given topic ≡ the moon' at program scope, without wrapping in a cell. Config cells that just relay constants are ceremony, not computation."
+
+⊢ obs-deterministic
+  given §p1-parallel-confluence
+  yield observations
+
+  ⊢= observations ← "COMBINE IS CLEAN: ⊢= combine works perfectly. String concatenation on frozen values is pure classical computation. No LLM call, no oracle ambiguity. This is crystallization done right — the cell was born deterministic. The 3 soft cells (poet, scientist, child) could potentially crystallize too, but only after enough data to extract templates (see distillation-loop)."
+
+⊢ obs-oracle-trivial
+  given §p1-parallel-confluence
+  yield observations
+
+  ⊢= observations ← "ORACLE TRIVIALITY: the oracle on config (topic is a noun phrase) is tautological — we put the value there. Same pattern from R13. Oracles on givens with ≡ are assertions about the programmer, not the computation. They should be parse-time checks, not runtime oracles."

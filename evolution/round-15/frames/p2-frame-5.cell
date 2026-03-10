@@ -1,0 +1,48 @@
+-- p2-spawner-cascade.cell — frame 5 (synthesize + observations)
+-- Ready set: { synthesize } — all answer-* outputs now bound
+
+⊢ synthesize
+  given decompose→sub-questions ≡ ["What physical mechanism...", "In what emotional...", "Does purring have..."]
+  given answer-0→response ≡ "Cats purr through rapid rhythmic contractions..."
+  given answer-1→response ≡ "Cats purr not only when content..."
+  given answer-2→response ≡ "The frequency of cat purring (25-50 Hz)..."
+  yield summary
+
+  ∴ Synthesize into a single coherent 3-sentence explanation.
+
+  yield summary ≡ "Cats purr by rapidly contracting their laryngeal muscles 25-150 times per second, creating a continuous vibration during both breathing in and out. This behavior serves multiple purposes — not just contentment but also self-soothing during stress, injury, and mother-kitten bonding. The 25-50 Hz vibration frequency may even promote bone healing in cats and has been associated with lower blood pressure in nearby humans."
+
+-- oracle checks:
+--   ⊨ summary is 3 sentences → ✓ (3 sentences)
+--   ⊨ summary addresses the original question → ✓ (explains why cats purr)
+
+-- COMPLETE: 6 cells (3 original + 3 spawned), 5 eval-one steps.
+-- topic(0) → decompose(1) → answer-0(2), answer-1(3), answer-2(4) → synthesize(5)
+
+-- ═══════════════════════════════════════════════════════════════
+-- OBSERVATIONS
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ obs-spawner-shape
+  given §p2-spawner-cascade
+  yield observations
+
+  ⊢= observations ← "SPAWNER GAP: the ⊢⊢ cell yields sub-questions[] but the SHAPE of spawned cells is implicit. The comment block (-- spawned cells: ...) is not parseable syntax. Spec needs: spawners yield §cell-templates[] or an explicit spawn clause that defines the template for each spawned cell. Without this, the evaluator has to infer cell structure from natural language."
+
+⊢ obs-wildcard-dep
+  given §p2-spawner-cascade
+  yield observations
+
+  ⊢= observations ← "WILDCARD DEP WORKS: 'given answer-*→response' in synthesize correctly collected all 3 answer cells. But the spec doesn't define wildcard resolution formally. When does the wildcard resolve? At spawn time (decompose fires)? At eval-one time (synthesize becomes ready)? The answer matters for the DAG — synthesize can't be ready until the wildcard can enumerate its matches."
+
+⊢ obs-spawner-oracle
+  given §p2-spawner-cascade
+  yield observations
+
+  ⊢= observations ← "SPAWNED CELL ORACLES: the spawned answer-* cells have minimal oracles ('response answers the question'). This is a semantic oracle — the LLM judges itself. In a real system, you'd want cross-cell oracles: synthesize checks that each answer-* response was actually used. But the spec has no way to express 'oracle on behalf of another cell.' Oracle scope is always local."
+
+⊢ obs-until-trivial
+  given §p2-spawner-cascade
+  yield observations
+
+  ⊢= observations ← "UNTIL CLAUSE TRIVIAL: 'until length(sub-questions) ≥ 3' was satisfied on the first spawner firing. Like distillation-loop's crystallization, the until check passed immediately. We never tested what happens when a spawner fires AGAIN. Need a program where until fails on first try and the spawner re-fires with accumulated state."
