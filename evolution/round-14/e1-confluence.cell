@@ -1,0 +1,50 @@
+-- E1: Confluence Under Semantic Non-Determinism
+--
+-- Three independent soft cells (A, B, C) with no shared data dependencies.
+-- Each produces a one-sentence fact about a different topic.
+-- An aggregate cell joins them deterministically.
+--
+-- HYPOTHESIS: Evaluation order does not affect the frozen graph structure.
+-- If confluence holds, evaluating A→B→C produces the same graph shape
+-- as evaluating C→B→A, even though the LLM-generated content may differ.
+--
+-- FALSIFIED IF: A cell's output changes based on whether another independent
+-- cell was evaluated first (cross-cell contamination via hidden LLM state).
+
+⊢ climate-fact
+  given topic ≡ "climate"
+  yield fact
+
+  ∴ Write a one-sentence fact about «topic».
+
+  ⊨ fact is exactly one sentence
+  ⊨ fact is about «topic»
+
+⊢ ocean-fact
+  given topic ≡ "oceans"
+  yield fact
+
+  ∴ Write a one-sentence fact about «topic».
+
+  ⊨ fact is exactly one sentence
+  ⊨ fact is about «topic»
+
+⊢ glacier-fact
+  given topic ≡ "glaciers"
+  yield fact
+
+  ∴ Write a one-sentence fact about «topic».
+
+  ⊨ fact is exactly one sentence
+  ⊨ fact is about «topic»
+
+⊢ aggregate
+  given climate-fact→fact, ocean-fact→fact, glacier-fact→fact
+  yield report
+
+  ⊢= report ← climate-fact→fact ++ "\n" ++ ocean-fact→fact ++ "\n" ++ glacier-fact→fact
+
+  ⊨ report contains exactly 3 lines
+  ⊨ line 1 is about climate
+  ⊨ line 2 is about oceans
+  ⊨ line 3 is about glaciers
