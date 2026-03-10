@@ -1,0 +1,122 @@
+⊢ extract-sentiment
+  given text ≡ "The product is innovative but overpriced. Users love the design yet complain about battery life."
+  yield sentiment, confidence
+
+  ∴ Analyze «text» for overall sentiment.
+    Return «sentiment» as one of: positive, negative, mixed.
+    Return «confidence» as a number 0-100.
+
+  ⊨ sentiment ∈ {"positive", "negative", "mixed"}
+  ⊨ confidence ∈ [0, 100]
+  ⊨ if text contains both positive and negative language → sentiment = "mixed"
+
+  ⊨? on failure:
+    retry with «oracle.failures» appended to prompt
+    max 3
+
+  ⊨? on exhaustion:
+    error-value(⊥)
+
+⊢ generate-response
+  given extract-sentiment→sentiment
+  given extract-sentiment→confidence
+  yield response, tone
+
+  ∴ Write a customer service «response» matching the detected «sentiment».
+    If sentiment is "mixed", acknowledge both sides.
+    Set «tone» to: empathetic, neutral, or celebratory.
+
+  ⊨ tone = "empathetic" if sentiment = "negative"
+  ⊨ tone = "celebratory" if sentiment = "positive"
+  ⊨ tone = "empathetic" if sentiment = "mixed"
+  ⊨ response mentions the specific concerns from the original text
+
+  ⊨? on failure:
+    retry with «oracle.failures» appended to prompt
+    max 2
+
+  ⊨? on exhaustion:
+    partial-accept(best)
+
+⊢ quality-gate
+  given generate-response→response
+  given generate-response→tone
+  given extract-sentiment→sentiment
+  yield approved, reason
+
+  ∴ Check that «response» is appropriate for the detected «sentiment».
+    Verify «tone» matches the oracle rules above.
+
+  ⊢= approved ← (tone = "empathetic" ∧ sentiment ∈ {"negative", "mixed"})
+                ∨ (tone = "celebratory" ∧ sentiment = "positive")
+                ∨ (tone = "neutral")
+
+  ⊨ if ¬approved then reason explains the mismatch
+
+―――――――――――――――――――――――――――――――
+Execution trace:
+
+Step 1: extract-sentiment
+  Attempt 1:
+    extract-sentiment → sentiment ≡ "positive", confidence ≡ 72
+
+    Oracle checks:
+      ⊨ sentiment ∈ {"positive", "negative", "mixed"} ✓
+      ⊨ confidence ∈ [0, 100] ✓
+      ⊨ text has positive ("innovative", "love the design") and
+        negative ("overpriced", "complain about battery") → sentiment = "mixed" ✗
+        FAIL: sentiment ≡ "positive" but text is mixed
+
+    ⊨? triggered: retry with feedback
+      oracle.failures = ["text contains positive ('innovative', 'love the design')
+        and negative ('overpriced', 'complain about battery life'),
+        but sentiment='positive' instead of 'mixed'"]
+
+  Attempt 2:
+    extract-sentiment → sentiment ≡ "mixed", confidence ≡ 84
+
+    Oracle checks:
+      ⊨ sentiment ∈ {"positive", "negative", "mixed"} ✓
+      ⊨ confidence ∈ [0, 100] ✓
+      ⊨ text has positive and negative → sentiment = "mixed" ✓
+
+    All oracles pass. Attempt 2 accepted.
+
+Step 2: generate-response
+  Inputs: sentiment ≡ "mixed", confidence ≡ 84
+
+  Attempt 1:
+    generate-response → response ≡ "Thank you for sharing your thoughts!
+      We're glad you find our product innovative and love the design.
+      We hear your concerns about pricing and battery life and are
+      actively working on improvements in both areas.",
+      tone ≡ "empathetic"
+
+    Oracle checks:
+      ⊨ tone = "empathetic" if sentiment = "mixed" ✓
+      ⊨ response mentions specific concerns ("pricing", "battery life") ✓
+
+    All oracles pass. Attempt 1 accepted.
+
+Step 3: quality-gate
+  Inputs: response ≡ ..., tone ≡ "empathetic", sentiment ≡ "mixed"
+
+  ⊢= approved ← (tone = "empathetic" ∧ sentiment ∈ {"negative", "mixed"})
+    = ("empathetic" = "empathetic" ∧ "mixed" ∈ {"negative", "mixed"})
+    = (true ∧ true)
+    = true
+
+  yield approved ≡ true, reason ≡ ∅
+
+Final state:
+  ⊢ extract-sentiment
+    yield sentiment ≡ "mixed", confidence ≡ 84
+    ⊨ ... ✓ (all pass, attempt 2)
+
+  ⊢ generate-response
+    yield response ≡ "Thank you for sharing...", tone ≡ "empathetic"
+    ⊨ ... ✓ (all pass, attempt 1)
+
+  ⊢ quality-gate
+    yield approved ≡ true, reason ≡ ∅
+    ⊢= ... ✓ (deterministic)
