@@ -208,6 +208,36 @@ Cell-zero keeps evaluating as long as there are ready cells on the
 frontier. When nothing is ready, the program quiesces but doesn't
 terminate — new inputs or external events can wake it.
 
+### Bottom (⊥) as absence
+
+⊥ is not a value. It is the ABSENCE of a value. A cell whose output
+is never bound has output = ⊥ (bottom of the lattice).
+
+In the graph model, ⊥ propagation is simply "the wavefront stops":
+
+1. Cell A produces ⊥ (oracle exhaustion or upstream ⊥)
+2. Cell B depends on A→output
+3. Cell-zero checks: does B have a `⊥?` handler for A→output?
+4. **With handler**: cell-zero spawns the handler cell, which provides
+   fallback values. B is frozen with the fallback. Downstream proceeds.
+5. **Without handler**: cell-zero can't evaluate B (input is absent).
+   B's outputs remain unbound (⊥). Downstream sees ⊥.
+
+No special ⊥ propagation machinery needed. It falls out naturally
+from the graph evaluation rules:
+- A cell is ready when all inputs are bound
+- ⊥ inputs are not bound (they're absent)
+- Without a handler, the cell is never ready
+- Its outputs are therefore never bound
+- Downstream cells that depend on those outputs are also never ready
+
+The `⊥?` handler breaks the chain by providing values where none
+exist — it LIFTS the cell from ⊥ to a concrete value.
+
+This connects to domain theory: the frozen set forms a lattice under
+the "more defined" ordering. ⊥ is bottom. Monotonicity means values
+only increase. `⊥?` handlers are bottom-lifting functions.
+
 ### Immutability invariant
 
 The core theorem: graph operations cannot modify frozen nodes.
