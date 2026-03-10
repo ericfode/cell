@@ -1,0 +1,31 @@
+⊢ flip
+  given current
+  yield antonym
+
+  ∴ Give the single-word antonym of «current».
+    Respond with exactly one word — the most common English antonym.
+
+  ⊨ antonym is exactly one word (no spaces, no punctuation)
+  ⊨ antonym is a recognized English antonym of «current»
+
+⊢= tick
+  given gen ≡ 0
+  yield next-gen
+
+  ⊢= next-gen ← gen + 1
+
+⊢= drift-check
+  given flip→antonym
+  given history[]
+  yield drifted
+
+  ⊢= drifted ← flip→antonym ∉ history
+
+⊢∘ life(flip, current ≡ "light")
+  through tick
+  until tick→next-gen ≥ 50
+  max 50
+  yield history[]
+
+  ⊨ history contains one entry per generation
+  ⊨ each entry records (generation, word)
