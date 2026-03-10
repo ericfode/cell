@@ -1,0 +1,151 @@
+-- trace-001: mixed-hard-soft eval-one execution trace
+-- source: docs/examples/mixed-hard-soft.cell
+-- path: solve → substitute → explain (quiescence)
+-- frames: 4 (h0 init, h1 freeze solve, h2 freeze substitute, h3 freeze explain)
+
+-- ============================================================
+-- frame 0 of mixed-hard-soft
+-- hash: 0000000000000000
+-- frozen: (none)
+-- action: init
+-- ============================================================
+
+⊢ solve
+  given equation ≡ "2x + 3 = 11"
+  yield x, proof[]
+
+  ∴ Solve «equation» for x. Show your work as «proof» (list of steps).
+
+  ⊨ x is a number
+
+⊢= substitute
+  given solve→x
+  given equation ≡ "2x + 3 = 11"
+  yield holds
+
+  ⊢= holds ← eval(2 * solve→x + 3) = 11
+
+  ⊨ holds = true
+
+⊢ explain
+  given solve→x
+  given solve→proof
+  given substitute→holds
+  yield explanation
+
+  ∴ If «substitute→holds» is true, explain the solution «solve→proof» in plain English.
+    If false, say "The solution x=«solve→x» is WRONG because substitution failed."
+
+  ⊨ explanation mentions the value of x
+  ⊨ if substitute→holds then explanation is positive
+
+-- ============================================================
+-- frame 1 of mixed-hard-soft
+-- hash: 98583361ac47bfd1
+-- frozen: solve
+-- action: freeze
+-- oracle: solve → pass
+-- ============================================================
+
+⊢ solve
+  given equation ≡ "2x + 3 = 11"
+  yield x ≡ 4, proof[] ≡ ["2x + 3 = 11", "2x + 3 - 3 = 11 - 3", "2x = 8", "x = 8/2", "x = 4"]
+
+  ∴ Solve «equation» for x. Show your work as «proof» (list of steps).
+
+  ⊨ x is a number                           → ✓
+
+⊢= substitute
+  given solve→x ≡ 4
+  given equation ≡ "2x + 3 = 11"
+  yield holds
+
+  ⊢= holds ← eval(2 * solve→x + 3) = 11
+
+  ⊨ holds = true
+
+⊢ explain
+  given solve→x ≡ 4
+  given solve→proof ≡ ["2x + 3 = 11", "2x + 3 - 3 = 11 - 3", "2x = 8", "x = 8/2", "x = 4"]
+  given substitute→holds
+  yield explanation
+
+  ∴ If «substitute→holds» is true, explain the solution «solve→proof» in plain English.
+    If false, say "The solution x=«solve→x» is WRONG because substitution failed."
+
+  ⊨ explanation mentions the value of x
+  ⊨ if substitute→holds then explanation is positive
+
+-- ============================================================
+-- frame 2 of mixed-hard-soft
+-- hash: a9c6831a4f8a8f62
+-- frozen: substitute
+-- action: freeze
+-- oracle: substitute → pass
+-- ============================================================
+
+⊢ solve
+  given equation ≡ "2x + 3 = 11"
+  yield x ≡ 4, proof[] ≡ ["2x + 3 = 11", "2x + 3 - 3 = 11 - 3", "2x = 8", "x = 8/2", "x = 4"]
+
+  ∴ Solve «equation» for x. Show your work as «proof» (list of steps).
+
+  ⊨ x is a number                           → ✓
+
+⊢= substitute
+  given solve→x ≡ 4
+  given equation ≡ "2x + 3 = 11"
+  yield holds ≡ true
+
+  ⊢= holds ← eval(2 * solve→x + 3) = 11
+
+  ⊨ holds = true                             → ✓
+
+⊢ explain
+  given solve→x ≡ 4
+  given solve→proof ≡ ["2x + 3 = 11", "2x + 3 - 3 = 11 - 3", "2x = 8", "x = 8/2", "x = 4"]
+  given substitute→holds ≡ true
+  yield explanation
+
+  ∴ If «substitute→holds» is true, explain the solution «solve→proof» in plain English.
+    If false, say "The solution x=«solve→x» is WRONG because substitution failed."
+
+  ⊨ explanation mentions the value of x
+  ⊨ if substitute→holds then explanation is positive
+
+-- ============================================================
+-- frame 3 of mixed-hard-soft
+-- hash: d959a6c870f4d05a
+-- frozen: explain
+-- action: freeze
+-- oracle: explain → pass
+-- ============================================================
+
+⊢ solve
+  given equation ≡ "2x + 3 = 11"
+  yield x ≡ 4, proof[] ≡ ["2x + 3 = 11", "2x + 3 - 3 = 11 - 3", "2x = 8", "x = 8/2", "x = 4"]
+
+  ∴ Solve «equation» for x. Show your work as «proof» (list of steps).
+
+  ⊨ x is a number                           → ✓
+
+⊢= substitute
+  given solve→x ≡ 4
+  given equation ≡ "2x + 3 = 11"
+  yield holds ≡ true
+
+  ⊢= holds ← eval(2 * solve→x + 3) = 11
+
+  ⊨ holds = true                             → ✓
+
+⊢ explain
+  given solve→x ≡ 4
+  given solve→proof ≡ ["2x + 3 = 11", "2x + 3 - 3 = 11 - 3", "2x = 8", "x = 8/2", "x = 4"]
+  given substitute→holds ≡ true
+  yield explanation ≡ "Starting from 2x + 3 = 11, subtract 3 from both sides to get 2x = 8, then divide by 2 to find x = 4. Verification: 2(4) + 3 = 8 + 3 = 11, confirming the solution is correct."
+
+  ∴ If «substitute→holds» is true, explain the solution «solve→proof» in plain English.
+    If false, say "The solution x=«solve→x» is WRONG because substitution failed."
+
+  ⊨ explanation mentions the value of x      → ✓
+  ⊨ if substitute→holds then explanation is positive → ✓

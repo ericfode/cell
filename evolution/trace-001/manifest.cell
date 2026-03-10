@@ -1,0 +1,36 @@
+-- manifest for trace-001: mixed-hard-soft eval-one
+-- source: docs/examples/mixed-hard-soft.cell
+-- execution path: A (x=4, all oracles pass, quiescence reached)
+
+§ trace-001
+  given source ≡ "docs/examples/mixed-hard-soft.cell"
+  given strategy ≡ "eval-one"
+  given path ≡ "A"
+
+  ⊢∘ h0
+    given bead ≡ "ce-70mp"
+    given file ≡ "h0.cell"
+    given action ≡ "init"
+    given frozen ≡ "(none)"
+    given hash ≡ "0000000000000000"
+
+  ⊢∘ h1
+    given bead ≡ "ce-qu2j"
+    given file ≡ "h1.cell"
+    given action ≡ "freeze"
+    given frozen ≡ "solve"
+    given hash ≡ "98583361ac47bfd1"
+
+  ⊢∘ h2
+    given bead ≡ "ce-fycx"
+    given file ≡ "h2.cell"
+    given action ≡ "freeze"
+    given frozen ≡ "substitute"
+    given hash ≡ "a9c6831a4f8a8f62"
+
+  ⊢∘ h3
+    given bead ≡ "ce-60co"
+    given file ≡ "h3.cell"
+    given action ≡ "freeze"
+    given frozen ≡ "explain"
+    given hash ≡ "d959a6c870f4d05a"
