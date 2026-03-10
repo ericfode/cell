@@ -1,0 +1,113 @@
+⊢ source
+  given query ≡ "Explain quantum gravity in exactly 3 words"
+  yield answer, confidence
+
+  ∴ Answer «query» in exactly 3 words. Set «confidence» to how
+    certain you are that your answer is scientifically accurate (0-100).
+
+  ⊨ answer is exactly 3 words
+  ⊨ confidence ∈ [0, 100]
+  ⊨ answer does not contain the word "quantum" or "gravity"
+
+  ⊨? on failure:
+    retry with «oracle.failures» appended to prompt
+    max 1
+
+  ⊨? on exhaustion:
+    error-value(⊥)
+
+⊢ summarize
+  given source→answer
+  yield summary
+
+  ∴ Write a one-sentence summary expanding on «source→answer».
+
+  ⊨ summary is exactly one sentence
+  ⊨ summary is between 10 and 50 words
+
+  given source→answer ⊥? skip with summary ≡ "Source failed; no answer to summarize."
+
+⊢= score
+  given source→confidence
+  yield grade, pass
+
+  ⊢= grade ← if source→confidence ≥ 80 then "A"
+              else if source→confidence ≥ 60 then "B"
+              else if source→confidence ≥ 40 then "C"
+              else "F"
+  ⊢= pass ← source→confidence ≥ 60
+
+  ⊨ grade ∈ ["A", "B", "C", "F"]
+  ⊨ pass = true ↔ grade ∈ ["A", "B"]
+
+  given source→confidence ⊥? skip with grade ≡ "X", pass ≡ false
+
+⊢ critique
+  given source→answer
+  given source→confidence
+  yield criticism
+
+  ∴ Critique the answer "«source→answer»" (confidence: «source→confidence»).
+    Identify one specific weakness in 1-2 sentences.
+
+  ⊨ criticism is 1-2 sentences
+  ⊨ criticism identifies a specific weakness (not a generic disclaimer)
+
+  ⊨? on failure:
+    retry with «oracle.failures» appended to prompt
+    max 1
+
+  ⊨? on exhaustion:
+    partial-accept(best)
+
+⊢ translate
+  given source→answer
+  yield spanish, french
+
+  ∴ Translate «source→answer» into Spanish as «spanish» and French as «french».
+
+  ⊨ spanish is not English
+  ⊨ french is not English
+  ⊨ spanish ≠ french
+
+⊢ fact-check
+  given source→answer
+  given source→confidence
+  yield verdict, evidence
+
+  ∴ Fact-check whether «source→answer» is scientifically defensible.
+    Yield «verdict» as PLAUSIBLE, DUBIOUS, or WRONG.
+    Cite one piece of «evidence» (a known fact or reference).
+
+  ⊨ verdict ∈ ["PLAUSIBLE", "DUBIOUS", "WRONG"]
+  ⊨ evidence is one sentence citing a specific fact
+
+  given source→answer ⊥? skip with verdict ≡ "N/A", evidence ≡ "Source produced no answer."
+  given source→confidence ⊥? skip with verdict ≡ "N/A", evidence ≡ "Source produced no confidence."
+
+⊢ digest
+  given summarize→summary
+  given score→grade
+  given score→pass
+  given critique→criticism
+  given translate→spanish
+  given translate→french
+  given fact-check→verdict
+  given fact-check→evidence
+  yield report
+
+  ⊢= report ← "## Bottom Storm Report\n\n" ++
+    "**Summary:** " ++ summarize→summary ++ "\n" ++
+    "**Grade:** " ++ score→grade ++ " (pass: " ++ to-string(score→pass) ++ ")\n" ++
+    "**Critique:** " ++ critique→criticism ++ "\n" ++
+    "**Translations:** ES=" ++ translate→spanish ++ " / FR=" ++ translate→french ++ "\n" ++
+    "**Fact-check:** " ++ fact-check→verdict ++ " — " ++ fact-check→evidence ++ "\n"
+
+  ⊨ report contains "Bottom Storm Report"
+  ⊨ report contains grade and verdict
+
+  given summarize→summary ⊥? skip with report ≡ "## Bottom Storm Report\n\n⊥ propagation reached digest — upstream failures."
+  given critique→criticism ⊥? skip with report ≡ "## Bottom Storm Report\n\n⊥ propagation reached digest — upstream failures."
+  given translate→spanish ⊥? skip with report ≡ "## Bottom Storm Report\n\n⊥ propagation reached digest — upstream failures."
+  given translate→french ⊥? skip with report ≡ "## Bottom Storm Report\n\n⊥ propagation reached digest — upstream failures."
+  given fact-check→verdict ⊥? skip with report ≡ "## Bottom Storm Report\n\n⊥ propagation reached digest — upstream failures."
