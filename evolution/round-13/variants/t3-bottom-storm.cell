@@ -1,113 +1,123 @@
-⊢ source
-  given query ≡ "Explain quantum gravity in exactly 3 words"
-  yield answer, confidence
+-- R13-T3: Bottom Storm — one ⊥ source, six downstream handlers
+-- Tests: ⊥ propagation paths, handler variety, missing handler detection
 
-  ∴ Answer «query» in exactly 3 words. Set «confidence» to how
-    certain you are that your answer is scientifically accurate (0-100).
+⊢ fetch
+  given url ≡ "https://api.example.com/data"
+  yield payload, status-code
 
-  ⊨ answer is exactly 3 words
-  ⊨ confidence ∈ [0, 100]
-  ⊨ answer does not contain the word "quantum" or "gravity"
+  ∴ Simulate fetching data from «url».
+    Return the payload and HTTP status code.
+
+  ⊨ status-code ∈ {200, 404, 500}
+
+  -- THIS IS THE ⊥ SOURCE: 404 or 500 means payload = ⊥
+  ⊢= payload ← if status-code = 200 then payload else ⊥
 
   ⊨? on failure:
-    retry with «oracle.failures» appended to prompt
-    max 1
-
+    retry with «oracle.failures» max 1
   ⊨? on exhaustion:
     error-value(⊥)
 
-⊢ summarize
-  given source→answer
-  yield summary
+⊢ parse
+  given fetch→payload
+  yield records[], record-count
 
-  ∴ Write a one-sentence summary expanding on «source→answer».
+  ∴ Parse «payload» as JSON. Extract records.
 
-  ⊨ summary is exactly one sentence
-  ⊨ summary is between 10 and 50 words
+  ⊢= record-count ← |records|
 
-  given source→answer ⊥? skip with summary ≡ "Source failed; no answer to summarize."
+  ⊨ record-count ≥ 0
+  ⊨ records is a list
 
-⊢= score
-  given source→confidence
-  yield grade, pass
+  -- HAS HANDLER: graceful degradation
+  given fetch→payload ⊥? skip with records ≡ [], record-count ≡ 0
 
-  ⊢= grade ← if source→confidence ≥ 80 then "A"
-              else if source→confidence ≥ 60 then "B"
-              else if source→confidence ≥ 40 then "C"
-              else "F"
-  ⊢= pass ← source→confidence ≥ 60
+⊢ validate
+  given parse→records
+  given parse→record-count
+  yield valid-records[], invalid-count
 
-  ⊨ grade ∈ ["A", "B", "C", "F"]
-  ⊨ pass = true ↔ grade ∈ ["A", "B"]
+  ∴ Check each record in «records» for required fields.
+    Separate valid from invalid records.
 
-  given source→confidence ⊥? skip with grade ≡ "X", pass ≡ false
+  ⊢= invalid-count ← record-count - |valid-records|
 
-⊢ critique
-  given source→answer
-  given source→confidence
-  yield criticism
+  ⊨ |valid-records| + invalid-count = record-count
+  ⊨ each valid record has fields: id, name, value
 
-  ∴ Critique the answer "«source→answer»" (confidence: «source→confidence»).
-    Identify one specific weakness in 1-2 sentences.
+  -- HAS HANDLER: empty input is fine
+  given parse→records ⊥? skip with valid-records ≡ [], invalid-count ≡ 0
 
-  ⊨ criticism is 1-2 sentences
-  ⊨ criticism identifies a specific weakness (not a generic disclaimer)
+⊢ transform
+  given validate→valid-records
+  yield transformed[], transform-errors[]
 
-  ⊨? on failure:
-    retry with «oracle.failures» appended to prompt
-    max 1
+  ∴ Apply business rules to each valid record:
+    - Uppercase the name field
+    - Round value to 2 decimal places
+    - Add a "processed: true" flag
 
-  ⊨? on exhaustion:
-    partial-accept(best)
+  ⊨ |transformed| = |valid-records|
+  ⊨ each transformed record has processed = true
 
-⊢ translate
-  given source→answer
-  yield spanish, french
+  -- NO HANDLER: this is a bug — transform has no ⊥? for valid-records
+  -- If validate produces ⊥, transform will crash
 
-  ∴ Translate «source→answer» into Spanish as «spanish» and French as «french».
+⊢ aggregate
+  given transform→transformed
+  yield total-value, avg-value, record-summary
 
-  ⊨ spanish is not English
-  ⊨ french is not English
-  ⊨ spanish ≠ french
+  ⊢= total-value ← sum(transformed[].value)
+  ⊢= avg-value ← if |transformed| > 0 then total-value / |transformed| else 0
 
-⊢ fact-check
-  given source→answer
-  given source→confidence
-  yield verdict, evidence
+  ∴ Write a one-sentence «record-summary» of the transformed data.
 
-  ∴ Fact-check whether «source→answer» is scientifically defensible.
-    Yield «verdict» as PLAUSIBLE, DUBIOUS, or WRONG.
-    Cite one piece of «evidence» (a known fact or reference).
+  ⊨ total-value ≥ 0
+  ⊨ if |transformed| > 0 then avg-value > 0
 
-  ⊨ verdict ∈ ["PLAUSIBLE", "DUBIOUS", "WRONG"]
-  ⊨ evidence is one sentence citing a specific fact
+  -- HAS HANDLER: but with error-value, not skip
+  given transform→transformed ⊥? error-value(⊥)
 
-  given source→answer ⊥? skip with verdict ≡ "N/A", evidence ≡ "Source produced no answer."
-  given source→confidence ⊥? skip with verdict ≡ "N/A", evidence ≡ "Source produced no confidence."
+⊢ notify
+  given aggregate→record-summary
+  given aggregate→total-value
+  given validate→invalid-count
+  yield notification, severity
 
-⊢ digest
-  given summarize→summary
-  given score→grade
-  given score→pass
-  given critique→criticism
-  given translate→spanish
-  given translate→french
-  given fact-check→verdict
-  given fact-check→evidence
-  yield report
+  ⊢= severity ← if invalid-count > 5 then "warning"
+                  else if total-value = 0 then "info"
+                  else "success"
 
-  ⊢= report ← "## Bottom Storm Report\n\n" ++
-    "**Summary:** " ++ summarize→summary ++ "\n" ++
-    "**Grade:** " ++ score→grade ++ " (pass: " ++ to-string(score→pass) ++ ")\n" ++
-    "**Critique:** " ++ critique→criticism ++ "\n" ++
-    "**Translations:** ES=" ++ translate→spanish ++ " / FR=" ++ translate→french ++ "\n" ++
-    "**Fact-check:** " ++ fact-check→verdict ++ " — " ++ fact-check→evidence ++ "\n"
+  ∴ Compose a notification message with:
+    Summary: «record-summary»
+    Total value: «total-value»
+    Invalid records: «invalid-count»
+    Severity: «severity»
 
-  ⊨ report contains "Bottom Storm Report"
-  ⊨ report contains grade and verdict
+  ⊨ notification mentions severity level
+  ⊨ severity ∈ {"success", "info", "warning"}
 
-  given summarize→summary ⊥? skip with report ≡ "## Bottom Storm Report\n\n⊥ propagation reached digest — upstream failures."
-  given critique→criticism ⊥? skip with report ≡ "## Bottom Storm Report\n\n⊥ propagation reached digest — upstream failures."
-  given translate→spanish ⊥? skip with report ≡ "## Bottom Storm Report\n\n⊥ propagation reached digest — upstream failures."
-  given translate→french ⊥? skip with report ≡ "## Bottom Storm Report\n\n⊥ propagation reached digest — upstream failures."
-  given fact-check→verdict ⊥? skip with report ≡ "## Bottom Storm Report\n\n⊥ propagation reached digest — upstream failures."
+  -- NO HANDLER for aggregate→record-summary: another bug
+  -- If aggregate propagates ⊥, notify crashes
+  given validate→invalid-count ⊥? skip with notification ≡ "Data unavailable", severity ≡ "info"
+
+⊢ audit-log
+  given fetch→status-code
+  given parse→record-count
+  given aggregate→total-value
+  given notify→severity
+  yield log-entry
+
+  ⊢= log-entry ← {
+    status: status-code,
+    records-parsed: record-count,
+    total-value: total-value,
+    severity: severity,
+    timestamp: now()
+  }
+
+  ⊨ log-entry has all 5 fields
+
+  -- PARTIAL HANDLER: handles some but not all ⊥ sources
+  given fetch→status-code ⊥? skip with log-entry ≡ {status: "unknown", error: true}
+  -- Missing: no handler for aggregate→total-value or notify→severity

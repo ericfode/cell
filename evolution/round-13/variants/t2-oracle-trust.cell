@@ -1,0 +1,101 @@
+-- R13-T2: Oracle Trust Boundaries — semantic → structural → deterministic
+-- Tests: oracle hierarchy, trust propagation, false-pass detection
+
+⊢ extract
+  given document ≡ "Q3 revenue was $2.4M, up 15% YoY. Operating costs rose to $1.8M due to expansion into APAC markets. Net margin improved to 25% from 22% last quarter."
+  yield revenue, growth-rate, costs, net-margin, key-themes[]
+
+  ∴ Extract financial metrics from «document».
+    Parse each number precisely.
+    Identify 2-3 key themes.
+
+  -- SEMANTIC oracle (LLM judges "reasonable")
+  ⊨ key-themes captures the main points of «document»
+  ⊨ revenue is a dollar amount
+
+  ⊨? on failure:
+    retry with «oracle.failures» max 2
+  ⊨? on exhaustion:
+    error-value(⊥)
+
+⊢ validate
+  given extract→revenue
+  given extract→growth-rate
+  given extract→costs
+  given extract→net-margin
+  yield validated-revenue, validated-margin, consistency-check
+
+  -- STRUCTURAL oracle (checkable by code patterns)
+  ⊢= validated-revenue ← parse-number(revenue)
+  ⊢= validated-margin ← parse-number(net-margin)
+  ⊢= consistency-check ← (validated-revenue - costs) / validated-revenue
+
+  ⊨ validated-revenue > 0
+  ⊨ validated-margin ∈ [0, 100]
+  ⊨ |consistency-check - validated-margin/100| < 0.05
+
+  given extract→revenue ⊥? error-value(⊥)
+  given extract→net-margin ⊥? error-value(⊥)
+
+⊢ compute
+  given validate→validated-revenue
+  given validate→validated-margin
+  given validate→consistency-check
+  yield projected-revenue, risk-flag
+
+  -- DETERMINISTIC oracle (exact value check)
+  ⊢= projected-revenue ← validated-revenue * (1 + 0.15)
+  ⊢= risk-flag ← if validated-margin < 20 then "high"
+                   else if validated-margin < 30 then "medium"
+                   else "low"
+
+  ⊨ projected-revenue = validated-revenue * 1.15
+  ⊨ risk-flag ∈ {"high", "medium", "low"}
+
+  given validate→validated-revenue ⊥? error-value(⊥)
+  given validate→consistency-check ⊥? skip with projected-revenue ≡ ⊥, risk-flag ≡ "unknown"
+
+⊢ report
+  given extract→key-themes
+  given compute→projected-revenue
+  given compute→risk-flag
+  given validate→consistency-check
+  yield analysis, trust-chain
+
+  ∴ Write a financial analysis using:
+    Themes: «key-themes»
+    Projection: «projected-revenue»
+    Risk: «risk-flag»
+    Consistency: «consistency-check»
+
+    Also describe the TRUST CHAIN: which numbers came from
+    LLM extraction (low trust), which from validation (medium trust),
+    which from computation (high trust). Where could errors hide?
+
+  ⊨ analysis mentions projected revenue
+  ⊨ trust-chain identifies at least 3 trust levels
+  ⊨ trust-chain flags the semantic oracle on extract as lowest trust
+
+  given compute→projected-revenue ⊥? skip with analysis ≡ "Cannot generate analysis — upstream computation failed", trust-chain ≡ "broken"
+  given extract→key-themes ⊥? skip with analysis ≡ "Cannot generate analysis — extraction failed", trust-chain ≡ "broken"
+
+⊢ audit
+  given extract→revenue
+  given validate→validated-revenue
+  given compute→projected-revenue
+  given report→trust-chain
+  yield audit-result, weakest-link
+
+  ∴ Verify the full pipeline:
+    - Does the extracted «revenue» match the source document?
+    - Does «validated-revenue» equal the parsed value?
+    - Is «projected-revenue» computed correctly?
+    - Does «trust-chain» accurately describe the trust levels?
+
+    Identify the WEAKEST LINK — the oracle most likely to
+    pass when it shouldn't (false positive).
+
+  ⊨ audit-result ∈ {"clean", "discrepancy-found", "cannot-verify"}
+  ⊨ weakest-link names a specific oracle and explains why
+
+  given report→trust-chain ⊥? skip with audit-result ≡ "cannot-verify", weakest-link ≡ "pipeline broken before audit"

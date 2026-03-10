@@ -1,56 +1,86 @@
--- t4-quotation-roundtrip.cell
--- Tests § (section-sign quotation): cell definitions as data,
--- structural inspection, modification, and execution roundtrip.
+-- R13-T4: Quotation Mechanics — § as data, modification, diffing
+-- Tests: § pass-through, § modification, § comparison, data-vs-execution
 
-⊢ greet
-  given name ≡ "Alice"
-  yield message
+⊢ original
+  yield §target
 
-  ∴ Write a one-sentence greeting for «name».
+  ⊢= §target ← §(
+    ⊢ greet
+      given name
+      yield message
 
-  ⊨ message contains «name»
-  ⊨ message is exactly one sentence
+      ∴ Say hello to «name» warmly.
 
-⊢ describe
-  given §greet
-  yield input-name, yield-name, body-type
+      ⊨ message mentions «name»
+  )
 
-  ⊢= input-name ← first(given-names(§greet))
-  ⊢= yield-name ← first(yield-names(§greet))
-  ⊢= body-type ← if §greet contains ∴ then "soft" else "hard"
+⊢ add-oracle
+  given original→§target
+  yield §enhanced, added-oracle
 
-  ⊨ input-name = "name"
-  ⊨ yield-name = "message"
-  ⊨ body-type = "soft"
+  ∴ Read «§target» as a cell definition (NOT its output).
+    Add a new oracle to the greet cell:
+      ⊨ message is 1-2 sentences
+    Return the modified definition as «§enhanced».
+    Describe what you added in «added-oracle».
 
-⊢ rebind
-  given §greet
-  yield §greet'
+  ⊨ §enhanced contains all oracles from «§target»
+  ⊨ §enhanced contains the new oracle "message is 1-2 sentences"
+  ⊨ §enhanced preserves the ∴ body exactly
+  ⊨ added-oracle describes the new oracle
 
-  ∴ Copy «§greet» but replace the given name default
-    from "Alice" to "Bob". All else stays identical.
+  ⊨? on failure:
+    retry with "You must return a CELL DEFINITION (starting with ⊢), not execute it" max 2
 
-  ⊨ §greet' has same given/yield signature as §greet
-  ⊨ §greet'.given.name default = "Bob"
+⊢ add-handler
+  given add-oracle→§enhanced
+  yield §hardened, added-handler
 
-⊢ execute-modified
-  given rebind→§greet'
-  yield modified-message
+  ∴ Read «§enhanced» as a cell definition.
+    Add a ⊥ handler for the name input:
+      given name ⊥? skip with message ≡ "Hello, stranger!"
+    Return the modified definition.
 
-  ∴ Execute «§greet'» — interpret its ∴ body
-    with its bound givens. Return the message.
+  ⊨ §hardened contains the ⊥? handler for name
+  ⊨ §hardened preserves all existing oracles
+  ⊨ added-handler describes the new handler
 
-  ⊨ modified-message contains "Bob"
-  ⊨ modified-message is exactly one sentence
+  given add-oracle→§enhanced ⊥? error-value(⊥)
 
-⊢ roundtrip
-  given greet→message
-  given execute-modified→modified-message
-  yield same-structure, name-only-diff
+⊢ diff
+  given original→§target
+  given add-handler→§hardened
+  yield changes[], change-count, preserves-interface
 
-  ∴ Compare «message» and «modified-message».
-    Do they share the same greeting structure,
-    differing only in the name (Alice → Bob)?
+  ∴ Compare «§target» (original) with «§hardened» (modified).
+    List every difference.
+    Determine whether the interface (given/yield) changed.
 
-  ⊨ same-structure ∈ {true, false}
-  ⊨ name-only-diff = same-structure
+  ⊢= change-count ← |changes|
+
+  ⊨ change-count ≥ 2 (at least: new oracle + new ⊥ handler)
+  ⊨ preserves-interface = true (given/yield unchanged)
+  ⊨ changes does NOT include "∴ body changed"
+
+  given add-handler→§hardened ⊥? skip with changes ≡ ["comparison impossible — modification failed"], change-count ≡ 0, preserves-interface ≡ false
+
+⊢ verify-data-not-executed
+  given original→§target
+  given add-oracle→§enhanced
+  yield is-data, evidence
+
+  ∴ Confirm that «§target» and «§enhanced» were treated as DATA
+    throughout this program, not executed.
+
+    Evidence that they are data:
+    - No cell was "run" with a name input
+    - No message output was produced
+    - The § values were READ and MODIFIED, not INVOKED
+
+    If any cell mistakenly executed the § values (produced a greeting
+    message), report that as a failure.
+
+  ⊨ is-data = true
+  ⊨ evidence explains why § values were treated as data
+
+  given add-oracle→§enhanced ⊥? skip with is-data ≡ false, evidence ≡ "Cannot verify — § modification failed"
