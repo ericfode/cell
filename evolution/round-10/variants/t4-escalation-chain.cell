@@ -1,0 +1,60 @@
+⊢ risky-computation
+  given prompt ≡ "Summarize the plot of a novel that doesn't exist yet."
+  yield summary
+
+  ∴ Follow the instruction in «prompt» as literally as possible.
+
+  ⊨ summary is 2-4 sentences
+  ⊨ summary describes a coherent narrative arc
+  ⊨ summary mentions at least one named character
+
+  ⊨? on failure:
+    retry with «oracle.failures» appended to prompt
+    max 1
+
+  ⊨? on exhaustion:
+    escalate with context: "risky-computation failed after 2 attempts"
+
+⊢ escalation-handler
+  given risky-computation ⊥? catch escalation
+  yield recovery-output, escalation-log
+
+  ∴ If «risky-computation» escalated:
+    - Log the escalation context in «escalation-log»
+    - Generate a fallback «recovery-output»: "Unable to complete. Reason: <context>"
+
+    If «risky-computation» succeeded:
+    - Pass through its summary as «recovery-output»
+    - Set «escalation-log» to empty
+
+  ⊨ if escalation occurred then escalation-log is non-empty
+  ⊨ if escalation occurred then recovery-output starts with "Unable to complete"
+  ⊨ if no escalation then recovery-output = risky-computation→summary
+
+⊢ downstream-consumer
+  given escalation-handler→recovery-output
+  given escalation-handler→escalation-log
+  yield final-report
+
+  ∴ Produce a «final-report» that:
+    - If recovery-output is a real summary, format it nicely
+    - If recovery-output is a fallback message, note the failure gracefully
+    - If escalation-log is non-empty, append a "System Notes" section
+
+  ⊨ final-report is well-formatted
+  ⊨ if escalation-log is non-empty then final-report contains "System Notes"
+
+⊢ audit-trail
+  given escalation-handler→escalation-log
+  given downstream-consumer→final-report
+  yield audit-record
+
+  ⊢= audit-record ← {
+    had-escalation: escalation-log is not empty,
+    escalation-context: escalation-log,
+    final-output-length: length(final-report),
+    pipeline-status: if escalation-log is empty then "clean" else "degraded"
+  }
+
+  ⊨ audit-record.pipeline-status ∈ {"clean", "degraded"}
+  ⊨ if had-escalation then pipeline-status = "degraded"

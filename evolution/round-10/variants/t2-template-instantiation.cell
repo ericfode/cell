@@ -1,0 +1,51 @@
+⊢ review-template
+  given code-snippet
+  yield issues[], severity, summary
+
+  ∴ Review «code-snippet» for bugs, style issues, and security problems.
+    List each «issue» with a description.
+    Rate overall «severity» as: clean, minor, major, critical.
+    Write a one-sentence «summary».
+
+  ⊨ severity ∈ {"clean", "minor", "major", "critical"}
+  ⊨ summary is exactly one sentence
+  ⊨ issues[] is empty if and only if severity = "clean"
+
+⊢ code-samples
+  yield snippets[]
+
+  ⊢= snippets ← [
+    "def login(user, pw): return db.query(f'SELECT * FROM users WHERE name={user} AND pass={pw}')",
+    "fn add(a: i32, b: i32) -> i32 { a + b }",
+    "async function fetchData() { const res = await fetch(url); return res.json(); }"
+  ]
+
+⊢⊢ review-all
+  given code-samples→snippets
+  given §review-template
+  yield §reviews[]
+  until all snippets processed
+  max 5
+
+  ∴ For each snippet in «code-samples→snippets», instantiate «§review-template»:
+    - Copy given/yield/∴/⊨ from the template
+    - Bind code-snippet ≡ <the snippet>
+    - Preserve all oracles from the template
+    - The instantiated cell inherits the template's name with a suffix:
+      review-template-1, review-template-2, etc.
+
+  ⊨ §reviews[] has same length as «code-samples→snippets»
+  ⊨ each review has same yield signature as «§review-template»
+
+⊢ triage
+  given review-all→§reviews
+  yield critical-count, action-items[]
+
+  ∴ Execute each review cell. Collect results.
+    Count how many reviews have severity = "critical" or "major".
+    Create «action-items» for any review with severity ≥ major.
+
+  ⊢= critical-count ← count(reviews where severity ∈ {"critical", "major"})
+
+  ⊨ action-items is non-empty if critical-count > 0
+  ⊨ each action-item references the specific code snippet and issues found

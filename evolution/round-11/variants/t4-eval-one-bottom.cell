@@ -1,0 +1,76 @@
+⊢ program
+  yield §cells[]
+
+  ⊢= §cells ← [
+    §step-a,
+    §step-b,
+    §step-c
+  ]
+
+⊢ step-a
+  given x ≡ 10
+  yield doubled
+
+  ⊢= doubled ← x * 2
+
+  ⊨ doubled = 20
+
+⊢ step-b
+  given step-a→doubled
+  yield message
+
+  ∴ Write a sentence that mentions the number «step-a→doubled».
+
+  ⊨ message contains "20"
+  ⊨ message is exactly one sentence
+
+  ⊨? on failure:
+    retry with «oracle.failures» appended to prompt
+    max 1
+
+  ⊨? on exhaustion:
+    error-value(⊥)
+
+⊢ step-c
+  given step-b→message
+  yield upper-message
+
+  ∴ Convert «step-b→message» to uppercase.
+
+  ⊨ upper-message contains "20"
+  ⊨ upper-message contains no lowercase letters
+
+  given step-b→message ⊥? skip with upper-message ≡ "STEP-B FAILED — NO MESSAGE TO CONVERT"
+
+⊢ eval-one
+  given program→§cells
+  yield §executed-program
+
+  ∴ Execute the cells in «program→§cells» one at a time using Kahn's algorithm:
+
+    1. Find all cells whose given inputs are fully bound (≡ present)
+    2. Pick ONE such cell
+    3. Execute it:
+       - If ⊢= (crystallized): evaluate the deterministic expression
+       - If ∴ (soft): interpret the natural language instruction
+    4. Fill in its yield ≡ values in the document
+    5. Check all ⊨ oracles. If any fail:
+       - If ⊨? exists: follow the recovery policy
+       - If no ⊨?: the cell fails. If error-value(⊥), set yields to ⊥.
+    6. For downstream cells with ⊥? handlers: trigger skip-with substitution
+    7. Repeat until all yields are bound (is-done)
+
+    Show each step as a state transition: the document before and after.
+
+  ⊨ §executed-program has all yields bound (or ⊥)
+  ⊨ execution order respects data dependencies
+  ⊨ if step-b produces ⊥, then step-c uses its ⊥? skip-with values
+
+⊢ is-done
+  given eval-one→§executed-program
+  yield done, remaining-unbound
+
+  ⊢= done ← all yields in §executed-program have ≡ bindings (including ⊥)
+  ⊢= remaining-unbound ← count yields without ≡ bindings
+
+  ⊨ if done then remaining-unbound = 0

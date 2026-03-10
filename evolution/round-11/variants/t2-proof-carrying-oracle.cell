@@ -1,0 +1,77 @@
+⊢ problem
+  yield equation, domain
+
+  ⊢= equation ← "x³ - 6x² + 11x - 6 = 0"
+  ⊢= domain ← "real numbers"
+
+⊢ solve
+  given problem→equation
+  given problem→domain
+  yield solutions[], proof-steps[]
+
+  ∴ Find ALL solutions to «equation» in «domain».
+    For each solution, provide proof-steps showing substitution.
+    This is the NP part — finding solutions is hard.
+
+  ⊨ solutions is non-empty
+  ⊨ each solution is a number in «domain»
+  ⊨ proof-steps has same length as solutions
+
+  ⊨? on failure:
+    retry with «oracle.failures» appended to prompt
+    max 3
+
+  ⊨? on exhaustion:
+    error-value(⊥)
+
+⊢ verify ▸ crystallized
+  given solve→solutions
+  given problem→equation
+  yield verified[], all-correct
+
+  ⊢= verified ← for each x in solutions:
+    lhs ← x³ - 6x² + 11x - 6
+    {solution: x, lhs: lhs, passes: (|lhs| < 0.0001)}
+
+  ⊢= all-correct ← all(verified, v => v.passes)
+
+  ⊨ verified has same length as «solve→solutions»
+  ⊨ each verified entry has fields: solution, lhs, passes
+
+  given solve→solutions ⊥? skip with verified ≡ [], all-correct ≡ false
+
+⊢ completeness-check
+  given verify→verified
+  given verify→all-correct
+  yield missing[], is-complete
+
+  ∴ The equation «problem→equation» is cubic, so it has exactly 3 roots
+    (counting multiplicity) in the complex numbers. In the reals, it may
+    have 1 or 3 roots. Check if «verified» contains all real roots.
+    Known factorization: (x-1)(x-2)(x-3) = 0, so roots are 1, 2, 3.
+
+  ⊢= is-complete ← (length(verified where passes=true) = 3)
+  ⊢= missing ← {1, 2, 3} - {v.solution for v in verified where passes=true}
+
+  ⊨ if is-complete then missing is empty
+  ⊨ if ¬is-complete then missing lists the unfound roots
+
+  given verify→verified ⊥? skip with missing ≡ [1, 2, 3], is-complete ≡ false
+
+⊢ certificate
+  given verify→all-correct
+  given completeness-check→is-complete
+  given completeness-check→missing
+  given solve→proof-steps
+  yield certificate-status, report
+
+  ∴ Produce a proof certificate:
+    - If «all-correct» AND «is-complete»: certificate-status = "PROVEN"
+    - If «all-correct» but NOT «is-complete»: "PARTIAL — missing «missing»"
+    - If NOT «all-correct»: "FAILED — verification rejected some solutions"
+    Include «proof-steps» in the report.
+
+  ⊨ certificate-status ∈ {"PROVEN", "PARTIAL", "FAILED"}
+  ⊨ if certificate-status = "PROVEN" then report contains all 3 roots
+
+  given solve→proof-steps ⊥? skip with certificate-status ≡ "FAILED", report ≡ "Solver produced ⊥ — no solutions to verify"

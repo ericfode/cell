@@ -1,0 +1,77 @@
+⊢ greeting-v0
+  given name
+  yield message
+
+  ∴ Write a warm, professional greeting for «name».
+
+  ⊨ message mentions «name»
+  ⊨ message is 1-2 sentences
+  ⊨ message has a warm but professional tone
+
+⊢⊢ evaluate
+  given §greeting-v0
+  given test-name ≡ "Alice"
+  yield §judges[]
+  until all criteria processed
+  max 5
+
+  ∴ Create 3 judge cells, each evaluating «§greeting-v0» on a different criterion:
+    - Judge 1: Warmth (does the greeting feel genuinely warm?)
+    - Judge 2: Professionalism (appropriate for a business context?)
+    - Judge 3: Personalization (does it use the name naturally, not forced?)
+
+    Each judge:
+    - Instantiates «§greeting-v0» with name ≡ «test-name»
+    - Executes it
+    - Yields: score (1-10), feedback (text)
+
+  ⊨ §judges[] has exactly 3 items
+  ⊨ each judge yields score, feedback
+
+⊢ aggregate
+  given evaluate→§judges
+  yield quality, avg-score, feedback-summary
+
+  ∴ Execute each judge. Compute average score.
+    If avg-score ≥ 7: quality = "good"
+    If avg-score < 7: quality = "needs-improvement"
+    Combine all feedback into «feedback-summary».
+
+  ⊢= avg-score ← sum(judges.score) / length(judges)
+  ⊢= quality ← if avg-score ≥ 7 then "good" else "needs-improvement"
+
+  ⊨ quality ∈ {"good", "needs-improvement"}
+  ⊨ feedback-summary mentions each judge's feedback
+
+⊢∘ evolve(greeting-v0, name ≡ "Alice")
+  through aggregate, improve
+  until aggregate→quality = "good"
+  max 3
+
+⊢ improve
+  given §greeting-v0
+  given aggregate→feedback-summary
+  given aggregate→quality
+  yield §greeting-v0'
+
+  ∴ If «quality» = "needs-improvement":
+    Read «aggregate→feedback-summary».
+    Rewrite the ∴ body of «§greeting-v0» to address the feedback.
+    Preserve the given/yield/⊨ signature (Liskov substitution for cells).
+
+    If «quality» = "good":
+    Return «§greeting-v0» unchanged.
+
+  ⊨ §greeting-v0' has same given/yield signature as «§greeting-v0»
+  ⊨ §greeting-v0' preserves all ⊨ constraints from «§greeting-v0»
+
+⊢ final-output
+  given evolve→§greeting-v0'
+  given aggregate→avg-score
+  yield result, evolution-rounds
+
+  ∴ Instantiate «§greeting-v0'» with name ≡ "Bob".
+    Execute it. Report the final greeting and how many evolution rounds occurred.
+
+  ⊨ result is a greeting that mentions "Bob"
+  ⊨ evolution-rounds ≤ 3

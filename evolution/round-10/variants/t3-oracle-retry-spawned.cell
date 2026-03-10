@@ -1,0 +1,58 @@
+⊢ test-cases
+  yield cases[]
+
+  ⊢= cases ← [
+    {input: "hello world", expected: "HELLO WORLD"},
+    {input: "café", expected: "CAFÉ"},
+    {input: "", expected: ""},
+    {input: "123 abc", expected: "123 ABC"}
+  ]
+
+⊢ transform-template
+  given text
+  yield result
+
+  ∴ Convert «text» to uppercase.
+
+  ⊨ result = uppercase(«text»)
+  ⊨ result has same length as «text»
+  ⊨ result contains no lowercase letters
+
+  ⊨? on failure:
+    retry with «oracle.failures» appended to prompt
+    max 2
+
+  ⊨? on exhaustion:
+    error-value(⊥)
+
+⊢⊢ run-tests
+  given test-cases→cases
+  given §transform-template
+  yield §test-runs[]
+  until all cases processed
+  max 10
+
+  ∴ For each case in «test-cases→cases», instantiate «§transform-template»:
+    - Bind text ≡ case.input
+    - Add oracle: ⊨ result = case.expected
+    - Each instantiated cell inherits ⊨? clauses from template
+
+  ⊨ §test-runs[] has same length as «test-cases→cases»
+  ⊨ each test-run has same ⊨? clauses as «§transform-template»
+
+⊢ test-report
+  given run-tests→§test-runs
+  yield pass-count, fail-count, exhausted-count, report
+
+  ∴ Execute each test-run cell. For each:
+    - If all oracles pass: count as pass
+    - If oracles fail after retries and exhaustion fires: count as exhausted
+    - Record the oracle.failures history for exhausted cells
+
+  ⊢= pass-count ← count(test-runs where all oracles passed)
+  ⊢= fail-count ← count(test-runs where result = ⊥)
+  ⊢= exhausted-count ← count(test-runs where ⊨? on exhaustion fired)
+
+  ⊨ pass-count + fail-count = length(test-runs)
+  ⊨ exhausted-count ≤ fail-count
+  ⊨ report includes oracle.failures history for each exhausted test

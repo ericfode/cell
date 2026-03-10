@@ -1,0 +1,84 @@
+⊢ spec
+  yield function-name, description, test-cases[]
+
+  ⊢= function-name ← "fizzbuzz"
+  ⊢= description ← "Return 'Fizz' for multiples of 3, 'Buzz' for 5, 'FizzBuzz' for both, else the number as string"
+  ⊢= test-cases ← [
+    {input: 1, expected: "1"},
+    {input: 3, expected: "Fizz"},
+    {input: 5, expected: "Buzz"},
+    {input: 15, expected: "FizzBuzz"},
+    {input: 7, expected: "7"}
+  ]
+
+⊢ implement
+  given spec→function-name
+  given spec→description
+  yield §implementation
+
+  ∴ Write a cell definition for «function-name» that:
+    - Takes a number as input
+    - Returns a string as output
+    - Follows the rules in «description»
+    The cell should use ⊢= (crystallized/deterministic).
+
+  ⊨ §implementation has given n, yield result
+  ⊨ §implementation uses ⊢= (is crystallized)
+
+  ⊨? on failure:
+    retry with «oracle.failures» appended to prompt
+    max 2
+
+  ⊨? on exhaustion:
+    error-value(⊥)
+
+⊢⊢ run-tests
+  given spec→test-cases
+  given implement→§implementation
+  yield §test-runs[]
+  until all test-cases processed
+  max 10
+
+  ∴ For each test-case, instantiate «§implementation»:
+    - Bind n ≡ test-case.input
+    - Add oracle: ⊨ result = test-case.expected
+    Each instantiated cell inherits ⊨? from the template.
+
+  ⊨ §test-runs[] has same length as «spec→test-cases»
+
+  given implement→§implementation ⊥? skip with §test-runs ≡ []
+
+⊢ score
+  given run-tests→§test-runs
+  yield pass-count, total, all-passed
+
+  ∴ Execute each test-run. Count passes and failures.
+
+  ⊢= pass-count ← count(test-runs where all oracles passed)
+  ⊢= total ← length(test-runs)
+  ⊢= all-passed ← (pass-count = total)
+
+  ⊨ pass-count + (total - pass-count) = total
+
+  given run-tests→§test-runs ⊥? skip with pass-count ≡ 0, total ≡ 0, all-passed ≡ false
+
+⊢ crystallize-or-report
+  given implement→§implementation
+  given score→all-passed
+  given score→pass-count
+  given score→total
+  yield §final, status
+
+  ∴ If «all-passed» is true:
+    - Mark «§implementation» as verified: §implementation ▸ crystallized
+    - Set status to "crystallized"
+    If «all-passed» is false:
+    - Set status to "failed: «pass-count»/«total» tests passed"
+    - Keep §implementation as-is (not crystallized)
+
+  ⊨ if all-passed then status = "crystallized"
+  ⊨ if all-passed then §final has ▸ crystallized annotation
+  ⊨ if ¬all-passed then status starts with "failed:"
+
+  given implement→§implementation ⊥? skip with §final ≡ §null, status ≡ "failed: implementation produced ⊥"
+  given score→all-passed ⊥? skip with §final ≡ §null, status ≡ "failed: scoring produced ⊥"

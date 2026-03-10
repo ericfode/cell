@@ -1,0 +1,74 @@
+⊢ translate
+  given text ≡ "The cat sat on the mat."
+  given target-lang ≡ "French"
+  yield translation
+
+  ∴ Translate «text» into «target-lang».
+
+  ⊨ translation is valid «target-lang»
+  ⊨ translation preserves meaning of «text»
+  ⊨ translation contains no English words
+
+  ⊨? on failure:
+    retry with «oracle.failures» appended to prompt
+    max 2
+
+  ⊨? on exhaustion:
+    escalate
+
+⊢ back-translate
+  given translate→translation
+  yield back-text
+
+  ∴ Translate «translate→translation» back into English.
+
+  ⊨ back-text preserves core meaning of original text
+  ⊨ back-text is grammatically correct English
+
+  ⊨? on failure:
+    retry with «oracle.failures» appended to prompt
+    max 2
+
+  ⊨? on exhaustion:
+    partial-accept(best)
+
+⊢ verify-roundtrip
+  given back-translate→back-text
+  given original ≡ "The cat sat on the mat."
+  yield similarity-score, faithful
+
+  ⊢= similarity-score ← semantic-similarity(back-text, original)
+  ⊢= faithful ← similarity-score ≥ 0.8
+
+  ⊨ similarity-score ∈ [0.0, 1.0]
+  ⊨ if ¬faithful then escalate to human review
+
+⊢ adversarial-translate
+  given text ≡ "Buffalo buffalo Buffalo buffalo buffalo buffalo Buffalo buffalo."
+  given target-lang ≡ "Spanish"
+  yield translation
+
+  ∴ Translate «text» into «target-lang».
+    This sentence is grammatically correct English — interpret it properly.
+
+  ⊨ translation is valid «target-lang»
+  ⊨ translation disambiguates the buffalo/Buffalo meanings
+
+  ⊨? on failure:
+    retry with «oracle.failures» appended to prompt
+    max 5
+
+  ⊨? on exhaustion:
+    error-value(⊥)
+
+⊢ exhaustion-report
+  given verify-roundtrip→faithful
+  given adversarial-translate→translation
+  yield summary
+
+  ∴ Report on which translations succeeded and which hit exhaustion.
+    If adversarial-translate returned ⊥, note that the error-value strategy
+    was invoked. If verify-roundtrip escalated, note the escalation.
+
+  ⊨ summary mentions each exhaustion strategy that was triggered
+  ⊨ summary distinguishes escalate vs error-value vs partial-accept
