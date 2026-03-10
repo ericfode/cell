@@ -1,0 +1,152 @@
+-- ═══════════════════════════════════════════════════════════════
+-- E3: Bottom Is Not a Value — Phantom Propagation Test
+--
+-- Hypothesis: ⊥ is the absence of a value, not a value itself.
+-- A cell whose input is ⊥ without a ⊥? handler is NEVER READY,
+-- and its outputs are NEVER BOUND. ⊥ "propagation" is not a
+-- mechanism; it is the natural consequence of unbound inputs.
+--
+-- DAG shape (diamond):
+--
+--        source (always produces ⊥)
+--         /                \
+--        A                  B
+--    (⊥? handler)      (no handler)
+--         \                /
+--          \              /
+--           join
+--     (⊥? handler on B→b)
+--
+-- FALSIFIED IF: agents describe cell B as "executing",
+-- "producing ⊥", or "returning ⊥". B should never run.
+-- ═══════════════════════════════════════════════════════════════
+
+-- ───────────────────────────────────────────────────────────────
+-- source: deliberately produces ⊥ via impossible oracle
+-- ───────────────────────────────────────────────────────────────
+⊢ source
+  given topic ≡ "quantum computing"
+  yield x
+  ∴ Write a one-sentence summary of «topic».
+  ⊨ x is exactly 500 words long
+  -- ^ impossible: a one-sentence summary cannot be 500 words
+
+  ⊨? on failure:
+    retry with «oracle.failures» appended to prompt
+    max 1
+
+  ⊨? on exhaustion:
+    error-value(⊥)
+
+-- ───────────────────────────────────────────────────────────────
+-- cell-a: HAS a ⊥? handler → fires with fallback value
+-- ───────────────────────────────────────────────────────────────
+⊢ cell-a
+  given source→x
+  yield a
+
+  ⊥? skip with a ≡ "fallback: source unavailable"
+
+  -- This body is NEVER reached when source→x is ⊥.
+  -- The ⊥? handler above fires INSTEAD of evaluation.
+  ∴ Transform «source→x» into uppercase.
+  ⊨ a is non-empty
+
+-- ───────────────────────────────────────────────────────────────
+-- cell-b: NO ⊥? handler → never ready, never executes
+--
+-- KEY DIAGNOSTIC: This cell has NO ⊥? handler. When source→x
+-- is ⊥ (absent), cell-b's input is unbound. The scheduler
+-- cannot place it in the ready queue. It is NEVER EVALUATED.
+--
+-- Its output (b) is never bound → b is ⊥ by absence.
+-- NOT because cell-b "ran and returned ⊥".
+-- NOT because ⊥ was "passed through" cell-b.
+-- Simply because cell-b never ran, so b was never assigned.
+-- ───────────────────────────────────────────────────────────────
+⊢ cell-b
+  given source→x
+  yield b
+
+  ∴ Reverse the string «source→x».
+  ⊨ b is non-empty
+
+-- ───────────────────────────────────────────────────────────────
+-- join: combines outputs from both branches
+--
+-- cell-a→a is concrete ("fallback: source unavailable")
+-- cell-b→b is ⊥ (absent — cell-b never executed)
+--
+-- join has a ⊥? handler on cell-b→b, so it CAN fire.
+-- It should produce result ≡ "partial" because it handles
+-- the absence of B's output.
+-- ───────────────────────────────────────────────────────────────
+⊢ join
+  given cell-a→a
+  given cell-b→b
+  yield result
+
+  ⊥? skip with result ≡ "partial: only A available"
+
+  ∴ Combine «cell-a→a» and «cell-b→b» into a single summary.
+  ⊨ result is non-empty
+
+-- ═══════════════════════════════════════════════════════════════
+-- EXPECTED EXECUTION TRACE
+-- ═══════════════════════════════════════════════════════════════
+--
+-- 1. source is the only ready cell (all givens are literals)
+-- 2. source evaluates → oracle "x is exactly 500 words" FAILS
+-- 3. Retry once → FAILS again
+-- 4. Exhaustion policy: error-value(⊥) → source.x ≡ ⊥
+--
+-- 5. check-inputs iteration 2:
+--    - cell-a: source→x is ⊥, HAS ⊥? handler → handler fires
+--      → cell-a.a ≡ "fallback: source unavailable" (FROZEN)
+--    - cell-b: source→x is ⊥, NO ⊥? handler → NEVER READY
+--      → cell-b.b remains UNBOUND (≡ ⊥ by absence)
+--      → cell-b consumes 0 LLM calls
+--      → cell-b is NOT described as "executing" or "producing ⊥"
+--
+-- 6. check-inputs iteration 3:
+--    - join: cell-a→a is bound, cell-b→b is ⊥ (absent)
+--      → join HAS ⊥? handler for its inputs
+--      → handler fires: result ≡ "partial: only A available"
+--      → join is FROZEN
+--
+-- 7. No ready cells remain → QUIESCE
+--
+-- FINAL FROZEN STATE:
+--   source:  x ≡ ⊥ (exhaustion)
+--   cell-a:  a ≡ "fallback: source unavailable" (⊥? handler)
+--   cell-b:  NEVER FROZEN — never executed, outputs unbound
+--   join:    result ≡ "partial: only A available" (⊥? handler)
+--
+-- LLM CALL COUNTS:
+--   source:  2 (initial + 1 retry)
+--   cell-a:  0 (⊥? handler is structural, not LLM)
+--   cell-b:  0 (never ready, never evaluated)
+--   join:    0 (⊥? handler is structural, not LLM)
+--
+-- ═══════════════════════════════════════════════════════════════
+-- DIAGNOSTIC QUESTIONS (for cold-read agents)
+-- ═══════════════════════════════════════════════════════════════
+--
+-- Q1: Trace the execution of this program step by step.
+--     What is join's final state?
+--
+-- Q2: Does cell-b execute? If so, what does it produce?
+--     If not, why not?
+--
+-- Q3: How many LLM calls does each cell consume?
+--
+-- Q4: Is there a difference between "cell-b produces ⊥"
+--     and "cell-b's output is ⊥ because it never ran"?
+--     Does the distinction matter?
+--
+-- VALIDATION CRITERIA:
+--   PASS if agent says: cell-b never executes, 0 LLM calls,
+--     output is ⊥ because unbound (absence), NOT because
+--     cell-b "returned" or "produced" ⊥.
+--   FAIL if agent says: cell-b "produces ⊥", "evaluates to ⊥",
+--     "returns ⊥", or gives cell-b a nonzero LLM call count.
