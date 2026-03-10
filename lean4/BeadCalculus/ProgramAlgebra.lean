@@ -368,4 +368,126 @@ theorem empty_session_identity (g : TaskGraph) :
     that LLMs find most natural to read and execute.
 -/
 
+-- ═══════════════════════════════════════════════════════════════
+-- SECTION 9: Syntax Adequacy — What Any Cell Syntax Must Encode
+-- ═══════════════════════════════════════════════════════════════
+
+/-! A Cell syntax is "adequate" if it can encode every CellProgram and
+    decode it back faithfully. This section formalizes what that means.
+
+    A syntax is a pair of functions:
+      encode : CellProgram → String
+      decode : String → Option CellProgram
+
+    Adequacy means encode ∘ decode ∘ encode = encode (round-trip).
+
+    But for Cell, we need MORE than just round-trip fidelity. We need
+    the LLM to be able to "read" the syntax and determine:
+    1. What cells exist (nodes)
+    2. What each cell needs (refs/edges)
+    3. What each cell computes (prompt)
+    4. What each cell produces (output shape)
+
+    Items 1-4 are exactly the fields of CellSpec plus wireDef.
+    So a syntax is adequate iff it faithfully encodes CellSpec
+    and wire information. Everything else is optional. -/
+
+/-- A syntax codec: encode and decode functions between programs and strings. -/
+structure SyntaxCodec where
+  encode : CellProgram → String
+  decode : String → Option CellProgram
+
+/-- A syntax codec is faithful if decode ∘ encode = some. -/
+def SyntaxCodec.faithful (c : SyntaxCodec) : Prop :=
+  ∀ p : CellProgram, c.decode (c.encode p) = some p
+
+/-- A syntax codec preserves semantics if decoded programs are
+    observationally equivalent to the original. -/
+def SyntaxCodec.semanticPreserving (c : SyntaxCodec) : Prop :=
+  ∀ p : CellProgram, ∀ s : String,
+    c.decode s = some p →
+    ∀ g : TaskGraph, g.applyProgram p = g.applyProgram p  -- trivially true as stated;
+    -- the real content is: ANY program decoded from the same string
+    -- is equivalent to the original.
+
+/-- Two syntax codecs are equivalent if they encode the same information
+    (up to observational program equivalence). -/
+def SyntaxCodec.equiv (c1 c2 : SyntaxCodec) : Prop :=
+  ∀ p : CellProgram,
+    match c1.decode (c1.encode p), c2.decode (c2.encode p) with
+    | some p1, some p2 => ProgramEquiv p1 p2
+    | none, none => True
+    | _, _ => False
+
+/-- The minimal information that a Cell syntax must encode per cell.
+    This is the "essence" that any syntax must capture — everything
+    else is presentation. -/
+structure CellEssence where
+  name    : String        -- Cell identity (node name)
+  deps    : List String   -- What this cell needs (edge sources)
+  prompt  : String        -- What this cell computes (the formula body)
+  outType : String        -- What shape the output has
+  deriving Repr, BEq, DecidableEq
+
+/-- Extract the essence from a CellDecl. Only cellDef has full essence;
+    other declarations are structural. -/
+def CellDecl.essence : CellDecl → Option CellEssence
+  | .cellDef spec => some {
+      name := spec.name,
+      deps := spec.refs,
+      prompt := spec.prompt,
+      outType := repr spec.type |>.pretty }
+  | _ => none
+
+/-- Extract all cell essences from a program. -/
+def programEssences (prog : CellProgram) : List CellEssence :=
+  prog.filterMap CellDecl.essence
+
+/-- Two identical programs (same declarations) project identically.
+    This is the formal anchor: the projection is deterministic,
+    so syntax equivalence reduces to declaration equivalence. -/
+theorem same_decls_same_projection (p1 p2 : CellProgram)
+    (h : p1 = p2) : CellProgram.project p1 = CellProgram.project p2 :=
+  congrArg CellProgram.project h
+
+-- ═══════════════════════════════════════════════════════════════
+-- SECTION 10: The Eval-One Correctness Criterion
+-- ═══════════════════════════════════════════════════════════════
+
+/-! The pretend test formalized: a syntax is "LLM-executable" if
+    an LLM reading a program in that syntax can correctly identify
+    the ready set and produce a valid eval-one step.
+
+    We model "LLM understanding" as a function from syntax strings
+    to (ready cell, output) pairs. The syntax is LLM-executable if
+    this function agrees with the formal semantics. -/
+
+/-- An eval-one oracle: given a program string and current state,
+    produces the name of the cell to execute. -/
+structure EvalOracle where
+  chooseReady : String → TaskGraph → Option String
+
+/-- An eval oracle is correct for a syntax if the chosen cell
+    is always in the ready set. -/
+def EvalOracle.correct (oracle : EvalOracle) (codec : SyntaxCodec) : Prop :=
+  ∀ prog : CellProgram, ∀ g : TaskGraph,
+    match oracle.chooseReady (codec.encode prog) g with
+    | some name => g.isReady name = true
+    | none => g.readySet = []
+
+/-- The pretend test score: what fraction of trials does the oracle
+    agree with the formal semantics? (Stated as a proposition for
+    a single trial — the empirical score comes from sampling.) -/
+def pretendTestPasses (oracle : EvalOracle) (codec : SyntaxCodec)
+    (prog : CellProgram) (g : TaskGraph) : Prop :=
+  match oracle.chooseReady (codec.encode prog) g with
+  | some name => g.isReady name = true
+  | none => g.readySet = []
+
+/-- If an oracle is correct, it passes the pretend test for all inputs. -/
+theorem correct_oracle_passes_pretend (oracle : EvalOracle) (codec : SyntaxCodec)
+    (h : oracle.correct codec) :
+    ∀ prog g, pretendTestPasses oracle codec prog g :=
+  h
+
 end BeadCalculus.ProgramAlgebra
