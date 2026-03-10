@@ -1,0 +1,279 @@
+-- frame-bead-format.cell: specification for frame beads
+-- A frame bead captures the ENTIRE program state after one eval-one step.
+-- The program text IS the state (document-is-state property).
+--
+-- A frame bead is a .cell file. Nothing else. No markdown, no JSON, no prose.
+-- The frame IS the program at that moment in time.
+--
+-- Spec bead: ce-bgf2
+-- Reference: docs/design/cell-v0.1-spec.md
+-- Reference: docs/exercises/cz-mixed-hard-soft-trace.md
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME HEADER
+-- ═══════════════════════════════════════════════════════════════
+--
+-- Every frame begins with a header comment block:
+--
+--   -- frame <N> of <program-name>
+--   -- hash: <content-hash of previous frame>
+--   -- frozen: <cell-name>            (which cell was just frozen)
+--   -- action: freeze | retry | bottom | init
+--   -- oracle: <cell-name> → pass | fail
+--
+-- Frame 0 is special: action is "init", no cell was frozen.
+-- The hash chain links frames: frame N's hash = hash(frame N-1).
+--
+-- After the header, the COMPLETE program follows — every cell,
+-- every binding, every oracle result. Nothing is omitted.
+
+-- ═══════════════════════════════════════════════════════════════
+-- CELL STATE RULES
+-- ═══════════════════════════════════════════════════════════════
+--
+-- Unfrozen cell (yields unbound):
+--   yield x
+--
+-- Frozen cell (yields bound):
+--   yield x ≡ 4
+--
+-- Bottom cell (oracle exhausted):
+--   yield x ≡ ⊥
+--
+-- Given with resolved cross-reference:
+--   given solve→x                  (unresolved — source not frozen)
+--   given solve→x ≡ 4             (resolved — source is frozen)
+--
+-- Pre-bound givens always show their value:
+--   given equation ≡ "2x + 3 = 11"
+
+-- ═══════════════════════════════════════════════════════════════
+-- ORACLE ANNOTATION RULES
+-- ═══════════════════════════════════════════════════════════════
+--
+-- Oracles are annotated with results ONLY on frozen cells.
+-- Unfrozen cells show bare oracles (not yet evaluated).
+--
+-- Unevaluated oracle (cell not yet frozen):
+--   ⊨ x is a number
+--
+-- Passed oracle:
+--   ⊨ x is a number                        → ✓
+--
+-- Failed oracle:
+--   ⊨ holds = true                          → ✗
+--
+-- The → ✓ / → ✗ suffix is appended on the same line.
+-- Claim cell details are NOT shown — only the verdict.
+
+-- ═══════════════════════════════════════════════════════════════
+-- TEMPLATE: Frame 0 (initial state)
+-- ═══════════════════════════════════════════════════════════════
+
+-- frame 0 of mixed-hard-soft
+-- hash: 0000000000000000
+-- frozen: (none)
+-- action: init
+
+⊢ solve
+  given equation ≡ "2x + 3 = 11"
+  yield x, proof[]
+
+  ∴ Solve «equation» for x. Show your work as «proof» (list of steps).
+
+  ⊨ x is a number
+
+⊢= substitute
+  given solve→x
+  given equation ≡ "2x + 3 = 11"
+  yield holds
+
+  ⊢= holds ← eval(2 * solve→x + 3) = 11
+
+  ⊨ holds = true
+
+⊢ explain
+  given solve→x
+  given solve→proof
+  given substitute→holds
+  yield explanation
+
+  ∴ If «substitute→holds» is true, explain the solution «solve→proof» in plain English.
+    If false, say "The solution x=«solve→x» is WRONG because substitution failed."
+
+  ⊨ explanation mentions the value of x
+  ⊨ if substitute→holds then explanation is positive
+
+-- ═══════════════════════════════════════════════════════════════
+-- TEMPLATE: Frame 1 (after freezing solve)
+-- ═══════════════════════════════════════════════════════════════
+
+-- frame 1 of mixed-hard-soft
+-- hash: a7f3...                   (hash of frame 0)
+-- frozen: solve
+-- action: freeze
+-- oracle: solve → pass
+
+⊢ solve
+  given equation ≡ "2x + 3 = 11"
+  yield x ≡ 4, proof[] ≡ ["2x + 3 = 11", "2x = 8", "x = 4"]
+
+  ∴ Solve «equation» for x. Show your work as «proof» (list of steps).
+
+  ⊨ x is a number                           → ✓
+
+⊢= substitute
+  given solve→x ≡ 4
+  given equation ≡ "2x + 3 = 11"
+  yield holds
+
+  ⊢= holds ← eval(2 * solve→x + 3) = 11
+
+  ⊨ holds = true
+
+⊢ explain
+  given solve→x ≡ 4
+  given solve→proof ≡ ["2x + 3 = 11", "2x = 8", "x = 4"]
+  given substitute→holds
+  yield explanation
+
+  ∴ If «substitute→holds» is true, explain the solution «solve→proof» in plain English.
+    If false, say "The solution x=«solve→x» is WRONG because substitution failed."
+
+  ⊨ explanation mentions the value of x
+  ⊨ if substitute→holds then explanation is positive
+
+-- ═══════════════════════════════════════════════════════════════
+-- TEMPLATE: Frame 2 (after freezing substitute)
+-- ═══════════════════════════════════════════════════════════════
+
+-- frame 2 of mixed-hard-soft
+-- hash: c9e1...                   (hash of frame 1)
+-- frozen: substitute
+-- action: freeze
+-- oracle: substitute → pass
+
+⊢ solve
+  given equation ≡ "2x + 3 = 11"
+  yield x ≡ 4, proof[] ≡ ["2x + 3 = 11", "2x = 8", "x = 4"]
+
+  ∴ Solve «equation» for x. Show your work as «proof» (list of steps).
+
+  ⊨ x is a number                           → ✓
+
+⊢= substitute
+  given solve→x ≡ 4
+  given equation ≡ "2x + 3 = 11"
+  yield holds ≡ true
+
+  ⊢= holds ← eval(2 * solve→x + 3) = 11
+
+  ⊨ holds = true                             → ✓
+
+⊢ explain
+  given solve→x ≡ 4
+  given solve→proof ≡ ["2x + 3 = 11", "2x = 8", "x = 4"]
+  given substitute→holds ≡ true
+  yield explanation
+
+  ∴ If «substitute→holds» is true, explain the solution «solve→proof» in plain English.
+    If false, say "The solution x=«solve→x» is WRONG because substitution failed."
+
+  ⊨ explanation mentions the value of x
+  ⊨ if substitute→holds then explanation is positive
+
+-- ═══════════════════════════════════════════════════════════════
+-- TEMPLATE: Frame 3 (after freezing explain — quiesced)
+-- ═══════════════════════════════════════════════════════════════
+
+-- frame 3 of mixed-hard-soft
+-- hash: 4b2d...                   (hash of frame 2)
+-- frozen: explain
+-- action: freeze
+-- oracle: explain → pass
+
+⊢ solve
+  given equation ≡ "2x + 3 = 11"
+  yield x ≡ 4, proof[] ≡ ["2x + 3 = 11", "2x = 8", "x = 4"]
+
+  ∴ Solve «equation» for x. Show your work as «proof» (list of steps).
+
+  ⊨ x is a number                           → ✓
+
+⊢= substitute
+  given solve→x ≡ 4
+  given equation ≡ "2x + 3 = 11"
+  yield holds ≡ true
+
+  ⊢= holds ← eval(2 * solve→x + 3) = 11
+
+  ⊨ holds = true                             → ✓
+
+⊢ explain
+  given solve→x ≡ 4
+  given solve→proof ≡ ["2x + 3 = 11", "2x = 8", "x = 4"]
+  given substitute→holds ≡ true
+  yield explanation ≡ "Subtracting 3 from both sides gives 2x = 8, dividing by 2 gives x = 4. Substitution confirms: 2(4)+3 = 11."
+
+  ∴ If «substitute→holds» is true, explain the solution «solve→proof» in plain English.
+    If false, say "The solution x=«solve→x» is WRONG because substitution failed."
+
+  ⊨ explanation mentions the value of x      → ✓
+  ⊨ if substitute→holds then explanation is positive → ✓
+
+-- ═══════════════════════════════════════════════════════════════
+-- TEMPLATE: Frame with oracle failure (bottom path)
+-- ═══════════════════════════════════════════════════════════════
+
+-- frame 2 of mixed-hard-soft (path B — wrong answer)
+-- hash: e8a0...                   (hash of frame 1b)
+-- frozen: substitute
+-- action: bottom
+-- oracle: substitute → fail
+
+⊢ solve
+  given equation ≡ "2x + 3 = 11"
+  yield x ≡ 5, proof[] ≡ ["2x + 3 = 11", "2x = 8", "x = 8/3", "x ≈ 5"]
+
+  ∴ Solve «equation» for x. Show your work as «proof» (list of steps).
+
+  ⊨ x is a number                           → ✓
+
+⊢= substitute
+  given solve→x ≡ 5
+  given equation ≡ "2x + 3 = 11"
+  yield holds ≡ ⊥
+
+  ⊢= holds ← eval(2 * solve→x + 3) = 11
+
+  ⊨ holds = true                             → ✗
+
+⊢ explain
+  given solve→x ≡ 5
+  given solve→proof ≡ ["2x + 3 = 11", "2x = 8", "x = 8/3", "x ≈ 5"]
+  given substitute→holds ≡ ⊥
+  yield explanation
+
+  ∴ If «substitute→holds» is true, explain the solution «solve→proof» in plain English.
+    If false, say "The solution x=«solve→x» is WRONG because substitution failed."
+
+  ⊨ explanation mentions the value of x
+  ⊨ if substitute→holds then explanation is positive
+
+-- ═══════════════════════════════════════════════════════════════
+-- FORMAT INVARIANTS
+-- ═══════════════════════════════════════════════════════════════
+--
+-- 1. Every frame contains ALL cells. No cell is ever omitted.
+-- 2. Document-is-state: diff frame N and frame N-1 to see exactly
+--    what changed (one yield line gains ≡, cross-refs resolve).
+-- 3. Monotonicity: once yield ≡ appears, it never changes.
+-- 4. Hash chain: frame N header contains hash(frame N-1 content).
+-- 5. Oracle annotations (→ ✓/✗) appear ONLY on frozen cells.
+-- 6. The ∴ and ⊢= bodies are preserved verbatim in every frame.
+--    They are the program — not execution artifacts.
+-- 7. Cross-references (given cell→field) gain ≡ when the source
+--    cell freezes. Both forms are valid Cell syntax.
+-- 8. A frame file is a valid Cell program at every step.
+--    You can feed frame N to cell-zero and it will resume
+--    evaluation from where frame N left off.
