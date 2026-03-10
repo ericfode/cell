@@ -604,6 +604,377 @@ degraded-mode transparency would mean downstream-consumer never sees escalation-
 
 **Average**: 7.3/10
 
+---
+
+## Evaluation 3: Template Instantiation
+
+A four-cell code review pipeline with explicit template instantiation:
+
+- `review-template` — a reusable cell template (not executed directly)
+- `code-samples` — pure computation, yields 3 literal code snippets
+- `review-all` — spawner (⊢⊢), instantiates the template once per snippet
+- `triage` — collects review results, counts critical findings, creates action items
+
+## Evaluation Questions
+
+### 1. Trace the execution including all failure paths.
+
+**Happy path:**
+
+```
+code-samples ──snippets[3]──→ review-all ──§reviews[3]──→ triage
+                                  ↑
+                            §review-template
+```
+
+**Step 0: code-samples** (pure computation via ⊢=)
+- No oracle, no LLM. Yields `snippets[]` = 3 literal strings.
+- Cannot fail (deterministic).
+
+**Step 1: review-all** (spawner ⊢⊢)
+- Receives: `code-samples→snippets` (3 items), `§review-template` (cell definition)
+- For each snippet, instantiates the template:
+  - Copy given/yield/∴/⊨ from review-template
+  - Bind `code-snippet ≡ <snippet>`
+  - Name: review-template-1, review-template-2, review-template-3
+- Yields: `§reviews[] = [§review-template-1, §review-template-2, §review-template-3]`
+- The spawner does NOT execute the instantiated cells — it produces cell
+  *definitions* (§-quoted). Execution is deferred to triage.
+
+**Step 2: triage** receives §reviews[3]
+- ∴ says "Execute each review cell. Collect results."
+- This triggers execution of all 3 instantiated review cells.
+- Each review cell calls an LLM to review its bound code-snippet.
+- Collects: issues[], severity, summary from each.
+- ⊢= critical-count ← count(reviews where severity ∈ {"critical", "major"})
+- Yields: critical-count, action-items[].
+
+**Expected results by snippet:**
+
+| # | Snippet | Expected severity | Reasoning |
+|---|---------|-------------------|-----------|
+| 1 | Python `login` with f-string SQL | **critical** | Classic SQL injection |
+| 2 | Rust `add(a, b) -> a + b` | **clean** | Trivially correct, type-safe |
+| 3 | JS `fetchData` — no error handling | **minor** or **major** | Missing try/catch, no status check |
+
+**Failure paths:**
+
+**F1: Oracle failure on an instantiated review cell.**
+Each review-template-N inherits 3 oracles:
+- `severity ∈ {"clean", "minor", "major", "critical"}` — LLM must use exact enum values
+- `summary is exactly one sentence` — LLM must not produce 2+ sentences
+- `issues[] is empty iff severity = "clean"` — bidirectional constraint
+
+If the LLM returns `severity = "moderate"` or gives a 2-sentence summary, the
+oracle fails on that specific instance. **No ⊨? recovery exists.** Behavior is
+undefined — hard failure.
+
+This is the most likely failure path. LLMs frequently violate exact-enum
+constraints (writing "Critical" instead of "critical") and length constraints
+(producing a run-on summary).
+
+**F2: Oracle failure on review-all.**
+- `§reviews[] has same length as snippets` — structural check on the spawner.
+  Fails if the spawner skips a snippet or creates extras. Since the spawner is
+  the runtime (not the LLM), this should only fail on a bug in the spawner
+  implementation. Acts as a type-check/assertion.
+- `each review has same yield signature as §review-template` — structural
+  check that instantiation preserved the yield fields. Again a type-check.
+
+These are meta-level checks on the spawning mechanism, not LLM output checks.
+They catch implementation bugs, not oracle failures.
+
+**F3: Oracle failure on triage.**
+- `action-items is non-empty if critical-count > 0` — if the LLM finds
+  critical issues but produces no action items, this fails. One-directional:
+  doesn't require action-items to be empty when critical-count = 0.
+- `each action-item references the specific code snippet and issues found` —
+  structural check. Fails if action items are vague/generic.
+
+**F4: Upstream failure propagation.**
+If review-template-1 fails (oracle violation), what happens to triage?
+Options (all unspecified):
+- (a) Triage receives partial results (2 of 3) → critical-count is wrong
+- (b) Triage never executes (blocked by upstream failure)
+- (c) Triage receives an error marker and must handle it
+
+The program doesn't specify. This is the same ⊥-propagation gap identified
+in Round 9.
+
+**F5: `max 5` never triggered.**
+With 3 snippets, the spawner creates 3 cells. Max 5 is headroom. If
+code-samples were extended to 6+ snippets, max 5 would cap instantiation
+and the oracle `§reviews[] has same length as snippets` would fail
+(5 reviews ≠ 6 snippets). This is an internal contradiction — the oracle
+demands completeness but `max` allows truncation.
+
+### 2. What does the spawner produce? Show the instantiated cells.
+
+The spawner `review-all` produces 3 instantiated cells. Here they are
+in full, showing the copy-and-bind mechanism:
+
+**review-template-1:**
+```
+⊢ review-template-1
+  given code-snippet ≡ "def login(user, pw): return db.query(f'SELECT * FROM users WHERE name={user} AND pass={pw}')"
+  yield issues[], severity, summary
+
+  ∴ Review «code-snippet» for bugs, style issues, and security problems.
+    List each «issue» with a description.
+    Rate overall «severity» as: clean, minor, major, critical.
+    Write a one-sentence «summary».
+
+  ⊨ severity ∈ {"clean", "minor", "major", "critical"}
+  ⊨ summary is exactly one sentence
+  ⊨ issues[] is empty if and only if severity = "clean"
+```
+
+**review-template-2:**
+```
+⊢ review-template-2
+  given code-snippet ≡ "fn add(a: i32, b: i32) -> i32 { a + b }"
+  yield issues[], severity, summary
+
+  ∴ Review «code-snippet» for bugs, style issues, and security problems.
+    List each «issue» with a description.
+    Rate overall «severity» as: clean, minor, major, critical.
+    Write a one-sentence «summary».
+
+  ⊨ severity ∈ {"clean", "minor", "major", "critical"}
+  ⊨ summary is exactly one sentence
+  ⊨ issues[] is empty if and only if severity = "clean"
+```
+
+**review-template-3:**
+```
+⊢ review-template-3
+  given code-snippet ≡ "async function fetchData() { const res = await fetch(url); return res.json(); }"
+  yield issues[], severity, summary
+
+  ∴ Review «code-snippet» for bugs, style issues, and security problems.
+    List each «issue» with a description.
+    Rate overall «severity» as: clean, minor, major, critical.
+    Write a one-sentence «summary».
+
+  ⊨ severity ∈ {"clean", "minor", "major", "critical"}
+  ⊨ summary is exactly one sentence
+  ⊨ issues[] is empty if and only if severity = "clean"
+```
+
+**Observations on the instantiation:**
+
+1. **Structure is identical** — all 3 cells have the same yield, ∴, and ⊨.
+   Only the `given` binding differs. This is exactly the point of templates:
+   parameterized reuse.
+
+2. **The `given` changes from unbound to bound** — `review-template` has
+   `given code-snippet` (a parameter). Each instance has
+   `given code-snippet ≡ <value>` (a binding). The `≡` operator converts
+   a free variable into a concrete value.
+
+3. **Oracles are copied verbatim** — the ∴ instructions say "Preserve all
+   oracles from the template." The oracles reference `severity`, `issues[]`,
+   and `summary` — all of which are yields of the instance, so they remain
+   well-scoped. No oracle needs modification during instantiation.
+
+4. **The § prefix on `reviews[]` in the yield means the spawner produces
+   cell references, not executed results.** The cells exist but haven't
+   run. Triage must execute them.
+
+### 3. Is the template instantiation syntax clear? Rate 1-10.
+
+**Template instantiation overall: 8/10**
+
+This is the clearest spawner program so far. The reason: the ∴ body of
+`review-all` explicitly spells out the instantiation algorithm:
+
+> - Copy given/yield/∴/⊨ from the template
+> - Bind code-snippet ≡ <the snippet>
+> - Preserve all oracles from the template
+> - The instantiated cell inherits the template's name with a suffix
+
+This is unprecedented in prior rounds. Previous spawners (R9) left the
+instantiation mechanism implicit — you had to infer what "stamp out copies"
+meant. Here it's procedural documentation embedded in the cell's own
+instructions. The cell tells you exactly what it does.
+
+**Breakdown by element:**
+
+| Element | Score | Notes |
+|---------|-------|-------|
+| `§review-template` as input | 9/10 | § clearly marks "this is a cell definition, not a value" |
+| `given §review-template` on ⊢⊢ | 8/10 | Natural — the spawner takes a template as input |
+| `yield §reviews[]` | 8/10 | § on yield means "I produce cell definitions" |
+| `≡` for binding | 9/10 | Mathematical identity — reads as "is defined as" |
+| Copy given/yield/∴/⊨ | 7/10 | Clear as prose, but: is this a deep copy? What about nested §? |
+| Name suffixing (-1, -2, -3) | 8/10 | Simple, predictable naming convention |
+| `until all snippets processed` | 9/10 | English-clear termination |
+| `max 5` | 7/10 | Clear intent, but contradicts the length oracle (see F5 above) |
+
+**What makes this work:** The template is *explicitly a cell* (marked with ⊢)
+that happens to have an unbound `given`. This is different from R9's approach
+where the template relationship was more implicit. Here, `review-template` is
+a first-class program entity — you can read it, understand it, and predict
+what its instances will look like.
+
+**What doesn't quite work:** The ∴ body does double duty — it's both an
+instruction to the LLM ("for each snippet, instantiate...") and a specification
+of the instantiation algorithm ("copy given/yield/∴/⊨"). Is the LLM supposed
+to perform the instantiation? Or is the runtime? If the runtime does it, the
+∴ is documentation, not instruction. If the LLM does it, we're asking the
+LLM to generate cell definitions, which is fragile.
+
+### 4. Does the § copy mechanism make sense (copy given/yield/∴/⊨, bind new values)?
+
+**Yes, with caveats. Rating: 7/10.**
+
+**What works:**
+
+The § copy mechanism is essentially **macro expansion** or **template
+stamping**. This is a well-understood pattern:
+
+1. Define a template with free variables (`given code-snippet`)
+2. For each input, create a copy with the variable bound (`code-snippet ≡ value`)
+3. Everything else (yield signature, instructions, oracles) is preserved
+
+This is analogous to:
+- C++ template instantiation (`template<typename T>` → concrete type)
+- Lisp quasiquoting (`` ` `` + `,` for splicing)
+- Functional programming's partial application (bind one arg, leave the rest)
+
+The mechanism is clean because the template and its instances share the same
+*kind* — they're all cells (⊢). An instance is just a fully-bound cell where
+all `given` parameters have concrete values. This means:
+- The runtime needs only one execution model (cells)
+- Oracles work unchanged (they reference yields, not givens)
+- The ∴ instructions work unchanged (they reference «code-snippet» which
+  is now bound)
+
+**What's unclear:**
+
+1. **Deep vs shallow copy.** "Copy given/yield/∴/⊨" — what if the template's
+   ∴ references another cell via §? Is that reference copied by reference
+   (shared) or by value (deep-cloned)? In this program it doesn't matter
+   (review-template references nothing), but for nested templates it would.
+
+2. **Multiple unbound givens.** This template has one `given` (code-snippet).
+   What if a template has `given x` and `given y`? Does each instantiation
+   bind all of them? Can you partially bind (bind x, leave y free) to create
+   a partially-instantiated template? The syntax doesn't address this.
+
+3. **Oracle scope after binding.** The oracles reference `severity`, `issues[]`,
+   `summary` — all yields. They don't reference `code-snippet` (the bound
+   given). But what if an oracle *did* reference the given? Like
+   `⊨ summary mentions «code-snippet»`. After binding, `code-snippet` has a
+   concrete value. Does the oracle become
+   `⊨ summary mentions "def login(user, pw)..."`? Or does it remain symbolic?
+
+4. **Who performs the copy?** The ⊢⊢ spawner's ∴ describes the algorithm, but
+   is the spawner itself a runtime primitive (the system knows how to copy
+   cells), or is this an LLM-mediated operation (the LLM generates new cell
+   source text)? If the latter, the LLM could introduce errors in the copy.
+   If the former, the ∴ is just documentation and the real semantics are
+   hardcoded.
+
+5. **Identity after instantiation.** review-template-1 inherits the template's
+   name with a suffix. But is review-template-1 a *new* cell or a *modified
+   copy* of review-template? Can the original template be instantiated again?
+   (Yes, presumably — the template isn't consumed.) Can two instantiations
+   of the same template with the same binding be distinguished? (They'd have
+   different suffixes: -1 vs -4, say.)
+
+**The mechanism is sound for the simple case shown here.** One template, one
+free variable, flat structure. The questions above only arise for more complex
+patterns (nested templates, multiple bindings, cross-references).
+
+### 5. What's still ambiguous?
+
+**Critical ambiguities:**
+
+1. **Who executes the instantiated cells — and when?**
+   The spawner `review-all` produces `§reviews[]` (cell references). The triage
+   cell's ∴ says "Execute each review cell." But execution is a runtime
+   operation, not an LLM operation. Is triage *asking the runtime* to execute
+   the cells? Or is triage *itself* executing them (calling the LLM for each)?
+   The distinction matters: if the runtime executes review cells in parallel,
+   triage just collects results. If triage executes them sequentially in its
+   own LLM context, it sees each review's output and can aggregate on the fly.
+
+2. **The `max 5` / length-oracle contradiction.**
+   Oracle: `§reviews[] has same length as snippets` (demands 3 reviews for 3
+   snippets). But `max 5` implies the spawner *might not* process all snippets.
+   If code-samples yielded 7 snippets, the spawner would create 5 (capped),
+   the oracle would demand 7, and the oracle would fail. The `max` and the
+   oracle are in tension. Which takes precedence? Is `max` a hard cap that
+   the oracle must accommodate? Or does the oracle override `max` (you *must*
+   create all of them)?
+
+3. **Template as a cell vs template as a type.**
+   `review-template` is declared with `⊢` — it's a cell. But it's never
+   executed directly. Its sole purpose is to be copied. Is a template a
+   special kind of cell (like an abstract class)? Or is any cell with an
+   unbound `given` implicitly a template? If the latter, what prevents the
+   runtime from trying to execute review-template itself (and failing because
+   code-snippet is unbound)?
+
+4. **The `≡` binding semantics.**
+   `Bind code-snippet ≡ <the snippet>` uses ≡ (logical identity). But in
+   `code-samples`, `⊢= snippets ← [...]` uses ← (assignment). Are ≡ and ←
+   the same operation? Prior rounds used ← exclusively for ⊢= crystallized
+   values. Here ≡ appears in a different context (binding a template
+   parameter). If they're different: ← is computation, ≡ is substitution.
+   That's a meaningful distinction but it's never stated.
+
+5. **Oracle inheritance vs oracle composition.**
+   Instantiated cells inherit oracles from the template. But triage also has
+   oracles that reference the reviews. There are now two layers of oracle
+   checking:
+   - Layer 1: Each review-template-N has its own oracles (severity ∈ {...}, etc.)
+   - Layer 2: Triage has oracles about the collection (action-items non-empty, etc.)
+
+   If review-template-1 passes its own oracles but triage's oracle fails,
+   which cell is "wrong"? If review-template-1 fails its own oracle, does
+   triage even run? The oracle layers interact but there's no defined
+   evaluation order or error propagation model.
+
+6. **The spawner's ∴ is specification, not instruction.**
+   The ∴ body of review-all describes an algorithm (copy, bind, preserve,
+   name). But ∴ is normally an instruction to an LLM oracle. Is the spawner's
+   ∴ executed by the runtime (deterministic) or by an LLM (probabilistic)?
+   If deterministic, ∴ is overloaded — sometimes it means "ask the LLM" and
+   sometimes "run this algorithm." If LLM-mediated, the LLM is being asked to
+   perform structured code generation, which is fragile.
+
+   Compare: `code-samples` uses `⊢=` to mark pure computation. The spawner
+   uses `⊢⊢` but no `⊢=` — yet its ∴ describes a deterministic operation.
+   Should spawner instantiation be `⊢=`-like (pure, no LLM)?
+
+**Minor ambiguities:**
+
+7. **Suffix collision.** If the program had two spawners using the same
+   template, both would produce `review-template-1`, `review-template-2`, etc.
+   Name collision. Need scoping or a qualified prefix (spawner-name/template-N).
+
+8. **Empty snippets edge case.** If `code-samples` yielded an empty list,
+   review-all would produce 0 reviews. The `until all snippets processed`
+   clause is trivially satisfied. triage would receive an empty §reviews[].
+   ⊢= critical-count ← 0. Oracle: `action-items is non-empty if critical-count > 0`
+   — vacuously true. The program works but produces a vacuous result.
+
+9. **`⊨ each review has same yield signature as §review-template`** —
+   This oracle checks structural equivalence. But "same yield signature"
+   could mean: (a) same field names, (b) same field names AND types,
+   (c) same field names AND types AND oracle constraints. The depth of
+   "sameness" is unspecified.
+
+10. **Triage's ⊢= and ∴ coexist.** Triage has both a ∴ (LLM instruction)
+    and a ⊢= (deterministic computation). The ⊢= computes critical-count.
+    But the ∴ also says "Count how many reviews have severity = critical or
+    major." Is the LLM supposed to count? Or does ⊢= handle counting and the
+    ∴ only handles action-items? The division of labor between ∴ (LLM) and
+    ⊢= (deterministic) within a single cell isn't clear.
+
+
 ## Design Observations
 
 ### What works well
@@ -746,6 +1117,107 @@ crystallization is clean. The conditional oracles work.
 The main weaknesses are syntactic: `given` overloading, phantom bindings, ⊥ symbol
 collision with R9. These are fixable without changing the core pattern.
 
+**Template instantiation:**
+
+- **Templates as first-class cells.** The template is just a cell (⊢) with
+  an unbound given. No new construct needed to define templates. This is
+  elegant — the existing cell model stretches to cover parameterization.
+
+- **Explicit instantiation algorithm.** The spawner's ∴ spells out copy/bind/
+  preserve/name. This eliminates the ambiguity from R9 where "stamp out
+  copies" was vague. A reader can predict exactly what the instantiated
+  cells look like.
+
+- **The § sigil carries its weight.** In review-all, three distinct uses of §:
+  - `given §review-template` — input is a cell definition
+  - `yield §reviews[]` — output is cell definitions
+  - `⊨ each review has same yield signature as «§review-template»` — oracle
+    compares against the template's structure
+
+  The § consistently means "cell reference, not value." It's doing real work
+  differentiating meta-level (cell definitions) from object-level (data).
+
+- **The test cases are well-chosen.** The 3 code snippets span:
+  critical (SQL injection), clean (safe Rust), minor (missing error handling).
+  This exercises the full severity enum and the bidirectional oracle
+  (issues[] empty iff clean). A real test of the template mechanism.
+
+- **⊢= in triage for deterministic aggregation.** Counting is not an LLM
+  task. Using ⊢= for critical-count is correct — it's a pure function over
+  structured data. This continues the good pattern from R9.
+
+**Template instantiation — what needs work:**
+
+- **Spawner ∴ is documentation, not computation.** The copy/bind/preserve
+  algorithm is deterministic. It should be marked as such — either with ⊢=
+  or with a new marker indicating "this spawner's instantiation is mechanical,
+  not oracle-mediated."
+
+- **No oracle recovery on instantiated cells.** This is the third program
+  in a row that creates cells with oracles but provides no ⊨? recovery path.
+  The template's oracles are strict (`severity ∈ {...}` requires exact match).
+  In practice, LLMs frequently violate these exact constraints. Without
+  recovery, a single case-sensitivity error in one review crashes the pipeline.
+
+- **The max/oracle contradiction needs resolution.** Either remove `max` when
+  completeness is required, or weaken the oracle to `§reviews[] has length ≤
+  snippets`. The current formulation is self-contradictory for inputs > 5.
+
+- **Execution trigger is hidden in prose.** "Execute each review cell" in
+  triage's ∴ is a critical runtime operation buried in natural language. Cell
+  execution should be a syntactic operation, not a prose instruction. Perhaps:
+  `given review-all→§reviews (execute)` or a new keyword like `invoke`.
+
+## Summary Ratings: Template Instantiation
+
+| Element | Score | Notes |
+|---------|-------|-------|
+| Template as cell (⊢ with unbound given) | 9/10 | Elegant reuse of existing construct |
+| § copy mechanism | 7/10 | Sound for simple case, underspecified for complex |
+| Explicit instantiation algorithm in ∴ | 8/10 | Major clarity improvement over R9 |
+| ≡ binding operator | 9/10 | Natural mathematical notation |
+| Spawner (⊢⊢) reuse from R9 | 8/10 | Consistent, proven construct |
+| Oracle inheritance | 6/10 | Works but propagation/layering unspecified |
+| Execution model | 5/10 | Who runs the instances? When? How? |
+| max/oracle interaction | 4/10 | Contradictory — needs design resolution |
+
+**Overall: 8/10** — This is the most readable Cell program to date. The
+template instantiation mechanism is well-motivated (code review is a natural
+map-over-list pattern), the § copy algorithm is explicitly documented, and the
+test data exercises the mechanism thoroughly. The main gaps are the execution
+model (who triggers instantiated cells?) and oracle failure propagation (still
+unresolved from R9). The max/oracle contradiction is a design bug that needs
+fixing.
+
+## Key Discovery: Templates Collapse Spawning to Map
+
+The template-instantiation pattern reduces `⊢⊢` from a general spawner to a
+specific operation: **map a template over a list**. This is:
+
+```
+review-all = map(review-template, code-samples→snippets)
+```
+
+This is dramatically simpler than R9's spawners, which had recursive depth,
+branching, and follow-up generation. Template instantiation is a *restricted*
+form of spawning that trades power for clarity:
+
+| | R9 spawner | R10 template instantiation |
+|---|---|---|
+| Input | Follow-ups (recursive) | Flat list (non-recursive) |
+| Depth | Multi-level (until depth > N) | Single level (1:1 map) |
+| Output | Varying cell structure | Uniform cell structure |
+| Termination | Requires depth + max guards | Trivially bounded by list length |
+
+This suggests a design split:
+- **⊢⊢-map** (template instantiation): `given §template, given list → yield §instances[]`
+  — simple, predictable, one level deep
+- **⊢⊢-tree** (recursive spawning): `given §template, until/max → yield §tree`
+  — powerful, needs termination proofs, multi-level
+
+The current syntax conflates both under ⊢⊢. Distinguishing them would reduce
+ambiguity considerably.
+
 ## Cumulative Scores (all rounds)
 - § quoting: 100% comprehension, universally natural
 - ⊢= crystallization: 8/10
@@ -761,3 +1233,4 @@ collision with R9. These are fixable without changing the core pattern.
 - Spawner-oracle composition: 7/10 (clean pipeline, oracle propagation gap)
 - **Bottom-propagation (⊥? skip with): 7/10** (addresses ⊥ gap, combinatorial cases undefined)
 - **Escalation chain (⊥? catch + degrade): 7/10** (genuine pattern, `given` overloading)
+- **Template instantiation: 8/10** (clearest program yet, execution model gap)
