@@ -127,9 +127,9 @@ def GraphOp.isValid (op : GraphOp) (g : TaskGraph) : Bool :=
   | .dropNode name =>
     -- Node must exist and be unexecuted
     g.isFrontier name
-  | .rewrite name _ =>
-    -- Node must exist and be unexecuted
-    g.isFrontier name
+  | .rewrite name newSpec =>
+    -- Node must exist and be unexecuted, and rewrite must preserve identity
+    g.isFrontier name && (newSpec.name == name)
   | .addEdge _from to_ =>
     -- Target node must be unexecuted (can't add deps to executed nodes)
     -- Exception: if target is executed, this is just noting a dependency
@@ -571,7 +571,7 @@ theorem distill_preserves_frozen (g : TaskGraph) (proposal : DistillProposal)
       exact beq_iff_eq.mp (List.find?_eq_some_iff_append.mp hfind).1
     -- Reduce applyOp (.rewrite ...) to get the explicit mapped list
     simp only [TaskGraph.applyOp, GraphOp.isValid, h] at hdist
-    simp at hdist; subst hdist
+    simp at hdist; obtain ⟨_, hdist⟩ := hdist; subst hdist
     -- The map function preserves spec.name (because newSpec.name = nd.spec.name =
     -- proposal.cellName = n.spec.name for matched nodes) and state (rewrite only
     -- changes the spec, not the execution state).
