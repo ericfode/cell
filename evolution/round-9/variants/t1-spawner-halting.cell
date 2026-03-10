@@ -1,0 +1,71 @@
+⊢ seed-topic
+  given question ≡ "What are the key challenges in quantum error correction?"
+  yield summary, follow-ups[]
+
+  ∴ Research «question». Write a 2-sentence «summary».
+    Identify 3 specific follow-up questions as «follow-ups».
+
+  ⊨ summary is 2-3 sentences
+  ⊨ follow-ups has exactly 3 items
+  ⊨ each follow-up is a question (ends with ?)
+
+⊢⊢ explore
+  given seed-topic→follow-ups
+  given §seed-topic
+  yield §new-cells[]
+  until depth > 2 ∨ follow-ups all empty
+  max 9
+
+  ∴ For each follow-up in «seed-topic→follow-ups», create a new cell
+    modeled on «§seed-topic» but with that follow-up as its question.
+    Each spawned cell also yields follow-ups, feeding the next depth level.
+
+  ⊨ §new-cells[] each have same given/yield signature as «§seed-topic»
+  ⊨ total spawned cells ≤ 9
+
+⊢ synthesis
+  given explore→§new-cells
+  yield report
+
+  ∴ Collect all summaries from the spawned cells.
+    Write a comprehensive «report» synthesizing all findings.
+
+  ⊨ report references findings from at least 3 spawned cells
+
+―――――――――――――――――――――――――――――――
+Execution Trace (cold read)
+
+Frontier at t0: [seed-topic]
+  seed-topic executes → summary, follow-ups ≡ [Q1, Q2, Q3]
+
+Frontier at t1: [explore]
+  explore sees seed-topic→follow-ups (3 items) and §seed-topic (the template).
+  Spawns 3 new cells (depth 1):
+    ⊢ cell-1: question ≡ Q1, yields summary, follow-ups
+    ⊢ cell-2: question ≡ Q2, yields summary, follow-ups
+    ⊢ cell-3: question ≡ Q3, yields summary, follow-ups
+  (3 spawned, max 9 not hit, depth=1 ≤ 2 → continue)
+
+Frontier at t2: [cell-1, cell-2, cell-3]
+  Each executes, producing summaries and follow-ups:
+    cell-1 → summary-1, [Q1a, Q1b, Q1c]
+    cell-2 → summary-2, [Q2a, Q2b, Q2c]
+    cell-3 → summary-3, [Q3a, Q3b, Q3c]
+
+Frontier at t3: [explore continues — depth 2]
+  9 potential new cells from follow-ups.
+  But 3 already spawned + 9 = 12 > max 9.
+  Spawns 6 more cells (capped at 9 total):
+    ⊢ cell-4 through cell-9
+  depth=2, not > 2 → this is the last batch.
+
+Frontier at t4: [cell-4 through cell-9]
+  All execute, producing summaries and follow-ups.
+  depth > 2 → explore halts. Follow-ups discarded.
+
+Frontier at t5: [synthesis]
+  Collects all summaries from cell-1 through cell-9.
+  Produces report.
+
+Total cells created: 1 (seed) + 9 (spawned) + 1 (synthesis) = 11 cells.
+Total spawned by ⊢⊢: 9 (respects max).
