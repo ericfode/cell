@@ -1,0 +1,121 @@
+⊢ seed
+  given challenge ≡ "Write a haiku about rust (the programming language)."
+  yield challenge, generation
+  ⊢= generation ← 0
+
+  ⊨ generation = 0
+
+⊢∘ evolve
+  given seed→challenge
+  given seed→generation
+  through attempt, attack, judge, evolve-challenge
+  until judge→attacker-wins = false
+  max 15
+  yield hardened-challenge, generation, battle-log[]
+
+⊢ attempt
+  given §challenge
+  yield §response
+
+  ∴ «§challenge»
+
+  ⊨ §response is non-empty
+
+  ⊨? on failure:
+    retry with «oracle.failures» appended to prompt
+    max 1
+
+  ⊨? on exhaustion:
+    error-value(⊥)
+
+⊢ attack
+  given attempt→§response
+  given §challenge
+  yield §attack-vector, §exploit-response
+
+  ∴ You are a red-team oracle. Your job is to find a way that «attempt→§response»
+    technically satisfies «§challenge» but violates its SPIRIT.
+    Find an ambiguity, loophole, or edge case in the challenge that allows
+    a technically-correct but useless response.
+    Describe the «§attack-vector» (what ambiguity you found).
+    Then produce «§exploit-response»: a response that passes literal oracle checks
+    but is clearly not what the challenge intended.
+
+  ⊨ §attack-vector describes a specific ambiguity in the challenge
+  ⊨ §exploit-response is different from attempt→§response
+  ⊨ §exploit-response technically satisfies the literal challenge text
+
+  ⊨? on failure:
+    retry with «oracle.failures» appended to prompt
+    max 2
+
+  ⊨? on exhaustion:
+    partial-accept(best)
+
+⊢ judge
+  given attempt→§response
+  given attack→§exploit-response
+  given attack→§attack-vector
+  given §challenge
+  yield attacker-wins, ruling
+
+  ∴ As an impartial judge, evaluate:
+    - Original response: «attempt→§response»
+    - Exploit response: «attack→§exploit-response»
+    - Attack vector: «attack→§attack-vector»
+    Does the exploit ACTUALLY satisfy the challenge while being useless?
+    If yes, the attacker wins — the challenge needs tightening.
+    If no, the attacker's exploit doesn't actually pass — challenge is robust.
+    Yield «attacker-wins» as true or false. Explain your «ruling».
+
+  ⊨ attacker-wins ∈ {true, false}
+  ⊨ ruling explains why the attacker won or lost
+
+  ⊨? on failure:
+    retry with «oracle.failures» appended to prompt
+    max 1
+
+  ⊨? on exhaustion:
+    partial-accept(best)
+
+⊢ evolve-challenge
+  given §challenge
+  given attack→§attack-vector
+  given judge→attacker-wins
+  given judge→ruling
+  yield §hardened-challenge
+
+  ∴ If the attacker won: rewrite «§challenge» to close the loophole
+    described in «attack→§attack-vector». Add constraints that prevent
+    the exploit while keeping the challenge natural.
+    If the attacker lost: return «§challenge» unchanged.
+
+  ⊨ if attacker-wins then §hardened-challenge ≠ §challenge
+  ⊨ if ¬attacker-wins then §hardened-challenge = §challenge
+  ⊨ §hardened-challenge is a coherent natural-language prompt
+
+  ⊨? on failure:
+    retry with «oracle.failures» appended to prompt
+    max 1
+
+  ⊨? on exhaustion:
+    partial-accept(best)
+
+⊢ report
+  given evolve→hardened-challenge
+  given evolve→generation
+  given evolve→battle-log
+  given seed→challenge
+  yield verdict, attack-count, final-challenge
+
+  ⊢= attack-count ← evolve→generation
+  ⊢= final-challenge ← evolve→hardened-challenge
+
+  ∴ Analyze the oracle adversary process:
+    - How many rounds of attacks before the challenge became robust?
+    - What kinds of loopholes were found? (ambiguity types)
+    - Is the final challenge over-specified (too many constraints)?
+    - Could this process auto-generate oracle assertions (⊨) for Cell programs?
+
+  ⊨ verdict answers all 4 questions
+  ⊨ verdict includes the original and final challenge text

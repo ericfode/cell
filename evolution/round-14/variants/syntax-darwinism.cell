@@ -1,0 +1,112 @@
+⊢ seed
+  given candidates[] ≡ ["literate", "dialogue", "spreadsheet", "letter", "blocks", "hybrid"]
+  given program ≡ "hello(name): greet the user, then wrap the greeting with an emoji"
+  yield candidates, program, generation
+  ⊢= generation ← 0
+
+  ⊨ candidates has 6 items
+  ⊨ generation = 0
+
+⊢∘ evolve
+  given seed→candidates
+  given seed→program
+  given seed→generation
+  through express, eval-one, score, cull
+  until length(candidates) ≤ 1
+  max 10
+  yield surviving-candidates[], generation, history[]
+
+⊢ express
+  given §candidates[]
+  given §program
+  yield §expressions[]
+
+  ∴ For each syntax candidate in «§candidates», rewrite «§program» in that syntax style.
+    Use ONLY the syntax's conventions:
+    - literate: markdown headings, prose paragraphs, Produces:/Needs: declarations
+    - dialogue: [system]/[user]/[expect] tags, UPPERCASE cell names
+    - spreadsheet: ask() functions, -> type annotations, formula assignment
+    - letter: To:/Role:/Encl:/Reply with: headers, --- delimiters
+    - blocks: indentation only, <- dependencies, -> outputs, no delimiters
+    - hybrid: [system]/[user] tags with indentation, <- and ->
+    Output «§expressions» as a list of {candidate: name, code: the rewritten program}.
+
+  ⊨ length(§expressions) = length(§candidates)
+  ⊨ each expression uses ONLY its candidate's syntax conventions
+
+  ⊨? on failure:
+    retry with «oracle.failures» appended to prompt
+    max 2
+
+  ⊨? on exhaustion:
+    partial-accept(best)
+
+⊢ eval-one
+  given §expressions[]
+  yield §eval-results[]
+
+  ∴ For each expression in «§expressions», pretend you are seeing it for the first time.
+    Answer: "Given name='Alice', execute the next ready cell."
+    Show your work:
+    1. Which cell is ready? (identify by name)
+    2. What are its inputs? (resolve references)
+    3. What is your output? (follow the prompt)
+    Rate your own CONFIDENCE 1-10 that you executed correctly.
+    Output «§eval-results» as {candidate, cell_executed, output, confidence}.
+
+  ⊨ each eval-result has confidence ∈ [1, 10]
+  ⊨ each eval-result identifies which cell was executed
+
+  ⊨? on failure:
+    retry with «oracle.failures» appended to prompt
+    max 1
+
+  ⊨? on exhaustion:
+    partial-accept(best)
+
+⊢= score
+  given §eval-results[]
+  yield §scores[]
+
+  ⊢= §scores ← §eval-results.map(r => {candidate: r.candidate, score: r.confidence})
+
+⊢ cull
+  given §scores[]
+  given §candidates[]
+  yield §surviving-candidates[], §eliminated[], reasoning
+
+  ∴ Given scores «§scores», eliminate the BOTTOM HALF of candidates.
+    If there's an odd number, keep the extra one.
+    Explain why each eliminated candidate scored low.
+    Be specific — cite what about the syntax caused confusion.
+
+  ⊨ length(§surviving-candidates) ≤ ceil(length(§candidates) / 2)
+  ⊨ length(§surviving-candidates) ≥ 1
+  ⊨ reasoning mentions each eliminated candidate by name
+
+  ⊨? on failure:
+    retry with «oracle.failures» appended to prompt
+    max 1
+
+  ⊨? on exhaustion:
+    error-value(⊥)
+
+⊢ report
+  given evolve→surviving-candidates
+  given evolve→generation
+  given evolve→history
+  given seed→candidates
+  yield winner, total-rounds, extinction-order, verdict
+
+  ⊢= winner ← evolve→surviving-candidates[0]
+  ⊢= total-rounds ← evolve→generation
+
+  ∴ Write a «verdict» analyzing the syntax darwinism experiment:
+    - Which candidate won and why?
+    - What was the extinction order?
+    - What property made the winner survive eval-one cold reads?
+    - Does this match Morpheus's hypothesis (literate or blocks/hybrid wins)?
+
+  ⊨ verdict names the winner
+  ⊨ verdict lists the extinction order
+  ⊨ verdict references the eval-one confidence scores

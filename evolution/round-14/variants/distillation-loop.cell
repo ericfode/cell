@@ -1,0 +1,101 @@
+⊢ seed
+  given prompt ≡ "Explain quantum entanglement to a 10-year-old in 2 sentences."
+  given temperature ≡ 1.0
+  yield prompt, temperature, generation
+  ⊢= generation ← 0
+
+  ⊨ temperature = 1.0
+  ⊨ generation = 0
+
+⊢∘ evolve
+  given seed→prompt
+  given seed→temperature
+  given seed→generation
+  through generate, distill, test-distilled, decide
+  until decide→is-crystallized = true
+  max 20
+  yield final-template, generation, crystallization-log[]
+
+⊢ generate
+  given §prompt
+  given §temperature
+  yield §response
+
+  ∴ Answer this prompt at temperature «§temperature»:
+    «§prompt»
+
+  ⊨ §response is 2 sentences
+  ⊨ §response explains entanglement
+  ⊨ §response is appropriate for a 10-year-old
+
+  ⊨? on failure:
+    retry with «oracle.failures» appended to prompt
+    max 2
+
+  ⊨? on exhaustion:
+    error-value(⊥)
+
+⊢ distill
+  given generate→§response
+  given §prompt
+  yield §template, §variables[]
+
+  ∴ Analyze «generate→§response» and extract a TEMPLATE.
+    Replace any content-specific phrases with named variables.
+    The template should produce the same quality answer when variables are filled in.
+    Example: "Imagine {concrete_object} are connected by {metaphor}..." with
+    variables [{name: "concrete_object", type: "noun"}, {name: "metaphor", type: "analogy"}].
+
+  ⊨ §template contains at least one {variable}
+  ⊨ §variables lists each variable with name and type
+  ⊨ §template + §variables could regenerate the original response
+
+  ⊨? on failure:
+    retry with «oracle.failures» appended to prompt
+    max 1
+
+  ⊨? on exhaustion:
+    partial-accept(best)
+
+⊢= test-distilled
+  given distill→§template
+  given distill→§variables
+  yield §filled-template, §match-score
+
+  ∴ Fill in «distill→§template» with concrete values for «distill→§variables».
+    Then compare with the original generate→§response.
+    Rate §match-score 0.0-1.0: how well does the template capture the original?
+
+  ⊨ §match-score ∈ [0.0, 1.0]
+  ⊨ §filled-template is complete (no unfilled {variables})
+
+  ⊨? on failure:
+    retry with «oracle.failures» appended to prompt
+    max 1
+
+  ⊨? on exhaustion:
+    partial-accept(best)
+
+⊢= decide
+  given test-distilled→§match-score
+  yield is-crystallized
+
+  ⊢= is-crystallized ← §match-score ≥ 0.9
+
+⊢ report
+  given evolve→final-template
+  given evolve→generation
+  given evolve→crystallization-log
+  given seed→prompt
+  yield verdict, rounds-to-crystallize
+
+  ⊢= rounds-to-crystallize ← evolve→generation
+
+  ∴ Analyze the distillation process:
+    - How many rounds did it take to crystallize?
+    - Did the template capture the essence of the prompt?
+    - Is the crystallized template a valid ⊢= replacement for the original ⊢ cell?
+    - What was lost in distillation?
+
+  ⊨ verdict answers all 4 questions
+  ⊨ verdict includes the final template
