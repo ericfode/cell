@@ -1,0 +1,34 @@
+⊢ inbox
+  given messages[] ≡ [
+    "Please summarize the Q3 report",
+    "What's the status of Project Alpha?",
+    "Schedule a meeting with engineering"
+  ]
+  yield §handlers[]
+
+  ∴ For each message in «messages», create a handler cell
+    that processes that message. Each handler should:
+    - Classify the message type (query, request, task)
+    - Generate an appropriate response
+    - Yield: type, response, needs-action (boolean)
+
+  ⊨ §handlers has same length as «messages»
+  ⊨ each handler has given message, yield type/response/needs-action
+
+⊢ dispatch
+  given inbox→§handlers
+  yield results[]
+
+  ∴ Execute each handler cell from «inbox→§handlers».
+    Collect their outputs into results.
+
+  ⊨ results has same length as «inbox→§handlers»
+
+⊢ act
+  given dispatch→results
+  yield actions[]
+
+  ∴ For each result where needs-action is true, create
+    an action item. For queries, the response is sufficient.
+
+  ⊨ actions only contains items where needs-action was true

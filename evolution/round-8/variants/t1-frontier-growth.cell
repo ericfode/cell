@@ -1,0 +1,62 @@
+⊢ seed
+  given topic ≡ "compilers"
+  yield questions[]
+
+  ∴ Generate 3 interesting questions about «topic».
+
+  ⊨ questions has exactly 3 entries
+  ⊨ each question is about «topic»
+
+⊢ explore
+  given question
+  yield answer, follow-ups[]
+
+  ∴ Answer «question» in 2-3 sentences.
+    Generate 0-2 follow-up questions that go deeper.
+
+  ⊨ answer addresses «question»
+  ⊨ follow-ups has 0-2 entries
+
+⊢ spawn
+  given seed→questions
+  given §explore
+  yield §new-cells[]
+
+  ∴ For each question in «seed→questions», create a new
+    instance of «§explore» with that question as input.
+    Output the new cell definitions.
+
+  ⊨ §new-cells has same length as «seed→questions»
+  ⊨ each new cell is a copy of §explore with question bound
+
+―――――――――――――――――――――――――――――――
+Frontier at t0: [seed]
+  seed executes → questions ≡ ["How do parsers work?", "What is an AST?", "What are optimization passes?"]
+
+Frontier at t1: [spawn]
+  spawn executes → §new-cells ≡ [
+    ⊢ explore-1
+      given question ≡ "How do parsers work?"
+      yield answer, follow-ups[]
+      ...
+    ⊢ explore-2
+      given question ≡ "What is an AST?"
+      yield answer, follow-ups[]
+      ...
+    ⊢ explore-3
+      given question ≡ "What are optimization passes?"
+      yield answer, follow-ups[]
+      ...
+  ]
+
+Frontier at t2: [explore-1, explore-2, explore-3]
+  (all three are ready — parallel execution valid)
+  explore-1 → answer, follow-ups ≡ ["How does recursive descent work?"]
+  explore-2 → answer, follow-ups ≡ ["What are AST transformations?", "How do visitors work?"]
+  explore-3 → answer, follow-ups ≡ []
+
+Frontier at t3: new spawn from follow-ups → 3 more explore cells
+  ...
+
+THE FRONTIER GROWS. This is the semantic automata.
+It never terminates unless follow-ups are always empty.

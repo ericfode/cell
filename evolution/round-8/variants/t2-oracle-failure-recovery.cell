@@ -1,0 +1,46 @@
+⊢ classify
+  given text ≡ "The restaurant was amazing but the service was terrible"
+  yield sentiment, confidence
+
+  ∴ Classify «text» as positive, negative, or mixed.
+    Rate confidence 0.0-1.0.
+
+  ⊨ sentiment is one of "positive", "negative", "mixed"
+  ⊨ confidence is a float between 0.0 and 1.0
+  ⊨ if «text» contains both positive and negative language
+    then sentiment = "mixed"
+
+  ⊨? on failure:
+    append «oracle.failures» to prompt
+    retry max 3
+
+―――――――――――――――――――――――――――――――
+Execution attempt 1:
+  classify → sentiment ≡ "positive", confidence ≡ 0.7
+
+  Oracle checks:
+    ⊨ sentiment is one of "positive", "negative", "mixed" ✓
+    ⊨ confidence is a float between 0.0 and 1.0 ✓
+    ⊨ text contains both positive and negative → sentiment = "mixed" ✗
+      FAIL: text has "amazing" (positive) and "terrible" (negative)
+      but sentiment ≡ "positive"
+
+  ⊨? triggered: retry with feedback
+    oracle.failures = ["text contains positive ('amazing') and negative ('terrible') language, but sentiment='positive' instead of 'mixed'"]
+
+Execution attempt 2:
+  classify → sentiment ≡ "mixed", confidence ≡ 0.85
+
+  Oracle checks:
+    ⊨ sentiment is one of "positive", "negative", "mixed" ✓
+    ⊨ confidence is a float between 0.0 and 1.0 ✓
+    ⊨ text contains both positive and negative → sentiment = "mixed" ✓
+
+  All oracles pass. Attempt 2 accepted.
+
+Final state:
+  ⊢ classify
+    given text ≡ "The restaurant was amazing but the service was terrible"
+    yield sentiment ≡ "mixed", confidence ≡ 0.85
+    ...
+    ⊨ ... ✓ (all pass, attempt 2)

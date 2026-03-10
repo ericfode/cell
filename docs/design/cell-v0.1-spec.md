@@ -244,6 +244,73 @@ the system: pluripotent, expensive, rarely activated, essential for growth.
 
 The trajectory: soft everywhere → hard core, soft frontier.
 
+## Oracle Classification (Round 8)
+
+Oracles fall into two categories:
+
+```
+⊨ sentiment ∈ {"positive", "negative", "mixed"}   -- ASSERTION (post-hoc check)
+⊨ if text has positive ∧ negative → sentiment = "mixed"  -- RULE (prescription)
+```
+
+Assertions catch formatting errors (easy to fix by reformatting).
+Rules catch reasoning errors (need failure context to fix).
+Different retry strategies appropriate for each.
+
+### Conditional oracles with soft preconditions
+
+`if text contains positive and negative language` requires LLM judgment
+to evaluate the precondition. The rule LOOKS deterministic but ISN'T.
+
+### Exhaustion handler
+
+```
+⊨? on failure:
+  retry with «oracle.failures» max 3
+⊨? on exhaustion:
+  escalate | error-value(⊥) | partial-accept(best)
+```
+
+## Frontier Growth: Semantic Automata (Round 8)
+
+Cell programs can grow. Cells spawn new cells that join the frontier.
+This is the semantic automata — never-terminating exploration.
+
+```
+⊢⊢ spawn                          -- ⊢⊢ marks a spawner (meta-level)
+  given explore→follow-ups
+  given §explore                   -- template cell
+  yield §new-cells[]
+  until depth > 5 ∨ follow-ups all empty
+```
+
+### Properties under growth
+
+- Monotonicity preserved (values never change, cells only added)
+- Confluence preserved relative to a fixed oracle
+- Termination NOT guaranteed (by design)
+- Halting via `until` on spawners, budget bounds, or external signal
+
+### Crystallization boundary
+
+Any cell that executes §-referenced cells is an interpreter.
+The § sigil marks the crystallization boundary.
+`dispatch` (executes arbitrary cells) can NEVER crystallize.
+
+## Cell-as-Agent Pattern (Round 8)
+
+```
+inbox → §handlers[] (cell definitions)
+dispatch → results[] (execute handlers)
+act → actions[] (filter needs-action)
+```
+
+This is Cell's eval/apply. Code-as-data emerges from § references.
+Cell adds over Python: visible contracts, first-class constraints,
+explicit dataflow, safe eval/apply, crystallization spectrum.
+
+Missing: streaming (need `~` stream binding), error propagation.
+
 ## Open Questions
 
 1. **Error handling**: What happens when ⊢= throws? When ∴ produces wrong type?
@@ -252,3 +319,7 @@ The trajectory: soft everywhere → hard core, soft frontier.
 4. **Certificate format schemas**: Proof-carrying needs structured certificates
 5. **Versioning beyond prime marks**: §greet''' doesn't scale
 6. **Observation/tracing**: Need syntax for "emit intermediate results"
+7. **Spawner syntax**: ⊢⊢ for meta-level cells, template instantiation, auto-naming
+8. **Streaming**: ~ annotation for incremental input, long-lived cells
+9. **Oracle distinction**: assert vs rule, soft vs hard preconditions
+10. **Exhaustion semantics**: What happens when ⊨? retries are spent
