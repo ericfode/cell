@@ -472,37 +472,7 @@ private theorem isFrozen_preserved_by_filter (g : TaskGraph) (dropName : String)
     rw [find_filter_of_pass hfind (by simp [bne, hnd_name, beq_eq_false_iff_ne.mpr h_ne])]
     simp; exact h
 
-/-- Helper for the rewrite case: find? on a mapped list returns the original node
-    when that node's name differs from the rewrite target and the rewrite
-    preserves the target node's name (as enforced by GraphOp.isValid). -/
-private theorem rewrite_find_preserved {nodes : List TaskNode} {nodeName rwName : String}
-    {newSpec : CellSpec} {nd : TaskNode}
-    (hfind : nodes.find? (·.spec.name == nodeName) = some nd)
-    (hnd_ne : nd.spec.name ≠ rwName)
-    (h_name_pres : newSpec.name = rwName) :
-    (nodes.map fun n =>
-      if n.spec.name = rwName then { spec := newSpec, state := n.state } else n).find?
-      (·.spec.name == nodeName) = some nd := by
-  induction nodes with
-  | nil => simp at hfind
-  | cons hd tl ih =>
-    simp only [List.map_cons, List.find?_cons] at hfind ⊢
-    cases heq_nm : hd.spec.name == nodeName
-    · rw [heq_nm] at hfind
-      by_cases h_rw : hd.spec.name = rwName
-      · -- The rewritten node has newSpec.name = rwName = hd.spec.name != nodeName
-        have h_ns : (newSpec.name == nodeName) = false := by
-          rw [beq_eq_false_iff_ne]
-          rw [h_name_pres]
-          exact fun h => absurd (h ▸ h_rw) (beq_eq_false_iff_ne.mp heq_nm)
-        simp only [h_rw, ite_true, h_ns]; exact ih hfind
-      · simp only [h_rw, ite_false, heq_nm]; exact ih hfind
-    · rw [heq_nm] at hfind; simp at hfind; subst hfind
-      simp only [hnd_ne, ite_false, heq_nm]
-
-/-- Helper: isFrozen is preserved by any single valid applyOp.
-    For the rewrite case, this relies on the Cell invariant that rewrites
-    preserve node identity (name). See `rewrite_find_preserved`. -/
+/-- Helper: isFrozen is preserved by any single valid applyOp. -/
 private theorem isFrozen_after_applyOp (g : TaskGraph) (op : GraphOp) (nodeName : String)
     (h_frozen : g.isFrozen nodeName = true) :
     ∀ g', g.applyOp op = some g' → g'.isFrozen nodeName = true := by
@@ -524,25 +494,11 @@ private theorem isFrozen_after_applyOp (g : TaskGraph) (op : GraphOp) (nodeName 
     simp only [TaskGraph.applyOp, GraphOp.isValid] at h_apply
     split at h_apply
     · simp at h_apply
-    · rename_i h_neg; simp at h_neg h_apply; subst h_apply
-      obtain ⟨h_frontier, h_name_pres⟩ := h_neg
-      have h_ne : nodeName ≠ rwName := by
-        intro heq; subst heq
-        simp only [TaskGraph.isFrozen, TaskGraph.isFrontier, TaskGraph.findNode] at h_frozen h_frontier
-        cases hfind : g.nodes.find? (·.spec.name == nodeName) with
-        | none => rw [hfind] at h_frozen; simp at h_frozen
-        | some nd =>
-          rw [hfind] at h_frozen h_frontier; simp only at h_frozen h_frontier
-          revert h_frozen h_frontier; cases nd.state <;> simp
-      simp only [TaskGraph.isFrozen, TaskGraph.findNode] at h_frozen ⊢
-      cases hfind : g.nodes.find? (·.spec.name == nodeName) with
-      | none => rw [hfind] at h_frozen; simp at h_frozen
-      | some nd =>
-        rw [hfind] at h_frozen; simp only at h_frozen
-        have hnd_name : nd.spec.name = nodeName :=
-          beq_iff_eq.mp (List.find?_eq_some_iff_append.mp hfind).1
-        rw [rewrite_find_preserved hfind (hnd_name ▸ h_ne) h_name_pres]
-        exact h_frozen
+    · simp at h_apply; subst h_apply
+      rw [isFrozen_preserved_by_node_map g _ _ _ nodeName]
+      · exact h_frozen
+      · intro n; split <;> simp
+      · intro n; split <;> rfl
   | addEdge from_ to_ =>
     simp only [TaskGraph.applyOp, GraphOp.isValid] at h_apply
     split at h_apply
