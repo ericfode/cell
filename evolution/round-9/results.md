@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Round 9 Results: Oracle Cascade
 
 ## Mode: COLD READ (no syntax reference)

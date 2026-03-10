@@ -975,6 +975,385 @@ patterns (nested templates, multiple bindings, cross-references).
     ⊢= (deterministic) within a single cell isn't clear.
 
 
+---
+
+## Evaluation 4: Oracle-Retry-Spawned
+
+## The Program
+
+A four-cell test harness: **test-cases** → **run-tests** → **test-report**, with
+**transform-template** as a quoted blueprint that the spawner instantiates per case.
+
+- `test-cases` is pure crystallization (⊢=), yields 4 literal test cases
+- `transform-template` is a template cell with oracles and recovery (⊨?)
+- `run-tests` (⊢⊢ spawner) instantiates the template once per case, adding a
+  case-specific oracle
+- `test-report` collects results, classifies pass/fail/exhausted
+
+This is the first program to combine all three mechanisms: spawning (⊢⊢),
+oracle recovery (⊨?), and template instantiation (§) in a single pipeline.
+
+## Cold Read Evaluation
+
+### Q1: Trace the execution including oracle retries on spawned cells.
+
+**Full trace:**
+
+**Phase 1 — Data (deterministic)**
+
+`test-cases` executes. Pure ⊢= crystallization — no LLM call. Yields:
+```
+cases = [
+  {input: "hello world", expected: "HELLO WORLD"},
+  {input: "café",        expected: "CAFÉ"},
+  {input: "",            expected: ""},
+  {input: "123 abc",     expected: "123 ABC"}
+]
+```
+
+**Phase 2 — Spawning (⊢⊢ run-tests)**
+
+The spawner receives `test-cases→cases` (4 items) and `§transform-template`
+(the quoted cell blueprint). For each case, it instantiates the template:
+
+```
+case[0]: text ≡ "hello world"
+  Oracles (inherited from template):
+    ⊨ result = uppercase("hello world")     [template oracle, instantiated]
+    ⊨ result has same length as "hello world"
+    ⊨ result contains no lowercase letters
+  Oracle (added by spawner):
+    ⊨ result = "HELLO WORLD"                [case-specific, from case.expected]
+  Recovery (inherited):
+    ⊨? on failure: retry with oracle.failures, max 2
+    ⊨? on exhaustion: error-value(⊥)
+
+case[1]: text ≡ "café"    → same structure, expected = "CAFÉ"
+case[2]: text ≡ ""        → same structure, expected = ""
+case[3]: text ≡ "123 abc" → same structure, expected = "123 ABC"
+```
+
+Total spawned cells: 4 (one per case).
+Total cells in the program: 6 (test-cases + transform-template + run-tests +
+4 spawned test-runs - but transform-template is never executed, only quoted).
+Effectively: 5 executing cells + 1 template.
+
+**Phase 3 — Execution of spawned cells (oracle retry)**
+
+Each spawned test-run cell executes independently:
+
+```
+test-run[0] ("hello world"):
+  Attempt 1: LLM converts "hello world" → "HELLO WORLD"
+  Oracle check: result = uppercase(text)? ✓
+                same length? ✓
+                no lowercase? ✓
+                result = "HELLO WORLD"? ✓
+  → PASS (1 oracle call)
+
+test-run[1] ("café"):
+  Attempt 1: LLM converts "café" → "CAFE"      [common LLM error: drops accent]
+  Oracle check: result = uppercase(text)? depends on uppercase("café") definition
+                same length? ✓ (4 chars)
+                no lowercase? ✓
+                result = "CAFÉ"? ✗            [accent dropped]
+  → ⊨? on failure: append {oracle.failures: ["result ≠ CAFÉ"]} to prompt
+  Attempt 2: LLM retries with failure context → "CAFÉ"
+  Oracle check: all pass
+  → PASS (2 oracle calls)
+
+  [OR if attempt 2 also fails:]
+  → ⊨? on exhaustion: error-value(⊥)
+  → result = ⊥ (3 oracle calls total? See ambiguity in Q5)
+```
+
+**Phase 4 — Reporting (test-report)**
+
+`test-report` receives §test-runs (4 cells with their results).
+Uses ⊢= crystallization to compute counts — no LLM needed.
+
+**Maximum oracle calls**: 4 cells × 3 attempts each = 12 (worst case).
+**Minimum oracle calls**: 4 (all pass on first attempt).
+**Zero oracle calls** on: test-cases (⊢=), run-tests (spawner, not oracle),
+test-report (⊢= counts).
+
+The DAG:
+```
+test-cases ──cases──→ run-tests ──§test-runs──→ test-report
+                         ↑
+              §transform-template
+```
+
+### Q2: What happens when a test case fails all retries? Show the exhaustion flow.
+
+**Exhaustion flow for a single spawned cell (e.g., "café"):**
+
+```
+┌─ Attempt 1 ─────────────────────────────────────────┐
+│  LLM prompt: "Convert «café» to uppercase."         │
+│  LLM output: "CAFE"                                 │
+│  Oracle check:                                       │
+│    ⊨ result = uppercase("café")  → ambiguous (*)    │
+│    ⊨ same length                 → ✓                │
+│    ⊨ no lowercase                → ✓                │
+│    ⊨ result = "CAFÉ"             → ✗ FAIL           │
+│  → ⊨? on failure fires                              │
+└──────────────────────────────────────────────────────┘
+         │
+         ▼ oracle.failures = [{constraint: "result = CAFÉ", got: "CAFE"}]
+┌─ Attempt 2 ─────────────────────────────────────────┐
+│  LLM prompt: "Convert «café» to uppercase."         │
+│    + "Previous failures: result was CAFE, expected   │
+│      CAFÉ. Preserve diacritics."                     │
+│  LLM output: "CAFE"  [still wrong]                  │
+│  Oracle check: ⊨ result = "CAFÉ" → ✗ FAIL           │
+│  → ⊨? on failure: max 2 reached                     │
+└──────────────────────────────────────────────────────┘
+         │
+         ▼ retries exhausted
+┌─ ⊨? on exhaustion ──────────────────────────────────┐
+│  error-value(⊥)                                      │
+│  Cell yields: result = ⊥                             │
+│  oracle.failures preserved in cell metadata          │
+└──────────────────────────────────────────────────────┘
+         │
+         ▼
+test-report receives: {result: ⊥, exhaustion: true,
+  failures: [{attempt: 1, got: "CAFE"}, {attempt: 2, got: "CAFE"}]}
+```
+
+**Key observations:**
+
+1. **⊥ is a value, not an exception.** The cell completes normally — it yields
+   `result = ⊥` rather than crashing. This is the "typed absence" pattern from
+   Round 9's `error-value(⊥)`. The pipeline continues; test-report can still
+   count and report on the failure.
+
+2. **Failure history is preserved.** The `oracle.failures` context accumulates
+   across retries. The test-report's final oracle (`⊨ report includes
+   oracle.failures history for each exhausted test`) demands this history be
+   surfaced. This creates an implicit data channel: failure metadata flows from
+   spawned cells up to the reporter.
+
+3. **The exhaustion is contained.** One cell's exhaustion doesn't crash the
+   whole pipeline. Other test-run cells continue independently. This is
+   fail-soft at the cell level, fail-transparent at the pipeline level.
+
+### Q3: How does the test-report cell know which tests were exhausted vs passed?
+
+**Three separate detection mechanisms, each using ⊢= crystallization:**
+
+```
+⊢= pass-count     ← count(test-runs where all oracles passed)
+⊢= fail-count     ← count(test-runs where result = ⊥)
+⊢= exhausted-count ← count(test-runs where ⊨? on exhaustion fired)
+```
+
+**Detection 1 — pass-count**: Checks whether "all oracles passed." This is
+straightforward if the runtime tracks oracle pass/fail status per cell. The
+test-report reads each cell's oracle status as metadata.
+
+**Detection 2 — fail-count**: Checks `result = ⊥`. This uses the value channel,
+not metadata. A cell that exhausted retries yields ⊥ as its result. The
+test-report can detect this purely from the cell's output. No metadata needed.
+
+**Detection 3 — exhausted-count**: Checks `⊨? on exhaustion fired`. This is an
+*event query* — it asks whether a specific recovery clause triggered. This
+requires execution metadata that goes beyond the cell's output values.
+
+**The tension**: Detection 2 uses data (⊥ is a value), but Detection 3 uses
+execution events. This implies the test-report has access to a richer execution
+record than just yields:
+
+```
+cell output = {result: "HELLO WORLD"}           → passed
+cell output = {result: ⊥}                       → failed (detectable from value)
+cell metadata = {exhaustion_fired: true,         → exhausted (detectable from events)
+                 oracle_failures: [...]}
+```
+
+**This is a significant design decision.** The program treats spawned cells as
+transparent — their execution history (not just their outputs) is visible to
+downstream cells. This contrasts with a pure dataflow model where cells only
+see each other's yields.
+
+**The oracle on test-report reinforces this:**
+```
+⊨ report includes oracle.failures history for each exhausted test
+```
+This demands that `oracle.failures` — an internal execution artifact of each
+spawned cell — be accessible to test-report. The failure history must flow
+through the pipeline as inspectable data.
+
+**Implied model**: Spawned cells (§test-runs) are not opaque. The parent
+(test-report) can inspect:
+- Output values (result)
+- Oracle pass/fail status
+- Recovery events (exhaustion fired)
+- Failure history (oracle.failures)
+
+This is closer to an "execution trace" model than a pure "value passing" model.
+It's powerful for testing/auditing scenarios but raises questions about cell
+encapsulation in other contexts.
+
+### Q4: Rate the clarity of inherited ⊨? clauses on spawned cells (1-10)
+
+**6/10**
+
+**What works:**
+
+The *intent* is clear. When I read:
+```
+∴ For each case in «test-cases→cases», instantiate «§transform-template»:
+    - Bind text ≡ case.input
+    - Add oracle: ⊨ result = case.expected
+    - Each instantiated cell inherits ⊨? clauses from template
+```
+
+I understand: each spawned cell gets the template's retry logic. The word
+"inherits" correctly suggests the ⊨? clauses are copied, not shared. Each
+spawned cell has its own retry budget. This is the right mental model.
+
+The spawner's oracle reinforces it:
+```
+⊨ each test-run has same ⊨? clauses as «§transform-template»
+```
+This is an oracle *about the spawning mechanism itself* — a meta-assertion that
+the runtime correctly inherited the recovery clauses. Novel and useful.
+
+**What doesn't work:**
+
+1. **Inheritance is specified in prose (∴), not syntax.** The instruction
+   "Each instantiated cell inherits ⊨? clauses from template" is in the
+   natural-language body, not in the formal structure. There's no syntactic
+   marker that says "copy recovery clauses." Compare with `given`, `yield`,
+   `⊨` — all structural. Inheritance is instructional.
+
+   This means a runtime could miss it. An LLM interpreting the ∴ might or
+   might not inherit ⊨? clauses — it's a suggestion, not a mandate.
+
+2. **The `Add oracle` pattern mixes with inheritance.** The spawner both
+   *adds* a new oracle (`⊨ result = case.expected`) and *inherits* existing
+   ones from the template. How do added and inherited oracles compose?
+   Are they AND-ed? Do they share the same retry budget? If the inherited
+   oracles pass but the added oracle fails, does ⊨? on failure fire?
+
+3. **`max 2` — per oracle or per cell?** The template says `retry... max 2`.
+   If a spawned cell has 4 oracles (3 inherited + 1 added) and different
+   oracles fail on different attempts, does each oracle get 2 retries, or
+   does the cell as a whole get 2 retry cycles? The "all oracles checked
+   together" interpretation seems intended, but it's not explicit.
+
+4. **No syntax for conditional inheritance.** What if you want to inherit
+   oracles but NOT ⊨? clauses? Or inherit ⊨? but change `max`? The
+   all-or-nothing inheritance model is simple but inflexible.
+
+**Score breakdown:**
+
+| Aspect | Score | Notes |
+|--------|-------|-------|
+| Intent comprehension | 9/10 | Crystal clear what's meant |
+| Formal specificity | 4/10 | Prose instruction, not syntax |
+| Composition rules | 4/10 | Added + inherited oracle interaction unclear |
+| Retry budget scoping | 5/10 | Per-cell vs per-oracle ambiguous |
+| Overall cold-read | 6/10 | Understand the goal, can't verify the mechanics |
+
+### Q5: What's still ambiguous?
+
+**Critical:**
+
+1. **`max 2` semantics.** Does `retry... max 2` mean 2 retries (3 total
+   attempts) or 2 total attempts (1 initial + 1 retry)? This is the classic
+   off-by-one from Round 9, still unresolved. For a test harness this matters:
+   it determines whether worst-case oracle calls are 8 (4 cells × 2) or
+   12 (4 cells × 3).
+
+2. **Oracle composition on spawned cells.** Each spawned cell has 4 oracles:
+   3 inherited from the template, 1 added by the spawner. Questions:
+   - Are all 4 checked after each attempt?
+   - If oracle 1 passes but oracle 4 fails, is that a "failure" that triggers ⊨??
+   - On retry, are ALL oracles re-checked, or only the failed ones?
+   - Does `oracle.failures` include all 4, or only the ones that failed?
+
+   The natural reading is "all oracles checked together, any failure triggers
+   retry, all re-checked on retry." But this isn't specified.
+
+3. **`result = uppercase(text)` vs `result = case.expected` redundancy.**
+   The template has `⊨ result = uppercase(«text»)` and the spawner adds
+   `⊨ result = case.expected`. For well-formed test cases, these say the same
+   thing (`uppercase("hello world") = "HELLO WORLD"`). But they're different
+   mechanisms:
+   - `uppercase(«text»)` is a function call — who evaluates it? The oracle
+     system needs a built-in `uppercase` function, or it's delegated to the LLM.
+   - `case.expected` is a literal comparison.
+
+   If the `uppercase()` function disagrees with `case.expected` (e.g., on
+   locale-dependent characters like "café"), the oracles contradict each other.
+   The cell would be unfulfillable — every attempt fails, exhaustion guaranteed.
+
+4. **Execution metadata accessibility.** `test-report` uses `where ⊨? on
+   exhaustion fired` — a query over execution events. This implies cells
+   expose their execution trace, not just their yields. But the program
+   doesn't declare this. Is execution metadata always accessible to downstream
+   cells? Only for §-referenced cells? Only for cells spawned by ⊢⊢?
+
+**Significant:**
+
+5. **`test-report` receives `§test-runs`, not results.** The `given` says
+   `run-tests→§test-runs` — the § prefix means these are cell references, not
+   values. So test-report receives cell *definitions* (or handles). The ∴ says
+   "Execute each test-run cell" — meaning test-report is the executor, not
+   run-tests. This is subtle: the spawner *creates* the cells, but the reporter
+   *executes* them. Who owns the retry budget? If test-report executes them,
+   does it also manage the ⊨? recovery? Or did the spawner already execute
+   them and test-report just reads results?
+
+   Two readings:
+   - **Lazy**: run-tests creates cell definitions, test-report executes them.
+     The cells are "thunks" — deferred computations.
+   - **Eager**: run-tests spawns AND executes the cells, test-report receives
+     completed results. The § prefix is just "these came from cells."
+
+   The ∴ in test-report ("Execute each test-run cell") suggests lazy evaluation,
+   which is a significant execution model choice.
+
+6. **`max 10` on run-tests.** There are only 4 test cases. `max 10` can never
+   be hit. Is this a safety cap (like R9's `max 5` on 3 handlers), or does it
+   hint that `run-tests` might spawn MORE than one cell per case (e.g., retry
+   at the spawner level)? If a spawned cell exhausts and yields ⊥, does the
+   spawner retry with a fresh instantiation? `max 10` would allow up to 2.5
+   retries per case at the spawner level. But nothing in the program text
+   suggests spawner-level retry.
+
+7. **`pass-count + fail-count = length(test-runs)` — is exhausted a subset
+   of failed?** The oracle says pass + fail = total. The `exhausted-count`
+   oracle says `exhausted-count ≤ fail-count`. This means exhausted tests
+   ARE counted as failed. But logically, a cell could fail its oracles on
+   attempt 1 and succeed on attempt 2 — is it "passed" or "failed"? The
+   counting uses final state (⊥ or not), not attempt history. A cell that
+   retried and eventually passed counts as passed.
+
+**Minor:**
+
+8. **Empty string test case.** `{input: "", expected: ""}` — the template's
+   ∴ says "Convert «text» to uppercase." With empty text, the LLM receives
+   "Convert  to uppercase." The double guillemets around nothing might confuse
+   the LLM. The oracle `result has same length as text` requires length 0.
+   This is a legitimate edge case that tests oracle recovery on degenerate input.
+
+9. **`oracle.failures` schema.** What data structure per failure? Just the
+   constraint text? The attempted result? The attempt number? The test-report
+   demands `oracle.failures history for each exhausted test`, implying a
+   structured record per attempt, but the format is unspecified.
+
+10. **Parallel execution of spawned cells.** The 4 test-run cells are
+    independent. Can they execute in parallel? The program doesn't specify.
+    If lazy (test-report executes them), the order depends on test-report's
+    implementation. If eager (run-tests executes them), the spawner could
+    parallelize. Neither is specified.
+
+
+
 ## Design Observations
 
 ### What works well
@@ -1168,6 +1547,95 @@ collision with R9. These are fixable without changing the core pattern.
   execution should be a syntactic operation, not a prose instruction. Perhaps:
   `given review-all→§reviews (execute)` or a new keyword like `invoke`.
 
+**Oracle-retry-spawned:**
+
+- **The test harness pattern is natural.** Template + spawner + reporter is a
+  recognizable pattern from software testing. Anyone who has used parameterized
+  tests (pytest, JUnit) would recognize this immediately. Cell's version adds
+  oracle-based verification instead of assertions, which fits the LLM context.
+
+- **⊢= crystallization in test-report is exactly right.** Counting pass/fail
+  is a pure computation — no LLM needed. Using ⊢= for the counts and ⊨ for
+  the invariants (pass + fail = total) separates concerns cleanly.
+
+- **error-value(⊥) as containment.** The exhaustion handler yields ⊥ instead
+  of crashing the pipeline. This is essential for a test harness — you want to
+  report failures, not abort on them. The ⊥ value flows through the pipeline
+  as data, letting test-report inspect and count it.
+
+- **Meta-oracle on spawning.** `⊨ each test-run has same ⊨? clauses as
+  §transform-template` is a structural assertion about the spawning process
+  itself. This is a type-check on the runtime.
+
+**Oracle-retry-spawned — what needs work:**
+
+- **Inheritance semantics need formalization.** The phrase "inherits ⊨? clauses"
+  is in prose. This should be a syntactic feature.
+
+- **Oracle composition rules are missing.** When a spawned cell has both
+  inherited and added oracles, the interaction rules need to be explicit.
+
+- **Lazy vs eager execution of §-cells is ambiguous.** The program can be read
+  both ways (spawner executes vs reporter executes). This is a fundamental
+  execution model question.
+
+- **Execution metadata as implicit data channel.** `test-report` queries
+  execution events (`where ⊨? on exhaustion fired`), but this capability isn't
+  declared. A cell's execution trace should be explicitly available (or not).
+
+## Syntax Element Clarity: Oracle-Retry-Spawned (Cold Read)
+
+| Element | Score | Notes |
+|---------|-------|-------|
+| `⊢= cases ← [...]` | 9/10 | Pure data, crystal clear |
+| `§transform-template` as given | 8/10 | § as "blueprint" is intuitive |
+| `⊢⊢ run-tests` spawner | 7/10 | Clear with context, glyph still arbitrary |
+| `text ≡ case.input` binding | 8/10 | ≡ as "bind to" reads naturally |
+| `⊨? on failure: retry...` | 7/10 | Intent clear, mechanics uncertain |
+| `⊨? on exhaustion: error-value(⊥)` | 7/10 | Terminal-but-not-crashing is clear |
+| `oracle.failures` accumulation | 6/10 | Implicit schema, implicit scoping |
+| `⊨ result = case.expected` (added oracle) | 8/10 | Clean parameterized assertion |
+| `where ⊨? on exhaustion fired` (in ⊢=) | 5/10 | Event query in value expression — surprising |
+| Inherited ⊨? clauses | 6/10 | Prose, not syntax |
+
+**Average: 7.1/10**
+
+## Rating: Oracle-Retry-Spawned
+
+**Oracle-retry on spawned cells: 7/10**
+
+The program successfully demonstrates the composition of three previously
+independent features (spawning, oracle recovery, template instantiation) into
+a coherent test harness. The pattern is immediately recognizable and the
+intent reads clearly from cold.
+
+The main weakness is that the *composition rules* are underspecified. Each
+feature works individually (spawning from R9, ⊨? from R8, ⊢= from earlier),
+but their interaction — oracle composition, inheritance semantics, execution
+metadata flow — is left to prose and implication.
+
+## Key Discovery: The Execution Metadata Problem
+
+This program reveals a fundamental tension in Cell's design. Cells communicate
+through two channels:
+
+1. **Value channel**: yields (result, pass-count, etc.) — explicit, typed, declared
+2. **Metadata channel**: execution events (oracle.failures, exhaustion status) — implicit, untyped, undeclared
+
+The test-report cell reads BOTH channels. Its ⊢= expressions query values
+(`result = ⊥`) AND events (`⊨? on exhaustion fired`). But only the value channel
+is declared in the cell's `given`/`yield` signature.
+
+This means Cell has a hidden data flow that bypasses the formal dataflow graph.
+Two design paths:
+
+1. **Make metadata explicit.** Add `yield.meta` or similar: cells declare what
+   execution metadata they expose.
+
+2. **Keep metadata implicit but scoped.** Only cells that receive §-references
+   (cell handles, not values) can query execution metadata. The § prefix grants
+   metadata access.
+
 ## Summary Ratings: Template Instantiation
 
 | Element | Score | Notes |
@@ -1234,3 +1702,4 @@ ambiguity considerably.
 - **Bottom-propagation (⊥? skip with): 7/10** (addresses ⊥ gap, combinatorial cases undefined)
 - **Escalation chain (⊥? catch + degrade): 7/10** (genuine pattern, `given` overloading)
 - **Template instantiation: 8/10** (clearest program yet, execution model gap)
+- **Oracle-retry-spawned: 7/10** (features compose, interaction rules underspecified)
