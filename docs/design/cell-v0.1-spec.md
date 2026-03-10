@@ -51,21 +51,29 @@ Cell uses **Kahn's algorithm**, one step at a time:
 
 1. Find all cells whose `given` inputs are fully bound (`≡` present)
 2. Pick ONE such cell
-3. Execute it (interpret `∴` or evaluate `⊢=`)
-4. Fill in its `yield ≡` values
-5. Repeat until `is-done` (all yields bound)
+3. Evaluate it (interpret `∴` via LLM or evaluate `⊢=` deterministically)
+4. Spawn oracle claim cells to verify the tentative output
+5. If all claims pass → freeze the output (fill in `yield ≡` values)
+6. If any claim fails → retry (rewrite) or produce `⊥` (exhausted)
+7. Repeat (the frontier grows monotonically — programs don't terminate)
 
-### Properties (proven through testing)
+### Properties (proven in Lean)
 
 - **Document-is-state**: The program text IS the execution state.
   Each step changes exactly one `yield` line to include `≡ value`.
 - **Monotonicity**: Yields only get bound, never unbound.
-  State moves strictly upward in a finite lattice.
-- **Termination**: Guaranteed by monotonicity. No cycles possible.
+  The frozen set only grows. Past is immutable.
+- **Non-termination**: Cell programs do not terminate by design.
+  Spawners grow the frontier. Termination is the caller's problem.
+  See `cell-computational-model.md` for the full justification.
 - **Confluence**: Execution order of independent cells doesn't matter.
   Same final result regardless of scheduling. Parallel execution valid.
+  (Proven: `eval_diamond` theorem in `Confluence.lean`.)
 - **Content addressing**: Hash the document = hash the state.
   Each eval-one step = hash transition (h0 → h1 → h2 → ...).
+- **Fusion**: Cell requires both classical and semantic substrates.
+  Deterministic cells (`⊢=`) run classically. Soft cells (`∴`) need LLM.
+  Oracle checking spans both. See `cell-computational-model.md`.
 
 ### Example Trace
 
@@ -133,6 +141,13 @@ Same syntax, different trust level.
 
 ## Oracle System
 
+### Oracles are cells
+
+Every `⊨` assertion is syntactic sugar for a **claim cell** that
+cell-zero spawns after evaluation. The claim cell checks the oracle
+against the tentative output. This means oracles participate in the
+same graph mechanics as everything else — no special oracle machinery.
+
 ### Oracle types
 
 ```
@@ -152,6 +167,12 @@ Same syntax, different trust level.
 
 `⊨?` is a meta-oracle — policy about what to do when `⊨` fails.
 Key insight: retry WITH FEEDBACK, not blind retry.
+
+Retry is a graph rewrite: cell-zero drops the failed claim cells,
+rewrites the original cell (with failure context), and re-evaluates.
+The tentative output lives in the claim cells, NOT in the original
+cell's state. The original remains unfrozen until oracles pass.
+This is why retry doesn't violate immutability.
 
 ### Oracle promotion
 
