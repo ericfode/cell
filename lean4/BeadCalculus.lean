@@ -8,3 +8,4 @@ import BeadCalculus.Unified
 import BeadCalculus.GasCity
 import BeadCalculus.GraphOps
 import BeadCalculus.ProgramAlgebra
+import BeadCalculus.Confluence

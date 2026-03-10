@@ -52,7 +52,7 @@ structure TaskNode where
     distillation happens. -/
 structure TaskGraph where
   nodes : List TaskNode
-  deriving Repr, Inhabited
+  deriving Repr, Inhabited, BEq, DecidableEq
 
 /-- Get the names of all nodes. -/
 def TaskGraph.nodeNames (g : TaskGraph) : List String :=
