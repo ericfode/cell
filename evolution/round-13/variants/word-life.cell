@@ -1,0 +1,91 @@
+⊢ seed
+  given word ≡ "hot"
+  yield word, generation
+  ⊢= generation ← 0
+
+  ⊨ word is a single English adjective
+  ⊨ generation = 0
+
+⊢∘ evolve
+  given seed→word
+  given seed→generation
+  through flip, tick, drift-check
+  until tick→next-generation ≥ 50
+  max 50
+  yield final-word, final-generation, drift-log[]
+
+⊢ flip
+  given §current-word
+  yield §next-word, antonym-reasoning
+
+  ∴ Given «§current-word», produce its most common antonym as «§next-word».
+    The antonym must be a single English adjective.
+    Explain your choice in «antonym-reasoning» (1 sentence).
+
+  ⊨ §next-word ≠ §current-word
+  ⊨ §next-word is a single English adjective
+  ⊨ antonym-reasoning mentions both «§current-word» and «§next-word»
+
+  ⊨? on failure:
+    retry with «oracle.failures» appended to prompt
+    max 2
+
+  ⊨? on exhaustion:
+    error-value(⊥)
+
+⊢= tick
+  given §current-generation
+  yield §next-generation
+
+  §next-generation ← §current-generation + 1
+
+⊢ drift-check
+  given seed→word
+  given flip→§next-word
+  given tick→§next-generation
+  yield drift-score, drift-entry
+
+  ∴ Rate the semantic distance between the original word "«seed→word»"
+    and the current word "«flip→§next-word»" on a scale of 0.0 to 1.0:
+      0.0 = identical meaning to original
+      0.3 = closely related / synonym of original
+      0.5 = direct antonym of original
+      0.7 = loosely related (same domain but different concept)
+      1.0 = completely unrelated to original
+    Yield «drift-score» as a decimal number.
+    Yield «drift-entry» as: "Gen «tick→§next-generation»: «flip→§next-word» (drift: «drift-score»)"
+
+  ⊨ drift-score ∈ [0.0, 1.0]
+  ⊨ drift-entry contains the generation number and the current word
+
+  ⊨? on failure:
+    retry with «oracle.failures» appended to prompt
+    max 1
+
+  ⊨? on exhaustion:
+    partial-accept(best)
+
+⊢ report
+  given evolve→final-word
+  given evolve→final-generation
+  given evolve→drift-log
+  given seed→word
+  yield summary, max-drift, mean-drift, oscillation-ratio
+
+  ⊢= max-drift ← max(drift-log.map(e => e.drift-score))
+  ⊢= mean-drift ← sum(drift-log.map(e => e.drift-score)) / length(drift-log)
+  ⊢= oscillation-ratio ← count(drift-log, e => e.word = seed→word) / length(drift-log)
+
+  ∴ Analyze the semantic drift trajectory from "«seed→word»" over «evolve→final-generation» generations.
+    Classify the pattern as one of:
+      (a) OSCILLATION — alternates between two antonyms (e.g. hot↔cold↔hot↔cold)
+      (b) DRIFT — progressive semantic wandering (e.g. hot→cold→frigid→arctic→polar)
+      (c) CYCLE — loops through a semantic family (e.g. hot→cold→cool→warm→hot)
+      (d) COLLAPSE — converges to a fixed pair after initial instability
+    Write a «summary» classifying the pattern with evidence from «evolve→drift-log».
+
+  ⊨ summary classifies the drift pattern as OSCILLATION, DRIFT, CYCLE, or COLLAPSE
+  ⊨ summary cites at least 3 specific generations as evidence
+  ⊨ max-drift ∈ [0.0, 1.0]
+  ⊨ mean-drift ∈ [0.0, 1.0]
+  ⊨ oscillation-ratio ∈ [0.0, 1.0]
