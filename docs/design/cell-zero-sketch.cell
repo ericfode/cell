@@ -1,0 +1,209 @@
+-- cell-zero.cell: minimal evaluation kernel
+-- This is the metacircular evaluator for Cell, written in Cell.
+--
+-- cell-zero is a Cell program that evaluates other Cell programs.
+-- It can be executed by an LLM directly (reading this file as
+-- instructions) or by a classical runtime that interprets it.
+--
+-- This is a SKETCH — not yet executable. It demonstrates the
+-- structure and metacircular property.
+
+-- ═══════════════════════════════════════════════════════════════
+-- PHASE 1: Graph Inspection
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ read-graph
+  given §program
+  yield cells[], edges[]
+
+  ∴ Parse «§program» as a Cell program.
+    Extract all cell declarations (⊢ blocks) into «cells».
+    Extract all dependency edges (given cell→output) into «edges».
+    Do NOT execute any cell — treat everything as data.
+
+  ⊨ each cell in cells has: name, givens[], yields[], body, oracles[]
+  ⊨ each edge in edges has: from-cell, from-output, to-cell
+
+⊢ check-inputs
+  given read-graph→cells
+  given read-graph→edges
+  given §state
+  yield ready-cells[], blocked-cells[]
+
+  ∴ For each cell in «cells», check whether all its given inputs
+    are bound in «§state» (have a ≡ value).
+
+    A cell is READY if: all givens are bound AND the cell is not
+    yet frozen (no yield ≡ in state).
+
+    A cell is BLOCKED if: any given is unbound.
+
+    Check ⊥ status: if any given input is ⊥, check for ⊥? handler.
+
+  ⊨ ready-cells ∪ blocked-cells = cells
+  ⊨ every cell in ready-cells has all givens bound in §state
+
+-- ═══════════════════════════════════════════════════════════════
+-- PHASE 2: Evaluation
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ pick-cell
+  given check-inputs→ready-cells
+  yield §target
+
+  ∴ Choose one cell from «ready-cells» to evaluate.
+    Prefer cells with fewer dependencies (leaf-first).
+    If multiple cells are equally ready, any choice is valid
+    (confluence guarantees the result is the same).
+
+  ⊨ §target ∈ ready-cells
+
+⊢ evaluate
+  given pick-cell→§target
+  given §state
+  yield tentative-outputs[], §target-with-outputs
+
+  ∴ Evaluate «§target»:
+    - If it has a ∴ body: interpret the natural language instruction
+      using the bound given values from «§state». Produce outputs.
+    - If it has a ⊢= body: compute the deterministic expression.
+      Produce exact outputs.
+    - Do NOT freeze the cell yet. The outputs are TENTATIVE.
+
+  ⊨ |tentative-outputs| = |§target.yields|
+  ⊨ §target-with-outputs preserves §target's structure
+
+-- ═══════════════════════════════════════════════════════════════
+-- PHASE 3: Oracle Checking (the claim cell protocol)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ spawn-claims
+  given evaluate→tentative-outputs
+  given pick-cell→§target
+  yield §claim-cells[]
+
+  ∴ For each oracle (⊨) on «§target», create a claim cell:
+    The claim cell checks whether the tentative output satisfies
+    the oracle condition.
+
+    Deterministic oracles (exact value checks) produce cells with
+    ⊢= bodies. Semantic oracles produce cells with ∴ bodies.
+
+  ⊨ |§claim-cells| = |§target.oracles|
+  ⊨ each claim cell references the tentative output
+
+⊢ check-claims
+  given spawn-claims→§claim-cells
+  yield all-pass, failed-oracles[], retry-context
+
+  ∴ Evaluate each claim cell in «§claim-cells».
+    Collect pass/fail results.
+    If any fail, include the failure context for retry.
+
+  ⊢= all-pass ← |failed-oracles| = 0
+  ⊢= retry-context ← if all-pass then "" else
+    "Previous attempt failed oracles: " ++
+    join(failed-oracles, ", ")
+
+-- ═══════════════════════════════════════════════════════════════
+-- PHASE 4: Commit or Retry
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ decide
+  given check-claims→all-pass
+  given check-claims→retry-context
+  given pick-cell→§target
+  given evaluate→tentative-outputs
+  yield action, §updated-state
+
+  ∴ Based on the oracle results:
+
+    If «all-pass»:
+      FREEZE: bind the tentative outputs as yield ≡ values
+      in the program state. The cell is now frozen.
+
+    If not «all-pass» and retries remain (check ⊨? on failure):
+      RETRY: rewrite §target with «retry-context» appended
+      to the ∴ body. Do not freeze. Return to check-inputs.
+
+    If not «all-pass» and retries exhausted (check ⊨? on exhaustion):
+      BOTTOM: freeze §target with all outputs = ⊥.
+      Or apply the exhaustion policy (error-value, partial-accept).
+
+  ⊨ action ∈ {"freeze", "retry", "bottom"}
+  ⊨ if action = "freeze" then §updated-state has new yield ≡ bindings
+  ⊨ if action = "bottom" then §updated-state has yield ≡ ⊥ bindings
+
+-- ═══════════════════════════════════════════════════════════════
+-- PHASE 5: Bottom Handling
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ handle-bottom
+  given decide→§updated-state
+  given check-inputs→blocked-cells
+  yield §state-after-bottom
+
+  ∴ After a cell is frozen (possibly with ⊥ outputs), check
+    downstream cells for ⊥? handlers.
+
+    For each blocked cell that depends on a newly-⊥ output:
+    - If it has ⊥? skip with: freeze it with the skip values
+    - If it has ⊥? error-value(⊥): freeze it with ⊥
+    - If it has no ⊥? handler: leave it blocked (⊥ propagates
+      naturally — the cell is never ready)
+
+  ⊨ §state-after-bottom extends §updated-state (only adds bindings)
+
+-- ═══════════════════════════════════════════════════════════════
+-- PHASE 6: The Loop (spawner — never terminates)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢⊢ eval-loop
+  given §program
+  yield §final-state
+  until check-inputs→ready-cells is empty
+
+  ∴ This is the evaluation loop. Starting from «§program»:
+    1. read-graph → cells, edges
+    2. check-inputs → ready-cells
+    3. If ready-cells is empty → quiesce (return current state)
+    4. pick-cell → §target
+    5. evaluate → tentative outputs
+    6. spawn-claims → claim cells
+    7. check-claims → pass/fail
+    8. decide → freeze/retry/bottom
+    9. handle-bottom → update state
+    10. Go to 2
+
+    This loop never truly terminates — spawners (⊢⊢) in the
+    program can add new cells, oracle checking adds claim cells,
+    and ⊥ handling can trigger new evaluations.
+
+    The loop QUIESCES when no cells are ready. But new inputs
+    or external events can wake it.
+
+  ⊨ §final-state extends §program (only adds yield ≡ bindings)
+  ⊨ §final-state preserves all frozen values from §program
+
+-- ═══════════════════════════════════════════════════════════════
+-- METACIRCULAR PROPERTY
+-- ═══════════════════════════════════════════════════════════════
+--
+-- cell-zero IS a Cell program. It can evaluate itself:
+--
+--   eval-loop(§cell-zero) → evaluates cell-zero's own cells
+--
+-- This produces a fixed point: cell-zero evaluating cell-zero
+-- produces... cell-zero's evaluation behavior.
+--
+-- In practice, the bootstrap sequence is:
+-- 1. A substrate (LLM or runtime) reads cell-zero.cell
+-- 2. It follows cell-zero's instructions to evaluate a target program
+-- 3. cell-zero's cells (read-graph, check-inputs, etc.) are
+--    themselves evaluated by the substrate
+-- 4. Some of these cells can be crystallized (check-inputs, pick-cell)
+-- 5. Others must stay soft forever (evaluate, check-claims for semantic oracles)
+--
+-- The substrate is to cell-zero what the CPU is to a Scheme REPL.
+-- cell-zero is to user programs what the REPL is to Scheme programs.
+-- ═══════════════════════════════════════════════════════════════
