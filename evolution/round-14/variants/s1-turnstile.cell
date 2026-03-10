@@ -1,0 +1,53 @@
+⊢ seed
+  given phrase ≡ "The cat sat on the mat"
+  given target-lang ≡ "French"
+  yield phrase, target-lang
+
+  ⊨ phrase is a complete English sentence
+  ⊨ target-lang is a natural language name
+
+⊢ translate
+  given seed→phrase
+  given seed→target-lang
+  yield translation, confidence
+
+  ∴ Translate «seed→phrase» into «seed→target-lang».
+    Yield the translated text as «translation».
+    Rate your confidence from 0.0 to 1.0 as «confidence».
+
+  ⊨ translation is in «seed→target-lang»
+  ⊨ confidence ∈ [0.0, 1.0]
+
+  ⊨? on failure:
+    retry with «oracle.failures» appended to prompt
+    max 2
+
+  ⊨? on exhaustion:
+    error-value(⊥)
+
+⊢ back-translate
+  given translate→translation
+  yield round-trip
+
+  ∴ Translate «translate→translation» back into English.
+    Yield the result as «round-trip».
+
+  ⊨ round-trip is in English
+
+  ⊥? skip with round-trip ← "⊥: translation failed"
+
+⊢ verify
+  given seed→phrase
+  given back-translate→round-trip
+  yield verdict, fidelity-score
+
+  ⊢= fidelity-score ← levenshtein_similarity(seed→phrase, back-translate→round-trip)
+
+  ∴ Compare the original phrase "«seed→phrase»" with the round-trip
+    translation "«back-translate→round-trip»".
+    If they convey the same meaning, verdict is "faithful".
+    If meaning shifted, verdict is "drifted".
+    If the round-trip contains "⊥", verdict is "failed".
+
+  ⊨ verdict ∈ {"faithful", "drifted", "failed"}
+  ⊨ fidelity-score ∈ [0.0, 1.0]

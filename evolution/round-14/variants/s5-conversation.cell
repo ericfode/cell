@@ -1,0 +1,30 @@
+@seed() → phrase, target-lang
+  phrase = "The cat sat on the mat"
+  target-lang = "French"
+  ? phrase is a complete English sentence
+  ? target-lang is a natural language name
+
+@translate(seed.phrase, seed.target-lang) → translation, confidence
+  Translate «seed.phrase» into «seed.target-lang».
+  Yield the translated text as «translation».
+  Rate your confidence from 0.0 to 1.0 as «confidence».
+  ? translation is in «seed.target-lang»
+  ? confidence ∈ [0.0, 1.0]
+  ?? on failure: retry with «failures» appended, max 2
+  ?? on exhaustion: ⊥
+
+@back-translate(translate.translation) → round-trip
+  Translate «translate.translation» back into English.
+  Yield the result as «round-trip».
+  ? round-trip is in English
+  !⊥ round-trip = "⊥: translation failed"
+
+@verify(seed.phrase, back-translate.round-trip) → verdict, fidelity-score
+  #= fidelity-score = levenshtein_similarity(seed.phrase, back-translate.round-trip)
+  Compare the original phrase "«seed.phrase»" with the round-trip
+  translation "«back-translate.round-trip»".
+  If they convey the same meaning, verdict is "faithful".
+  If meaning shifted, verdict is "drifted".
+  If the round-trip contains "⊥", verdict is "failed".
+  ? verdict ∈ {"faithful", "drifted", "failed"}
+  ? fidelity-score ∈ [0.0, 1.0]

@@ -1,0 +1,61 @@
+theorem seed
+  let phrase := "The cat sat on the mat"
+  let target-lang := "French"
+  show phrase : String
+  show target-lang : String
+
+  check:
+    phrase is a complete English sentence
+    target-lang is a natural language name
+
+theorem translate
+  assume seed→phrase : String
+  assume seed→target-lang : String
+  show translation : String
+  show confidence : Float
+
+  proof:
+    Translate «seed→phrase» into «seed→target-lang».
+    Yield the translated text as «translation».
+    Rate your confidence from 0.0 to 1.0 as «confidence».
+
+  check:
+    translation is in «seed→target-lang»
+    confidence ∈ [0.0, 1.0]
+
+  recover:
+    on failure: retry with «check.failures» appended, max 2
+    on exhaustion: error-value(⊥)
+
+theorem back-translate
+  assume translate→translation : String
+  show round-trip : String
+
+  proof:
+    Translate «translate→translation» back into English.
+    Yield the result as «round-trip».
+
+  check:
+    round-trip is in English
+
+  fallback: round-trip := "⊥: translation failed"
+
+theorem verify
+  assume seed→phrase : String
+  assume back-translate→round-trip : String
+  show verdict : String
+  show fidelity-score : Float
+
+  compute:
+    fidelity-score := levenshtein_similarity(seed→phrase, back-translate→round-trip)
+
+  proof:
+    Compare the original phrase "«seed→phrase»" with the round-trip
+    translation "«back-translate→round-trip»".
+    If they convey the same meaning, verdict is "faithful".
+    If meaning shifted, verdict is "drifted".
+    If the round-trip contains "⊥", verdict is "failed".
+
+  check:
+    verdict ∈ {"faithful", "drifted", "failed"}
+    fidelity-score ∈ [0.0, 1.0]

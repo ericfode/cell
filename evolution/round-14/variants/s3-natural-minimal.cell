@@ -1,0 +1,37 @@
+cell seed
+  set: phrase = "The cat sat on the mat"
+  set: target-lang = "French"
+  out: phrase, target-lang
+  ok: phrase is a complete English sentence
+  ok: target-lang is a natural language name
+
+cell translate
+  in: seed.phrase, seed.target-lang
+  out: translation, confidence
+  do: Translate {seed.phrase} into {seed.target-lang}.
+      Yield the translated text as {translation}.
+      Rate your confidence from 0.0 to 1.0 as {confidence}.
+  ok: translation is in {seed.target-lang}
+  ok: confidence is between 0.0 and 1.0
+  retry: 2 times on failure, appending failure reasons
+  fail: yield bottom
+
+cell back-translate
+  in: translate.translation
+  out: round-trip
+  do: Translate {translate.translation} back into English.
+      Yield the result as {round-trip}.
+  ok: round-trip is in English
+  if-bottom: round-trip = "⊥: translation failed"
+
+cell verify
+  in: seed.phrase, back-translate.round-trip
+  out: verdict, fidelity-score
+  compute: fidelity-score = levenshtein_similarity(seed.phrase, back-translate.round-trip)
+  do: Compare the original phrase "{seed.phrase}" with the round-trip
+      translation "{back-translate.round-trip}".
+      If they convey the same meaning, verdict is "faithful".
+      If meaning shifted, verdict is "drifted".
+      If the round-trip contains "⊥", verdict is "failed".
+  ok: verdict is one of "faithful", "drifted", "failed"
+  ok: fidelity-score is between 0.0 and 1.0
