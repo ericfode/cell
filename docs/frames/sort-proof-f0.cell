@@ -1,0 +1,45 @@
+-- frame: 0
+-- program: sort-proof
+-- hash: s0
+-- ready: [data]
+-- selected: none
+-- status: init
+
+⊢ data
+  yield items ≡ [4, 1, 7, 3, 9, 2]
+
+⊢ sort
+  given data→items
+  yield sorted
+  ∴ Sort «items» in ascending order.
+  ⊨ sorted is a permutation of «data→items»
+  ⊨ sorted is in ascending order
+
+  ⊨? on failure:
+    retry with «oracle.failures» appended to prompt
+    max 2
+
+⊢ verify-permutation
+  given sort→sorted
+  given data→items
+  yield is-permutation
+  ⊢= is-permutation ← multiset(sorted) = multiset(items)
+
+  ⊨ is-permutation = true
+
+⊢ verify-order
+  given sort→sorted
+  yield is-ordered
+  ⊢= is-ordered ← all(i, sorted[i] <= sorted[i+1])
+
+  ⊨ is-ordered = true
+
+⊢ certificate
+  given sort→sorted
+  given verify-permutation→is-permutation
+  given verify-order→is-ordered
+  yield proof-status
+
+  ⊢= proof-status ← if is-permutation and is-ordered then "certified" else "rejected"
+
+  ⊨ proof-status = "certified"

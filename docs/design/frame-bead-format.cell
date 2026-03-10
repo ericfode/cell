@@ -1,0 +1,44 @@
+-- Frame Bead Format — the canonical shape of an eval-one trace frame.
+--
+-- A frame captures the FULL document state at one moment in evaluation.
+-- The document IS the state. Each frame differs from the previous by
+-- exactly one cell's yields gaining ≡ bindings.
+--
+-- Metadata lives in Cell-native annotations (-- comments at top).
+-- The body is pure Cell: every cell, fully declared, with current bindings.
+
+-- frame: 0
+-- program: example
+-- hash: h0
+-- ready: [add]
+-- selected: none
+-- status: init
+
+⊢ add
+  given a ≡ 3
+  given b ≡ 5
+  yield sum
+  ⊢= sum ← a + b
+  ⊨ sum = 8
+
+⊢ double
+  given add→sum
+  yield result
+  ⊢= result ← sum * 2
+  ⊨ result = 16
+
+-- Conventions:
+--   frame: N          — step number (0 = init, before any eval-one)
+--   program: name     — identifies the program being traced
+--   hash: hN          — content hash label for this state
+--   ready: [c1, c2]   — cells whose givens are all bound (candidates)
+--   selected: name    — cell chosen for eval-one (none on init frame)
+--   status: init | step | quiesced
+--
+-- After eval-one of frame N → frame N+1:
+--   The selected cell's yield lines gain ≡ bindings.
+--   The ready set updates (newly unblocked cells appear).
+--   Everything else is identical.
+--
+-- Quiescence: when ready is empty, status becomes quiesced.
+-- The program cannot advance further. Start a new program.

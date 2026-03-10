@@ -1,0 +1,41 @@
+-- frame: 2
+-- program: haiku-oracle
+-- hash: k2
+-- ready: [count-lines]
+-- selected: compose
+-- status: step
+-- note: soft cell evaluated via ∴ (LLM). oracles checked inline.
+
+⊢ topic
+  yield subject ≡ "the moon"
+
+⊢ compose
+  given topic→subject ≡ "the moon"
+  yield poem ≡ "Silver light descends\nIlluminating the lake\nSilence answers back"
+
+  ∴ Write a haiku about «subject».
+    A haiku has exactly 3 lines: 5 syllables, 7 syllables, 5 syllables.
+
+  ⊨ poem has exactly 3 lines ✓
+  ⊨ poem line 1 has 5 syllables ✓
+  ⊨ poem line 2 has 7 syllables ✓
+  ⊨ poem line 3 has 5 syllables ✓
+
+⊢ count-lines
+  given compose→poem ≡ "Silver light descends\nIlluminating the lake\nSilence answers back"
+  yield n-lines
+  ⊢= n-lines ← len(split(poem, "\n"))
+
+  ⊨ n-lines = 3
+
+⊢ reflect
+  given compose→poem ≡ "Silver light descends\nIlluminating the lake\nSilence answers back"
+  given count-lines→n-lines
+  given topic→subject ≡ "the moon"
+  yield reflection
+
+  ∴ Does this haiku about «subject» evoke an image or feeling?
+    Poem: «poem»
+    Give a one-sentence assessment.
+
+  ⊨ reflection is non-empty

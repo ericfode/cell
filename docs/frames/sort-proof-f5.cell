@@ -1,0 +1,41 @@
+-- frame: 5
+-- program: sort-proof
+-- hash: s5
+-- ready: []
+-- selected: certificate
+-- status: quiesced
+
+⊢ data
+  yield items ≡ [4, 1, 7, 3, 9, 2]
+
+⊢ sort
+  given data→items ≡ [4, 1, 7, 3, 9, 2]
+  yield sorted ≡ [1, 2, 3, 4, 7, 9]
+  ∴ Sort «items» in ascending order.
+  ⊨ sorted is a permutation of «data→items» ✓
+  ⊨ sorted is in ascending order ✓
+
+⊢ verify-permutation
+  given sort→sorted ≡ [1, 2, 3, 4, 7, 9]
+  given data→items ≡ [4, 1, 7, 3, 9, 2]
+  yield is-permutation ≡ true
+  ⊢= is-permutation ← multiset(sorted) = multiset(items)
+
+  ⊨ is-permutation = true ✓
+
+⊢ verify-order
+  given sort→sorted ≡ [1, 2, 3, 4, 7, 9]
+  yield is-ordered ≡ true
+  ⊢= is-ordered ← all(i, sorted[i] <= sorted[i+1])
+
+  ⊨ is-ordered = true ✓
+
+⊢ certificate
+  given sort→sorted ≡ [1, 2, 3, 4, 7, 9]
+  given verify-permutation→is-permutation ≡ true
+  given verify-order→is-ordered ≡ true
+  yield proof-status ≡ "certified"
+
+  ⊢= proof-status ← if is-permutation and is-ordered then "certified" else "rejected"
+
+  ⊨ proof-status = "certified" ✓

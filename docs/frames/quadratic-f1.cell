@@ -1,0 +1,58 @@
+-- frame: 1
+-- program: quadratic-proof
+-- hash: h1
+-- ready: [discriminant]
+-- selected: input
+-- status: step
+
+⊢ input
+  yield a ≡ 1, b ≡ -5, c ≡ 6
+
+⊢ discriminant
+  given input→a ≡ 1
+  given input→b ≡ -5
+  given input→c ≡ 6
+  yield d
+  ⊢= d ← b * b - 4 * a * c
+
+⊢ solve
+  given input→a ≡ 1
+  given input→b ≡ -5
+  given discriminant→d
+  yield x1, x2
+  ⊢= x1 ← (-b + sqrt(d)) / (2 * a)
+  ⊢= x2 ← (-b - sqrt(d)) / (2 * a)
+
+⊢ verify-x1
+  given solve→x1
+  given input→a ≡ 1
+  given input→b ≡ -5
+  given input→c ≡ 6
+  yield holds
+  ⊢= holds ← (a * x1 * x1 + b * x1 + c) = 0
+
+  ⊨ holds = true
+
+⊢ verify-x2
+  given solve→x2
+  given input→a ≡ 1
+  given input→b ≡ -5
+  given input→c ≡ 6
+  yield holds
+  ⊢= holds ← (a * x2 * x2 + b * x2 + c) = 0
+
+  ⊨ holds = true
+
+⊢ report
+  given solve→x1
+  given solve→x2
+  given verify-x1→holds
+  given verify-x2→holds
+  yield summary
+
+  ∴ The equation «input→a»x² + «input→b»x + «input→c» = 0
+    has roots x₁ = «solve→x1» and x₂ = «solve→x2».
+    Both verified: «verify-x1→holds», «verify-x2→holds».
+
+  ⊨ summary mentions both roots
+  ⊨ summary mentions verification status

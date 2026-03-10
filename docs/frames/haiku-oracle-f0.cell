@@ -1,0 +1,47 @@
+-- frame: 0
+-- program: haiku-oracle
+-- hash: k0
+-- ready: [topic]
+-- selected: none
+-- status: init
+
+⊢ topic
+  yield subject ≡ "the moon"
+
+⊢ compose
+  given topic→subject
+  yield poem
+
+  ∴ Write a haiku about «subject».
+    A haiku has exactly 3 lines: 5 syllables, 7 syllables, 5 syllables.
+
+  ⊨ poem has exactly 3 lines
+  ⊨ poem line 1 has 5 syllables
+  ⊨ poem line 2 has 7 syllables
+  ⊨ poem line 3 has 5 syllables
+
+  ⊨? on failure:
+    retry with «oracle.failures» appended to prompt
+    max 2
+
+  ⊨? on exhaustion:
+    partial-accept(best)
+
+⊢ count-lines
+  given compose→poem
+  yield n-lines
+  ⊢= n-lines ← len(split(poem, "\n"))
+
+  ⊨ n-lines = 3
+
+⊢ reflect
+  given compose→poem
+  given count-lines→n-lines
+  given topic→subject
+  yield reflection
+
+  ∴ Does this haiku about «subject» evoke an image or feeling?
+    Poem: «poem»
+    Give a one-sentence assessment.
+
+  ⊨ reflection is non-empty
