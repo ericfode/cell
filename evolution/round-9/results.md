@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Round 9 Results: Oracle Cascade
 
 ## Mode: COLD READ (no syntax reference)
@@ -320,3 +321,220 @@ now — path 2 is Turing-complete and requires a proof of termination.
 - Frontier growth: 6/10 (syntax gap — Round 8)
 - **Oracle cascade: 7/10** (solid pattern, ⊥ propagation gap)
 - **Spawner-halting (⊢⊢ + until + max): 7/10** (addresses frontier gap, oracle story missing)
+- **Spawner-oracle composition: 7/10** (clean pipeline, oracle propagation gap)
+
+---
+
+# Round 9 Results: Spawner-Oracle (Cold Read)
+
+## The Program
+
+A three-cell pipeline: **tasks** → **delegate** → **audit**.
+
+- `tasks` takes a literal list of 3 work items, produces §handlers[] (quoted cell definitions)
+- `delegate` (marked ⊢⊢) takes those handlers, spawns worker cells to execute them
+- `audit` collects worker results, counts oracle passes/failures, writes a report
+
+## Cold Read Evaluation
+
+### Q1: Can you trace the spawner's output? How many cells get created?
+
+**Yes, the spawner's output is traceable.** Here's the full count:
+
+**Static cells** (defined in the program text): 3
+- `tasks`, `delegate`, `audit`
+
+**Dynamically created cells:**
+
+1. **tasks** yields §handlers[] — 3 handler cell definitions (one per item).
+   These are *quoted* (§), meaning tasks produces cell blueprints, not executed results.
+   The § sigil means "this is a cell reference, not a value."
+
+2. **delegate** (⊢⊢) takes those 3 handlers and spawns §workers[] — 3 worker cells.
+   Each worker wraps a handler: runs it, checks its oracles, yields handler-result + oracle-pass.
+
+**Total cells created: 3 (static) + 3 (handlers) + 3 (workers) = 9 cells.**
+
+The data flow:
+```
+tasks ──§handlers[3]──→ delegate ──§workers[3]──→ audit
+                         (spawns)
+```
+
+Each worker cell encapsulates: execute handler → check oracles → yield pass/fail.
+The handlers themselves are cells too (§ denotes cell references), so the worker
+"runs the handler cell" means it evaluates the quoted handler.
+
+### Q2: What happens when an oracle fails? Show the retry flow.
+
+**The program is ambiguous about oracle retry.** Here's what I can infer:
+
+The `delegate` spawner creates workers that "check [handler] oracles." The handlers
+(from `tasks`) have oracles: `⊨ §handlers has same length as «items»` and
+`⊨ each handler yields category, effort, result`. But these are oracles on *tasks*,
+not on individual handlers.
+
+Each worker yields `oracle-pass (boolean)`. This implies:
+1. Worker executes the handler cell
+2. Worker evaluates the handler's oracles (if any — the handler cells are dynamically
+   created by tasks, so their oracle structure is defined by the ∴ instruction, not
+   explicitly in the program text)
+3. Worker reports pass/fail
+
+**What's missing:** There is no `⊨?` (oracle recovery) clause anywhere in the program.
+Round 8 introduced `⊨? on failure: ... retry max N` for oracle recovery. This program
+uses plain `⊨` assertions only. So:
+
+- If an oracle on `tasks` fails → undefined (no ⊨? clause, no retry)
+- If an oracle on `delegate` fails → undefined (same)
+- If an oracle on `audit` fails → undefined (same)
+- If a *handler's internal oracles* fail → the worker catches this and reports
+  `oracle-pass = false`, but doesn't retry
+
+**The program delegates oracle failure to the audit layer** rather than handling it
+at the point of failure. This is an architectural choice: detect-and-report rather
+than detect-and-recover. The `audit` cell just counts passes and failures — it
+doesn't trigger retries.
+
+**Retry flow if ⊨? were added (hypothetical):**
+```
+worker executes handler → oracle fails → ⊨? on failure →
+  append failure to prompt → retry handler → re-check oracles →
+  (up to max N attempts) → yield oracle-pass = true/false
+```
+
+### Q3: Does the program terminate? Why or why not?
+
+**Yes, the program terminates.**
+
+Unlike the R8 frontier-growth pattern (which generates follow-up questions that
+spawn more explore cells, potentially forever), this program has a bounded
+expansion:
+
+1. `tasks` has a fixed input: 3 literal items. It yields exactly 3 handlers. **Bounded.**
+2. `delegate` has `max 5` and `until all handlers processed`. Even though it's a
+   spawner (⊢⊢), it processes a fixed list of 3 handlers. The `until` clause provides
+   an explicit termination condition; `max 5` provides a hard cap. **Bounded.**
+3. `audit` consumes the fixed set of workers. No spawning. **Bounded.**
+
+No cell in this program generates new work items. The frontier is:
+```
+t0: [tasks]           → 1 cell
+t1: [delegate]        → 1 cell (but spawns 3 workers)
+t2: [worker-1..3]     → 3 cells (parallel, no follow-ups)
+t3: [audit]           → 1 cell, terminal
+```
+
+The `⊢⊢` spawner is powerful (it can create cells), but here it's fed a finite
+list with an explicit `until` guard. **Guaranteed termination.**
+
+### Q4: Rate the clarity of each new syntax element (1-10)
+
+**⊢⊢ (spawner cell): 7/10**
+
+Cold-read impression: The double turnstile immediately suggests "more than ⊢" —
+a cell that does something extra. The ∴ section explains it spawns workers, so
+the meaning becomes clear in context. The visual distinction (⊢ vs ⊢⊢) is good.
+
+Weakness: Without context, ⊢⊢ could mean "doubly asserted," "meta-level," or
+"parallel." The spawning semantics aren't inherent in the glyph. You need the
+∴ body to disambiguate. Compare with § where the meaning (quotation/reference)
+is more self-evident from usage patterns.
+
+The `until` and `max` clauses on ⊢⊢ are excellent — they feel natural as loop
+control on a spawner. They read like English: "spawn workers until all handlers
+processed, max 5."
+
+**§handlers / §workers (cell references as yields): 8/10**
+
+This extends § from Round 8 naturally. In R8, `§explore` referenced a cell
+template. Here, `§handlers[]` means "an array of cell references" — the square
+brackets make it clearly plural. The § sigil consistently marks the
+crystallization boundary: "this is a cell, not a value."
+
+Strength: The § on yields tells you this cell produces *programs*, not data.
+`yield §handlers[]` vs `yield results[]` — the reader instantly knows the
+difference.
+
+**oracle-pass (boolean yield): 6/10**
+
+This is just a named yield field. The name is clear enough, but it introduces
+a pattern where cells have meta-level knowledge about their execution (did my
+oracles pass?). This breaks the otherwise clean separation between a cell's
+logic (∴) and its verification (⊨).
+
+A worker cell yields `oracle-pass` — but this isn't checked by an oracle on
+the worker, it's a computed field. It conflates the oracle mechanism (external
+verification) with internal data flow. Would be cleaner if the oracle pass/fail
+status were an implicit metadata field rather than an explicit yield.
+
+**⊢= (crystallization in audit): 9/10**
+
+`⊢= pass-count ← count(workers where oracle-pass = true)` reads perfectly.
+The ← assignment, the functional expression, the deterministic semantics — all
+clear. This is a pure computation with no LLM involvement. The ⊢= prefix
+communicates "this result is fixed/crystallized" without needing explanation.
+
+### Q5: What's ambiguous or underspecified?
+
+**1. Handler cell structure is invisible.**
+`tasks` yields §handlers[] but the handler cell definitions are generated by the
+LLM (via ∴), not specified in the program. We know handlers must yield
+`category, effort, result` (from the oracle), but we don't know if they have
+their own oracles, their own ∴ instructions, or how they're structured. The
+program says "create a handler cell that classifies the task" but never shows
+what a handler cell looks like.
+
+**2. What does "Runs the handler cell" mean mechanically?**
+The worker "runs" a handler. But how? Does it evaluate the handler's ∴ with an
+LLM? Does it just call it like a function? The eval/apply boundary from R8
+("dispatch cannot crystallize") applies here too. Worker-runs-handler is
+an eval step, but the program doesn't make the mechanism explicit.
+
+**3. "Checks its oracles" — whose oracles?**
+The worker is supposed to check the handler's oracles. But the handler's oracles
+are defined implicitly (generated by tasks). If the handler has no oracles (tasks
+didn't create any), what does the worker check? And if the handler DOES have
+oracles, who defined them — the tasks cell? The program assumes handlers come
+with oracles but never shows how they get them.
+
+**4. `max 5` on delegate — max what?**
+Is this max 5 concurrent workers? Max 5 total spawned? Max 5 retry attempts?
+Since there are only 3 handlers, max 5 is never hit in this program, making it
+impossible to determine semantics from context alone. It could be a concurrency
+limit or an absolute cap on spawned cells.
+
+**5. No oracle recovery (⊨?) anywhere.**
+Round 8 introduced oracle recovery. This program, which combines spawning WITH
+oracles, omits ⊨? entirely. Is this intentional (showing the baseline case)
+or an oversight? The audit cell just counts pass/fail — there's no feedback
+loop to retry failed workers.
+
+**6. `until all handlers processed` — what counts as "processed"?**
+Does "processed" mean the worker was spawned? Or that the worker completed and
+yielded results? If a worker fails (oracle-pass = false), is that handler still
+"processed"? This matters for termination: if failed handlers aren't "processed,"
+the spawner loops forever (bounded only by max 5).
+
+## Overall Rating
+
+**Spawner-oracle composition: 7/10**
+
+Strengths:
+- The three-cell pipeline is clean and readable
+- ⊢⊢ as spawner syntax is immediately distinguishable
+- The `until`/`max` clauses on spawners are natural
+- Crystallized computation (⊢=) in audit works perfectly
+- The program tells a coherent story: create work, execute work, audit work
+
+Weaknesses:
+- Handler cell internals are a black box (generated, not shown)
+- The oracle-on-spawned-cells story is incomplete
+- No oracle recovery (⊨?) despite this being the obvious place for it
+- `max 5` semantics are ambiguous
+- The "processed" termination condition is underspecified
+
+The spawner (⊢⊢) itself is a solid addition. The gap is in the interaction
+between spawning and oracle verification — the program creates cells with
+oracles but doesn't fully specify how oracle failure propagates through the
+spawner/audit pipeline.

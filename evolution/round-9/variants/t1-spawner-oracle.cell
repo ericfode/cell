@@ -1,0 +1,43 @@
+⊢ tasks
+  given items[] ≡ [
+    "Write unit tests for the auth module",
+    "Review PR #42 for security issues",
+    "Update API docs for v2 endpoints"
+  ]
+  yield §handlers[]
+
+  ∴ For each item in «items», create a handler cell that:
+    - Classifies the task (coding, review, docs)
+    - Estimates effort (hours)
+    - Yields: category, effort, result
+
+  ⊨ §handlers has same length as «items»
+  ⊨ each handler yields category, effort, result
+
+⊢⊢ delegate
+  given tasks→§handlers
+  yield §workers[]
+  until all handlers processed
+  max 5
+
+  ∴ For each handler in «tasks→§handlers», spawn a worker cell
+    that executes the handler. Each worker:
+    - Runs the handler cell
+    - Checks its oracles
+    - Yields: handler-result, oracle-pass (boolean)
+
+  ⊨ §workers[] has same length as «tasks→§handlers»
+  ⊨ each worker has oracle-pass in its yields
+
+⊢ audit
+  given delegate→§workers
+  yield pass-count, fail-count, report
+
+  ∴ Execute each worker. Count oracle passes and failures.
+    Write a «report» summarizing which tasks passed and which failed.
+
+  ⊢= pass-count ← count(workers where oracle-pass = true)
+  ⊢= fail-count ← count(workers where oracle-pass = false)
+
+  ⊨ pass-count + fail-count = length(delegate→§workers)
+  ⊨ report lists each task with its pass/fail status
