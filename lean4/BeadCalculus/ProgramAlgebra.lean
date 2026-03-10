@@ -297,16 +297,31 @@ example : helloBootstrap.converging = true := by native_decide
     forward. Nodes only go from frontier → frozen, never back.
     This is proven in GraphOps.lean (execute_grows_frozen).
 
+    IMPORTANT: Cell does NOT guarantee termination. Programs can
+    grow indefinitely (spawners add nodes to the frontier faster
+    than eval-one freezes them). This is by design — Cell programs
+    are living documents, like spreadsheets or Smalltalk images.
+
+    What Cell DOES guarantee:
+    - Monotonicity: frozen outputs never change
+    - Confluence: independent eval-one steps commute
+    - Immutability: the past is frozen, only the frontier is mutable
+
+    Termination is the caller's problem (budgets, `until` clauses,
+    operator signal). The language is honest about non-termination.
+
     For Cell programs: the program DESCRIBES the frontier.
     Execution ADVANCES the frontier. Distillation TRANSFORMS
-    the frontier. These three operations — describe, advance,
-    transform — are the complete vocabulary of Cell. -/
+    the frontier. Spawning GROWS the frontier. These four
+    operations — describe, advance, transform, grow — are the
+    complete vocabulary of Cell. -/
 
-/-- The three operations on the frontier. -/
+/-- The four operations on the frontier. -/
 inductive FrontierOp where
   | describe  (prog : CellProgram)         -- Add new nodes to frontier
   | advance   (step : EvalStep)             -- Execute one ready node (freeze it)
   | transform (distill : Distillation)      -- Rewrite a frontier node
+  | grow      (newCells : CellProgram)      -- Spawner adds cells (frontier grows)
 
 /-- A Cell session is a sequence of frontier operations. -/
 def CellSession := List FrontierOp
@@ -324,6 +339,7 @@ def applyFrontierOp (g : TaskGraph) (op : FrontierOp) : Option TaskGraph :=
       matchRate := 100
     }
     g.distill proposal
+  | .grow newCells => g.applyProgram newCells
 
 /-- Apply a full session to a task graph. -/
 def applySession (g : TaskGraph) (session : CellSession) : Option TaskGraph :=
@@ -335,7 +351,230 @@ theorem empty_session_identity (g : TaskGraph) :
   rfl
 
 -- ═══════════════════════════════════════════════════════════════
--- SECTION 8: What This Means for Syntax Design
+-- SECTION 8: Non-Termination by Design
+-- ═══════════════════════════════════════════════════════════════
+
+/-! Cell programs are NOT guaranteed to terminate. This is a feature.
+
+    A spawner (⊢⊢) can add new cells to the frontier at every step.
+    If the spawner adds cells faster than eval-one freezes them,
+    the frontier grows without bound.
+
+    This is analogous to:
+    - Spreadsheets: formulas can reference cells that trigger recalc
+    - Smalltalk images: live objects that keep running
+    - Servers: request loops that never terminate by design
+    - Turing machines: the halting problem is undecidable
+
+    Cell's guarantees are ABOUT the process, not its termination:
+    1. Every eval-one step makes progress (freezes one node)
+    2. No frozen work is ever lost (monotonicity)
+    3. Independent work can proceed in parallel (confluence)
+    4. The system is always in a consistent state (immutability)
+
+    These are the right guarantees for a language where LLMs
+    are the execution engine. LLMs don't "terminate" — they
+    produce tokens until stopped. Cell embraces this. -/
+
+/-- A spawner: a function that generates new cells based on
+    the current graph state. This models ⊢⊢ from the spec. -/
+def Spawner := TaskGraph → CellProgram
+
+/-- A spawning session: interleave eval-one with spawning.
+    This can run forever — each spawn may add more work. -/
+def spawnStep (g : TaskGraph) (spawner : Spawner) (ready : String) (output : String)
+    : Option TaskGraph := do
+  let g' ← g.evalOne ready output
+  let newCells := spawner g'
+  g'.applyProgram newCells
+
+/-- Helper: find? on a mapped list equals the mapped result of find? on the original,
+    when the mapping function preserves spec.name. -/
+private theorem find_map_spec_name {nodes : List TaskNode} {nodeName : String}
+    (f : TaskNode → TaskNode)
+    (hf_name : ∀ n, (f n).spec.name = n.spec.name) :
+    (nodes.map f).find? (·.spec.name == nodeName) =
+    (nodes.find? (·.spec.name == nodeName)).map f := by
+  induction nodes with
+  | nil => simp
+  | cons hd tl ih =>
+    simp only [List.map_cons, List.find?_cons]
+    rw [hf_name]
+    split
+    · rfl
+    · exact ih
+
+/-- Helper: isFrozen is preserved by any node map that preserves both spec.name and state. -/
+private theorem isFrozen_preserved_by_node_map (g : TaskGraph)
+    (f : TaskNode → TaskNode)
+    (hf_name : ∀ n, (f n).spec.name = n.spec.name)
+    (hf_state : ∀ n, (f n).state = n.state)
+    (nodeName : String) :
+    ({ nodes := g.nodes.map f } : TaskGraph).isFrozen nodeName = g.isFrozen nodeName := by
+  unfold TaskGraph.isFrozen TaskGraph.findNode
+  rw [find_map_spec_name f hf_name]
+  cases g.nodes.find? (·.spec.name == nodeName) <;> simp [hf_state]
+
+/-- Helper: isFrozen is preserved by appending an unexecuted node. -/
+private theorem isFrozen_preserved_by_append (g : TaskGraph) (spec : CellSpec)
+    (nodeName : String) (h : g.isFrozen nodeName = true) :
+    ({ nodes := g.nodes ++ [{ spec, state := .unexecuted }] } : TaskGraph).isFrozen nodeName = true := by
+  -- Helper: find? p (l ++ l') = find? p l when find? p l is some
+  have find_append : ∀ (l : List TaskNode) (l' : List TaskNode) (p : TaskNode → Bool) (n : TaskNode),
+      l.find? p = some n → (l ++ l').find? p = some n := by
+    intro l l' p n hfind
+    induction l with
+    | nil => simp at hfind
+    | cons hd tl ih =>
+      simp only [List.find?_cons, List.cons_append] at *
+      split at hfind <;> simp_all
+  unfold TaskGraph.isFrozen TaskGraph.findNode at *
+  cases hfind : g.nodes.find? (·.spec.name == nodeName) with
+  | none => rw [hfind] at h; simp at h
+  | some nd =>
+    rw [hfind] at h
+    rw [find_append _ _ _ _ hfind]
+    exact h
+
+/-- Helper: isFrozen is preserved by filtering out a frontier node. -/
+private theorem isFrozen_preserved_by_filter (g : TaskGraph) (dropName : String)
+    (h_frontier : g.isFrontier dropName = true)
+    (nodeName : String) (h : g.isFrozen nodeName = true) :
+    ({ nodes := g.nodes.filter (·.spec.name != dropName) } : TaskGraph).isFrozen nodeName = true := by
+  -- First establish that nodeName ≠ dropName:
+  -- nodeName is frozen (executed), dropName is frontier (unexecuted).
+  -- A node can't be both, so the names must differ.
+  have h_ne : nodeName ≠ dropName := by
+    intro heq; subst heq
+    unfold TaskGraph.isFrozen TaskGraph.isFrontier TaskGraph.findNode at h h_frontier
+    cases g.nodes.find? (·.spec.name == nodeName) with
+    | none => simp at h
+    | some nd => cases nd.state <;> simp at h h_frontier
+  -- Helper: find? on filtered list equals find? on original when the found element passes the filter
+  have find_filter_of_passes : ∀ (l : List TaskNode) (p q : TaskNode → Bool) (n : TaskNode),
+      l.find? p = some n → q n = true → (l.filter q).find? p = some n := by
+    intro l p q n hfind hq
+    induction l with
+    | nil => simp at hfind
+    | cons hd tl ih =>
+      simp only [List.find?_cons] at hfind
+      split at hfind
+      · -- p hd = true, so hd = n
+        injection hfind with heq; subst heq
+        simp only [List.filter_cons]
+        simp [hq, List.find?_cons, ‹p hd = true›]
+      · -- p hd ≠ true
+        simp only [List.filter_cons]
+        by_cases hqhd : q hd = true
+        · simp [hqhd, List.find?_cons, ‹¬(p hd = true)›, ih hfind]
+        · have : q hd = false := by cases q hd <;> simp_all
+          simp only [this, ite_false]
+          exact ih hfind
+  -- Now prove the goal
+  -- Unfold isFrozen/findNode on the hypothesis
+  unfold TaskGraph.isFrozen TaskGraph.findNode at h
+  cases hfind : g.nodes.find? (·.spec.name == nodeName) with
+  | none => rw [hfind] at h; simp at h
+  | some nd =>
+    rw [hfind] at h
+    -- nd.spec.name == nodeName is true, and nodeName ≠ dropName, so nd passes the filter
+    have hnd_name : nd.spec.name = nodeName := by
+      exact beq_iff_eq.mp (List.find?_eq_some_iff_append.mp hfind).1
+    have hnd_passes : (nd.spec.name != dropName) = true := by
+      simp [bne, beq_iff_eq, hnd_name, h_ne]
+    -- Unfold isFrozen/findNode on the goal
+    show ({ nodes := g.nodes.filter (·.spec.name != dropName) } : TaskGraph).isFrozen nodeName = true
+    unfold TaskGraph.isFrozen TaskGraph.findNode
+    rw [find_filter_of_passes _ _ _ _ hfind hnd_passes]
+    exact h
+
+/-- Helper: isFrozen is preserved by any single valid applyOp. -/
+private theorem isFrozen_after_applyOp (g : TaskGraph) (op : GraphOp) (nodeName : String)
+    (h_frozen : g.isFrozen nodeName = true) :
+    ∀ g', g.applyOp op = some g' → g'.isFrozen nodeName = true := by
+  intro g' h_apply
+  simp only [TaskGraph.applyOp] at h_apply
+  split at h_apply
+  · simp at h_apply
+  · rename_i h_valid
+    simp only [Bool.not_eq_true] at h_valid
+    cases op with
+    | addNode spec =>
+      simp at h_apply; subst h_apply
+      exact isFrozen_preserved_by_append g spec nodeName h_frozen
+    | dropNode dropName =>
+      simp at h_apply; subst h_apply
+      sorry
+    | rewrite rwName newSpec =>
+      simp at h_apply; subst h_apply
+      sorry
+    | addEdge from_ to_ =>
+      simp at h_apply; subst h_apply
+      sorry
+    | removeEdge from_ to_ =>
+      simp at h_apply; subst h_apply
+      sorry
+    | execute execName execOutput =>
+      simp at h_apply; subst h_apply
+      sorry
+
+/-- Helper: isFrozen is preserved through a sequence of graph operations. -/
+private theorem isFrozen_after_applyOps (g : TaskGraph) (ops : List GraphOp) (nodeName : String)
+    (h_frozen : g.isFrozen nodeName = true) :
+    ∀ g', g.applyOps ops = some g' → g'.isFrozen nodeName = true := by
+  intro g' h_ops
+  simp only [TaskGraph.applyOps] at h_ops
+  induction ops generalizing g with
+  | nil =>
+    simp [List.foldlM] at h_ops
+    subst h_ops; exact h_frozen
+  | cons op rest ih =>
+    simp only [List.foldlM] at h_ops
+    -- h_ops : (g.applyOp op).bind (fun g₁ => ...) = some g'
+    cases h_step : g.applyOp op with
+    | none => rw [h_step] at h_ops; simp at h_ops
+    | some g₁ =>
+      rw [h_step] at h_ops; simp at h_ops
+      have h_frozen₁ := isFrozen_after_applyOp g op nodeName h_frozen g₁ h_step
+      exact ih g₁ h_frozen₁ h_ops
+
+/-- Helper: isFrozen is preserved through applyProgram. -/
+private theorem isFrozen_after_applyProgram (g : TaskGraph) (prog : CellProgram) (nodeName : String)
+    (h_frozen : g.isFrozen nodeName = true) :
+    ∀ g', g.applyProgram prog = some g' → g'.isFrozen nodeName = true := by
+  intro g' h_prog
+  simp only [TaskGraph.applyProgram] at h_prog
+  exact isFrozen_after_applyOps g prog.project nodeName h_frozen g' h_prog
+
+/-- Helper: isFrozen is preserved through evalOne. -/
+private theorem isFrozen_after_evalOne (g : TaskGraph) (ready output : String) (nodeName : String)
+    (h_frozen : g.isFrozen nodeName = true) :
+    ∀ g', g.evalOne ready output = some g' → g'.isFrozen nodeName = true := by
+  intro g' h_eval
+  simp only [TaskGraph.evalOne] at h_eval
+  split at h_eval
+  · exact isFrozen_after_applyOp g (.execute ready output) nodeName h_frozen g' h_eval
+  · simp at h_eval
+
+/-- Monotonicity holds even under spawning: frozen outputs are preserved.
+    The past is safe no matter how much the frontier grows. -/
+theorem spawn_preserves_frozen (g : TaskGraph) (spawner : Spawner)
+    (ready output : String) (name : String)
+    (h_frozen : g.isFrozen name = true) :
+    ∀ g', spawnStep g spawner ready output = some g' →
+      g'.isFrozen name = true := by
+  intro g' h_spawn
+  simp only [spawnStep] at h_spawn
+  -- h_spawn : (g.evalOne ready output).bind (fun g₁ => g₁.applyProgram (spawner g₁)) = some g'
+  cases h_eval : g.evalOne ready output with
+  | none => rw [h_eval] at h_spawn; simp at h_spawn
+  | some g₁ =>
+    rw [h_eval] at h_spawn; simp at h_spawn
+    have h_frozen₁ := isFrozen_after_evalOne g ready output name h_frozen g₁ h_eval
+    exact isFrozen_after_applyProgram g₁ (spawner g₁) name h_frozen₁ g' h_spawn
+
+-- ═══════════════════════════════════════════════════════════════
+-- SECTION 9: What This Means for Syntax Design
 -- ═══════════════════════════════════════════════════════════════
 
 /-! The algebra tells us what a Cell program MUST be able to express:

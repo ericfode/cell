@@ -57,17 +57,28 @@ explicitly** — duplicate cell names break confluence.
 
 **Recommendation**: Add to spec: "Cell names within a program MUST be unique."
 
-### 2.2 Termination claim is too strong under frontier growth
+### 2.2 Termination: lean INTO non-termination
 
 The spec says: "Termination: Guaranteed by monotonicity. No cycles possible."
 But Section "Frontier Growth" says: "Termination NOT guaranteed (by design)."
 
-These contradict. The resolution: termination is guaranteed for **fixed programs**
-(no `⊢⊢` spawners). With spawners, the frontier can grow indefinitely.
+The second statement is the right one. Cell should NOT guarantee termination.
+Programs are living documents — they can grow, spawn, evolve indefinitely.
+This is a feature, not a bug. Spreadsheets don't terminate. Smalltalk images
+don't terminate. Servers don't terminate.
 
-**Recommendation**: Separate termination claims by cell type:
-- Fixed programs (`⊢` only): termination guaranteed (finite lattice)
-- Growing programs (`⊢⊢`): termination NOT guaranteed; requires explicit `until`
+What Cell DOES guarantee:
+- **Monotonicity**: values never change, yields only get bound
+- **Confluence**: execution order doesn't matter for independent cells
+- **Immutability**: the past is frozen, only the frontier is mutable
+
+Termination is the CALLER'S problem (timeouts, budgets, `until` clauses).
+The language is honest about this.
+
+**Recommendation**: Remove the termination claim from Section "Properties."
+Replace with: "Cell programs are not guaranteed to terminate. Halting is
+controlled externally via budgets, `until` on spawners, or operator signal.
+The invariant is monotonicity, not termination."
 
 ### 2.3 `⊨` oracle assertions vs the immutability invariant
 
