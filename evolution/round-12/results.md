@@ -1109,3 +1109,664 @@ pipeline.
 **Verdict:** 8/10 clarity, well-structured, genuinely metacircular (not just
 self-referential), with one discovered design gap (meta-report ⊥ handling) and
 one fundamental trust limitation (LLM verifying LLM output).
+
+---
+
+# Round 12 T2: Research Agent — Cold-Read Analysis
+
+## Mode: COLD READ (no syntax reference)
+## Analyst: polecat fury
+## Bead: ce-atw
+
+---
+
+## The Program
+
+A 10-cell iterative research agent that formulates hypotheses, searches literature,
+classifies evidence, assesses knowledge gaps, and iteratively refines the hypothesis
+through an evolution loop containing nested spawners. The program embodies the hardest
+composition case in Cell: `⊢∘` evolution driving `⊢⊢` spawning.
+
+**Top-level data flow:**
+```
+seed → search(⊢⊢) → extract-evidence → assess-gaps → refine-hypothesis(⊢∘) → synthesize
+                                                            │
+                                                            ├── revise
+                                                            ├── design-experiments(⊢⊢)
+                                                            ├── run-experiments(⊢⊢)
+                                                            └── update-evidence
+```
+
+---
+
+## Q1: Step-by-Step Execution (All Intermediate States)
+
+### Phase 1: Initialization
+
+**⊢ seed** (lines 1-12)
+```
+Input:  topic = "What causes antibiotic resistance to spread between bacterial species?"
+LLM call: 1
+Output:
+  hypothesis = "Antibiotic resistance spreads between bacterial species primarily
+                through horizontal gene transfer mechanisms including conjugation,
+                transformation, and transduction, with conjugative plasmids being
+                the dominant vector in clinical settings." (example)
+  key-terms = ["horizontal gene transfer", "conjugative plasmids",
+               "antibiotic resistance genes", "mobile genetic elements",
+               "interspecies conjugation"]
+  knowledge-gaps = [
+    "What environmental conditions accelerate interspecies HGT?",
+    "Which resistance genes are most frequently transferred between species?",
+    "How does biofilm formation affect the rate of conjugative transfer?"
+  ]
+
+Oracle checks:
+  ⊨ hypothesis is 1-2 sentences         → PASS (2 sentences)
+  ⊨ key-terms has exactly 5 items       → PASS (5 items)
+  ⊨ knowledge-gaps has exactly 3 items  → PASS (3 items)
+  ⊨ each knowledge-gap ends with ?      → PASS (all 3 end with ?)
+```
+
+### Phase 2: Literature Search (Spawner)
+
+**⊢⊢ search** (lines 14-26)
+```
+Input:  seed→key-terms (5 items)
+Spawning: 5 cells (one per key-term), max 5
+LLM calls: 5
+
+Spawned cell 1 ("horizontal gene transfer"):
+  queries = ["horizontal gene transfer bacterial species mechanisms",
+             "HGT frequency clinical isolates"]
+  papers = [
+    {title: "Mechanisms of HGT in Gram-negative bacteria", abstract: "...", relevance: 0.9},
+    {title: "HGT rates in hospital environments", abstract: "...", relevance: 0.85},
+    {title: "Evolutionary dynamics of HGT", abstract: "...", relevance: 0.7}
+    ... (3 per query × 2 queries = 6 papers)
+  ]
+
+Spawned cells 2-5: similar structure, 6 papers each
+
+Total §queries output: 5 items (one per key-term)
+Total papers: ~30 (5 cells × 2 queries × 3 papers)
+
+Oracle checks:
+  ⊨ §queries has same length as seed→key-terms (5=5)  → PASS
+  ⊨ each query yields papers[] with at least 2 entries → PASS (6 each)
+```
+
+### Phase 3: Evidence Classification
+
+**⊢ extract-evidence** (lines 28-47)
+```
+Input:  search→§queries (all 30 papers), seed→hypothesis
+LLM call: 1
+Output:
+  supporting = [{paper-title, key-claim, relationship-reasoning}, ...]  (~15 papers)
+  contradicting = [{paper-title, key-claim, relationship-reasoning}, ...] (~5 papers)
+  neutral = [{paper-title, key-claim, relationship-reasoning}, ...]  (~10 papers)
+
+Oracle checks:
+  ⊨ supporting + contradicting + neutral = total papers  → PASS (15+5+10=30)
+  ⊨ each entry has paper-title, key-claim, reasoning      → PASS
+  ⊨ contradicting non-empty → at least one has counter-evidence → PASS
+
+Recovery available:
+  ⊨? on failure: retry with oracle.failures, max 2
+  ⊨? on exhaustion: partial-accept(best)
+```
+
+### Phase 4: Gap Assessment (Hybrid Cell)
+
+**⊢ assess-gaps** (lines 48-62)
+```
+Input:  extract-evidence→supporting, extract-evidence→contradicting, seed→knowledge-gaps
+
+Crystallized computation (no LLM needed for these):
+  ⊢= filled-gaps ← filter(knowledge-gaps, g => any(supporting ++ contradicting, e => e.addresses(g)))
+     Example: ["Which resistance genes are most frequently transferred?"] (1 filled)
+  ⊢= remaining-gaps ← knowledge-gaps - filled-gaps
+     Example: ["What environmental conditions accelerate interspecies HGT?",
+               "How does biofilm formation affect conjugative transfer?"] (2 remaining)
+
+LLM call: 1 (for new-gaps identification only)
+  new-gaps = ["Does sub-inhibitory antibiotic concentration promote HGT?"] (example)
+
+Oracle checks:
+  ⊨ filled-gaps ∪ remaining-gaps = seed→knowledge-gaps  → PASS (1+2=3)
+  ⊨ each new-gap is a question not in original gaps       → PASS
+```
+
+### Phase 5: Evolution Loop (⊢∘ refine-hypothesis)
+
+**⊢∘ refine-hypothesis** (lines 64-73)
+```
+Initial state:
+  §current-hypothesis = seed→hypothesis
+  Loop body: revise → design-experiments → run-experiments → update-evidence
+  Termination: remaining-gaps is empty ∨ confidence ≥ 0.8
+  Max: 3 iterations
+```
+
+#### Iteration 1:
+
+**⊢ revise** (lines 75-95)
+```
+Input:  §current-hypothesis = seed→hypothesis, contradicting (5 papers),
+        remaining-gaps (2 items)
+LLM call: 1
+Output:
+  §revised-hypothesis = "Antibiotic resistance spreads between bacterial species
+    primarily through conjugative plasmids carrying integron-associated gene
+    cassettes, with transfer rates significantly elevated in polymicrobial
+    biofilm environments and under sub-inhibitory antibiotic pressure."
+  revision-reasoning = "Narrowed from 'HGT mechanisms' to conjugative plasmids
+    with integrons based on [Paper X] evidence. Added biofilm and sub-inhibitory
+    conditions based on contradicting evidence from [Paper Y]."
+
+Oracle checks:
+  ⊨ revised more specific than current         → PASS (added integrons, biofilms, conditions)
+  ⊨ reasoning cites evidence                   → PASS (cites Papers X, Y)
+  ⊨ same given/yield signature preserved        → PASS
+```
+
+**⊢⊢ design-experiments** (lines 97-112)
+```
+Input:  remaining-gaps (2) ∪ new-gaps (1) = 3 gaps total
+        revise→§revised-hypothesis
+Spawning: 3 cells (one per gap), max 6
+LLM calls: 3
+Output: §experiments = [
+  {prediction: "Biofilm conditions increase conjugation frequency 10x",
+   confirming: "Transfer rates >10x in biofilm vs planktonic",
+   refuting: "No significant difference in transfer rates"},
+  {prediction: "Sub-inhibitory tetracycline promotes tet-gene transfer",
+   confirming: "Increased tet-gene detection in sub-MIC cultures",
+   refuting: "No change or decrease in tet-gene prevalence"},
+  {prediction: "Environmental stress accelerates HGT via SOS response",
+   confirming: "SOS induction correlates with increased HGT markers",
+   refuting: "SOS response has no effect on transfer frequency"}
+]
+
+Oracle checks:
+  ⊨ §experiments has at least length(remaining-gaps) items (3 ≥ 2) → PASS
+  ⊨ each has testable prediction                                    → PASS
+```
+
+**⊢⊢ run-experiments** (lines 114-133)
+```
+Input:  §experiments (3 items)
+Spawning: 3 cells, max 6
+LLM calls: 3
+Output: §results = [
+  {classification: "confirms", confidence: 75},
+  {classification: "confirms", confidence: 60},
+  {classification: "inconclusive", confidence: 40}
+]
+
+Oracle checks:
+  ⊨ §results same length as §experiments (3=3)           → PASS
+  ⊨ each has classification ∈ {confirms,refutes,inconclusive} → PASS
+  ⊨ each has confidence ∈ [0,100]                         → PASS
+```
+
+**⊢ update-evidence** (lines 135-152)
+```
+Input:  §results, extract-evidence→supporting (15), extract-evidence→contradicting (5)
+LLM call: 1 (for ∴ merging)
+Output:
+  updated-supporting = supporting + [experiment-1-result, experiment-2-result] = 17 items
+  updated-contradicting = contradicting = 5 items (no refutations)
+  (inconclusive experiment-3 not classified)
+
+Crystallized:
+  ⊢= confidence ← (17 / (17 + 5 + 1)) * (avg(75, 60, 40) / 100)
+                  = (17/23) * (58.33/100)
+                  = 0.739 * 0.583
+                  = 0.431
+
+Oracle checks:
+  ⊨ updated-supporting ⊇ supporting   → PASS (17 ⊇ 15)
+  ⊨ updated-contradicting ⊇ contradicting → PASS (5 ⊇ 5)
+  ⊨ confidence ∈ [0.0, 1.0]           → PASS (0.431)
+
+Check termination: remaining-gaps empty (NO, still 2) ∨ confidence ≥ 0.8 (NO, 0.431)
+→ CONTINUE to iteration 2
+```
+
+#### Iteration 2:
+
+**⊢ revise**: §current-hypothesis = iteration-1's §revised-hypothesis. Further
+refines based on same contradicting evidence and same remaining-gaps. LLM call: 1.
+
+**⊢⊢ design-experiments**: Same gaps (2 remaining + 1 new = 3). Designs new
+experiments testing the further-refined hypothesis. LLM calls: 3.
+
+**⊢⊢ run-experiments**: Runs 3 experiments. LLM calls: 3.
+
+**⊢ update-evidence**: Merges with ORIGINAL evidence (not accumulated — see Bug #1).
+With better experiments: say 2 confirms (confidence 80, 70) + 1 confirms (65).
+```
+  updated-supporting = 15 + 3 = 18
+  updated-contradicting = 5
+  confidence = (18/24) * (71.67/100) = 0.75 * 0.717 = 0.538
+```
+Still < 0.8 → CONTINUE to iteration 3.
+
+#### Iteration 3 (final, max reached):
+
+Similar structure. Say confidence reaches 0.62. Loop exits (max 3 reached).
+```
+Final outputs:
+  refined-hypothesis = (3x-revised version)
+  confidence = 0.62
+  revision-log = [revision-1-reasoning, revision-2-reasoning, revision-3-reasoning]
+```
+
+### Phase 6: Synthesis
+
+**⊢ synthesize** (lines 154-178)
+```
+Input:  refined-hypothesis, confidence=0.62, revision-log (3 entries),
+        supporting (15), contradicting (5), filled-gaps (1), remaining-gaps (2)
+LLM call: 1
+
+Crystallized:
+  ⊢= conclusion-strength ← confidence ≥ 0.5 → "moderate"
+
+Output:
+  report = "Research report: Starting from hypothesis about HGT mechanisms...
+            [cites 3+ pieces of evidence]... 1 of 3 gaps filled, 2 remain...
+            Conclusion: moderate confidence (0.62)"
+  conclusion-strength = "moderate"
+
+Oracle checks:
+  ⊨ report mentions original and final hypothesis → PASS
+  ⊨ report cites ≥ 3 evidence pieces              → PASS
+  ⊨ report lists remaining gaps                    → PASS
+  ⊨ conclusion-strength matches confidence         → PASS (0.62 → "moderate")
+```
+
+---
+
+## Q2: Crystallization Analysis
+
+### Crystallized (⊢= — deterministic, LLM-free):
+
+| Cell / Formula | Type | Why Crystallized |
+|---------------|------|------------------|
+| `assess-gaps.filled-gaps` | ⊢= formula | Pure filter operation over structured data |
+| `assess-gaps.remaining-gaps` | ⊢= formula | Set subtraction — deterministic |
+| `update-evidence.confidence` | ⊢= formula | Arithmetic on lengths and averages |
+| `synthesize.conclusion-strength` | ⊢= formula | Threshold comparison on confidence |
+
+### Must Stay Soft (LLM-required):
+
+| Cell | Why Soft |
+|------|----------|
+| `seed` | Hypothesis formulation requires creative scientific reasoning |
+| `search` spawned cells | Query formulation and paper simulation require domain knowledge |
+| `extract-evidence` | Classifying paper-hypothesis relationships requires judgment |
+| `assess-gaps` (new-gaps only) | Identifying unexpected findings requires inference beyond the structured data |
+| `revise` | Hypothesis revision integrating contradictions requires scientific reasoning |
+| `design-experiments` spawned cells | Experiment design requires creative/scientific thinking |
+| `run-experiments` spawned cells | Simulating experiment outcomes requires domain knowledge |
+| `update-evidence` (∴ portion) | Merging experiment results into evidence categories requires judgment |
+| `synthesize` (report) | Writing a coherent research narrative requires language generation |
+
+### Hybrid Cells:
+
+**assess-gaps** is the most interesting case — it's a **partially crystallized cell**.
+`filled-gaps` and `remaining-gaps` are ⊢= (deterministic), but `new-gaps` requires
+LLM inference. This means the cell cannot be fully crystallized, but the crystallized
+portions can be computed without an LLM call, and the LLM call is scoped to just
+identifying emergent gaps.
+
+**update-evidence** is similar: the ∴ instruction (merging) requires an LLM, but
+`confidence` is a ⊢= formula computed from the LLM's output.
+
+---
+
+## Q3: Oracle Trace (All Checks)
+
+### seed (4 checks, 0 retries available)
+| # | Oracle | Result | Reasoning |
+|---|--------|--------|-----------|
+| 1 | `⊨ hypothesis is 1-2 sentences` | PASS | LLM instructed explicitly; easy constraint |
+| 2 | `⊨ key-terms has exactly 5 items` | PASS | Count constraint — LLM can follow |
+| 3 | `⊨ knowledge-gaps has exactly 3 items` | PASS | Count constraint |
+| 4 | `⊨ each knowledge-gap is a question (ends with ?)` | PASS | Format constraint |
+
+**Risk**: seed has NO retry/exhaustion handlers. If any oracle fails, the cell
+produces ⊥ with no recovery path. For a root cell, this kills the entire program.
+This is a fragility hotspot (see Q6).
+
+### search (2 checks)
+| # | Oracle | Result | Reasoning |
+|---|--------|--------|-----------|
+| 5 | `⊨ §queries has same length as seed→key-terms` | PASS | Spawner count matches input count |
+| 6 | `⊨ each query yields papers[] with at least 2 entries` | PASS | 6 papers per query (3 per sub-query × 2) |
+
+### extract-evidence (3 checks + retry)
+| # | Oracle | Result | Reasoning |
+|---|--------|--------|-----------|
+| 7 | `⊨ supporting + contradicting + neutral = total papers` | PASS | Exhaustive classification |
+| 8 | `⊨ each entry has paper-title, key-claim, reasoning` | PASS | Structural check |
+| 9 | `⊨ if contradicting non-empty → specific counter-evidence` | PASS | Given scientific topic, contradictions likely |
+
+Recovery: max 2 retries, then partial-accept(best). This is well-protected.
+
+### assess-gaps (2 checks)
+| # | Oracle | Result | Reasoning |
+|---|--------|--------|-----------|
+| 10 | `⊨ filled-gaps ∪ remaining-gaps = seed→knowledge-gaps` | PASS | **Tautological** — guaranteed by ⊢= formulas |
+| 11 | `⊨ each new-gap is a question not in original gaps` | PASS | Novelty check on LLM output |
+
+**Note**: Oracle #10 is tautological — the ⊢= formulas for filled-gaps and
+remaining-gaps mathematically guarantee this property. This is an assertion, not a
+constraint. Same pattern identified in R11-T2 (proof-carrying oracle).
+
+### revise (3 checks + retry) — per iteration
+| # | Oracle | Result | Reasoning |
+|---|--------|--------|-----------|
+| 12 | `⊨ revised more specific than current` | PASS/FAIL | Subjectivity risk — "more specific" is judgment-dependent |
+| 13 | `⊨ reasoning cites evidence` | PASS | Structural check |
+| 14 | `⊨ same given/yield signature` | PASS | Behavioral subtyping (Liskov) — structural check |
+
+Oracle #12 is the weakest — "more specific" is subjective and hard to verify
+mechanically. An LLM oracle checking another LLM's output for "specificity" is
+essentially self-grading.
+
+### design-experiments (2 checks) — per iteration
+| # | Oracle | Result | Reasoning |
+|---|--------|--------|-----------|
+| 15 | `⊨ §experiments ≥ length(remaining-gaps)` | PASS | Count check |
+| 16 | `⊨ each has testable prediction` | PASS | Structural check, but "testable" is subjective |
+
+### run-experiments (2 checks + retry) — per iteration
+| # | Oracle | Result | Reasoning |
+|---|--------|--------|-----------|
+| 17 | `⊨ §results same length as §experiments` | PASS | Count match |
+| 18 | `⊨ each has classification ∈ {confirms, refutes, inconclusive}, confidence ∈ [0,100]` | PASS | Enum + range check |
+
+Recovery: max 1 retry, then error-value(⊥). The ⊥ case triggers update-evidence's
+skip-with handler.
+
+### update-evidence (3 checks) — per iteration
+| # | Oracle | Result | Reasoning |
+|---|--------|--------|-----------|
+| 19 | `⊨ updated-supporting ⊇ supporting` | PASS | Superset check |
+| 20 | `⊨ updated-contradicting ⊇ contradicting` | PASS | Superset check |
+| 21 | `⊨ confidence ∈ [0.0, 1.0]` | PASS | **Tautological** — guaranteed by ⊢= formula's arithmetic |
+
+Oracle #21 is tautological: the formula's structure (ratio × ratio) always produces
+a value in [0,1] given non-negative inputs.
+
+### synthesize (4 checks)
+| # | Oracle | Result | Reasoning |
+|---|--------|--------|-----------|
+| 22 | `⊨ report mentions original and final hypothesis` | PASS | Structural/content check |
+| 23 | `⊨ report cites ≥ 3 evidence pieces` | PASS | Count check |
+| 24 | `⊨ report lists remaining gaps` | PASS | Content check |
+| 25 | `⊨ conclusion-strength matches confidence` | PASS | **Tautological** — both derived from same confidence value via ⊢= |
+
+Oracle #25 is tautological: conclusion-strength is computed from confidence via ⊢=,
+so they cannot disagree.
+
+**Summary**: 25 oracle checks per full execution (with 3 tautological). Per iteration
+of the evolution loop, 10 additional checks. Total for 3 iterations: 25 + 20 = 45 checks.
+
+---
+
+## Q4: LLM Call Analysis
+
+### LLM-Free Components:
+- `assess-gaps.filled-gaps` (⊢= filter)
+- `assess-gaps.remaining-gaps` (⊢= set subtraction)
+- `update-evidence.confidence` (⊢= arithmetic)
+- `synthesize.conclusion-strength` (⊢= threshold)
+
+### Call Count:
+
+| Phase | Cell | Calls (min) | Calls (max) | Notes |
+|-------|------|-------------|-------------|-------|
+| Pre-loop | seed | 1 | 1 | No retry handler |
+| Pre-loop | search (5 spawned) | 5 | 5 | One per key-term |
+| Pre-loop | extract-evidence | 1 | 3 | +2 retries possible |
+| Pre-loop | assess-gaps | 1 | 1 | For new-gaps only |
+| **Pre-loop subtotal** | | **8** | **10** | |
+| Per iteration | revise | 1 | 3 | +2 retries |
+| Per iteration | design-experiments | 1-6 | 6 | One per gap |
+| Per iteration | run-experiments | 1-6 | 12 | +1 retry each, or ⊥ |
+| Per iteration | update-evidence | 1 | 1 | ∴ portion only |
+| **Per iteration subtotal** | | **4-14** | **22** | |
+| Post-loop | synthesize | 1 | 1 | |
+| | | | | |
+| **Total (1 iteration)** | | **13** | **33** | |
+| **Total (3 iterations)** | | **21** | **77** | |
+
+**Minimum path** (17 LLM calls): All oracles pass first time, 1 iteration with
+minimum gaps (1 remaining + 0 new = 1 experiment), confidence hits 0.8.
+
+**Realistic path** (~30-35 calls): Most oracles pass, 2-3 iterations, 3 experiments
+per iteration, occasional retries.
+
+**Maximum path** (77 calls): Every retry used, max 3 iterations, 6 experiments per
+iteration, all run-experiments retry once.
+
+### ⊥ Path Cost Analysis
+
+If `run-experiments` exhausts retries → `error-value(⊥)`, then `update-evidence`
+triggers its `⊥? skip with` handler: `updated-supporting ≡ supporting,
+updated-contradicting ≡ contradicting, confidence ≡ 0.0`. This skips the LLM call
+in update-evidence AND guarantees confidence = 0.0 < 0.8, forcing the loop to continue
+(or exit at max). Consistent with R11 finding: ⊥ propagation converts downstream
+LLM calls into free deterministic operations.
+
+---
+
+## Q5: Overall Clarity Rating: 7/10
+
+### Strengths:
+- **Pipeline structure is clear**: The seed→search→extract→assess→refine→synthesize
+  flow reads naturally as a research workflow
+- **Oracle constraints are well-specified**: Count checks, type checks, range checks
+  are concrete and verifiable
+- **Recovery paths are thoughtful**: extract-evidence and revise both have
+  retry+partial-accept; run-experiments has retry+⊥; update-evidence has ⊥? skip with
+- **The ⊢= formulas are excellent**: confidence calculation and conclusion-strength
+  are precisely specified with no ambiguity
+- **The § (cell-as-value) usage is consistent**: §queries, §experiments, §results,
+  §current-hypothesis, §revised-hypothesis all clearly mark cells-as-data
+
+### Weaknesses:
+- **Evolution loop variable binding is implicit** (what binds §current-hypothesis to
+  §revised-hypothesis across iterations? Nothing in the syntax makes this explicit)
+- **Evidence accumulation bug** (see Bug #1 below)
+- **Remaining-gaps stale reference bug** (see Bug #2 below)
+- **"More specific" oracle is subjective** — oracle #12 depends on LLM judgment about
+  LLM output, which is self-grading
+- **seed has no recovery** — a root cell with 4 oracles and zero retry handlers is
+  a single point of failure for the entire program
+
+### Could I maintain this program?
+
+Yes, with caveats. The top-level flow is immediately comprehensible. The individual
+cells are well-specified. The main maintenance challenge is the evolution loop — its
+implicit variable binding, stale reference issues, and the interaction between
+nested spawners and the loop's termination condition would require careful attention
+during any modification. I'd rate maintainability at 6/10 (the nested ⊢∘+⊢⊢ composition
+is inherently complex, but the program doesn't do enough to make it explicit).
+
+---
+
+## Q6: Fragility Analysis (Single-Cell Removal)
+
+| If Removed | Impact | Severity |
+|------------|--------|----------|
+| **seed** | Entire program dead — no hypothesis, no key-terms, no knowledge-gaps. Everything depends on seed. | FATAL |
+| **search** | extract-evidence has no papers. ⊥ propagates through rest of pipeline. No evidence → confidence = 0 → "weak" conclusion on empty report. | CRITICAL |
+| **extract-evidence** | No evidence classification → assess-gaps has no input → ⊥ propagates → refine-hypothesis has nothing to refine. | CRITICAL |
+| **assess-gaps** | refine-hypothesis loses remaining-gaps and new-gaps inputs. The evolution loop has no gaps to address → design-experiments spawns nothing → empty experiments → run-experiments does nothing → update-evidence skips → confidence = 0.0. Loop runs 3 times doing nothing productive. | HIGH |
+| **revise** | Evolution loop body is broken — can't advance §current-hypothesis. Loop runs 3 times with the same hypothesis. design-experiments still works (uses original gaps), but there's no hypothesis refinement. The loop becomes pure experiment-running with no learning. | HIGH |
+| **design-experiments** | No experiments → run-experiments has nothing → update-evidence triggers ⊥ skip → confidence = 0.0 every iteration → loop runs 3 times, always "no experiments to run". | HIGH |
+| **run-experiments** | update-evidence gets ⊥ → skip with confidence = 0.0. Same as design-experiments removal but one level deeper. | HIGH |
+| **update-evidence** | Evolution loop never computes confidence → termination condition `confidence ≥ 0.8` can never be evaluated. Depends on runtime behavior — might default to false (loop runs max 3) or error out. | HIGH |
+| **synthesize** | Program runs completely but produces no output. All computation is wasted. The refined hypothesis exists but is never communicated. | MODERATE |
+
+**Most fragile cell**: `seed` — zero redundancy, zero recovery, everything depends on it.
+
+**Least fragile cell**: `synthesize` — removing it loses the output but doesn't break
+any computation. All upstream cells complete normally.
+
+**Structural observation**: The linear pipeline topology means every cell is a single
+point of failure for all downstream cells. There's no redundancy or alternative paths.
+The ⊢⊢ spawners provide width (parallel processing) but not depth (alternative routes).
+
+---
+
+## Q7: Trust Boundaries
+
+### Must Be Trusted (No External Verification Possible):
+
+| Cell | Why Trusted |
+|------|-------------|
+| `seed` | Hypothesis quality determines the entire research direction. No oracle can verify that a hypothesis is "good" — only that it's structurally valid. A well-formed but scientifically nonsensical hypothesis passes all oracles. |
+| `revise` | "More specific" oracle is self-grading. The LLM judges its own output's specificity. A trivially-specific revision ("only on Tuesdays") passes the oracle but degrades research quality. |
+| `search` spawned cells | Paper simulation is entirely fabricated by the LLM. No oracle verifies that papers are real or that abstracts are plausible. The entire evidence base rests on trusted hallucination. |
+| `run-experiments` spawned cells | Experiment results are simulated. No oracle checks scientific plausibility of results — only structural validity (enum + range). An experiment "confirming" with confidence 95 is trusted at face value. |
+
+### Verified (Oracles Provide Real Constraints):
+
+| Cell | Verification Quality |
+|------|---------------------|
+| `extract-evidence` | **Good** — exhaustive classification (sum check), structural completeness, counter-evidence requirement. Still trusts LLM judgment for classification accuracy, but the oracles catch gross failures. |
+| `assess-gaps` | **Partial** — filled/remaining gap computation is crystallized (trustworthy). New-gap identification is trusted (LLM decides what's "new"). The ⊢= formulas are the trust anchor. |
+| `update-evidence` | **Good** — superset checks ensure no evidence is lost. Confidence formula is crystallized. The ∴ merging is trusted but bounded by the formula. |
+| `synthesize` | **Good** — content checks (mentions hypotheses, cites evidence, lists gaps) provide real verification. The conclusion-strength is crystallized. |
+
+### Trust Boundary Map:
+
+```
+TRUSTED ZONE                    VERIFIED ZONE
+(LLM output accepted           (Oracles catch failures)
+ on structural validity only)
+
+  seed ─────────────────────→ extract-evidence
+  search (spawned cells) ───→    (sum check, structure)
+                                    │
+                              assess-gaps
+                                (⊢= crystallized core)
+                                    │
+  revise ───────────────────→ update-evidence
+  design-experiments ──────→    (superset check, ⊢= confidence)
+  run-experiments ─────────→      │
+                              synthesize
+                                (content checks, ⊢= strength)
+```
+
+The **critical trust boundary** is between `search` and `extract-evidence`. Everything
+in the trusted zone produces fabricated data (fake papers, fake experiment results).
+The verified zone tries to reason about this fabricated data consistently. The oracles
+ensure *internal consistency* but cannot verify *external validity*.
+
+This is the fundamental limitation: the program is an internally-consistent reasoning
+engine operating on hallucinated evidence. The trust boundary is at the program's
+interface with reality — and this program has no such interface (it simulates everything).
+
+---
+
+## Bugs and Design Issues
+
+### Bug #1: Evidence Accumulation Failure
+
+`update-evidence` takes `extract-evidence→supporting` and `extract-evidence→contradicting`
+as inputs — the ORIGINAL evidence, not the accumulated evidence from previous iterations.
+
+In iteration 2, update-evidence merges iteration-2 experiment results with the original
+extract-evidence output, discarding iteration-1's experiment results entirely.
+
+**Impact**: The confidence formula only considers original evidence + current iteration's
+experiments. Evidence doesn't accumulate across iterations. Each iteration starts fresh,
+making convergence to confidence ≥ 0.8 much harder than intended.
+
+**Fix**: update-evidence in iteration N should receive iteration-(N-1)'s
+`updated-supporting` and `updated-contradicting` as inputs. This requires either:
+- An explicit loop-variable mechanism for evidence (like §current-hypothesis)
+- A `given §prev-supporting` pattern within the evolution body
+
+### Bug #2: Stale Remaining-Gaps
+
+The `until remaining-gaps is empty ∨ confidence ≥ 0.8` termination condition references
+`remaining-gaps`, but nothing in the loop body updates it. The loop receives
+`assess-gaps→remaining-gaps` once, and this value never changes.
+
+**Impact**: The `remaining-gaps is empty` disjunct is dead code — it can only be true
+if assess-gaps produced no remaining gaps (in which case, why enter the loop?). The
+effective termination is just `confidence ≥ 0.8 ∨ iteration = max`.
+
+**Fix**: The loop body should include a re-assessment step that updates remaining-gaps
+based on experiment results. E.g., add a `re-assess` cell after `update-evidence` that
+checks if new evidence fills any remaining gaps.
+
+### Bug #3: seed Has No Recovery
+
+The root cell has 4 oracle checks and zero retry/exhaustion handlers. If any oracle fails
+(e.g., LLM produces 4 key-terms instead of 5), the entire program fails with no recovery.
+Every other substantial cell has retry handlers.
+
+**Fix**: Add `⊨? on failure: retry with oracle.failures, max 2` and a reasonable
+exhaustion strategy (partial-accept or error-value).
+
+### Bug #4: Empty Experiments Edge Case
+
+If remaining-gaps = 0 AND new-gaps = 0 (all gaps filled, no new gaps), then
+design-experiments spawns 0 cells, producing `§experiments = []`. run-experiments
+receives empty input, produces `§results = []`. update-evidence then computes
+`avg(results.confidence)` on an empty list — undefined behavior.
+
+**Fix**: Handle the empty-experiments case explicitly in update-evidence, or add a
+guard: `⊨ §experiments has at least 1 item` (but this would fail on the empty case).
+Better: add `if §experiments is empty then skip update-evidence`.
+
+### Bug #5: Oracle Self-Grading in revise
+
+Oracle #12 (`⊨ §revised-hypothesis is more specific than §current-hypothesis`) asks
+the oracle (likely another LLM call or the same LLM) to judge whether the LLM's output
+is "more specific" than its input. This is self-grading — the same model class that
+produced the output judges its quality. The oracle provides no independent verification.
+
+**Not a bug per se**, but a trust boundary concern. Possible mitigation: define
+"specificity" in terms of structural properties (more conditions, narrower scope
+language, additional mechanisms cited) rather than subjective judgment.
+
+---
+
+## Summary
+
+| Metric | Value |
+|--------|-------|
+| Total named cells | 10 |
+| Spawner cells | 3 (search, design-experiments, run-experiments) |
+| Evolution loops | 1 (refine-hypothesis) |
+| Crystallized formulas | 4 (⊢=) |
+| Oracle checks (per full run) | 25 base + 10 per iteration = up to 55 |
+| Tautological oracles | 3 (#10, #21, #25) |
+| LLM calls (min/realistic/max) | 17 / 30-35 / 77 |
+| Clarity rating | 7/10 |
+| Bugs found | 5 |
+| Nesting depth | 3 (program → ⊢∘ evolution → ⊢⊢ spawner → spawned cell with ⊨? retry) |
+
+This is the most complex Cell program analyzed to date. The nested ⊢∘ + ⊢⊢ composition
+works structurally — the data flows are coherent and the oracle coverage is thorough.
+The main issues are semantic: evidence doesn't accumulate (Bug #1), gaps don't update
+(Bug #2), and the root cell is unprotected (Bug #3). These are fixable without
+restructuring the program.
+
+The trust boundary analysis reveals a fundamental property of research-simulation
+programs: internal consistency ≠ external validity. The oracles ensure the program
+reasons consistently about its fabricated data, but nothing grounds that data in reality.
+This is appropriate for the program's stated purpose (an agent that *formulates and
+refines* hypotheses) but would be a critical gap if the output were treated as actual
+research findings.
