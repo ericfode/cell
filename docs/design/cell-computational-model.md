@@ -274,6 +274,158 @@ correct syntax but incomplete semantics. The spec should explain:
 4. `⊥? skip with ...` is a cell that cell-zero spawns and evaluates
 5. Cell-zero is a `.cell` file, not a built-in
 
+## Crystallization as Optimization
+
+In the fusion model, crystallization has a precise meaning:
+**replacing semantic evaluation with classical evaluation**.
+
+A soft cell (`∴`) requires an LLM to evaluate. A crystallized cell
+(`⊢=`) requires only classical computation. The transformation is:
+
+```
+∴ Count the words in «text».     →     ⊢= split(«text», " ").length
+```
+
+Semantically, nothing changes. The cell has the same inputs, outputs,
+and oracles. What changes is which substrate evaluates it. Before
+crystallization: LLM. After: classical runtime.
+
+This is why crystallization is an optimization, not a semantic change.
+The oracles still hold. The frozen output is the same. Cell-zero
+doesn't care which substrate produced the output — it just checks the
+oracles either way.
+
+### The crystallization spectrum
+
+```
+                    semantic ←———————————→ classical
+
+∴ "summarize the document"                              (pure LLM)
+∴ "extract the numbers"                                 (mostly LLM)
+⊨ count = len(tokens)          oracle IS implementation (LLM → code)
+⊢= split(text, " ").length                             (pure code)
+```
+
+Every cell exists somewhere on this spectrum. Crystallization moves
+cells rightward. The `⊨` oracle that literally states the implementation
+is the transition point — where the semantic description becomes
+precise enough to be classical.
+
+### What cannot crystallize
+
+- `crystallize` itself (the cell that generates ⊢= from ∴)
+- `eval-one` (the cell that interprets arbitrary ∴ blocks)
+- Any cell that operates on `§` values (cell definitions as data)
+- Cell-zero (the evaluation kernel)
+
+These are permanently semantic. They are the "stem cells" — expensive,
+pluripotent, rarely activated, essential for growth. They are what
+makes Cell a fusion language rather than a classical language with
+LLM calls.
+
+## The Proof-Carrying Pattern
+
+The paradigmatic example of fusion computing:
+
+```
+⊢ solve                           -- SEMANTIC: find a solution
+  given equation
+  yield x, proof[]
+  ∴ Solve «equation». Show your work in «proof».
+
+⊢ verify ▸ crystallized           -- CLASSICAL: check the solution
+  given solve→x, equation
+  yield holds
+  ⊢= holds ← eval(lhs, x) == eval(rhs, x)
+```
+
+The LLM operates in NP-space (find a solution — hard, unreliable).
+The classical verifier operates in P-space (check the solution — easy,
+reliable). Neither alone is useful:
+
+- LLM without verifier: might produce wrong answers
+- Verifier without LLM: can check but cannot solve
+
+Together they form a complete system. The LLM's unreliability is
+bounded by the verifier's reliability. This pattern is only possible
+in a fusion language — one that treats both substrates as equal
+partners.
+
+### Generalization
+
+The proof-carrying pattern generalizes to ANY problem where:
+- Finding is hard but checking is easy (NP problems)
+- Generation is creative but validation is structural
+- The LLM proposes, code disposes
+
+This includes: code generation + testing, document writing + style
+checking, data extraction + schema validation, plan generation +
+constraint checking. Cell makes all of these first-class.
+
+## Cell Is Not a Workflow Engine
+
+Workflow engines (Airflow, Prefect, Temporal) are classical programs
+that call LLMs as external services. The control flow is classical.
+The LLM is a tool, like a database or an API.
+
+Cell is different:
+
+| Aspect | Workflow Engine | Cell |
+|--------|----------------|------|
+| Control flow | Classical (code) | Graph (cell-zero) |
+| LLM role | External tool | Equal substrate |
+| Verification | Testing (post-hoc) | Oracles (inline) |
+| Self-modification | Not possible | Crystallization + §quotation |
+| Error handling | Try/catch | ⊥ propagation + handler cells |
+| Growth | Fixed DAG | Spawner-driven frontier growth |
+| Termination | Expected | Not guaranteed (by design) |
+| State | External (DB, files) | The document IS the state |
+
+A workflow engine answers: "how do I orchestrate LLM calls?"
+Cell answers: "what kind of programs exist in a world with both
+classical and semantic computation?"
+
+## Formal Connections
+
+### Oracle Turing Machines
+
+Cell has structural similarity to oracle TMs from complexity theory.
+An OTM is a TM with access to an oracle that answers questions the
+TM cannot compute. In Cell:
+
+- The TM is the classical substrate (graph operations, deterministic
+  cells, structural oracles)
+- The oracle is the LLM (soft cells, semantic oracles)
+
+But Cell goes beyond OTMs: in Cell, the oracle's answers are checked
+by other oracle calls (because oracles are cells). This creates a
+self-referential verification structure that OTMs don't have.
+
+### Kahn Process Networks
+
+Cell's dataflow model resembles Kahn Process Networks (KPN):
+- Cells are processes
+- `given`/`yield` edges are channels
+- Execution is demand-driven (a cell evaluates when inputs are ready)
+- Confluence (monotone functions on complete partial orders)
+
+Cell extends KPN with: non-deterministic evaluation (LLM), oracle
+verification (postconditions on channels), and frontier growth
+(dynamic process creation via spawners).
+
+### The Lambda Calculus Connection
+
+Cell-zero as metacircular evaluator evokes the lambda calculus:
+- A cell definition is a lambda (inputs → outputs)
+- Cell-zero is eval/apply
+- `§` quotation is quote/unquote
+- Crystallization is partial evaluation
+
+But Cell is not the lambda calculus. The lambda calculus is about
+function application. Cell is about graph evaluation. The key
+difference: in lambda calculus, evaluation reduces (terms get
+smaller). In Cell, evaluation grows (the frontier expands).
+
 ## The Bridge
 
 Cell doesn't solve classical computing. Cell doesn't solve semantic
@@ -288,3 +440,196 @@ language understanding, creative generation.
 Cell provides: the graph structure that lets them collaborate without
 stepping on each other. Confluence is the guarantee. Cell-zero is the
 bridge. The fusion is the language.
+
+## What Is Semantic Computation?
+
+The user's original question: "What is the Turing machine of semantic
+computers?"
+
+The Turing machine captures the essence of classical computation: a
+finite-state machine reading and writing symbols on a tape, following
+deterministic rules. Everything a computer can do reduces to this.
+
+What's the equivalent for semantic computation?
+
+### A semantic computer is not a Turing machine
+
+A Turing machine's power comes from its determinism: given the same
+input and program, it always produces the same output. A semantic
+computer's power comes from the opposite — given a natural language
+instruction, it produces a "reasonable" output that varies with context,
+phrasing, and internal state.
+
+Key differences:
+
+| Property | Turing Machine | Semantic Computer |
+|----------|---------------|-------------------|
+| Input | Formal symbols | Natural language |
+| Output | Deterministic | Probabilistic, "reasonable" |
+| Program | State transitions | Intent descriptions |
+| Halting | Decidable for finite | Not meaningful |
+| Composition | Function composition | Graph evaluation |
+| Verification | Run it again | Oracle checking |
+
+### The generate-and-check model
+
+The closest formal analogue: a **nondeterministic Turing machine**
+with a **verifier**.
+
+- The LLM generates (like the nondeterministic branch)
+- The oracles verify (like the deterministic check)
+- The combination is sound: wrong outputs are caught
+
+This is the NP analogy. The LLM explores the solution space. The
+verifier confirms valid solutions. Neither alone is sufficient.
+
+But Cell goes further: the verifier (oracle) can itself be semantic.
+A semantic oracle like "does this summary capture the main points?"
+requires LLM judgment to check. This creates a hierarchy:
+
+```
+Deterministic oracle: exact check, classical substrate
+Structural oracle:    pattern check, classical substrate
+Semantic oracle:      judgment call, semantic substrate
+  └── checked by meta-oracle (itself potentially semantic)
+```
+
+The hierarchy bottoms out at human judgment: a human reads the output
+and decides if it's good enough. Cell's oracle system is a formal
+model of this informal process.
+
+### You don't need to formalize "reasonable"
+
+Cell's insight: you don't need a formal definition of what an LLM
+computes. You just need to CHECK the output.
+
+Classical computing needed Church-Turing to define computability.
+Semantic computing doesn't need an equivalent because it operates
+in human-interpretable space. The "specification" is natural language.
+The "verification" is oracle checking. The formal structure is the
+graph that connects them.
+
+This is why Cell works without a theory of LLM computation. Cell
+doesn't model what the LLM does — it models the STRUCTURE around
+the LLM: inputs, outputs, dependencies, invariants, verification.
+The LLM is a black box that produces outputs. Cell is the framework
+that makes those outputs trustworthy.
+
+### The essence of fusion computing
+
+If classical computation is "follow these exact rules,"
+and semantic computation is "achieve this intent,"
+then fusion computation is "achieve this intent, and I'll check your work."
+
+Cell is the language for expressing that bargain.
+
+## Sketch: What Cell-Zero Looks Like
+
+Cell-zero is a `.cell` file. Here's what its cells might look like:
+
+```
+-- cell-zero.cell: the evaluation kernel
+
+⊢ scan-frontier
+  given §graph
+  yield ready-cells[], blocked-cells[]
+
+  ∴ Read «§graph». Find all cells whose given inputs are
+    fully bound. These are the ready cells.
+    Cells with unbound inputs are blocked.
+
+  ⊨ every cell in ready-cells has all givens bound
+  ⊨ ready-cells ∪ blocked-cells = all cells in §graph
+
+⊢ pick-next
+  given scan-frontier→ready-cells
+  yield §target
+
+  ∴ Choose one cell from «ready-cells» to evaluate next.
+    Prefer cells with fewer dependencies (leaf-first).
+
+  ⊨ §target ∈ ready-cells
+
+⊢ evaluate
+  given pick-next→§target
+  yield tentative-output, §claim-cells[]
+
+  ∴ Evaluate «§target»:
+    If it has ∴: send to LLM, receive output
+    If it has ⊢=: compute deterministically
+    Then for each ⊨ on the cell, create a claim cell
+    that checks the oracle against the tentative output.
+
+  ⊨ |§claim-cells| = number of oracles on §target
+
+⊢ check-claims
+  given evaluate→§claim-cells
+  given evaluate→tentative-output
+  yield all-pass, failed-oracles[]
+
+  ∴ Evaluate each claim cell. Collect results.
+
+  ⊢= all-pass ← |failed-oracles| = 0
+
+⊢ commit-or-retry
+  given check-claims→all-pass
+  given evaluate→tentative-output
+  given pick-next→§target
+  yield §action
+
+  ∴ If «all-pass»: freeze §target with tentative-output.
+    If not: check retry policy (⊨?).
+    If retries remain: rewrite §target with failure context.
+    If exhausted: freeze §target with ⊥.
+
+  ⊨ §action ∈ {freeze, rewrite, bottom}
+
+⊢⊢ loop
+  given commit-or-retry→§action
+  given §graph
+  yield §graph'
+  until scan-frontier→ready-cells is empty
+
+  ∴ Apply «§action» to «§graph».
+    Then loop: scan frontier again, pick next, evaluate.
+    This never terminates — the frontier keeps growing.
+```
+
+Note that cell-zero uses all of Cell's own features: `∴` for soft
+evaluation, `⊢=` for deterministic checks, `⊨` for oracle assertions,
+`§` for quotation (treating the graph and cells as data), `⊢⊢` for
+the evaluation loop (itself a spawner).
+
+This is the metacircular property: cell-zero IS a Cell program that
+evaluates Cell programs. The substrate (LLM + runtime) reads cell-zero
+and follows its instructions. Cell-zero could be crystallized — the
+`scan-frontier` and `pick-next` cells could become `⊢=` (deterministic).
+The `evaluate` cell stays soft forever.
+
+## Open Questions
+
+1. **Cell-zero specification**: The sketch above is illustrative. The
+   real cell-zero.cell needs precise semantics for graph mutation,
+   oracle spawning, and ⊥ propagation. Can we write it fully?
+
+2. **Claim cell lifecycle**: When cell-zero spawns oracle claim cells,
+   how are they named? How do they connect to the graph? Are they
+   visible to the user or hidden by cell-zero?
+
+3. **Substrate negotiation**: When cell-zero encounters a cell, how
+   does it decide which substrate to use? Is this explicit (∴ vs ⊢=)
+   or inferred?
+
+4. **Formal verification scope**: The Lean model proves confluence
+   for the simplified graph. How much of the full model (tentative
+   outputs, claim cells, ⊥ handlers as cells) should be formalized?
+
+5. **Cost model**: Semantic evaluation is expensive. Classical is
+   cheap. Cell needs a cost model that accounts for both. This
+   affects crystallization priorities — crystallize the most
+   frequently-evaluated cells first.
+
+6. **The halting question**: Cell programs don't terminate. But
+   practical programs need to produce results. How does a caller
+   observe a Cell program's state? Is there a "quiescent" notion
+   (frontier is empty or all cells are blocked)?
