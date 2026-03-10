@@ -1,0 +1,15 @@
+-- E4 Target Program: greet-shout
+-- A trivial two-cell program for the metacircular evaluator test.
+-- Used as the target in Experiment 4 (Round 14).
+
+⊢ greet
+  given name ≡ "Alice"
+  yield message
+  ∴ Write a greeting for «name».
+  ⊨ message mentions «name»
+
+⊢ shout
+  given greet→message
+  yield loud
+  ⊢= loud ← uppercase(greet→message)
+  ⊨ loud = uppercase(greet→message)
