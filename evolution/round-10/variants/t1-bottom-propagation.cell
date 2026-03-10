@@ -1,0 +1,63 @@
+⊢ parse-input
+  given raw ≡ "temperature: hot, humidity: 97%, wind: NNW 15mph"
+  yield structured, confidence
+
+  ∴ Parse «raw» into a structured record with fields:
+    temperature (numeric °F), humidity (%), wind-speed (mph), wind-dir.
+    Set «confidence» to how certain you are about the parse (0-100).
+
+  ⊨ structured has fields: temperature, humidity, wind-speed, wind-dir
+  ⊨ confidence ∈ [0, 100]
+  ⊨ temperature is numeric (°F)
+
+  ⊨? on failure:
+    retry with «oracle.failures» appended to prompt
+    max 2
+
+  ⊨? on exhaustion:
+    error-value(⊥)
+
+⊢ validate
+  given parse-input→structured
+  given parse-input→confidence
+  yield validated, warnings[]
+
+  ∴ Check «structured» for physically plausible values.
+    Temperature between -100°F and 150°F, humidity 0-100%,
+    wind-speed 0-300mph. Flag implausible values as «warnings».
+    If confidence < 50, add a low-confidence warning.
+
+  ⊨ validated is true if all values are physically plausible
+  ⊨ warnings contains one entry per implausible value
+
+  given parse-input→structured ⊥? skip with validated ≡ false, warnings ≡ ["upstream parse failed (⊥)"]
+
+⊢ forecast
+  given validate→validated
+  given validate→warnings
+  given parse-input→structured
+  yield prediction, basis
+
+  ∴ If «validated» is true, generate a weather «prediction» for the next 6 hours
+    based on «structured» data. Cite the input values as «basis».
+    If «validated» is false, generate a degraded prediction noting data quality issues.
+
+  ⊨ prediction is 1-3 sentences
+  ⊨ basis references at least 2 fields from structured data
+
+  given parse-input→structured ⊥? skip with prediction ≡ "Unable to forecast: input parse failed", basis ≡ "N/A"
+  given validate→validated ⊥? skip with prediction ≡ "Unable to forecast: validation failed", basis ≡ "N/A"
+
+⊢ format-output
+  given forecast→prediction
+  given forecast→basis
+  given validate→warnings
+  yield report
+
+  ⊢= report ← "## Weather Forecast\n\n" ++
+    prediction ++ "\n\n" ++
+    "**Basis:** " ++ basis ++ "\n\n" ++
+    (if warnings is empty then "" else "**Warnings:**\n" ++ join(warnings, "\n- "))
+
+  ⊨ report contains "Weather Forecast" header
+  ⊨ if warnings exist then report contains "Warnings" section
