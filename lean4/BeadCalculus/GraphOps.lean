@@ -52,7 +52,7 @@ structure TaskNode where
     distillation happens. -/
 structure TaskGraph where
   nodes : List TaskNode
-  deriving Repr
+  deriving Repr, Inhabited
 
 /-- Get the names of all nodes. -/
 def TaskGraph.nodeNames (g : TaskGraph) : List String :=
@@ -454,19 +454,14 @@ example : helloGraph.readySet = ["greet"] := by native_decide
 example : (helloGraph.evalOne "greet" "Hello Alice!").isSome = true := by native_decide
 
 /-- After executing greet, wrap becomes ready. -/
-example :
-    match helloGraph.evalOne "greet" "Hello Alice!" with
-    | some g' => g'.readySet = ["wrap"]
-    | none => False := by sorry
+example : (helloGraph.evalOne "greet" "Hello Alice!").isSome = true := by native_decide
+
+example : (helloGraph.evalOne "greet" "Hello Alice!").get!.readySet = ["wrap"] := by native_decide
 
 /-- After executing both, frontier is empty. -/
-example :
-    match helloGraph.evalOne "greet" "Hello!" with
-    | some g' =>
-      match g'.evalOne "wrap" "Hello! 👋" with
-      | some g'' => g''.frontier = []
-      | none => False
-    | none => False := by sorry
+example : ((helloGraph.evalOne "greet" "Hello!").get!.evalOne "wrap" "Hello! 👋").isSome = true := by native_decide
+
+example : ((helloGraph.evalOne "greet" "Hello!").get!.evalOne "wrap" "Hello! 👋").get!.frontier = [] := by native_decide
 
 /-- A Cell program that builds the hello graph. -/
 def helloProgram : CellProgram := [
@@ -480,25 +475,24 @@ def helloProgram : CellProgram := [
 example : helloProgram.project.length = 2 := by native_decide
 
 /-- Applying the program to an empty graph produces the hello graph. -/
-example :
-    let empty : TaskGraph := { nodes := [] }
-    match empty.applyProgram helloProgram with
-    | some g => g.nodes.length = 2 ∧ g.readySet = ["greet"]
-    | none => False := by sorry
+example : (({ nodes := [] } : TaskGraph).applyProgram helloProgram).isSome = true := by native_decide
+
+example : (({ nodes := [] } : TaskGraph).applyProgram helloProgram).get!.nodes.length = 2 := by native_decide
+
+example : (({ nodes := [] } : TaskGraph).applyProgram helloProgram).get!.readySet = ["greet"] := by native_decide
 
 /-- Distilling greet into a template (on the frontier). -/
-example :
-    let proposal : DistillProposal := {
-      cellName := "greet",
-      newPrompt := "Hello {{name}}!",
-      newType := .text,
-      matchRate := 95 }
-    match helloGraph.distill proposal with
-    | some g' =>
-      -- greet is still on the frontier but with new prompt
-      g'.isFrontier "greet" = true ∧
-      g'.readySet = ["greet"]
-    | none => False := by sorry
+private def testProposal : DistillProposal := {
+  cellName := "greet",
+  newPrompt := "Hello {{name}}!",
+  newType := .text,
+  matchRate := 95 }
+
+example : (helloGraph.distill testProposal).isSome = true := by native_decide
+
+example : (helloGraph.distill testProposal).get!.isFrontier "greet" = true := by native_decide
+
+example : (helloGraph.distill testProposal).get!.readySet = ["greet"] := by native_decide
 
 /-- Self-modification example: a Cell program that adds a node to an existing graph. -/
 def extendProgram : CellProgram := [
@@ -508,11 +502,9 @@ def extendProgram : CellProgram := [
 ]
 
 /-- Extending the hello graph with a review step. -/
-example :
-    let extended := helloGraph.applyProgram extendProgram
-    match extended with
-    | some g => g.nodes.length = 3
-    | none => False := by sorry
+example : (helloGraph.applyProgram extendProgram).isSome = true := by native_decide
+
+example : (helloGraph.applyProgram extendProgram).get!.nodes.length = 3 := by native_decide
 
 -- ═══════════════════════════════════════════════════════════════
 -- SECTION 10: Connection to Annotations (GasCity.lean)
