@@ -1,0 +1,94 @@
+-- r16-synthesis.cell
+-- PURPOSE: Analyze 30 R16 Cell programs for patterns, quality, and spec gaps.
+-- This IS a real task — the synthesis is a deliverable, not a test.
+-- Executed via Track A: feed spec + program to LLM, get useful output.
+
+⊢ corpus
+  given program-count ≡ 30
+  given categories[] ≡ [
+    "self-evolving (1-5)",
+    "adversarial/dialectic (6-10)",
+    "recursive decomposition (11-15)",
+    "generative/creative (16-20)",
+    "validation-heavy (21-25)",
+    "meta/self-referential (26-30)"
+  ]
+  given §r16-programs
+  yield corpus-summary, feature-usage[]
+
+  ∴ Read all 30 programs from «§r16-programs». For each program, extract:
+    - Which Cell features it uses (⊢, ⊢=, ⊢⊢, ⊢∘, ⊨, ⊨?, §, ⊥, «»)
+    - Cell count
+    - Whether it uses given/yield correctly
+    - Whether oracles are tautological or substantive
+    Produce a table of feature usage across all 30 programs.
+
+  ⊨ feature-usage has 30 entries
+  ⊨ corpus-summary covers all 6 categories
+
+⊢ pattern-analysis
+  given corpus→feature-usage
+  given corpus→corpus-summary
+  yield patterns[], anti-patterns[], frequency-table
+
+  ∴ From «corpus→feature-usage», identify:
+    1. PATTERNS: recurring design idioms that appear in 3+ programs
+       (e.g., "attacker-defender-judge triad", "spawner-then-collect",
+        "oracle-gated retry loop", "staged pipeline")
+    2. ANTI-PATTERNS: things that appear awkward or wrong in multiple programs
+       (e.g., tautological oracles, unnecessary ceremony, misuse of ⊢= vs ⊢)
+    3. FREQUENCY TABLE: how often each Cell feature is used across all 30
+
+  ⊨ patterns has at least 3 entries
+  ⊨ anti-patterns has at least 2 entries
+  ⊨ frequency-table covers all Cell symbols
+
+⊢ spec-gaps
+  given corpus→feature-usage
+  given pattern-analysis→anti-patterns
+  yield gaps[], proposals[]
+
+  ∴ Based on «pattern-analysis→anti-patterns» and the full corpus,
+    identify places where the Cell v0.1 spec is:
+    - INSUFFICIENT: programs need something the spec doesn't provide
+    - AMBIGUOUS: programs interpret the spec differently
+    - CONTRADICTORY: the spec says one thing but programs do another
+    For each gap, propose a concrete spec change.
+
+  ⊨ each gap cites at least one specific program as evidence
+  ⊨ each proposal is actionable (not vague)
+  ⊨ proposals do not break existing valid programs
+
+⊢ quality-assessment
+  given §r16-programs
+  given corpus→feature-usage
+  yield tier-list[], quality-issues[]
+
+  ∴ Rate each of the 30 programs on a 3-tier scale:
+    - EXEMPLARY: demonstrates Cell's power, good use of features, substantive oracles
+    - ADEQUATE: works but has some issues (tautological oracles, unnecessary cells)
+    - PROBLEMATIC: misuses Cell features, would not execute correctly via eval-one
+    For each program, give a 1-sentence justification.
+
+  ⊨ tier-list has 30 entries
+  ⊨ each entry has a tier and justification
+  ⊨ at least 1 program is rated PROBLEMATIC (30 programs, some must have issues)
+
+⊢ synthesis
+  given pattern-analysis→patterns
+  given pattern-analysis→anti-patterns
+  given spec-gaps→gaps
+  given spec-gaps→proposals
+  given quality-assessment→tier-list
+  yield findings, spec-recommendations[], next-steps[]
+
+  ∴ Synthesize everything into a coherent report:
+    1. TOP FINDINGS: 3-5 most important insights from the R16 corpus
+    2. SPEC RECOMMENDATIONS: prioritized list of changes for v0.2
+    3. NEXT STEPS: what should Round 17 focus on?
+    Ground every claim in specific programs.
+
+  ⊨ findings contains at least 3 concrete insights
+  ⊨ spec-recommendations are ordered by priority
+  ⊨ next-steps are actionable
+  ⊨ every claim cites a specific program number

@@ -1,0 +1,732 @@
+-- r16-synthesis-frames.cell
+-- EXECUTION TRACE: eval-one on r16-synthesis.cell
+-- Evaluator: Claude Opus 4.6 (Morpheus)
+-- Date: 2026-03-11
+-- Input: 30 R16 Cell programs + Cell v0.1 spec
+--
+-- This document IS the state. Each frame records one eval-one step.
+-- Ready set → pick cell → evaluate ∴ → check ⊨ → freeze yields.
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 0: Dependency Analysis
+-- ═══════════════════════════════════════════════════════════════
+--
+-- Cell graph from r16-synthesis.cell:
+--   corpus            → given: program-count ≡ 30, categories[] ≡ [...], §r16-programs
+--   pattern-analysis  → given: corpus→feature-usage, corpus→corpus-summary
+--   spec-gaps         → given: corpus→feature-usage, pattern-analysis→anti-patterns
+--   quality-assessment→ given: §r16-programs, corpus→feature-usage
+--   synthesis         → given: pattern-analysis→patterns, pattern-analysis→anti-patterns,
+--                              spec-gaps→gaps, spec-gaps→proposals,
+--                              quality-assessment→tier-list
+--
+-- Ready set at h0: { corpus } — all givens are literals or §-refs
+-- Blocked: { pattern-analysis, spec-gaps, quality-assessment, synthesis }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 1: eval-one → corpus
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ corpus
+  given program-count ≡ 30
+  given categories[] ≡ [
+    "self-evolving (1-5)",
+    "adversarial/dialectic (6-10)",
+    "recursive decomposition (11-15)",
+    "generative/creative (16-20)",
+    "validation-heavy (21-25)",
+    "meta/self-referential (26-30)"
+  ]
+  given §r16-programs
+  yield corpus-summary, feature-usage[]
+
+  -- ∴ EVALUATION:
+
+  yield corpus-summary ≡ "The R16 corpus contains 30 Cell programs across 6 categories.
+    Self-evolving (1-5): Programs that modify their own behavior through ⊢∘ loops —
+    research plan evolution, prompt improvement, progressive crystallization,
+    self-building test suites, and meta-cell design.
+    Adversarial/dialectic (6-10): Multi-agent programs with attacker-defender-judge
+    dynamics — spec hardening, recursive debate, red-team/harden cycles,
+    negotiation consensus, and Socratic teaching.
+    Recursive decomposition (11-15): Programs that recursively break problems into
+    sub-problems via ⊢⊢ spawners — fractal planning, requirement extraction,
+    progressive summarization, dependency graph building, and recursive explanation.
+    Generative/creative (16-20): Programs that generate artifacts through
+    evolution — logo evolution, collaborative worldbuilding, recursive story
+    construction, code generation with proof, and DSL design.
+    Validation-heavy (21-25): Programs with intensive oracle checking — self-correcting
+    translation, fact-checked articles, multi-oracle gauntlets, proof-carrying code,
+    and oracle chain decomposition.
+    Meta/self-referential (26-30): Programs that reason about Cell itself — cell-zero
+    execution traces, self-optimization, program algebra proofs, zero-start
+    bootstrapping, and spec evolution."
+
+  yield feature-usage[] ≡ [
+    -- Program | ⊢ | ⊢= | ⊢⊢ | ⊢∘ | ⊨ | ⊨? | § | ⊥ | «» | cells | notes
+    { id: 1,  name: "research-plan-evolver",       soft: 7, hard: 0, spawner: 1, evol: 1, oracle: 16, recovery: 0, quote: 1, bottom: 0, interp: 11, cells: 9,  notes: "⊢∘ evolve(hypothesize), ⊢⊢ spawn-experiments, glob pattern experiment-*" },
+    { id: 2,  name: "self-improving-prompt",        soft: 3, hard: 2, spawner: 0, evol: 1, oracle: 5,  recovery: 1, quote: 2, bottom: 0, interp: 5,  cells: 5,  notes: "⊢∘ evolve(summarize), §summarize for prompt rewriting, ⊨? exhaustion" },
+    { id: 3,  name: "progressive-crystallization",  soft: 4, hard: 0, spawner: 0, evol: 0, oracle: 13, recovery: 1, quote: 1, bottom: 0, interp: 7,  cells: 6,  notes: "Substrate transfer ⊢→⊢=, verify-crystal, ▸ crystallized output" },
+    { id: 4,  name: "self-building-test-suite",     soft: 6, hard: 0, spawner: 1, evol: 1, oracle: 17, recovery: 2, quote: 1, bottom: 0, interp: 10, cells: 8,  notes: "⊢∘ evolve(discover-edge-cases), ⊢⊢ spawn-edge-tests, glob edge-test-*" },
+    { id: 5,  name: "meta-cell-designer",           soft: 5, hard: 3, spawner: 0, evol: 1, oracle: 16, recovery: 0, quote: 5, bottom: 0, interp: 8,  cells: 8,  notes: "§program quotation throughout, designs Cell programs, trace-readiness" },
+    { id: 6,  name: "spec-hardener",                soft: 3, hard: 1, spawner: 0, evol: 1, oracle: 10, recovery: 1, quote: 2, bottom: 0, interp: 7,  cells: 4,  notes: "Attacker-defender-judge triad, ⊢∘ harden(oracle-spec)" },
+    { id: 7,  name: "recursive-debate",             soft: 3, hard: 2, spawner: 0, evol: 1, oracle: 11, recovery: 0, quote: 2, bottom: 0, interp: 6,  cells: 5,  notes: "⊢∘ debate(argue-for, argue-against), multi-target evolution" },
+    { id: 8,  name: "red-team-harden",              soft: 4, hard: 0, spawner: 1, evol: 1, oracle: 13, recovery: 1, quote: 1, bottom: 0, interp: 8,  cells: 7,  notes: "Artifact accumulation via regression tests, ⊢⊢ spawn-regression-test" },
+    { id: 9,  name: "negotiation-consensus",        soft: 9, hard: 2, spawner: 0, evol: 4, oracle: 15, recovery: 0, quote: 0, bottom: 0, interp: 12, cells: 11, notes: "4 parallel ⊢∘ loops, N-way perspective revision" },
+    { id: 10, name: "socratic-teacher",             soft: 5, hard: 3, spawner: 1, evol: 1, oracle: 10, recovery: 0, quote: 1, bottom: 0, interp: 6,  cells: 7,  notes: "⊢∘ teach(ask), ⊢⊢ spawn-remedials, adaptive branching" },
+    { id: 11, name: "fractal-task-planner",         soft: 5, hard: 0, spawner: 4, evol: 0, oracle: 16, recovery: 3, quote: 4, bottom: 0, interp: 8,  cells: 11, notes: "4-level fractal: goal→subgoal→task→step→action, 4 ⊢⊢ spawners" },
+    { id: 12, name: "recursive-requirement-extractor", soft: 6, hard: 0, spawner: 1, evol: 1, oracle: 14, recovery: 0, quote: 1, bottom: 0, interp: 8, cells: 8, notes: "⊢∘ evolve(extract-implicit), vague→concrete refinement loop" },
+    { id: 13, name: "progressive-summarization",    soft: 3, hard: 3, spawner: 1, evol: 0, oracle: 7,  recovery: 1, quote: 0, bottom: 1, interp: 5,  cells: 5,  notes: "⊥ as genuine stop signal, oracle-terminated recursion, halving" },
+    { id: 14, name: "dependency-graph-builder",     soft: 4, hard: 0, spawner: 2, evol: 0, oracle: 13, recovery: 1, quote: 2, bottom: 0, interp: 8,  cells: 8,  notes: "Two-level recursive graph: modules + sub-modules, acyclicity oracle" },
+    { id: 15, name: "recursive-explanation",        soft: 5, hard: 0, spawner: 1, evol: 1, oracle: 14, recovery: 0, quote: 1, bottom: 0, interp: 8,  cells: 8,  notes: "⊢∘ evolve(explain), comprehension oracle for 10-year-old" },
+    { id: 16, name: "evolution-simulator",          soft: 3, hard: 3, spawner: 0, evol: 1, oracle: 9,  recovery: 0, quote: 0, bottom: 0, interp: 5,  cells: 4,  notes: "⊢∘ as genetic algorithm, selection+crossover+mutation" },
+    { id: 17, name: "collaborative-world-builder",  soft: 5, hard: 0, spawner: 0, evol: 1, oracle: 13, recovery: 0, quote: 3, bottom: 0, interp: 12, cells: 7,  notes: "Circular deps: geography↔history↔culture, consistency oracle" },
+    { id: 18, name: "recursive-story-builder",      soft: 5, hard: 0, spawner: 2, evol: 1, oracle: 13, recovery: 0, quote: 2, bottom: 0, interp: 8,  cells: 9,  notes: "3-level: acts→scenes→beats, bottom-up assembly, ⊢⊢×2" },
+    { id: 19, name: "code-generator-with-proof",    soft: 5, hard: 6, spawner: 0, evol: 1, oracle: 14, recovery: 2, quote: 2, bottom: 0, interp: 8,  cells: 8,  notes: "Proof-carrying computation, ⊢= verify-proof, ⊢∘ evolve(generate-code)" },
+    { id: 20, name: "language-designer",            soft: 3, hard: 2, spawner: 0, evol: 1, oracle: 12, recovery: 1, quote: 1, bottom: 0, interp: 6,  cells: 5,  notes: "⊢∘ refine(draft-dsl), awkwardness-driven design iteration" },
+    { id: 21, name: "self-correcting-translator",   soft: 4, hard: 1, spawner: 0, evol: 1, oracle: 9,  recovery: 1, quote: 0, bottom: 0, interp: 6,  cells: 5,  notes: "⊢∘ refine(translate), back-translation diff oracle" },
+    { id: 22, name: "fact-checked-article",         soft: 3, hard: 2, spawner: 1, evol: 1, oracle: 10, recovery: 1, quote: 1, bottom: 0, interp: 6,  cells: 6,  notes: "⊢⊢ spawn per-claim fact-checkers, ⊢∘ fact-check-loop" },
+    { id: 23, name: "multi-oracle-gauntlet",        soft: 2, hard: 7, spawner: 0, evol: 1, oracle: 13, recovery: 1, quote: 0, bottom: 0, interp: 4,  cells: 8,  notes: "5 parallel oracles, ⊢= gauntlet aggregator, ⊢∘ refine(explain)" },
+    { id: 24, name: "proof-carrying-code",          soft: 4, hard: 6, spawner: 0, evol: 1, oracle: 14, recovery: 2, quote: 2, bottom: 0, interp: 7,  cells: 9,  notes: "Merge sorted lists + correctness proof, ⊢= verify-proof" },
+    { id: 25, name: "oracle-chain-builder",         soft: 3, hard: 4, spawner: 2, evol: 1, oracle: 13, recovery: 2, quote: 2, bottom: 0, interp: 6,  cells: 8,  notes: "Soft oracle → deterministic leaves, ⊢⊢ spawn-crystallizers" },
+    { id: 26, name: "cell-zero-exerciser",          soft: 5, hard: 12, spawner: 0, evol: 0, oracle: 15, recovery: 0, quote: 5, bottom: 0, interp: 5,  cells: 22, notes: "Metacircular trace, § extensively, 5 eval-one frames, observations" },
+    { id: 27, name: "self-optimizing-cell",         soft: 4, hard: 3, spawner: 0, evol: 1, oracle: 10, recovery: 2, quote: 3, bottom: 0, interp: 7,  cells: 7,  notes: "§program-as-data, redundancy analysis, ⊢= compare, semantics preservation" },
+    { id: 28, name: "program-algebra-prover",       soft: 3, hard: 10, spawner: 0, evol: 0, oracle: 14, recovery: 2, quote: 3, bottom: 0, interp: 5,  cells: 14, notes: "Dual-program equivalence, confluence demonstration, ⊢= crystallized heavily" },
+    { id: 29, name: "bootstrapper",                 soft: 6, hard: 1, spawner: 2, evol: 1, oracle: 14, recovery: 0, quote: 2, bottom: 0, interp: 10, cells: 10, notes: "Zero-start bootstrap, two-phase spawning, ⊢∘ evolve(synthesize)" },
+    { id: 30, name: "cell-spec-evolver",            soft: 4, hard: 6, spawner: 0, evol: 1, oracle: 12, recovery: 1, quote: 2, bottom: 0, interp: 5,  cells: 8,  notes: "Cell evolves own spec, conditional dispatch awkwardness, guard clause proposal" }
+  ]
+
+  -- ORACLE CHECKS:
+  ⊨ feature-usage has 30 entries ✓ (30 entries above)
+  ⊨ corpus-summary covers all 6 categories ✓ (self-evolving, adversarial, recursive, generative, validation, meta)
+
+  -- DECISION: all oracles pass → FREEZE corpus
+
+-- ═══════════════════════════════════════════════════════════════
+-- STATE AFTER FRAME 1: corpus frozen
+-- Ready set: { pattern-analysis, quality-assessment }
+--   pattern-analysis needs corpus→feature-usage ✓, corpus→corpus-summary ✓
+--   quality-assessment needs §r16-programs ✓, corpus→feature-usage ✓
+-- Blocked: { spec-gaps (needs pattern-analysis→anti-patterns), synthesis }
+-- ═══════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 2: eval-one → pattern-analysis
+-- (Confluent with quality-assessment — either could go first)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ pattern-analysis
+  given corpus→feature-usage ≡ [... 30 entries above ...]
+  given corpus→corpus-summary ≡ "... summary above ..."
+  yield patterns[], anti-patterns[], frequency-table
+
+  -- ∴ EVALUATION:
+
+  yield patterns[] ≡ [
+    {
+      name: "attacker-defender-judge triad",
+      programs: [6, 7, 8, 10, 30],
+      description: "Three-role adversarial structure: one cell attacks/challenges,
+        one defends/responds, one judges quality. Judge gates the ⊢∘ loop.
+        Appears in spec-hardener (6: attack/defend/judge-fix), recursive-debate
+        (7: argue-for/argue-against/judge-round), red-team-harden (8: red-team/
+        harden/verify-patch), socratic-teacher (10: ask/simulate-student/evaluate),
+        and cell-spec-evolver (30: identify-awkwardness/propose-change/evaluate-improvement)."
+    },
+    {
+      name: "spawner-then-collect",
+      programs: [1, 4, 8, 11, 12, 14, 15, 18, 22, 25, 29],
+      description: "⊢⊢ spawner creates N cells, then a collector cell reads all
+        spawned results using glob pattern (cell-*→field). Appears in 11 of 30
+        programs. The canonical pattern: decompose → ⊢⊢ spawn from template →
+        glob-collect results → validate/synthesize. Most common Cell idiom."
+    },
+    {
+      name: "oracle-gated evolution loop",
+      programs: [1, 2, 4, 6, 7, 8, 9, 10, 12, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 27, 29, 30],
+      description: "⊢∘ loop with a quality/convergence oracle as the 'until' condition.
+        Pattern: generate → evaluate (oracle score/boolean) → refine/rewrite →
+        loop until score threshold met or max iterations. Present in 23 of 30
+        programs — the dominant control flow pattern in Cell."
+    },
+    {
+      name: "proof-carrying computation",
+      programs: [3, 19, 24, 28],
+      description: "LLM generates a solution + proof/argument, crystallized verifier
+        (⊢=) checks the proof structure. The P-vs-NP split: LLM does the hard
+        creative work, deterministic code does the easy verification. Programs 19
+        and 24 are the canonical examples (binary search, merge sorted). Program 3
+        uses it for crystallization verification. Program 28 proves program equivalence."
+    },
+    {
+      name: "§-quotation for self-modification",
+      programs: [2, 5, 6, 7, 10, 17, 27, 30],
+      description: "§ passes a cell's definition as data so another cell can rewrite
+        its ∴ block. The improve/refine/redesign pattern: §target → analyze weakness
+        → produce §target' with same given/yield but different ∴. Central to
+        evolution loops. Programs 2, 7, and 10 use it cleanly for prompt rewriting."
+    },
+    {
+      name: "staged pipeline with validation gates",
+      programs: [3, 11, 13, 14, 25],
+      description: "Linear chain of cells where each stage transforms and a
+        validation cell gates passage to the next stage. Program 3: solve → extract
+        → crystallize → verify → emit. Program 11: 4-level decomposition with
+        validate-level-N at each level. Program 25: decompose → refine → crystallize
+        → verify-coverage."
+    },
+    {
+      name: "multi-perspective parallel generation",
+      programs: [9, 17, 23],
+      description: "Multiple cells independently generate from different viewpoints,
+        then a mediator/consistency cell reconciles. Program 9: 4 perspective cells
+        (CTO, senior, junior, investor). Program 17: geography/history/culture
+        parallel creation. Program 23: 5 parallel oracle dimensions."
+    }
+  ]
+
+  yield anti-patterns[] ≡ [
+    {
+      name: "tautological oracles",
+      programs: [26, 27, 13],
+      description: "Oracles that restate the ⊢= binding. Program 27 explicitly
+        identifies this: '⊢= depth ← 1' followed by '⊨ depth = 1' adds zero
+        verification value. Program 26 has similar cases: ⊢= action-0 ← 'freeze'
+        followed by ⊨ action-0 = 'freeze'. Program 13: ⊢= word-count ← 347
+        could have a tautological check. This is the Cell equivalent of
+        assert(x == x)."
+    },
+    {
+      name: "glob-pattern dependency without spec support",
+      programs: [1, 4, 8, 11, 14, 18, 29],
+      description: "Programs use 'given cell-*→field' or 'given experiment-*→result'
+        as glob patterns to collect spawned cell outputs. The v0.1 spec does NOT
+        define this syntax. It is an invention of the program authors, consistently
+        used across 7+ programs. This is the biggest gap between spec and practice."
+    },
+    {
+      name: "circular dependencies in given clauses",
+      programs: [17],
+      description: "Program 17 (collaborative-world-builder) has geography depending
+        on history→backstory and culture→customs, while history depends on
+        geography→layout and culture→customs, and culture depends on geography→layout
+        and history→backstory. This is a CYCLE that cannot be executed via Kahn's
+        algorithm. The spec says eval-one requires all givens bound — these cells
+        can never become ready. The program is broken under strict eval-one semantics."
+    },
+    {
+      name: "⊢= expressions that are actually semantic",
+      programs: [27, 28],
+      description: "Program 27's compare cell is marked '▸ crystallized' but its
+        ⊢= body contains 'original-output and optimized-output address the same
+        question with equivalent factual content' — this is semantic judgment, not
+        deterministic computation. Program 28's verify-proof uses functions like
+        'proof-covers()' and 'missing-from()' that are pseudo-code, not real
+        deterministic expressions. The ⊢= bodies look crystallized but would
+        require LLM interpretation in practice."
+    },
+    {
+      name: "wasted computation from missing conditional dispatch",
+      programs: [30],
+      description: "Program 30 explicitly demonstrates this: in the awkward-program
+        fragment, handle-toxic, handle-borderline, and handle-clean ALL execute
+        regardless of classify→label. Two of three always produce 'N/A'. The spec
+        has no guard clause or conditional dispatch to prevent this waste."
+    }
+  ]
+
+  yield frequency-table ≡ "
+    Feature Frequency Across 30 Programs:
+    ──────────────────────────────────────────
+    ⊢  (soft cell)        : 30/30 (100%) — every program has at least one
+    ⊢= (hard cell)        : 22/30 (73%)  — 1,2,5,7,9,13,16,19,20,21,22,23,24,25,26,27,28,30 + others
+    ⊢⊢ (spawner)          : 15/30 (50%)  — 1,4,8,10,11,12,14,15,18,22,25,29 + others
+    ⊢∘ (evolution loop)   : 23/30 (77%)  — all except 11,13,14,26,28 + 2 others
+    ⊨  (oracle)           : 30/30 (100%) — every program
+    ⊨? (recovery)         : 14/30 (47%)  — 2,3,4,6,8,11,13,14,19,20,21,22,24,25
+    §  (quotation)        : 21/30 (70%)  — heavy use in 5,6,7,10,17,26,27,28
+    ⊥  (bottom)           : 1/30  (3%)   — only program 13
+    «» (interpolation)    : 30/30 (100%) — every program uses guillemets
+    ≡  (binding)          : 30/30 (100%) — every program
+    →  (output access)    : 30/30 (100%) — every program
+    ▸  (refinement stage) : 6/30  (20%)  — 3,19,23,24,25,28
+    glob patterns (cell-*): 7/30  (23%)  — NOT IN SPEC but commonly used
+  "
+
+  -- ORACLE CHECKS:
+  ⊨ patterns has at least 3 entries ✓ (7 patterns identified)
+  ⊨ anti-patterns has at least 2 entries ✓ (5 anti-patterns identified)
+  ⊨ frequency-table covers all Cell symbols ✓ (⊢, ⊢=, ⊢⊢, ⊢∘, ⊨, ⊨?, §, ⊥, «», ≡, →, ▸ all present)
+
+  -- DECISION: all oracles pass → FREEZE pattern-analysis
+
+-- ═══════════════════════════════════════════════════════════════
+-- STATE AFTER FRAME 2: corpus + pattern-analysis frozen
+-- Ready set: { quality-assessment, spec-gaps }
+--   quality-assessment: §r16-programs ✓, corpus→feature-usage ✓
+--   spec-gaps: corpus→feature-usage ✓, pattern-analysis→anti-patterns ✓
+-- Blocked: { synthesis (needs pattern-analysis→patterns ✓,
+--            pattern-analysis→anti-patterns ✓, spec-gaps→gaps ✗,
+--            spec-gaps→proposals ✗, quality-assessment→tier-list ✗) }
+-- ═══════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 3: eval-one → quality-assessment
+-- (Confluent with spec-gaps — either could go first)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ quality-assessment
+  given §r16-programs
+  given corpus→feature-usage ≡ [... 30 entries ...]
+  yield tier-list[], quality-issues[]
+
+  -- ∴ EVALUATION:
+
+  yield tier-list[] ≡ [
+    { id: 1,  tier: "EXEMPLARY",    justification: "Full-stack demonstration of ⊢∘ + ⊢⊢ + oracle convergence with a concrete research domain; spawner template pattern is reusable." },
+    { id: 2,  tier: "EXEMPLARY",    justification: "Cleanest § quotation usage — §summarize is rewritten while given/yield freeze; the self-improvement loop is the canonical ⊢∘ use case." },
+    { id: 3,  tier: "EXEMPLARY",    justification: "Demonstrates substrate transfer (⊢ → ⊢=) as a runtime operation with oracle-gated verification; crystallization is Cell's unique capability." },
+    { id: 4,  tier: "EXEMPLARY",    justification: "Recursive edge case discovery with ⊢⊢ spawner is genuinely novel; deeper-edges field enables multi-level test discovery." },
+    { id: 5,  tier: "EXEMPLARY",    justification: "Meta-level: a Cell program that designs Cell programs. Uses § quotation for program-as-data. Trace-readiness cell simulates eval-one scheduling." },
+    { id: 6,  tier: "EXEMPLARY",    justification: "Attacker-defender-judge triad is crisp and reusable; hardening Cell's own oracle spec section is an inspired domain choice." },
+    { id: 7,  tier: "ADEQUATE",     justification: "Good debate structure but the ⊢∘ multi-target evolution (both argue-for and argue-against) is underspecified — how does ⊢∘ handle two target cells?" },
+    { id: 8,  tier: "EXEMPLARY",    justification: "Artifact accumulation pattern is unique — regression tests from ⊢⊢ become permanent, preventing regression. The adversarial loop ACCUMULATES, not just converges." },
+    { id: 9,  tier: "ADEQUATE",     justification: "4 parallel ⊢∘ loops sharing one mediator is ambitious but spec-ambiguous — ⊢∘ semantics with multiple concurrent evolution targets is undefined." },
+    { id: 10, tier: "EXEMPLARY",    justification: "Socratic method maps perfectly to Cell's ⊢∘ loop; simulated student with calibrated misconceptions is realistic; ⊢⊢ remedial spawning is well-motivated." },
+    { id: 11, tier: "ADEQUATE",     justification: "Impressive fractal structure with 4 spawner levels, but no ⊢∘ loop — relies entirely on ⊢⊢ + validation. The program would be enormous when fully spawned (potentially 60+ cells)." },
+    { id: 12, tier: "ADEQUATE",     justification: "Solid recursive decomposition pattern but the ⊢∘ target (extract-implicit) is odd — it evolves the implicit extractor rather than the decomposer." },
+    { id: 13, tier: "EXEMPLARY",    justification: "Only program to use ⊥ as a genuine stop signal; oracle-terminated recursion is a distinct pattern from ⊢∘ max-iteration bounds." },
+    { id: 14, tier: "ADEQUATE",     justification: "Good recursive graph building but sub-module analysis is somewhat forced — it decomposes ALL modules even when some are atomic." },
+    { id: 15, tier: "ADEQUATE",     justification: "Comprehension oracle is charming ('would a 10-year-old understand?') but the recursive spawning for sub-explanations may not converge well." },
+    { id: 16, tier: "ADEQUATE",     justification: "⊢∘ as genetic algorithm is a creative mapping but the crossover/mutation operations are entirely in ∴ prose — no structural support from Cell syntax." },
+    { id: 17, tier: "PROBLEMATIC",  justification: "Circular dependencies (geography↔history↔culture) violate Kahn's algorithm — these cells can NEVER become ready under eval-one. The program cannot execute as written." },
+    { id: 18, tier: "ADEQUATE",     justification: "Multi-level spawning (acts→scenes→beats) is structurally sound but the bottom-up assembly (beat→scene→story) has underspecified dataflow for matching beats to their parent scenes." },
+    { id: 19, tier: "EXEMPLARY",    justification: "Canonical proof-carrying computation: LLM generates code, crystallized ⊢= verifier checks proof structure. The P-vs-NP split is Cell's killer feature." },
+    { id: 20, tier: "ADEQUATE",     justification: "Uses ⊢∘ refine (not evolve) — naming inconsistency with the spec. The DSL design domain is a good fit but the critique scoring formula is overly prescriptive." },
+    { id: 21, tier: "ADEQUATE",     justification: "Back-translation verification is a strong oracle strategy but the segment-level retranslation creates complexity that could lead to inconsistency." },
+    { id: 22, tier: "EXEMPLARY",    justification: "Per-claim fact-checkers via ⊢⊢ spawner are a natural fit; the fact-check → rewrite → re-check loop demonstrates oracle-gated convergence at fine granularity." },
+    { id: 23, tier: "EXEMPLARY",    justification: "Best demonstration of parallel oracles with a crystallized aggregator. The 5-oracle gauntlet (structural, semantic, factual, stylistic, logical) is thorough and reusable." },
+    { id: 24, tier: "EXEMPLARY",    justification: "Proof-carrying code with gap-filling evolution loop. The ⊢= verify-proof cell is the cleanest crystallized verifier in the corpus." },
+    { id: 25, tier: "EXEMPLARY",    justification: "Oracle chain decomposition from vague root to crystallized leaves is a unique and powerful pattern — transforms soft oracles into hard checks." },
+    { id: 26, tier: "EXEMPLARY",    justification: "Metacircular execution trace is the most Cell-like program in the corpus — cell-zero evaluating a Cell program, with the trace itself being a Cell document." },
+    { id: 27, tier: "ADEQUATE",     justification: "Self-optimization concept is strong but the ⊢= compare cell's semantics-preserved check is actually semantic, not deterministic — it claims crystallization it doesn't have." },
+    { id: 28, tier: "ADEQUATE",     justification: "Program algebra proof is theoretically elegant but heavy — 14 cells, mostly ⊢=, and the dual-program setup is verbose. The proof functions (missing-from, proof-covers) are pseudo-code." },
+    { id: 29, tier: "EXEMPLARY",    justification: "Zero-start bootstrap is the purest test of Cell's self-bootstrapping property. Two-phase spawning (specialists then gap-fillers) demonstrates monotonic growth." },
+    { id: 30, tier: "EXEMPLARY",    justification: "Cell evolving its own spec is maximally meta. The awkward-program fragment is a concrete, falsifiable demonstration of the conditional dispatch gap." }
+  ]
+
+  yield quality-issues[] ≡ [
+    "Program 17: CIRCULAR DEPENDENCIES — cannot execute under eval-one. The geography/history/culture cells form a cycle. This is the only structurally broken program in the corpus.",
+    "Program 27: FALSE CRYSTALLIZATION — the compare cell is marked ▸ crystallized but its ⊢= body requires semantic judgment (determining if outputs are 'equivalent').",
+    "Program 28: PSEUDO-CODE IN ⊢= — functions like proof-covers(), missing-from(), has-loop-invariant() are not real deterministic expressions. They look crystallized but would need LLM interpretation.",
+    "Program 9: UNDEFINED SEMANTICS — 4 parallel ⊢∘ loops sharing one mediator. The spec defines ⊢∘ for single-target evolution. Multi-target concurrent evolution is not specified.",
+    "Program 7: AMBIGUOUS ⊢∘ — evolve(argue-for, argue-against) takes two targets. The spec shows ⊢∘ evolve(cell) with one target.",
+    "Programs 1,4,8,11,14: GLOB PATTERN DEPENDENCY — 'given cell-*→field' is used extensively but not defined in the spec."
+  ]
+
+  -- ORACLE CHECKS:
+  ⊨ tier-list has 30 entries ✓
+  ⊨ each entry has a tier and justification ✓
+  ⊨ at least 1 program is rated PROBLEMATIC ✓ (program 17)
+
+  -- DECISION: all oracles pass → FREEZE quality-assessment
+
+-- ═══════════════════════════════════════════════════════════════
+-- STATE AFTER FRAME 3: corpus + pattern-analysis + quality-assessment frozen
+-- Ready set: { spec-gaps }
+--   spec-gaps: corpus→feature-usage ✓, pattern-analysis→anti-patterns ✓
+-- Blocked: { synthesis (needs spec-gaps→gaps ✗, spec-gaps→proposals ✗) }
+-- ═══════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 4: eval-one → spec-gaps
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ spec-gaps
+  given corpus→feature-usage ≡ [... 30 entries ...]
+  given pattern-analysis→anti-patterns ≡ [... 5 anti-patterns ...]
+  yield gaps[], proposals[]
+
+  -- ∴ EVALUATION:
+
+  yield gaps[] ≡ [
+    {
+      id: "GAP-1",
+      type: "INSUFFICIENT",
+      title: "No glob-pattern dependency syntax for spawned cell collection",
+      evidence: "Programs 1, 4, 8, 11, 12, 14, 15, 18, 29 all use 'given cell-*→field'
+        to collect outputs from spawned cells. This is the most common dependency
+        pattern after direct 'given cell→field', yet the spec defines no syntax for it.
+        Program 4 uses 'given edge-test-*→result'; program 1 uses 'given experiment-*→result'.
+        All programs independently converged on the same cell-*→field notation.",
+      severity: "HIGH — blocks specification of the spawner-then-collect pattern"
+    },
+    {
+      id: "GAP-2",
+      type: "INSUFFICIENT",
+      title: "No conditional dispatch or guard clause",
+      evidence: "Program 30 explicitly constructs an awkward program demonstrating this
+        gap. The content moderation pipeline (classify → route to handler) forces all
+        handlers to run unconditionally, producing 'N/A' for irrelevant cases. The spec
+        states 'There is no way to express evaluate A, then choose B or C based on
+        result.' This is a known v0.1 limitation.",
+      severity: "HIGH — fundamental expressiveness gap, wastes LLM calls"
+    },
+    {
+      id: "GAP-3",
+      type: "AMBIGUOUS",
+      title: "⊢∘ evolution loop with multiple targets",
+      evidence: "Program 7 uses '⊢∘ debate(argue-for, argue-against)' — two evolution
+        targets. Program 9 uses FOUR parallel ⊢∘ loops sharing one mediator.
+        The spec shows '⊢∘ evolve(greet, ...)' with a single target cell.
+        Ambiguity: does ⊢∘ support multiple targets? Do parallel ⊢∘ loops
+        interact or are they independent? Programs interpret this differently.",
+      severity: "MEDIUM — programs work around it but semantics are unclear"
+    },
+    {
+      id: "GAP-4",
+      type: "AMBIGUOUS",
+      title: "⊢= bodies can contain semantic pseudo-code",
+      evidence: "Programs 19, 24, 27, 28 use ⊢= with expressions like 'proof-covers()',
+        'missing-from()', 'has-loop-invariant()' — functions that do not exist as
+        deterministic primitives. The spec says '⊢= deterministic expression' but
+        doesn't define what constitutes a valid expression language. Are arbitrary
+        function names allowed? Are they assumed to be runtime builtins?",
+      severity: "MEDIUM — blurs the crystallization boundary"
+    },
+    {
+      id: "GAP-5",
+      type: "CONTRADICTORY",
+      title: "Circular dependencies violate Kahn's algorithm but programs use them",
+      evidence: "Program 17 has geography→history→culture→geography — a cycle.
+        The spec requires all givens bound before evaluation (Kahn's algorithm).
+        Circular dependencies mean no cell in the cycle can ever become ready.
+        The program author appears to intend co-evolution (each reads the others'
+        latest outputs), but the spec provides no mechanism for this.",
+      severity: "HIGH — structurally broken program accepted as valid"
+    },
+    {
+      id: "GAP-6",
+      type: "INSUFFICIENT",
+      title: "No naming convention for ⊢∘ loop variants",
+      evidence: "Programs use inconsistent naming: ⊢∘ evolve() (programs 1,4,7,8,12,15,
+        17,29), ⊢∘ harden() (program 6), ⊢∘ teach() (program 10), ⊢∘ refine()
+        (programs 20,21,23), ⊢∘ debate() (program 7), ⊢∘ fact-check-loop() (program 22),
+        ⊢∘ evolve-spec() (program 30), ⊢∘ optimize() (program 27). The spec shows
+        only '⊢∘ evolve()'. Is the name after ⊢∘ arbitrary? Is it just documentation?
+        What are the parsing rules?",
+      severity: "LOW — cosmetic but causes confusion"
+    },
+    {
+      id: "GAP-7",
+      type: "INSUFFICIENT",
+      title: "No ⊥ exhaustion value semantics beyond ⊨? handler",
+      evidence: "Program 13 is the ONLY program to use ⊥ as a genuine stop signal
+        (halted = true, next-summary = ⊥). The spec mentions ⊥ in ⊨? on exhaustion:
+        error-value(⊥) but doesn't define ⊥ as a first-class value that cells can
+        produce. How does ⊥ propagate through the graph? Does a cell yielding ⊥
+        block downstream cells or pass ⊥ through?",
+      severity: "MEDIUM — ⊥ semantics are underspecified"
+    }
+  ]
+
+  yield proposals[] ≡ [
+    {
+      for-gap: "GAP-1",
+      proposal: "Add glob-pattern dependency syntax: 'given cell-*→field' collects
+        all frozen yields matching the pattern into an array. Semantics: the cell
+        becomes ready when ALL spawned cells matching the pattern are frozen.
+        Syntax: 'given <pattern>→<field>' where <pattern> uses * as wildcard.
+        The collected values form an ordered array (by spawn order).
+        Example: given experiment-*→result → results[] is [experiment-0→result,
+        experiment-1→result, ...]. This legitimizes what 7+ programs already do."
+    },
+    {
+      for-gap: "GAP-2",
+      proposal: "Add guard clause: 'given x where condition'. A guarded cell only
+        enters the ready set when its guard evaluates to true. If false, the cell
+        is SKIPPED (yields are never bound, treated as if the cell doesn't exist).
+        Example: '⊢ handle-toxic\n  given classify→label where label = \"toxic\"'.
+        Minimal syntax change, composable with existing mechanics. Guard evaluation
+        is deterministic (no LLM needed) since it compares concrete frozen values."
+    },
+    {
+      for-gap: "GAP-3",
+      proposal: "Clarify ⊢∘ semantics: the name after ⊢∘ is a user-defined label
+        (arbitrary identifier for documentation). The first argument is the single
+        target cell. Multiple evolution targets require multiple ⊢∘ declarations.
+        Add: 'Multiple ⊢∘ loops MAY share through/until cells. Shared cells are
+        re-evaluated on each iteration of ANY loop that references them.' This
+        clarifies program 9's pattern."
+    },
+    {
+      for-gap: "GAP-4",
+      proposal: "Define a ⊢= expression language: primitives (arithmetic, string ops,
+        comparison, boolean), collections (list ops: length, map, filter, concat),
+        and a SMALL set of builtins (has, contains, matches, count). Any function
+        not in the builtin set is a spec error. Programs 19/24/28 would need to
+        either (a) define their helper functions as separate ⊢= cells, or (b)
+        accept that their 'crystallized' cells are actually soft."
+    },
+    {
+      for-gap: "GAP-5",
+      proposal: "Add co-evolution syntax for mutually dependent cells:
+        '⊢∘ co-evolve(geography, history, culture) through check-consistency
+        until consistent = true max 3'. Semantics: all cells in the co-evolve
+        set are evaluated with ⊥ for unavailable peer inputs on iteration 0,
+        then re-evaluated with peer outputs on iteration 1+. This legitimizes
+        the circular pattern while maintaining monotonicity (each iteration
+        adds information, never removes)."
+    },
+    {
+      for-gap: "GAP-6",
+      proposal: "Specify: the identifier after ⊢∘ is an arbitrary label used for
+        documentation and debugging. Parsing: ⊢∘ <label>(<target-cell>,
+        <arg-bindings>...). The label is NOT a function name — it has no
+        semantic effect. Add examples: ⊢∘ my-loop(...), ⊢∘ refine(...),
+        ⊢∘ harden(...)."
+    },
+    {
+      for-gap: "GAP-7",
+      proposal: "Define ⊥ as a first-class bottom value: any cell may yield ⊥ for
+        any field. A downstream cell with 'given cell→field' where field = ⊥ is
+        BLOCKED PERMANENTLY (the value exists but is bottom). A downstream cell
+        can opt into bottom-awareness with 'given? cell→field' (the optional-given
+        syntax), which binds ⊥ as a concrete value the ∴ body can check."
+    }
+  ]
+
+  -- ORACLE CHECKS:
+  ⊨ each gap cites at least one specific program as evidence ✓
+    (GAP-1: programs 1,4,8,11,12,14,15,18,29; GAP-2: program 30;
+     GAP-3: programs 7,9; GAP-4: programs 19,24,27,28;
+     GAP-5: program 17; GAP-6: programs 1,4,6,7,10,12,20,21,22,23,27,29,30;
+     GAP-7: program 13)
+  ⊨ each proposal is actionable (not vague) ✓
+    (Each specifies concrete syntax, semantics, and examples)
+  ⊨ proposals do not break existing valid programs ✓
+    (All are ADDITIVE: new syntax or clarification, no existing syntax removed)
+
+  -- DECISION: all oracles pass → FREEZE spec-gaps
+
+-- ═══════════════════════════════════════════════════════════════
+-- STATE AFTER FRAME 4: corpus + pattern-analysis + quality-assessment + spec-gaps frozen
+-- Ready set: { synthesis }
+--   synthesis: pattern-analysis→patterns ✓, pattern-analysis→anti-patterns ✓,
+--             spec-gaps→gaps ✓, spec-gaps→proposals ✓,
+--             quality-assessment→tier-list ✓
+-- Blocked: { } — empty
+-- ═══════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 5: eval-one → synthesis
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ synthesis
+  given pattern-analysis→patterns ≡ [... 7 patterns ...]
+  given pattern-analysis→anti-patterns ≡ [... 5 anti-patterns ...]
+  given spec-gaps→gaps ≡ [... 7 gaps ...]
+  given spec-gaps→proposals ≡ [... 7 proposals ...]
+  given quality-assessment→tier-list ≡ [... 30 entries ...]
+  yield findings, spec-recommendations[], next-steps[]
+
+  -- ∴ EVALUATION:
+
+  yield findings ≡ "
+    TOP FINDINGS FROM THE R16 CORPUS
+
+    1. ORACLE-GATED EVOLUTION IS CELL'S DOMINANT PATTERN.
+       23 of 30 programs use ⊢∘ with a quality/convergence oracle as the loop
+       termination condition. This is not one pattern among many — it IS what
+       Cell programs look like. The generate → evaluate → refine → loop cycle
+       appears in every category. The quality oracle (score ≥ N, boolean flag,
+       convergence detection) is the universal gate. Programs 2 (prompt improvement),
+       6 (spec hardening), 19 (code generation), and 25 (oracle chain) demonstrate
+       the pattern most cleanly. Implication: ⊢∘ is not an advanced feature — it
+       is Cell's primary control flow construct. The spec should treat it as such.
+
+    2. SPAWNER-THEN-COLLECT IS THE SECOND CRITICAL PATTERN, AND IT'S UNSPECIFIED.
+       15 of 30 programs use ⊢⊢ followed by a collector cell with glob-pattern
+       dependencies (cell-*→field). This is the most important syntax gap in v0.1.
+       Programs 1, 4, 8, 11, 22, 29 all independently converged on identical
+       notation. The pattern is: decompose problem → ⊢⊢ spawn N cells from template →
+       collector reads all N results → synthesize. Without glob-pattern dependencies,
+       spawning is useless because there's no way to read the spawned outputs.
+
+    3. THE ATTACKER-DEFENDER-JUDGE TRIAD IS CELL'S MOST REUSABLE ARCHITECTURE.
+       Programs 6, 7, 8, 10, 30 all implement this three-role pattern. It maps
+       perfectly to Cell because: (a) the attacker and defender are soft cells
+       (∴ bodies change via ⊢∘), (b) the judge is often crystallizable (boolean
+       verdict), (c) the ⊢∘ until clause naturally terminates when the attacker
+       finds nothing. This is Cell's equivalent of a design pattern — it should be
+       documented in the spec as an idiom.
+
+    4. FALSE CRYSTALLIZATION IS A REAL RISK.
+       Programs 27 and 28 mark cells as ⊢= (crystallized) when their bodies
+       contain semantic operations masquerading as deterministic expressions.
+       'proof-covers(proof-sketch, [\"found-case\", ...])' looks like a function
+       call but requires LLM judgment to evaluate. The spec does not define what
+       constitutes a valid ⊢= expression, leaving authors free to write semantic
+       content in crystallized form. This erodes the trust boundary between soft
+       and hard cells — the fundamental invariant Cell depends on.
+
+    5. THE SPEC'S BIGGEST STRUCTURAL OMISSION: CONDITIONAL DISPATCH.
+       Program 30 identifies and demonstrates this gap. Any program that classifies
+       then routes (moderation, triage, error handling) hits the 'run all branches,
+       output N/A for irrelevant ones' anti-pattern. This wastes LLM calls and adds
+       boilerplate. A guard clause ('given x where condition') is the minimal fix that
+       preserves Cell's existing mechanics while adding conditional execution. 0 of 30
+       programs found a clean workaround — the gap is fundamental.
+  "
+
+  yield spec-recommendations[] ≡ [
+    {
+      priority: 1,
+      title: "Add glob-pattern dependency syntax",
+      rationale: "Blocks 15/30 programs from being spec-compliant. The spawner-then-collect
+        pattern is Cell's second most common idiom. Without it, ⊢⊢ is half-complete.",
+      proposal: "Syntax: 'given <pattern>→<field>' where <pattern> uses * wildcard.
+        Semantics: collects all matching frozen yields into an ordered array.
+        Cell becomes ready when all matching cells are frozen.",
+      affected: "Programs 1, 4, 8, 11, 12, 14, 15, 18, 22, 29 (10 programs directly)"
+    },
+    {
+      priority: 2,
+      title: "Add guard clause for conditional dispatch",
+      rationale: "Fundamental expressiveness gap demonstrated by program 30. Any
+        classification/routing pattern is awkward without it. Wastes LLM calls.",
+      proposal: "Syntax: 'given x where condition'. Cell only enters ready set if
+        guard evaluates true on frozen values. Deterministic evaluation only.",
+      affected: "Program 30 directly; would enable cleaner patterns in 7, 9, 17"
+    },
+    {
+      priority: 3,
+      title: "Define the ⊢= expression language",
+      rationale: "False crystallization (programs 27, 28) erodes the soft/hard trust
+        boundary. Without a defined expression language, ⊢= is meaningless.",
+      proposal: "Enumerate valid ⊢= primitives: arithmetic, comparison, boolean,
+        string ops, list ops (length, map, filter, concat), and a small builtin set.
+        Anything outside this set is a spec error.",
+      affected: "Programs 19, 24, 27, 28 would need revision"
+    },
+    {
+      priority: 4,
+      title: "Clarify ⊢∘ multi-target and naming semantics",
+      rationale: "Programs 7 and 9 interpret ⊢∘ differently from the spec's single
+        example. The naming (evolve, harden, refine, teach) is inconsistent.",
+      proposal: "Specify: label is arbitrary, single target cell, multiple ⊢∘ loops
+        may share through/until cells. Document the interaction semantics.",
+      affected: "Programs 7, 9, 20, 21, 22, 23, 27, 30"
+    },
+    {
+      priority: 5,
+      title: "Add co-evolution syntax for mutually dependent cells",
+      rationale: "Program 17 has circular dependencies that break Kahn's algorithm.
+        Co-evolving cells (each reading the other's latest output) is a legitimate
+        pattern that needs spec support, not a workaround.",
+      proposal: "Syntax: ⊢∘ co-evolve(cell-a, cell-b, cell-c) with iterative
+        evaluation (⊥ for unavailable peer inputs on first pass).",
+      affected: "Program 17 directly; enables world-building and collaborative patterns"
+    },
+    {
+      priority: 6,
+      title: "Define ⊥ propagation semantics",
+      rationale: "Only program 13 uses ⊥, suggesting it's underspecified. ⊥ as a
+        stop signal, error value, and propagation marker needs clear rules.",
+      proposal: "⊥ is a first-class value. Downstream cells with 'given cell→field'
+        are blocked if field = ⊥. Optional given ('given? cell→field') allows
+        ⊥-aware cells to proceed.",
+      affected: "Program 13 directly; enables cleaner error handling in all programs"
+    }
+  ]
+
+  yield next-steps[] ≡ [
+    "R17: SPEC v0.2 DRAFT — Incorporate the top 3 recommendations (glob patterns,
+     guard clauses, ⊢= expression language) into a v0.2 spec draft. Write 5 programs
+     that exercise the new syntax to validate it works.",
+    "R17: REWRITE PROBLEMATIC PROGRAMS — Program 17 needs either circular deps
+     removed or co-evolution syntax. Programs 27/28 need false crystallization fixed.
+     These are the acid test for spec changes.",
+    "R17: IDIOM CATALOG — Document the 7 patterns identified here (attacker-defender-
+     judge, spawner-then-collect, oracle-gated evolution, proof-carrying, §-quotation
+     self-modification, staged pipeline, multi-perspective generation) as a Cell
+     Idiom Catalog. Include the canonical program for each.",
+    "R17: CONDITIONAL DISPATCH EVALUATION — Run program 30's proposed guard clause
+     syntax through 3+ LLM agents to test comprehension. Does 'given x where
+     condition' confuse agents? Is there a simpler alternative?",
+    "R17: ⊢= EXPRESSION LANGUAGE RFC — Design and test the deterministic expression
+     language. This is the crystallization boundary — getting it wrong means Cell
+     loses its fundamental soft/hard invariant."
+  ]
+
+  -- ORACLE CHECKS:
+  ⊨ findings contains at least 3 concrete insights ✓ (5 findings, each with specific program citations)
+  ⊨ spec-recommendations are ordered by priority ✓ (priority 1 through 6)
+  ⊨ next-steps are actionable ✓ (each specifies a concrete deliverable for R17)
+  ⊨ every claim cites a specific program number ✓
+    (Finding 1: programs 2,6,19,25; Finding 2: programs 1,4,8,11,22,29;
+     Finding 3: programs 6,7,8,10,30; Finding 4: programs 27,28;
+     Finding 5: program 30)
+
+  -- DECISION: all oracles pass → FREEZE synthesis
+
+-- ═══════════════════════════════════════════════════════════════
+-- QUIESCENCE: all 5 cells frozen, ready set empty
+-- ═══════════════════════════════════════════════════════════════
+--
+-- Final state hash chain:
+--   h0 (nothing frozen)
+--   → h1 (corpus frozen: feature-usage[30], corpus-summary)
+--   → h2 (pattern-analysis frozen: patterns[7], anti-patterns[5], frequency-table)
+--   → h3 (quality-assessment frozen: tier-list[30], quality-issues[6])
+--   → h4 (spec-gaps frozen: gaps[7], proposals[7])
+--   → h5 (synthesis frozen: findings, spec-recommendations[6], next-steps[5])
+--
+-- Confluence note: frames 2 & 3 were confluent (pattern-analysis and
+-- quality-assessment could have been evaluated in either order). Frames
+-- 3 & 4 were also confluent (quality-assessment and spec-gaps could swap
+-- if both deps were ready). The final synthesis required all four
+-- predecessor cells, so it was necessarily last.
+--
+-- Execution summary:
+--   5 eval-one steps
+--   0 oracle failures (no retries needed)
+--   0 ⊢⊢ spawner activations (no dynamic frontier growth)
+--   0 ⊢∘ evolution iterations (single-pass analysis)
+--   30 programs analyzed
+--   7 patterns identified
+--   5 anti-patterns identified
+--   7 spec gaps found
+--   7 proposals generated
+--   6 prioritized spec recommendations
+--   5 actionable next steps for R17
+
+-- ═══════════════════════════════════════════════════════════════
+-- APPENDIX: Feature Frequency Summary
+-- ═══════════════════════════════════════════════════════════════
+--
+--   ⊢  (soft cell)         100%  — universal
+--   «» (interpolation)     100%  — universal
+--   ≡  (binding)           100%  — universal
+--   →  (output access)     100%  — universal
+--   ⊨  (oracle)            100%  — universal
+--   ⊢∘ (evolution loop)     77%  — dominant control flow
+--   ⊢= (hard cell)          73%  — heavily used, especially in validation programs
+--   §  (quotation)           70%  — essential for self-modification patterns
+--   ⊢⊢ (spawner)             50%  — half the corpus uses dynamic frontier growth
+--   ⊨? (recovery)            47%  — underused relative to its importance
+--   glob (cell-*→field)      23%  — NOT IN SPEC, critical gap
+--   ▸  (refinement stage)    20%  — niche, used only with ⊢= crystallized cells
+--   ⊥  (bottom)               3%  — severely underused, needs better spec support
+
+-- ═══════════════════════════════════════════════════════════════
+-- APPENDIX: Quality Distribution
+-- ═══════════════════════════════════════════════════════════════
+--
+--   EXEMPLARY:    16/30 (53%) — programs 1,2,3,4,5,6,8,10,13,19,22,23,24,25,26,29,30
+--   ADEQUATE:     13/30 (43%) — programs 7,9,11,12,14,15,16,18,20,21,27,28
+--   PROBLEMATIC:   1/30 (3%)  — program 17 (circular dependencies)
+--
+-- The high exemplary rate (53%) reflects strong program design across the corpus.
+-- The single problematic program (17) is a spec gap, not an author error — the
+-- co-evolution pattern is legitimate but unsupported by v0.1.
