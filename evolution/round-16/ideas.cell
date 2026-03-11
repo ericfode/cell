@@ -1,0 +1,236 @@
+-- round-16: 30 Cell programs that are impossible in beads formulas
+-- Each requires recursion, validation gates, dynamic spawning, or self-modification.
+-- Every execution MUST include cell-v0.1-spec.md as context.
+
+-- ═══════════════════════════════════════════════════════════════
+-- CATEGORY: SELF-EVOLVING PROGRAMS
+-- ═══════════════════════════════════════════════════════════════
+
+-- 1. RESEARCH PLAN EVOLVER
+-- Takes a problem statement, generates hypotheses, designs experiments
+-- to test each hypothesis, evaluates which experiments are feasible,
+-- SPAWNS new cells for feasible experiments, collects results,
+-- rewrites hypotheses based on results. Loops until convergence.
+-- Formula can't: dynamic spawning based on LLM judgment + recursive refinement.
+
+-- 2. SELF-IMPROVING PROMPT
+-- Takes a prompt + evaluation criteria. Runs the prompt, scores output,
+-- identifies weaknesses, rewrites the prompt to fix weaknesses, re-runs,
+-- re-scores. Loop until score exceeds threshold or max iterations.
+-- Formula can't: output-dependent branching + quality gate loops.
+
+-- 3. PROGRESSIVE CRYSTALLIZATION
+-- Takes a soft task ("write a function that..."), generates code,
+-- extracts the PATTERN, converts pattern to a ⊢= template, tests
+-- template against new inputs, iterates until the template handles
+-- all cases deterministically. The cell literally evolves from ⊢ to ⊢=.
+-- Formula can't: substrate transfer as a runtime operation.
+
+-- 4. SELF-BUILDING TEST SUITE
+-- Takes a function signature + behavior description. Generates test
+-- case 1, runs it, finds edge cases from the result, generates
+-- targeted test cases for edges, runs those, finds deeper edges.
+-- Spawns a new test cell for each discovered edge case.
+-- Formula can't: recursive discovery + dynamic spawning.
+
+-- 5. META-CELL DESIGNER
+-- Takes a problem domain description. Designs a Cell program for it.
+-- Evaluates the design via simulated eval-one. Finds awkward parts.
+-- Redesigns. Outputs a ready-to-run .cell file.
+-- Formula can't: programs that write programs with validation.
+
+-- ═══════════════════════════════════════════════════════════════
+-- CATEGORY: ADVERSARIAL / DIALECTIC
+-- ═══════════════════════════════════════════════════════════════
+
+-- 6. SPEC HARDENER
+-- Takes any specification text. An attacker cell finds ambiguities.
+-- A defender cell rewrites to close them. A judge cell rules whether
+-- the fix works. Loop until attacker can't find any more ambiguities.
+-- Formula can't: multi-role adversarial loop with judgment gates.
+
+-- 7. RECURSIVE DEBATE
+-- Two cells argue opposing positions on a question. A judge scores
+-- each round. Weak arguments get replaced, strong ones get refined.
+-- Continues until no argument can be improved (fixpoint).
+-- Formula can't: multi-agent with per-round quality evolution.
+
+-- 8. RED-TEAM THEN HARDEN
+-- Takes a piece of code. Red-team cell finds a vulnerability.
+-- Fix cell patches it. Red-team attacks the patch. Loop until
+-- red-team fails to find anything. Each round spawns oracle cells
+-- that become permanent regression tests.
+-- Formula can't: adversarial loop that ACCUMULATES artifacts.
+
+-- 9. NEGOTIATION TO CONSENSUS
+-- N perspective cells each argue a position. A mediator identifies
+-- common ground and remaining disagreements. Perspective cells
+-- revise. Mediator re-evaluates. Loop until supermajority consensus.
+-- Formula can't: N-way parallel + judgment-gated iteration.
+
+-- 10. SOCRATIC TEACHER
+-- Takes a concept + student knowledge level. Asks a question.
+-- Evaluates the answer (simulated student). Identifies misconception.
+-- Designs targeted question to expose the misconception. Repeats
+-- until student demonstrates understanding. Spawns remedial cells
+-- for each misconception discovered.
+-- Formula can't: adaptive branching based on diagnostic evaluation.
+
+-- ═══════════════════════════════════════════════════════════════
+-- CATEGORY: RECURSIVE DECOMPOSITION
+-- ═══════════════════════════════════════════════════════════════
+
+-- 11. FRACTAL TASK PLANNER
+-- Takes a goal. Decomposes into 3-5 sub-goals. Each sub-goal
+-- decomposes into 3-5 tasks. Each task into steps. Each step into
+-- atomic actions. Oracle at each level: "is this decomposition
+-- complete and non-overlapping?" ⊥ if not → retry decomposition.
+-- Formula can't: recursive depth with quality gates at each level.
+
+-- 12. RECURSIVE REQUIREMENT EXTRACTOR
+-- Takes a vague request ("build me an app"). Extracts explicit
+-- requirements. Identifies implicit requirements. For each implicit
+-- requirement, asks "what sub-requirements does this imply?"
+-- Recurses until all requirements are concrete and testable.
+-- Formula can't: recursive depth controlled by semantic judgment.
+
+-- 13. PROGRESSIVE SUMMARIZATION
+-- Takes a long document. Pass 1: summarize to 50%. Oracle: key info
+-- preserved? Pass 2: summarize to 25%. Oracle: still accurate?
+-- Continue halving until oracle says information loss is unacceptable.
+-- The ⊥ from the oracle STOPS the loop — bottom as a feature.
+-- Formula can't: oracle-terminated recursion (⊥ as stop signal).
+
+-- 14. DEPENDENCY GRAPH BUILDER
+-- Takes a codebase description. Identifies modules. For each module,
+-- identifies dependencies. For each dependency, checks if it's
+-- internal or external. For internal deps, recurses into that module.
+-- Builds a complete DAG. Oracle validates: is the DAG acyclic?
+-- Formula can't: recursive graph construction with structural validation.
+
+-- 15. RECURSIVE EXPLANATION
+-- Explains a concept. Identifies the 3 hardest sub-concepts.
+-- Explains each sub-concept. Identifies THEIR hard parts. Recurses.
+-- Stops when all leaf explanations pass a "would a 10-year-old
+-- understand this?" oracle.
+-- Formula can't: recursive depth controlled by comprehension oracle.
+
+-- ═══════════════════════════════════════════════════════════════
+-- CATEGORY: GENERATIVE / CREATIVE
+-- ═══════════════════════════════════════════════════════════════
+
+-- 16. EVOLUTION SIMULATOR
+-- Population of 6 solution candidates. Each generation: mutate each,
+-- evaluate fitness via oracle, select top 3, crossover to produce 3
+-- new candidates. Loop until fitness threshold or generation limit.
+-- Formula can't: population-based parallel evolution with selection.
+
+-- 17. COLLABORATIVE WORLD-BUILDER
+-- Start with a seed: "a city where..." One cell adds geography.
+-- One adds history. One adds culture. Each reads the others' outputs.
+-- Consistency oracle checks for contradictions. If contradiction found,
+-- the contradicting cell rewrites. Loop until consistent.
+-- Formula can't: parallel creative generation with consistency oracle.
+
+-- 18. RECURSIVE STORY BUILDER
+-- Generates a story outline (3 acts). Each act spawns cells for
+-- scenes. Each scene spawns cells for beats. Oracle checks narrative
+-- consistency across spawned levels. Bottom-up assembly: beats →
+-- scenes → acts → story.
+-- Formula can't: hierarchical spawning with cross-level validation.
+
+-- 19. CODE GENERATOR WITH PROOF
+-- Takes a function spec. Generates code. Generates property-based
+-- tests. Runs tests (simulated). If failure: analyzes failure,
+-- rewrites code, re-tests. If pass: generates a proof sketch
+-- explaining why the code is correct. Oracle validates proof.
+-- Formula can't: generate-test-fix loop + proof generation.
+
+-- 20. LANGUAGE DESIGNER
+-- Takes a domain ("financial contracts"). Designs a DSL for it.
+-- Writes 3 example programs in the DSL. Tries to eval-one each.
+-- Identifies where the DSL is awkward. Redesigns. Re-writes examples.
+-- Loop until all examples execute cleanly.
+-- Formula can't: meta-language design with eval-one feedback loop.
+
+-- ═══════════════════════════════════════════════════════════════
+-- CATEGORY: VALIDATION-HEAVY
+-- ═══════════════════════════════════════════════════════════════
+
+-- 21. SELF-CORRECTING TRANSLATOR
+-- Translates text to target language. Back-translates to source.
+-- Diff oracle compares source vs back-translation. If drift detected:
+-- identifies drifted segments, retranslates just those, re-checks.
+-- Loop until back-translation matches within oracle tolerance.
+-- Formula can't: bidirectional validation loop with segment-level retry.
+
+-- 22. FACT-CHECKED ARTICLE
+-- Generates an article on a topic. For each factual claim, spawns
+-- a fact-check oracle cell. Failed claims get rewritten or removed.
+-- Re-generates article without bad claims. Re-checks new claims.
+-- Loop until all claims pass.
+-- Formula can't: dynamic oracle spawning per claim + rewrite loop.
+
+-- 23. MULTI-ORACLE GANTLET
+-- Takes LLM output through 5 different oracle types: structural
+-- (format check), semantic (meaning check), factual (truth check),
+-- stylistic (tone check), logical (consistency check). If ANY fails,
+-- the output gets rewritten targeting the failed oracle, then
+-- re-runs ALL oracles. Loop until all 5 pass simultaneously.
+-- Formula can't: multi-dimensional validation with targeted retry.
+
+-- 24. PROOF-CARRYING CODE
+-- Takes a function + its spec. Generates code + a formal argument
+-- for correctness. Validates argument structure (is it actually a
+-- proof?). If invalid: identifies the gap, regenerates just that
+-- part of the argument, re-validates. Code + proof ship together.
+-- Formula can't: coupled generation + validation with gap-targeted retry.
+
+-- 25. ORACLE CHAIN BUILDER
+-- Takes a soft oracle ("output is good"). Asks: what does "good" mean?
+-- Decomposes into 3 specific sub-oracles. For each sub-oracle,
+-- asks if IT is still too vague. Recurses until all leaf oracles are
+-- deterministically checkable (⊢=). Outputs an oracle hierarchy.
+-- Formula can't: recursive oracle refinement from vague to precise.
+
+-- ═══════════════════════════════════════════════════════════════
+-- CATEGORY: META / SELF-REFERENTIAL
+-- ═══════════════════════════════════════════════════════════════
+
+-- 26. CELL-ZERO EXERCISER
+-- Takes cell-zero.cell and a simple target program. Traces cell-zero
+-- executing the target step by step. At each step, validates that
+-- cell-zero's behavior matches the spec. Identifies any divergence
+-- between cell-zero-as-written and cell-zero-as-spec.
+-- Formula can't: metacircular execution trace with spec validation.
+
+-- 27. SELF-OPTIMIZING CELL
+-- Takes a working Cell program. Analyzes it for redundant cells,
+-- tautological oracles, unnecessary dependencies. Removes them.
+-- Re-executes the optimized version. Compares output. If different:
+-- the optimization was wrong — revert and try a different optimization.
+-- Formula can't: optimization loop with correctness-preserving constraint.
+
+-- 28. PROGRAM ALGEBRA PROVER
+-- Takes two Cell programs. Claims they're equivalent. Traces both
+-- via eval-one. Compares outputs at each step. If divergence found:
+-- identifies the cause, determines if it's a real semantic difference
+-- or just an ordering difference (confluence). Outputs: equivalent
+-- or not, with proof trace.
+-- Formula can't: parallel execution + semantic comparison + proof.
+
+-- 29. BOOTSTRAPPER
+-- Starts with ZERO cells. A meta-cell reads a problem description.
+-- Decides what cells are needed. Spawns them (via ⊢⊢). Spawned cells
+-- execute. Meta-cell reads results. Decides if more cells are needed.
+-- Spawns more. Loop until the problem is solved. The program
+-- literally builds itself from nothing.
+-- Formula can't: fully dynamic program construction.
+
+-- 30. CELL SPEC EVOLVER
+-- Takes the current Cell v0.1 spec. Writes a program that's awkward
+-- in the current spec. Identifies WHY it's awkward. Proposes a spec
+-- change. Rewrites the program with the proposed change. Evaluates:
+-- is it better? If yes, the spec change is good. Accumulates changes.
+-- Loop until no more awkwardness found. Outputs: proposed v0.2 spec.
+-- Formula can't: meta-language evolution driven by usage feedback.
