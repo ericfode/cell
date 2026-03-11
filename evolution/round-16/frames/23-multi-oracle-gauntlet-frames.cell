@@ -1,0 +1,730 @@
+-- 23-multi-oracle-gauntlet-frames.cell — full execution trace
+--
+-- Ready set analysis (initial):
+--   topic: ⊢= with no given → READY
+--   explain: given topic→subject, topic→audience → BLOCKED
+--   oracle-structural: given explain→explanation → BLOCKED
+--   oracle-semantic: given explain→explanation, topic→subject → BLOCKED
+--   oracle-factual: given explain→explanation → BLOCKED
+--   oracle-stylistic: given explain→explanation, topic→audience → BLOCKED
+--   oracle-logical: given explain→explanation → BLOCKED
+--   gauntlet: given all 5 oracle results → BLOCKED
+--   rewrite: given explain→explanation, gauntlet results → BLOCKED
+--   ⊢∘ refine: coordinates iteration over explain through
+--     {oracle-structural, oracle-semantic, oracle-factual, oracle-stylistic,
+--      oracle-logical, gauntlet, rewrite}
+--
+-- Ready set: { topic }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 0: topic (hard cell, deterministic)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ topic
+  yield subject, audience
+
+  ⊢= subject ← "monads in functional programming"
+  ⊢= audience ← "intermediate programmers who know functions and types but not category theory"
+
+  yield subject ≡ "monads in functional programming"
+  yield audience ≡ "intermediate programmers who know functions and types but not category theory"
+
+-- No oracles. Deterministic.
+-- Ready set after: { explain }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 1: explain (soft cell, LLM generates monad explanation)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ explain
+  given topic→subject ≡ "monads in functional programming"
+  given topic→audience ≡ "intermediate programmers who know functions and types but not category theory"
+  yield explanation
+
+  ∴ Write a clear explanation of monads for intermediate programmers.
+
+-- LLM evaluation:
+-- Constructing explanation. Must include: analogy/hook opening, definition
+-- (type constructor + return + bind), three laws in plain language, 2+ examples
+-- (Maybe, List), code snippet, practical conclusion. Target 300-500 words.
+
+  yield explanation ≡ "## Monads: A Design Pattern for Chaining Operations
+
+Imagine you're building a pipeline where each step might fail, produce multiple results, or need some context. You could check for errors after every step, but that turns elegant code into a mess of conditionals. Monads solve this by giving you a structured way to chain operations that carry extra 'context' along for the ride.
+
+### What Is a Monad?
+
+A monad is three things:
+
+1. **A type constructor** `M` that wraps a value — turning an `a` into an `M a`
+2. **`return`** (also called `pure`): takes a plain value and wraps it — `a → M a`
+3. **`bind`** (written `>>=` in Haskell): takes a wrapped value and a function that produces a new wrapped value, then chains them — `M a → (a → M b) → M b`
+
+`bind` is the key operation. It unwraps, applies your function, and re-wraps — handling the 'context' (failure, multiplicity, side effects) automatically.
+
+### The Three Laws
+
+Every monad must satisfy these rules:
+
+- **Left identity**: wrapping a value then binding a function is the same as just calling the function — `return a >>= f` equals `f a`
+- **Right identity**: binding `return` onto a wrapped value changes nothing — `m >>= return` equals `m`
+- **Associativity**: chaining order doesn't matter — `(m >>= f) >>= g` equals `m >>= (λx → f x >>= g)`
+
+These ensure your pipelines behave predictably regardless of how you group them.
+
+### Examples
+
+**Maybe** (called `Option` in Rust/OCaml): Represents computations that might fail. `bind` short-circuits on `Nothing` — no manual null checks needed.
+
+```haskell
+safeDivide :: Int -> Int -> Maybe Int
+safeDivide _ 0 = Nothing
+safeDivide x y = Just (x `div` y)
+
+-- Chaining: 12 / 3 / 2 = Just 2
+result = return 12 >>= safeDivide 3 >>= safeDivide 2
+-- But: 12 / 0 / 2 = Nothing (short-circuits)
+```
+
+**List**: Represents computations with multiple results. `bind` is `concatMap` — each element can produce zero or more results, and they're all collected.
+
+```haskell
+pairs = [1,2,3] >>= \x -> [10,20] >>= \y -> return (x, y)
+-- [(1,10),(1,20),(2,10),(2,20),(3,10),(3,20)]
+```
+
+### Why Monads Matter
+
+Monads let you compose effectful operations the same way you compose pure functions. Instead of writing special-case code for 'what if this is null?' or 'what if this returns multiple values?', you write your logic once and let `bind` handle the plumbing. This is why Haskell uses monads for IO — side effects become composable values rather than invisible action-at-a-distance."
+
+-- oracle checks:
+--   ⊨ explanation is between 300 and 500 words → ✓
+--     (word count: ~370 words)
+--   ⊨ explanation contains at least 2 code examples or snippets → ✓
+--     (safeDivide snippet + List pairs snippet)
+--
+-- All oracles pass. Freeze output.
+-- Ready set after: { oracle-structural, oracle-semantic, oracle-factual,
+--                     oracle-stylistic, oracle-logical }
+-- (5 cells become ready simultaneously — all only need explain→explanation)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 2: oracle-structural (soft cell, checks format)
+-- ═══════════════════════════════════════════════════════════════
+-- Note: oracle-structural, oracle-semantic, oracle-factual, oracle-stylistic,
+-- oracle-logical are all in the ready set. Kahn's picks one. Order is
+-- arbitrary due to confluence — same results regardless of evaluation order.
+
+⊢ oracle-structural
+  given explain→explanation ≡ "## Monads: A Design Pattern for Chaining Operations ..."
+  yield format-ok, format-issues[]
+
+  ∴ Check FORMAT: intro analogy, definition, examples, code, conclusion.
+
+-- LLM evaluation:
+-- Checking 5 structural elements:
+--   1. Intro paragraph with analogy/hook? YES — pipeline analogy in first paragraph
+--      ("Imagine you're building a pipeline where each step might fail...").
+--      Not a bare definition. ✓
+--   2. Definition section with type constructor + return + bind? YES —
+--      "What Is a Monad?" section lists all three with type signatures. ✓
+--   3. Concrete examples (≥ 2 different monads)? YES —
+--      Maybe and List both explained with descriptions. ✓
+--   4. Code snippet? YES — Haskell safeDivide and List pairs examples. ✓
+--   5. Conclusion about practical value? YES — "Why Monads Matter" section
+--      explains composability of effectful operations. ✓
+--
+-- All 5 structural elements present.
+
+  yield format-ok ≡ true
+  yield format-issues ≡ []
+
+-- oracle checks:
+--   ⊨ format-ok ∈ {true, false} → ✓
+--   ⊨ if format-ok then format-issues is empty → ✓
+--
+-- All oracles pass. Freeze output.
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 3: oracle-semantic (soft cell, checks accuracy)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ oracle-semantic
+  given explain→explanation ≡ "## Monads: A Design Pattern for Chaining Operations ..."
+  given topic→subject ≡ "monads in functional programming"
+  yield accuracy-ok, accuracy-issues[]
+
+  ∴ Check ACCURACY of monad explanation.
+
+-- LLM evaluation:
+-- Checking 4 accuracy criteria:
+--   1. Monad definition correct?
+--      - Type constructor M wrapping a → M a: stated ✓
+--      - return: a → M a: stated with correct type ✓
+--      - bind: M a → (a → M b) → M b: stated with correct type ✓
+--      ✓ Definition correct.
+--
+--   2. Monad laws correctly stated?
+--      - Left identity: "return a >>= f equals f a" — correct ✓
+--      - Right identity: "m >>= return equals m" — correct ✓
+--      - Associativity: "(m >>= f) >>= g equals m >>= (λx → f x >>= g)" — correct ✓
+--      ✓ All three laws correctly stated.
+--
+--   3. Examples correctly implement monad interface?
+--      - Maybe: bind on Nothing short-circuits, bind on Just applies function.
+--        Code shows return 12 >>= safeDivide 3 — but wait, safeDivide takes
+--        two arguments: safeDivide _ 0 and safeDivide x y. The expression
+--        `return 12 >>= safeDivide 3` would need safeDivide to be curried
+--        as `safeDivide :: Int -> Int -> Maybe Int` — but the bind signature
+--        is `M a → (a → M b) → M b`, so `safeDivide 3` would have type
+--        `Int → Maybe Int`... but `safeDivide 3 12` = `safeDivide 12 3`?
+--        No: `safeDivide 3` partially applies the first argument, giving
+--        a function `\y → safeDivide 3 y`. So `return 12 >>= safeDivide 3`
+--        means `safeDivide 3 12` which is `safeDivide _ 0 = Nothing`? No:
+--        `safeDivide 3 12` pattern-matches — first arg is 3 (not _), second
+--        is 12 (not 0), so it returns `Just (3 \`div\` 12)` = `Just 0`.
+--        That doesn't match the comment "12 / 3 / 2 = Just 2".
+--        The author likely intended `\x → safeDivide x 3` (divide x BY 3),
+--        but wrote `safeDivide 3` which is `safeDivide 3 y` (divide 3 BY y).
+--        SEMANTIC ERROR: safeDivide argument order is wrong in the pipeline.
+--      - List: concatMap description is correct. Code for pairs is standard. ✓
+--
+--   4. No confusion between monads and functors/applicatives?
+--      No mention of functors or applicatives — no confusion possible. ✓
+--
+-- One error found: safeDivide argument order in the chaining example.
+
+  yield accuracy-ok ≡ false
+  yield accuracy-issues ≡ ["safeDivide chaining example has wrong argument order: 'return 12 >>= safeDivide 3' applies safeDivide(3, 12) = Just 0, not 12/3 = Just 4 as intended. Should use 'return 12 >>= (\\x -> safeDivide x 3)' or flip the argument order in the definition."]
+
+-- oracle checks:
+--   ⊨ accuracy-ok ∈ {true, false} → ✓ (false)
+--   ⊨ if not accuracy-ok then each issue identifies a specific error → ✓
+--     (identifies wrong argument order with concrete fix)
+--
+-- All oracles pass. Freeze output.
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 4: oracle-factual (soft cell, checks truth)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ oracle-factual
+  given explain→explanation ≡ "## Monads: A Design Pattern for Chaining Operations ..."
+  yield factual-ok, factual-issues[]
+
+  ∴ Check FACTUAL TRUTH of monad explanation.
+
+-- LLM evaluation:
+-- Checking 5 factual claims:
+--   1. Haskell monads use >>= (bind) and return?
+--      Text says: "return (also called pure): ... a → M a" and
+--      "bind (written >>= in Haskell)". ✓ Correct. (Technically `return` is
+--      from Monad class, `pure` from Applicative — they're equivalent for
+--      monads. Close enough for this audience.)
+--
+--   2. Maybe/Option IS a monad?
+--      Text says: "Maybe (called Option in Rust/OCaml)". ✓ Correct.
+--      Maybe is indeed a monad. Option is the Rust/OCaml name.
+--
+--   3. List IS a monad (bind = concatMap)?
+--      Text says: "bind is concatMap". ✓ Correct.
+--      List's >>= is indeed concatMap.
+--
+--   4. Promises claimed as exact monad?
+--      Promises not mentioned at all. No false claim possible. ✓
+--
+--   5. No false historical claims?
+--      Text says: "This is why Haskell uses monads for IO". ✓ Correct.
+--      No other historical claims made. No attribution to Moggi/Wadler
+--      but absence isn't error.
+--
+-- All facts check out.
+
+  yield factual-ok ≡ true
+  yield factual-issues ≡ []
+
+-- oracle checks:
+--   ⊨ factual-ok ∈ {true, false} → ✓ (true)
+--   ⊨ if factual-ok then factual-issues is empty → ✓
+--
+-- All oracles pass. Freeze output.
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 5: oracle-stylistic (soft cell, checks tone)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ oracle-stylistic
+  given explain→explanation ≡ "## Monads: A Design Pattern for Chaining Operations ..."
+  given topic→audience ≡ "intermediate programmers who know functions and types but not category theory"
+  yield tone-ok, tone-issues[]
+
+  ∴ Check STYLE for intermediate programmers.
+
+-- LLM evaluation:
+-- Checking 5 style criteria:
+--   1. No unexplained jargon?
+--      - "type constructor" — used but audience knows types. OK.
+--      - "endofunctor" — not mentioned. ✓
+--      - "λx" — lambda notation in the associativity law. The audience
+--        "knows functions" so lambda syntax should be familiar, but `λ`
+--        (Unicode lambda) might confuse JS/Python developers who know
+--        `\x ->` or `lambda x:`. Minor issue, not blocking.
+--      ✓ No unexplained jargon.
+--
+--   2. Conversational and accessible tone?
+--      "Imagine you're building a pipeline" — conversational ✓
+--      "no manual null checks needed" — practical ✓
+--      "let bind handle the plumbing" — informal and clear ✓
+--      ✓ Tone is appropriate.
+--
+--   3. Analogies bridge concepts?
+--      Pipeline analogy in intro bridges to chaining. ✓
+--      "context along for the ride" — accessible metaphor. ✓
+--
+--   4. Sentence length varies?
+--      Short: "A monad is three things:" (6 words)
+--      Medium: "bind is the key operation." (6 words + expansion)
+--      Long: The associativity law explanation. ✓ Good variation.
+--
+--   5. Active voice preferred?
+--      "Monads solve this" — active ✓
+--      "Monads let you compose" — active ✓
+--      "they're all collected" — passive, but in context of a list
+--        comprehension explanation, acceptable.
+--      ✓ Active voice predominates.
+--
+-- All style criteria pass.
+
+  yield tone-ok ≡ true
+  yield tone-issues ≡ []
+
+-- oracle checks:
+--   ⊨ tone-ok ∈ {true, false} → ✓ (true)
+--   ⊨ if tone-ok then tone-issues is empty → ✓
+--
+-- All oracles pass. Freeze output.
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 6: oracle-logical (soft cell, checks coherence)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ oracle-logical
+  given explain→explanation ≡ "## Monads: A Design Pattern for Chaining Operations ..."
+  yield logic-ok, logic-issues[]
+
+  ∴ Check LOGICAL COHERENCE of monad explanation.
+
+-- LLM evaluation:
+-- Checking 5 logic criteria:
+--   1. No circular definitions?
+--      Definition: "A monad is three things: a type constructor, return, bind."
+--      Defined in terms of operations and type signatures, not in terms
+--      of "monadness" or "monadic". ✓ Not circular.
+--
+--   2. Examples follow from definition?
+--      Definition comes in "What Is a Monad?" section. Examples come in
+--      "Examples" section after. Maybe and List both reference return and
+--      bind from the definition. ✓ Correct ordering.
+--
+--   3. Claims have support?
+--      "bind is the key operation" — supported by explanation of what it does. ✓
+--      "These ensure your pipelines behave predictably" — supported by the
+--      laws themselves (identity, associativity). ✓
+--      "Monads let you compose effectful operations" — supported by examples. ✓
+--
+--   4. Three laws presented as distinct?
+--      Left identity, right identity, associativity — three bullet points,
+--      each with distinct name and formula. ✓ Not conflated.
+--
+--   5. No contradictions between sections?
+--      Intro promises "chaining operations that carry extra context."
+--      Definition explains the mechanism (bind chains M a through functions).
+--      Examples demonstrate chaining. Conclusion reiterates composability.
+--      ✓ Consistent throughout.
+--
+-- All logic criteria pass.
+
+  yield logic-ok ≡ true
+  yield logic-issues ≡ []
+
+-- oracle checks:
+--   ⊨ logic-ok ∈ {true, false} → ✓ (true)
+--   ⊨ if logic-ok then logic-issues is empty → ✓
+--
+-- All oracles pass. Freeze output.
+-- Ready set after: { gauntlet }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 7: gauntlet (crystallized aggregator)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ gauntlet ▸ crystallized
+  given oracle-structural→format-ok ≡ true
+  given oracle-semantic→accuracy-ok ≡ false
+  given oracle-factual→factual-ok ≡ true
+  given oracle-stylistic→tone-ok ≡ true
+  given oracle-logical→logic-ok ≡ true
+  given oracle-structural→format-issues ≡ []
+  given oracle-semantic→accuracy-issues ≡ ["safeDivide chaining example has wrong argument order: 'return 12 >>= safeDivide 3' applies safeDivide(3, 12) = Just 0, not 12/3 = Just 4 as intended. Should use 'return 12 >>= (\\x -> safeDivide x 3)' or flip the argument order in the definition."]
+  given oracle-factual→factual-issues ≡ []
+  given oracle-stylistic→tone-issues ≡ []
+  given oracle-logical→logic-issues ≡ []
+  yield all-pass, failure-report[], failed-oracles[]
+
+  ⊢= all-pass ← (true ∧ false ∧ true ∧ true ∧ true) = false
+
+  ⊢= failed-oracles ← collect(
+    if ¬false then "semantic"
+  ) = ["semantic"]
+
+  ⊢= failure-report ← concat([], ["safeDivide chaining example has wrong argument order..."], [], [], [])
+    = ["safeDivide chaining example has wrong argument order: 'return 12 >>= safeDivide 3' applies safeDivide(3, 12) = Just 0, not 12/3 = Just 4 as intended. Should use 'return 12 >>= (\\x -> safeDivide x 3)' or flip the argument order in the definition."]
+
+  yield all-pass ≡ false
+  yield failure-report ≡ ["safeDivide chaining example has wrong argument order: 'return 12 >>= safeDivide 3' applies safeDivide(3, 12) = Just 0, not 12/3 = Just 4 as intended. Should use 'return 12 >>= (\\x -> safeDivide x 3)' or flip the argument order in the definition."]
+  yield failed-oracles ≡ ["semantic"]
+
+-- oracle checks:
+--   ⊨ if not all-pass then length(failed-oracles) ≥ 1 → ✓ (1 failed oracle)
+--   ⊨ if not all-pass → failure-report not empty → ✓
+--
+-- Deterministic — all oracles pass by construction.
+-- Ready set after: { rewrite }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 8: rewrite (soft cell, targeted fix of semantic error)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ rewrite
+  given explain→explanation ≡ "## Monads: A Design Pattern for Chaining Operations ..."
+  given gauntlet→all-pass ≡ false
+  given gauntlet→failure-report ≡ ["safeDivide chaining example has wrong argument order: 'return 12 >>= safeDivide 3' applies safeDivide(3, 12) = Just 0, not 12/3 = Just 4 as intended. Should use 'return 12 >>= (\\x -> safeDivide x 3)' or flip the argument order in the definition."]
+  given gauntlet→failed-oracles ≡ ["semantic"]
+  yield revised-explanation, changes-made[]
+
+  ∴ Fix semantic error: safeDivide argument order in chaining example.
+
+-- LLM evaluation:
+-- Failed oracle: semantic. Issue: safeDivide argument order.
+-- Fix strategy: flip the definition so the dividend comes first.
+-- safeDivide x y = x `div` y — then safeDivide 12 >>= \r -> safeDivide r 3...
+-- Actually, simpler fix: redefine safeDivide to take divisor first,
+-- making `safeDivide 3` mean "divide by 3". That way `return 12 >>= safeDivide 3`
+-- is wrong. Better: keep safeDivide as x/y but use explicit lambda in chain.
+--
+-- Cleanest fix: change the code example to use explicit lambdas or flip
+-- the definition. Going with explicit lambdas to show bind clearly.
+-- Also adjust the comment to match.
+
+  yield revised-explanation ≡ "## Monads: A Design Pattern for Chaining Operations
+
+Imagine you're building a pipeline where each step might fail, produce multiple results, or need some context. You could check for errors after every step, but that turns elegant code into a mess of conditionals. Monads solve this by giving you a structured way to chain operations that carry extra 'context' along for the ride.
+
+### What Is a Monad?
+
+A monad is three things:
+
+1. **A type constructor** `M` that wraps a value — turning an `a` into an `M a`
+2. **`return`** (also called `pure`): takes a plain value and wraps it — `a → M a`
+3. **`bind`** (written `>>=` in Haskell): takes a wrapped value and a function that produces a new wrapped value, then chains them — `M a → (a → M b) → M b`
+
+`bind` is the key operation. It unwraps, applies your function, and re-wraps — handling the 'context' (failure, multiplicity, side effects) automatically.
+
+### The Three Laws
+
+Every monad must satisfy these rules:
+
+- **Left identity**: wrapping a value then binding a function is the same as just calling the function — `return a >>= f` equals `f a`
+- **Right identity**: binding `return` onto a wrapped value changes nothing — `m >>= return` equals `m`
+- **Associativity**: chaining order doesn't matter — `(m >>= f) >>= g` equals `m >>= (λx → f x >>= g)`
+
+These ensure your pipelines behave predictably regardless of how you group them.
+
+### Examples
+
+**Maybe** (called `Option` in Rust/OCaml): Represents computations that might fail. `bind` short-circuits on `Nothing` — no manual null checks needed.
+
+```haskell
+safeDivide :: Int -> Int -> Maybe Int
+safeDivide _ 0 = Nothing
+safeDivide x y = Just (x `div` y)
+
+-- Chaining: 12 / 3 = 4, then 4 / 2 = 2 → Just 2
+result = return 12 >>= (\x -> safeDivide x 3) >>= (\x -> safeDivide x 2)
+-- But: divide by 0 → Nothing (short-circuits at the failing step)
+oops = return 12 >>= (\x -> safeDivide x 0) >>= (\x -> safeDivide x 2)
+```
+
+**List**: Represents computations with multiple results. `bind` is `concatMap` — each element can produce zero or more results, and they're all collected.
+
+```haskell
+pairs = [1,2,3] >>= \x -> [10,20] >>= \y -> return (x, y)
+-- [(1,10),(1,20),(2,10),(2,20),(3,10),(3,20)]
+```
+
+### Why Monads Matter
+
+Monads let you compose effectful operations the same way you compose pure functions. Instead of writing special-case code for 'what if this is null?' or 'what if this returns multiple values?', you write your logic once and let `bind` handle the plumbing. This is why Haskell uses monads for IO — side effects become composable values rather than invisible action-at-a-distance."
+
+  yield changes-made ≡ ["Fixed safeDivide chaining example: replaced 'return 12 >>= safeDivide 3 >>= safeDivide 2' with explicit lambdas 'return 12 >>= (\\x -> safeDivide x 3) >>= (\\x -> safeDivide x 2)' so argument order is correct (dividend >>= divide-by-divisor). Added 'oops' example for division by zero with matching lambda style."]
+
+-- oracle checks:
+--   ⊨ if not gauntlet→all-pass then length(changes-made) ≥ 1 → ✓ (1 change)
+--   ⊨ revised-explanation is between 300 and 500 words → ✓ (~390 words)
+--
+-- All oracles pass. Freeze output.
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ iteration 1 complete. gauntlet→all-pass was false.
+-- Rewriting explain→explanation with rewrite→revised-explanation.
+-- Re-entering ⊢∘ loop: re-run ALL oracles on revised explanation.
+-- ═══════════════════════════════════════════════════════════════
+
+-- Ready set after ⊢∘ rewrite: { oracle-structural, oracle-semantic,
+--   oracle-factual, oracle-stylistic, oracle-logical }
+-- (All 5 oracles re-run on the revised explanation)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 9: oracle-structural (iteration 2, re-check format)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ oracle-structural
+  given explain→explanation ≡ "## Monads: A Design Pattern for Chaining Operations ... [revised]"
+  yield format-ok, format-issues[]
+
+  ∴ Check FORMAT of revised explanation.
+
+-- LLM evaluation:
+-- Re-checking all 5 structural elements on revised text:
+--   1. Intro paragraph with analogy? YES — pipeline analogy unchanged. ✓
+--   2. Definition section with type constructor + return + bind? YES — unchanged. ✓
+--   3. Concrete examples (≥ 2 monads)? YES — Maybe and List still present. ✓
+--   4. Code snippet? YES — revised safeDivide with lambdas + List pairs. ✓
+--   5. Conclusion about practical value? YES — "Why Monads Matter" unchanged. ✓
+--
+-- All structural elements intact. Revision preserved passing structure.
+
+  yield format-ok ≡ true
+  yield format-issues ≡ []
+
+-- oracle checks: all pass ✓
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 10: oracle-semantic (iteration 2, re-check accuracy)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ oracle-semantic
+  given explain→explanation ≡ "## Monads: A Design Pattern for Chaining Operations ... [revised]"
+  given topic→subject ≡ "monads in functional programming"
+  yield accuracy-ok, accuracy-issues[]
+
+  ∴ Check ACCURACY of revised monad explanation.
+
+-- LLM evaluation:
+-- Re-checking all 4 accuracy criteria:
+--   1. Monad definition correct? YES — unchanged, same correct types. ✓
+--   2. Monad laws correctly stated? YES — unchanged, all three correct. ✓
+--   3. Examples correctly implement monad interface?
+--      - Maybe: `return 12 >>= (\x -> safeDivide x 3) >>= (\x -> safeDivide x 2)`
+--        Step 1: return 12 = Just 12
+--        Step 2: Just 12 >>= (\x -> safeDivide x 3) = safeDivide 12 3 = Just 4
+--        Step 3: Just 4 >>= (\x -> safeDivide x 2) = safeDivide 4 2 = Just 2 ✓
+--        Comment says "12 / 3 = 4, then 4 / 2 = 2 → Just 2" — correct!
+--        oops example: safeDivide 12 0 = Nothing, then Nothing >>= ... = Nothing ✓
+--      - List: concatMap example unchanged, correct. ✓
+--   4. No monad/functor confusion? None. ✓
+--
+-- All accuracy checks pass. Previous semantic error is fixed.
+
+  yield accuracy-ok ≡ true
+  yield accuracy-issues ≡ []
+
+-- oracle checks: all pass ✓
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 11: oracle-factual (iteration 2, re-check truth)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ oracle-factual
+  given explain→explanation ≡ "## Monads: A Design Pattern for Chaining Operations ... [revised]"
+  yield factual-ok, factual-issues[]
+
+  ∴ Check FACTUAL TRUTH of revised explanation.
+
+-- LLM evaluation:
+-- Re-checking all 5 factual claims:
+--   1. >>= and return: ✓ (unchanged, correct)
+--   2. Maybe is a monad: ✓ (unchanged, correct)
+--   3. List >>= is concatMap: ✓ (unchanged, correct)
+--   4. No false Promise claims: ✓ (Promises still not mentioned)
+--   5. No false historical claims: ✓ (IO monad claim unchanged, correct)
+--
+-- All facts still correct after revision.
+
+  yield factual-ok ≡ true
+  yield factual-issues ≡ []
+
+-- oracle checks: all pass ✓
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 12: oracle-stylistic (iteration 2, re-check tone)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ oracle-stylistic
+  given explain→explanation ≡ "## Monads: A Design Pattern for Chaining Operations ... [revised]"
+  given topic→audience ≡ "intermediate programmers who know functions and types but not category theory"
+  yield tone-ok, tone-issues[]
+
+  ∴ Check STYLE of revised explanation.
+
+-- LLM evaluation:
+-- Re-checking all 5 style criteria:
+--   1. No unexplained jargon? ✓ (same vocabulary as before)
+--   2. Conversational tone? ✓ (unchanged intro and conclusion)
+--   3. Analogies present? ✓ (pipeline analogy, plumbing metaphor)
+--   4. Sentence length varies? ✓ (mix maintained)
+--   5. Active voice? ✓ (unchanged)
+--
+-- Style unaffected by the code example fix.
+
+  yield tone-ok ≡ true
+  yield tone-issues ≡ []
+
+-- oracle checks: all pass ✓
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 13: oracle-logical (iteration 2, re-check coherence)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ oracle-logical
+  given explain→explanation ≡ "## Monads: A Design Pattern for Chaining Operations ... [revised]"
+  yield logic-ok, logic-issues[]
+
+  ∴ Check LOGICAL COHERENCE of revised explanation.
+
+-- LLM evaluation:
+-- Re-checking all 5 logic criteria:
+--   1. No circular definitions? ✓ (definition unchanged, not circular)
+--   2. Examples follow definition? ✓ (same ordering)
+--   3. Claims supported? ✓ (same structure)
+--   4. Laws distinct? ✓ (three separate bullet points)
+--   5. No contradictions? ✓ (revision only changed code example,
+--      logic flow preserved)
+--
+-- Logical coherence maintained.
+
+  yield logic-ok ≡ true
+  yield logic-issues ≡ []
+
+-- oracle checks: all pass ✓
+-- Ready set after: { gauntlet }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 14: gauntlet (iteration 2, crystallized aggregator)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ gauntlet ▸ crystallized
+  given oracle-structural→format-ok ≡ true
+  given oracle-semantic→accuracy-ok ≡ true
+  given oracle-factual→factual-ok ≡ true
+  given oracle-stylistic→tone-ok ≡ true
+  given oracle-logical→logic-ok ≡ true
+  given oracle-structural→format-issues ≡ []
+  given oracle-semantic→accuracy-issues ≡ []
+  given oracle-factual→factual-issues ≡ []
+  given oracle-stylistic→tone-issues ≡ []
+  given oracle-logical→logic-issues ≡ []
+  yield all-pass, failure-report[], failed-oracles[]
+
+  ⊢= all-pass ← (true ∧ true ∧ true ∧ true ∧ true) = true
+  ⊢= failed-oracles ← collect() = []
+  ⊢= failure-report ← concat([], [], [], [], []) = []
+
+  yield all-pass ≡ true
+  yield failure-report ≡ []
+  yield failed-oracles ≡ []
+
+-- oracle checks:
+--   ⊨ if all-pass then failed-oracles is empty → ✓
+--   ⊨ if all-pass then failure-report is empty → ✓
+--
+-- Deterministic — all pass.
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ iteration 2 complete. gauntlet→all-pass = true.
+-- TERMINATION: until condition satisfied.
+-- Total iterations: 2 (of max 5)
+-- ═══════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════
+-- EXECUTION SUMMARY
+-- ═══════════════════════════════════════════════════════════════
+--
+-- Total frames: 15 (frame 0-14)
+-- ⊢∘ iterations: 2
+--   Iteration 1: oracle-semantic FAILED (safeDivide argument order)
+--     → targeted rewrite fixed code example
+--   Iteration 2: all 5 oracles PASSED → gauntlet converged
+--
+-- Cells evaluated: 15
+--   Hard cells: 3 (topic × 1, gauntlet × 2)
+--   Soft cells: 12 (explain × 1, 5 oracles × 2, rewrite × 1)
+--
+-- Oracle breakdown across all frames:
+--   oracle-structural: PASS → PASS (format stable)
+--   oracle-semantic:   FAIL → PASS (fixed argument order)
+--   oracle-factual:    PASS → PASS (facts stable)
+--   oracle-stylistic:  PASS → PASS (tone stable)
+--   oracle-logical:    PASS → PASS (logic stable)
+--
+-- Key demonstration:
+--   ⊢∘ gauntlet pattern: ANY oracle fails → targeted rewrite → re-run ALL
+--   This is the fundamental pattern for multi-dimensional quality control.
+--   The gauntlet ensures fixes don't break previously-passing dimensions.
+--
+-- Confluence note: frames 2-6 (5 parallel-ready oracles) could execute
+-- in any order with identical results. Kahn's algorithm guarantees this.
+
+-- ═══════════════════════════════════════════════════════════════
+-- OBSERVATIONS
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= observation-gauntlet-pattern
+  ∴ The multi-oracle gauntlet is a natural Cell pattern: N independent
+    oracle cells check different quality dimensions of the same output.
+    A crystallized aggregator (⊢= conjunction) determines pass/fail.
+    The ⊢∘ loop re-runs ALL oracles after each targeted rewrite,
+    ensuring fixes in one dimension don't break another. This is
+    analogous to a full regression test suite after a bug fix.
+
+⊢= observation-parallel-oracles
+  ∴ All 5 oracle cells depend only on explain→explanation (and optionally
+    topic→subject or topic→audience). They share no inter-oracle dependencies.
+    Kahn's algorithm places all 5 in the ready set simultaneously. Under
+    parallel execution, all 5 could run concurrently — the confluence theorem
+    guarantees identical results regardless of scheduling. This is the
+    practical payoff of Cell's dataflow model: parallelism for free.
+
+⊢= observation-crystallized-aggregator
+  ∴ The gauntlet cell is ▸ crystallized because aggregation is pure logic:
+    conjunction of booleans, concatenation of lists, collection of labels.
+    No LLM judgment needed. This demonstrates the crystallization boundary:
+    oracles are soft (require semantic judgment), but their aggregation is
+    hard (deterministic). Verification crystallizes before computation.
+
+⊢= observation-targeted-rewrite
+  ∴ The rewrite cell receives failed-oracles[] and failure-report[] from
+    the gauntlet. It rewrites ONLY the parts that failed, preserving what
+    passed. This is more efficient than full regeneration and prevents
+    regression — a fix for a semantic error should not disturb the
+    structural format or logical flow. The ⊢∘ re-run of ALL oracles
+    verifies this preservation property.
+
+⊢= observation-convergence
+  ∴ The gauntlet converged in 2 iterations (of max 5). Iteration 1 found
+    one semantic error (safeDivide argument order in Haskell). The targeted
+    rewrite fixed exactly that. Iteration 2 verified all 5 dimensions
+    pass simultaneously. Fast convergence is expected when (a) the initial
+    generation is mostly correct and (b) fixes are targeted rather than
+    wholesale rewrites. The max-5 bound prevents infinite loops when
+    oracle feedback oscillates or contradicts.
