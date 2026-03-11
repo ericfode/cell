@@ -1,0 +1,542 @@
+-- 12-recursive-requirement-extractor-frames.cell
+-- Execution trace of 12-recursive-requirement-extractor.cell via eval-one
+--
+-- Vague request: "Build me a chat app"
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 0: evaluate request (trivial pass-through)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { request }
+-- Blocked: { extract-explicit, extract-implicit } — need request→text
+
+⊢ request
+  given text ≡ "Build me a chat app"
+  yield text
+
+-- eval-one: pass-through. text already bound via given ≡.
+
+  yield text ≡ "Build me a chat app"
+
+-- oracle check:
+--   ⊨ text is a vague software request with unstated assumptions → ✓
+
+-- state after frame 0: request frozen.
+-- Ready set: { extract-explicit }
+-- Blocked: { extract-implicit } — needs extract-explicit→requirements
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 1: evaluate extract-explicit (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { extract-explicit }
+
+⊢ extract-explicit
+  given request→text ≡ "Build me a chat app"
+  yield requirements[]
+
+  ∴ Extract explicitly stated requirements from the request...
+
+-- LLM evaluation (simulated):
+
+  yield requirements ≡ [
+    "R-E1: The system is a software application (not a hardware device, not a configuration of existing software).",
+    "R-E2: The application supports chat — sending and receiving text messages between two or more parties.",
+    "R-E3: The application is built from scratch (implied by 'build', not 'set up' or 'configure').",
+    "R-E4: The requester is the owner/stakeholder of the application (implied by 'me')."
+  ]
+
+-- oracle checks:
+--   ⊨ each requirement traceable to words in request → ✓
+--     R-E1: "app" → software application
+--     R-E2: "chat" → messaging between parties
+--     R-E3: "build" → create from scratch
+--     R-E4: "me" → requester is owner
+--   ⊨ each requirement is testable → ✓ (each can be verified by inspection)
+--   ⊨ length(requirements) ≥ 1 → ✓ (4)
+
+-- state after frame 1: extract-explicit frozen.
+-- Ready set: { extract-implicit }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 2: evaluate extract-implicit (soft cell, LLM) — ⊢∘ ITER 1
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { extract-implicit }
+
+⊢ extract-implicit
+  given request→text ≡ "Build me a chat app"
+  given extract-explicit→requirements ≡ ["R-E1: software application...", "R-E2: chat...", "R-E3: built from scratch...", "R-E4: requester is owner..."]
+  yield requirements[], confidence[]
+
+  ∴ Identify implicit requirements not stated but implied...
+
+-- LLM evaluation (simulated):
+
+  yield requirements ≡ [
+    "R-I1: Users must create accounts to identify themselves in conversations.",
+    "R-I2: Messages are persisted — users can view message history.",
+    "R-I3: Message delivery is real-time (messages appear within seconds).",
+    "R-I4: Conversations are private — only participants can read messages.",
+    "R-I5: The app should be responsive and fast.",
+    "R-I6: Users can see when others are online (presence indicators).",
+    "R-I7: The app works on mobile devices.",
+    "R-I8: Users receive notifications for new messages when the app is in background.",
+    "R-I9: The app handles network disconnection gracefully."
+  ]
+
+  yield confidence ≡ [
+    "R-I1: certain — virtually all chat apps require identity",
+    "R-I2: certain — message persistence is expected baseline",
+    "R-I3: certain — real-time is the defining characteristic of chat",
+    "R-I4: certain — privacy is a legal and social expectation",
+    "R-I5: likely — performance expectation, but vague as stated",
+    "R-I6: likely — common but not universal (e.g., email-style chat lacks this)",
+    "R-I7: likely — most modern users expect mobile access",
+    "R-I8: likely — push notifications are standard",
+    "R-I9: possible — graceful offline handling is a quality differentiator"
+  ]
+
+-- oracle checks:
+--   ⊨ no implicit duplicates explicit → ✓ (no overlap with R-E1..R-E4)
+--   ⊨ length(requirements) ≥ 3 → ✓ (9)
+--   ⊨ each has a confidence level → ✓ (9 confidence entries)
+--   ⊨ each confidence ∈ {certain, likely, possible} → ✓
+
+-- state after frame 2: extract-implicit frozen.
+-- Ready set: { assess-concreteness }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 3: evaluate assess-concreteness (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { assess-concreteness }
+
+⊢ assess-concreteness
+  given extract-explicit→requirements ≡ ["R-E1...", "R-E2...", "R-E3...", "R-E4..."]
+  given extract-implicit→requirements ≡ ["R-I1...", "R-I2...", ..., "R-I9..."]
+  yield concrete[], vague[], concreteness-score
+
+  ∴ Judge each requirement: concrete and testable, or vague?
+
+-- LLM evaluation (simulated):
+
+  yield concrete ≡ [
+    "R-E1: The system is a software application. — CONCRETE (verifiable by inspection)",
+    "R-E2: The application supports chat — sending and receiving text messages. — CONCRETE (testable: send message, verify receipt)",
+    "R-E3: Built from scratch. — CONCRETE (verifiable: no fork/config of existing software)",
+    "R-E4: Requester is owner/stakeholder. — CONCRETE (verifiable: ownership/licensing check)",
+    "R-I1: Users must create accounts. — CONCRETE (testable: registration flow exists)",
+    "R-I2: Messages are persisted. — CONCRETE (testable: send message, close app, reopen, message visible)",
+    "R-I4: Conversations are private. — CONCRETE (testable: non-participant cannot access messages)"
+  ]
+
+  yield vague ≡ [
+    "R-I3: Message delivery is real-time. — VAGUE: 'real-time' undefined. Sub-second? Under 5 seconds? Under what network conditions?",
+    "R-I5: The app should be responsive and fast. — VAGUE: 'responsive' and 'fast' have no measurable thresholds.",
+    "R-I6: Users can see when others are online. — VAGUE: what does 'online' mean? Active tab? Logged in within N minutes? What's the update frequency?",
+    "R-I7: The app works on mobile devices. — VAGUE: which platforms? Native or web? Minimum OS version? Screen sizes?",
+    "R-I8: Users receive notifications for new messages. — VAGUE: push notifications? In-app only? What triggers a notification (every message? only @mentions)?",
+    "R-I9: The app handles network disconnection gracefully. — VAGUE: 'gracefully' undefined. Queue messages? Show offline indicator? Auto-reconnect?"
+  ]
+
+  yield concreteness-score ≡ 5
+
+-- oracle checks:
+--   ⊨ length(concrete) + length(vague) = 4 + 9 = 13 → ✓ (7 + 6 = 13)
+--   ⊨ concreteness-score = 10 × 7 / 13 ≈ 5.4 → ✓ (rounded to 5)
+--   ⊨ each vague requirement explains why → ✓
+
+-- state after frame 3: assess-concreteness frozen.
+-- Ready set: { spawn-decomposers }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 4: evaluate spawn-decomposers (⊢⊢ spawner fires)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { spawn-decomposers }
+-- 6 vague requirements → 6 decomposer cells to spawn
+
+⊢⊢ spawn-decomposers
+  given assess-concreteness→vague ≡ ["R-I3: real-time...", "R-I5: responsive...", "R-I6: online...", "R-I7: mobile...", "R-I8: notifications...", "R-I9: disconnection..."]
+  given §decompose-template
+  yield §decomposer-cells[]
+  until length(decomposer-cells) = 6
+  max 10
+
+-- Spawner instantiates decompose-template 6 times.
+
+  yield decomposer-cells ≡ [§decomposer-0, §decomposer-1, §decomposer-2, §decomposer-3, §decomposer-4, §decomposer-5]
+
+-- oracle check:
+--   ⊨ length(decomposer-cells) = length(vague) → ✓ (6 = 6)
+
+-- SPAWNER EFFECT: 6 new cells enter the frontier:
+--
+-- ⊢ decomposer-0
+--   given requirement ≡ "R-I3: Message delivery is real-time — 'real-time' undefined."
+--   yield sub-requirements[], all-concrete
+--
+-- ⊢ decomposer-1
+--   given requirement ≡ "R-I5: The app should be responsive and fast — no thresholds."
+--   yield sub-requirements[], all-concrete
+--
+-- ⊢ decomposer-2
+--   given requirement ≡ "R-I6: Users can see when others are online — 'online' undefined."
+--   yield sub-requirements[], all-concrete
+--
+-- ⊢ decomposer-3
+--   given requirement ≡ "R-I7: The app works on mobile devices — platforms unspecified."
+--   yield sub-requirements[], all-concrete
+--
+-- ⊢ decomposer-4
+--   given requirement ≡ "R-I8: Users receive notifications — trigger conditions unspecified."
+--   yield sub-requirements[], all-concrete
+--
+-- ⊢ decomposer-5
+--   given requirement ≡ "R-I9: Handles disconnection gracefully — 'gracefully' undefined."
+--   yield sub-requirements[], all-concrete
+
+-- state after frame 4: spawn-decomposers frozen.
+-- Ready set: { decomposer-0, decomposer-1, decomposer-2, decomposer-3,
+--              decomposer-4, decomposer-5 }
+-- All 6 are independent — confluence allows any order.
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 5: evaluate decomposer-0 (real-time delivery)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ decomposer-0
+  given requirement ≡ "R-I3: Message delivery is real-time — 'real-time' undefined."
+  yield sub-requirements[], all-concrete
+
+-- LLM evaluation (simulated):
+
+  yield sub-requirements ≡ [
+    "R-I3a: Messages appear in the recipient's view within 2 seconds of sending, on a broadband connection (≥5 Mbps).",
+    "R-I3b: Messages appear within 5 seconds on a mobile network (3G, ≥1 Mbps).",
+    "R-I3c: Typing indicators appear within 1 second of the sender starting to type."
+  ]
+
+  yield all-concrete ≡ true
+
+-- oracle checks:
+--   ⊨ each sub-requirement more specific than original → ✓ (quantitative thresholds)
+--   ⊨ sub-requirements collectively cover "real-time" → ✓ (delivery + typing)
+--   ⊨ all-concrete = true → ✓ (all have measurable criteria)
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 6: evaluate decomposer-1 (responsive and fast)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ decomposer-1
+  given requirement ≡ "R-I5: The app should be responsive and fast — no thresholds."
+  yield sub-requirements[], all-concrete
+
+-- LLM evaluation (simulated):
+
+  yield sub-requirements ≡ [
+    "R-I5a: Initial app load completes within 3 seconds on broadband.",
+    "R-I5b: Switching between conversations takes < 500ms.",
+    "R-I5c: Scrolling through message history maintains 60fps with up to 10,000 messages.",
+    "R-I5d: Search across all conversations returns results within 2 seconds for up to 100,000 messages."
+  ]
+
+  yield all-concrete ≡ true
+
+-- oracle checks: ✓ (all quantitative, all measurable)
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 7: evaluate decomposer-2 (online presence)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ decomposer-2
+  given requirement ≡ "R-I6: Users can see when others are online — 'online' undefined."
+  yield sub-requirements[], all-concrete
+
+-- LLM evaluation (simulated):
+
+  yield sub-requirements ≡ [
+    "R-I6a: A user is shown as 'online' when they have the app in the foreground and have been active (sent message or scrolled) within the last 5 minutes.",
+    "R-I6b: A user is shown as 'away' when the app is open but no activity for 5-30 minutes.",
+    "R-I6c: A user is shown as 'offline' when the app is closed or inactive for >30 minutes.",
+    "R-I6d: Presence status updates propagate to other users within 10 seconds."
+  ]
+
+  yield all-concrete ≡ true
+
+-- oracle checks: ✓ (all have specific definitions and thresholds)
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 8: evaluate decomposer-3 (mobile support)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ decomposer-3
+  given requirement ≡ "R-I7: The app works on mobile devices — platforms unspecified."
+  yield sub-requirements[], all-concrete
+
+-- LLM evaluation (simulated):
+
+  yield sub-requirements ≡ [
+    "R-I7a: The app runs as a responsive web application accessible via mobile browsers (Safari iOS 15+, Chrome Android 10+).",
+    "R-I7b: The UI adapts to screen widths from 320px to 428px (standard phone range).",
+    "R-I7c: Touch targets are at least 44×44 CSS pixels per Apple HIG.",
+    "R-I7d: The app functions on cellular data with ≥1 Mbps bandwidth."
+  ]
+
+  yield all-concrete ≡ true
+
+-- oracle checks: ✓ (specific platforms, versions, dimensions)
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 9: evaluate decomposer-4 (notifications)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ decomposer-4
+  given requirement ≡ "R-I8: Users receive notifications — trigger conditions unspecified."
+  yield sub-requirements[], all-concrete
+
+-- LLM evaluation (simulated):
+
+  yield sub-requirements ≡ [
+    "R-I8a: Users receive browser push notifications for new messages when the app tab is not in focus.",
+    "R-I8b: Notifications display the sender name and first 50 characters of the message.",
+    "R-I8c: Users can mute notifications per-conversation.",
+    "R-I8d: Notifications are not sent for messages in muted conversations.",
+    "R-I8e: Notification delivery latency is < 5 seconds from message send time."
+  ]
+
+  yield all-concrete ≡ true
+
+-- oracle checks: ✓ (specific triggers, content, controls, timing)
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 10: evaluate decomposer-5 (disconnection handling)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ decomposer-5
+  given requirement ≡ "R-I9: Handles disconnection gracefully — 'gracefully' undefined."
+  yield sub-requirements[], all-concrete
+
+-- LLM evaluation (simulated):
+
+  yield sub-requirements ≡ [
+    "R-I9a: When connection is lost, a visible 'offline' banner appears within 3 seconds.",
+    "R-I9b: Messages composed while offline are queued locally and sent automatically on reconnection.",
+    "R-I9c: The app attempts reconnection every 5 seconds, with exponential backoff up to 60 seconds.",
+    "R-I9d: On reconnection, missed messages are fetched and displayed in correct chronological order.",
+    "R-I9e: No user data is lost during a disconnection of up to 24 hours."
+  ]
+
+  yield all-concrete ≡ true
+
+-- oracle checks: ✓ (specific behaviors, timing, guarantees)
+
+-- state after frames 5-10: all decomposer cells frozen.
+-- Ready set: { collect-requirements }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 11: evaluate collect-requirements (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ collect-requirements
+  given assess-concreteness→concrete ≡ ["R-E1...", "R-E2...", "R-E3...", "R-E4...", "R-I1...", "R-I2...", "R-I4..."]
+  given decomposer-0→sub-requirements ≡ ["R-I3a...", "R-I3b...", "R-I3c..."]
+  given decomposer-0→all-concrete ≡ true
+  given decomposer-1→sub-requirements ≡ ["R-I5a...", "R-I5b...", "R-I5c...", "R-I5d..."]
+  given decomposer-1→all-concrete ≡ true
+  given decomposer-2→sub-requirements ≡ ["R-I6a...", "R-I6b...", "R-I6c...", "R-I6d..."]
+  given decomposer-2→all-concrete ≡ true
+  given decomposer-3→sub-requirements ≡ ["R-I7a...", "R-I7b...", "R-I7c...", "R-I7d..."]
+  given decomposer-3→all-concrete ≡ true
+  given decomposer-4→sub-requirements ≡ ["R-I8a...", "R-I8b...", "R-I8c...", "R-I8d...", "R-I8e..."]
+  given decomposer-4→all-concrete ≡ true
+  given decomposer-5→sub-requirements ≡ ["R-I9a...", "R-I9b...", "R-I9c...", "R-I9d...", "R-I9e..."]
+  given decomposer-5→all-concrete ≡ true
+  yield all-requirements[], remaining-vague[], completeness-score
+
+-- LLM evaluation (simulated):
+
+  yield all-requirements ≡ [
+    "R-E1: The system is a software application.",
+    "R-E2: The application supports chat — sending and receiving text messages.",
+    "R-E3: Built from scratch.",
+    "R-E4: Requester is owner/stakeholder.",
+    "R-I1: Users must create accounts.",
+    "R-I2: Messages are persisted.",
+    "R-I4: Conversations are private.",
+    "R-I3a: Messages appear within 2s on broadband.",
+    "R-I3b: Messages appear within 5s on 3G.",
+    "R-I3c: Typing indicators within 1s.",
+    "R-I5a: Initial load within 3s.",
+    "R-I5b: Conversation switch < 500ms.",
+    "R-I5c: Scrolling 60fps with 10k messages.",
+    "R-I5d: Search < 2s for 100k messages.",
+    "R-I6a: 'Online' = active within 5 min.",
+    "R-I6b: 'Away' = inactive 5-30 min.",
+    "R-I6c: 'Offline' = inactive >30 min or app closed.",
+    "R-I6d: Presence propagates within 10s.",
+    "R-I7a: Responsive web app, Safari iOS 15+, Chrome Android 10+.",
+    "R-I7b: UI adapts 320px-428px width.",
+    "R-I7c: Touch targets ≥ 44×44px.",
+    "R-I7d: Functions on ≥1 Mbps cellular.",
+    "R-I8a: Push notifications when tab not in focus.",
+    "R-I8b: Notification shows sender + first 50 chars.",
+    "R-I8c: Per-conversation mute control.",
+    "R-I8d: Muted conversations suppress notifications.",
+    "R-I8e: Notification delivery < 5s from send.",
+    "R-I9a: Offline banner appears within 3s.",
+    "R-I9b: Offline messages queued and sent on reconnect.",
+    "R-I9c: Reconnection attempts every 5s, exponential backoff to 60s.",
+    "R-I9d: Missed messages fetched in chronological order.",
+    "R-I9e: No data loss for disconnections up to 24h."
+  ]
+
+  yield remaining-vague ≡ []
+
+  yield completeness-score ≡ 10
+
+-- oracle checks:
+--   ⊨ all-requirements contains every concrete requirement → ✓ (7 original + 25 decomposed = 32 total)
+--   ⊨ remaining-vague contains only requirements where all-concrete = false → ✓ (empty — all concrete)
+--   ⊨ completeness-score = 10 if remaining-vague is empty → ✓
+
+-- state after frame 11: collect-requirements frozen.
+-- ⊢∘ CHECK: completeness-score = 10 ≥ 9 → CONVERGED. Exit evolution loop.
+-- ⊢∘ evolution completed in 1 iteration (all decompositions succeeded first try).
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 12: evaluate format-spec (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { format-spec }
+-- Final output cell.
+
+⊢ format-spec
+  given collect-requirements→all-requirements ≡ ["R-E1...", ..., "R-I9e..."]
+  given request→text ≡ "Build me a chat app"
+  yield specification
+
+-- LLM evaluation (simulated):
+
+  yield specification ≡ "
+# Requirements Specification: Chat Application
+## Original Request: 'Build me a chat app'
+
+## 1. Functional Requirements
+
+### 1.1 Core (Explicit)
+  1. [EXPLICIT] R-E1: The system is a software application.
+  2. [EXPLICIT] R-E2: The application supports chat — sending and receiving text messages between two or more parties.
+  3. [EXPLICIT] R-E3: The application is built from scratch.
+  4. [EXPLICIT] R-E4: The requester is the owner/stakeholder.
+
+### 1.2 Identity (Implicit)
+  5. [IMPLICIT-certain] R-I1: Users must create accounts to identify themselves.
+
+### 1.3 Messaging (Implicit)
+  6. [IMPLICIT-certain] R-I2: Messages are persisted — viewable after app restart.
+  7. [IMPLICIT-certain] R-I3a: Message delivery within 2s on broadband (≥5 Mbps).
+  8. [IMPLICIT-certain] R-I3b: Message delivery within 5s on 3G (≥1 Mbps).
+  9. [IMPLICIT-certain] R-I3c: Typing indicators appear within 1s.
+
+### 1.4 Presence (Implicit)
+  10. [IMPLICIT-likely] R-I6a: 'Online' status when active within last 5 minutes.
+  11. [IMPLICIT-likely] R-I6b: 'Away' status when inactive 5-30 minutes.
+  12. [IMPLICIT-likely] R-I6c: 'Offline' status when inactive >30 min or app closed.
+  13. [IMPLICIT-likely] R-I6d: Presence updates propagate within 10 seconds.
+
+### 1.5 Notifications (Implicit)
+  14. [IMPLICIT-likely] R-I8a: Push notifications when app tab not in focus.
+  15. [IMPLICIT-likely] R-I8b: Notifications show sender name + first 50 characters.
+  16. [IMPLICIT-likely] R-I8c: Per-conversation mute control available.
+  17. [IMPLICIT-likely] R-I8d: Muted conversations do not trigger notifications.
+  18. [IMPLICIT-likely] R-I8e: Notification delivery within 5s of message send.
+
+## 2. Non-Functional Requirements
+
+### 2.1 Performance (Implicit)
+  19. [IMPLICIT-likely] R-I5a: Initial app load within 3 seconds on broadband.
+  20. [IMPLICIT-likely] R-I5b: Conversation switching < 500ms.
+  21. [IMPLICIT-likely] R-I5c: 60fps scrolling with up to 10,000 messages.
+  22. [IMPLICIT-likely] R-I5d: Search returns results within 2s for 100k messages.
+
+### 2.2 Reliability (Implicit)
+  23. [IMPLICIT-possible] R-I9a: 'Offline' banner appears within 3s of disconnection.
+  24. [IMPLICIT-possible] R-I9b: Messages queued offline, sent on reconnection.
+  25. [IMPLICIT-possible] R-I9c: Auto-reconnect every 5s, exponential backoff to 60s.
+  26. [IMPLICIT-possible] R-I9d: Missed messages fetched in chronological order.
+  27. [IMPLICIT-possible] R-I9e: No data loss for disconnections up to 24 hours.
+
+### 2.3 Compatibility (Implicit)
+  28. [IMPLICIT-likely] R-I7a: Responsive web app on Safari iOS 15+, Chrome Android 10+.
+  29. [IMPLICIT-likely] R-I7b: UI adapts to widths 320px-428px.
+  30. [IMPLICIT-likely] R-I7c: Touch targets ≥ 44×44 CSS pixels.
+  31. [IMPLICIT-likely] R-I7d: Functions on cellular data ≥ 1 Mbps.
+
+## 3. Security Requirements
+
+### 3.1 Privacy (Implicit)
+  32. [IMPLICIT-certain] R-I4: Conversations are private — only participants can access messages.
+
+## Summary
+  - Total requirements: 32
+  - Explicit: 4 (12.5%)
+  - Implicit: 28 (87.5%)
+    - Certain: 7
+    - Likely: 16
+    - Possible: 5
+  - Concreteness: 100% (all requirements are testable)
+"
+
+-- oracle checks:
+--   ⊨ specification groups requirements by category → ✓ (Functional, Non-Functional, Security)
+--   ⊨ specification numbers each requirement → ✓ (1-32)
+--   ⊨ specification marks each as explicit or implicit → ✓ ([EXPLICIT], [IMPLICIT-*])
+--   ⊨ every requirement from all-requirements appears → ✓ (32/32)
+
+-- state after frame 12: format-spec frozen.
+-- No more ready cells. Program quiescent.
+
+-- ═══════════════════════════════════════════════════════════════
+-- EXECUTION SUMMARY
+-- ═══════════════════════════════════════════════════════════════
+--
+-- Total frames: 13 (0-12)
+-- ⊢∘ iterations: 1 (converged immediately — all decompositions concrete)
+-- Cells evaluated: request, extract-explicit, extract-implicit,
+--   assess-concreteness, spawn-decomposers, decomposer-0..5 (6 cells),
+--   collect-requirements, format-spec
+--
+-- Input: 5 words ("Build me a chat app")
+-- Output: 32 testable requirements across 4 categories
+-- Amplification factor: 6.4 requirements per input word
+--
+-- Key observations:
+--
+-- ⊢= Observation 1: vague requests are mostly implicit requirements
+--   Of 32 final requirements, only 4 (12.5%) were explicit. The remaining
+--   87.5% were implicit — unstated expectations from domain convention.
+--   This quantifies the "curse of knowledge" in software requirements:
+--   requesters assume shared context that doesn't exist.
+--
+-- ⊢= Observation 2: ⊢⊢ spawner enables embarrassingly parallel decomposition
+--   All 6 decomposer cells are independent — they share no inputs except
+--   the template. In a parallel runtime, frames 5-10 execute simultaneously.
+--   Decomposition parallelism scales linearly with the number of vague
+--   requirements: O(N) cells for N vague items.
+--
+-- ⊢= Observation 3: recursive depth controlled by semantic judgment is safe
+--   The decompose-template marks all-concrete = true/false based on LLM
+--   judgment. In this trace, all decompositions succeeded in one pass
+--   (depth 1). The ⊢∘ loop WOULD recurse if any decomposer returned
+--   all-concrete = false, spawning second-level decomposers. The max=3
+--   bound on ⊢∘ prevents infinite recursion regardless of LLM judgment.
+--
+-- ⊢= Observation 4: confidence classification enables prioritization
+--   The certain/likely/possible classification from extract-implicit creates
+--   a natural priority ordering: build 'certain' requirements first, then
+--   'likely', and treat 'possible' as stretch goals. This maps directly
+--   to MVP → V1 → V2 product planning without additional analysis.
+--
+-- ⊢= Observation 5: the concreteness oracle is self-bootstrapping
+--   The concreteness assessment (frame 3) is itself a soft cell — an LLM
+--   judges whether requirements are testable. But the decomposition step
+--   forces concreteness by requiring measurable criteria (oracle on
+--   decompose-template). The system bootstraps from vague judgment to
+--   concrete specification through oracle pressure, not through better
+--   initial judgment. This is Cell's core pattern: oracles drive quality.

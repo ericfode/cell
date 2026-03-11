@@ -1,0 +1,167 @@
+-- 12-recursive-requirement-extractor.cell
+-- Takes a vague request. Extracts explicit and implicit requirements.
+-- Recursively decomposes implicit requirements into sub-requirements.
+-- ⊢∘ loop until all requirements are concrete and testable.
+--
+-- Tests: ⊢⊢ spawner (recursive decomposition), ⊢∘ evolution loop,
+--        semantic judgment gating (depth control), oracle classification
+--
+-- Vague request: "Build me a chat app"
+
+⊢ request
+  given text ≡ "Build me a chat app"
+  yield text
+
+  ⊨ text is a vague software request with unstated assumptions
+
+⊢ extract-explicit
+  given request→text
+  yield requirements[]
+
+  ∴ Read «request→text» and extract every explicitly stated requirement.
+    An explicit requirement is something the request directly says or
+    unambiguously implies from the literal words. For "Build me a chat app":
+    - "chat" = messaging between parties
+    - "app" = software application
+    - "build" = create from scratch (not configure existing)
+    - "me" = for the requester's use/ownership
+
+    List each as a concrete, testable statement.
+
+  ⊨ each requirement is directly traceable to words in the request
+  ⊨ each requirement is a testable statement (can verify pass/fail)
+  ⊨ length(requirements) ≥ 1
+
+⊢ extract-implicit
+  given request→text
+  given extract-explicit→requirements
+  yield requirements[], confidence[]
+
+  ∴ Identify requirements NOT stated in «request→text» but implied by
+    convention, domain knowledge, or reasonable user expectations.
+    For a "chat app", implicit requirements might include:
+    - User accounts (who is chatting?)
+    - Message persistence (can I see old messages?)
+    - Real-time delivery (do messages appear instantly?)
+    - Security (are messages private?)
+
+    For each implicit requirement, assign a confidence level:
+    - certain: virtually all chat apps have this (e.g., message sending)
+    - likely: most chat apps have this (e.g., read receipts)
+    - possible: some chat apps have this (e.g., voice messages)
+
+    Do NOT include requirements already in «extract-explicit→requirements».
+
+  ⊨ no requirement in implicit duplicates one in extract-explicit→requirements
+  ⊨ length(requirements) ≥ 3
+  ⊨ each requirement has a corresponding confidence level
+  ⊨ each confidence ∈ {certain, likely, possible}
+
+⊢ assess-concreteness
+  given extract-explicit→requirements
+  given extract-implicit→requirements
+  yield concrete[], vague[], concreteness-score
+
+  ∴ For each requirement from both explicit and implicit lists, judge:
+    Is this requirement concrete and testable as stated?
+
+    Concrete: "Users can send text messages up to 10,000 characters"
+    Vague: "The app should be fast" (how fast? measured how?)
+
+    Classify each as concrete or vague. Assign a concreteness score
+    (0-10): ratio of concrete to total requirements.
+
+  ⊨ length(concrete) + length(vague) = length(extract-explicit→requirements) + length(extract-implicit→requirements)
+  ⊨ concreteness-score = 10 × length(concrete) / (length(concrete) + length(vague))
+  ⊨ each vague requirement explains why it's vague
+
+⊢⊢ spawn-decomposers
+  given assess-concreteness→vague
+  given §decompose-template
+  yield §decomposer-cells[]
+  until length(decomposer-cells) = length(assess-concreteness→vague)
+  max 10
+
+  ∴ For each vague requirement in «assess-concreteness→vague», spawn
+    a decomposer cell that breaks it into concrete sub-requirements.
+    Each spawned cell receives the vague requirement and must produce
+    testable sub-requirements that collectively satisfy the original.
+
+  ⊨ length(decomposer-cells) = length(assess-concreteness→vague)
+
+⊢ decompose-template
+  given requirement
+  yield sub-requirements[], all-concrete
+
+  ∴ The requirement «requirement» is vague. Break it into specific,
+    testable sub-requirements. Each sub-requirement should be concrete
+    enough to verify pass/fail in a test. If a sub-requirement is still
+    vague, mark all-concrete as false — the ⊢∘ loop will recurse.
+
+    Example: "The app should be fast" →
+    - "Page load time < 2 seconds on 3G connection"
+    - "Message delivery latency < 500ms on broadband"
+    - "Search returns results in < 1 second for up to 100k messages"
+
+  ⊨ each sub-requirement is more specific than the original «requirement»
+  ⊨ sub-requirements collectively cover the intent of «requirement»
+  ⊨ all-concrete ∈ {true, false}
+  ⊨ if all-concrete = true then every sub-requirement has a measurable criterion
+
+⊢ collect-requirements
+  given assess-concreteness→concrete
+  given decomposer-*→sub-requirements
+  given decomposer-*→all-concrete
+  yield all-requirements[], remaining-vague[], completeness-score
+
+  ∴ Merge the already-concrete requirements from «assess-concreteness→concrete»
+    with all sub-requirements from the decomposer cells.
+    Check if any sub-requirements are still vague (all-concrete = false).
+    Compute completeness-score:
+    - 10 if all requirements are concrete
+    - Lower proportional to remaining vague requirements
+
+  ⊨ all-requirements contains every concrete requirement and sub-requirement
+  ⊨ remaining-vague contains only requirements where all-concrete = false
+  ⊨ completeness-score = 10 if remaining-vague is empty
+
+⊢ refine-vague
+  given collect-requirements→remaining-vague
+  given collect-requirements→all-requirements
+  yield refined-requirements[]
+
+  ∴ For each still-vague requirement in «collect-requirements→remaining-vague»,
+    make one more attempt to concretize it. Use the context of
+    «collect-requirements→all-requirements» to inform specificity:
+    if related requirements have quantitative bounds, derive bounds for
+    the vague ones by analogy or convention.
+
+  ⊨ each refined requirement is more specific than its source in remaining-vague
+  ⊨ each refined requirement has a measurable or verifiable criterion
+
+⊢∘ evolve(extract-implicit, request→text, extract-explicit→requirements)
+  through collect-requirements, refine-vague
+  until collect-requirements→completeness-score ≥ 9
+  max 3
+
+  -- Each iteration: implicit requirements extracted → concreteness assessed →
+  -- vague ones decomposed by spawner → results collected → still-vague
+  -- refined → loop until completeness ≥ 9 or max iterations.
+  -- Recursive depth is controlled by semantic judgment in decompose-template:
+  -- it marks all-concrete = false only when sub-requirements are genuinely
+  -- still vague, preventing infinite recursion.
+
+⊢ format-spec
+  given collect-requirements→all-requirements
+  given request→text
+  yield specification
+
+  ∴ Format «collect-requirements→all-requirements» as a structured requirements
+    specification document for the original request «request→text».
+    Group requirements by category (functional, non-functional, security,
+    UX). Number each requirement. Mark which were explicit vs implicit.
+
+  ⊨ specification groups requirements by category
+  ⊨ specification numbers each requirement
+  ⊨ specification marks each requirement as explicit or implicit
+  ⊨ every requirement from all-requirements appears in the specification
