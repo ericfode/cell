@@ -1,0 +1,146 @@
+-- 08-red-team-harden.cell
+-- Tests: ⊢∘ adversarial loop, ⊢⊢ spawner, artifact accumulation, oracle regression
+--
+-- A Cell program that takes code, red-teams it for vulnerabilities,
+-- patches each vulnerability, then red-teams the patch. Loop until the
+-- red-team fails to find anything. Each round spawns oracle cells that
+-- become PERMANENT regression tests — the adversarial loop ACCUMULATES
+-- artifacts that prevent regression.
+--
+-- Code under test: a naive Python login function
+--   def login(username, password):
+--       if users[username] == password:
+--           return create_session(username)
+
+⊢ target-code
+  given code ≡ "def login(username, password):
+    if users[username] == password:
+        return create_session(username)"
+  yield code
+
+  ⊨ code is a callable function definition
+  ⊨ code handles authentication logic
+
+⊢ red-team
+  given target-code→code
+  given regression-tests[]
+  yield vulnerability, exploit, severity, category
+
+  ∴ You are a security red-teamer. Examine «target-code→code» for the
+    SINGLE most critical vulnerability. Describe:
+    - The vulnerability (what's wrong)
+    - A concrete exploit (how an attacker uses it)
+    - Severity: "critical", "high", "medium", "low"
+    - Category: "injection", "auth-bypass", "info-leak", "dos", "logic"
+
+    You must find a vulnerability NOT already covered by «regression-tests».
+    If no new vulnerability exists, yield vulnerability ≡ "none".
+
+  ⊨ vulnerability describes a specific security flaw or is "none"
+  ⊨ exploit is a concrete attack scenario (not abstract)
+  ⊨ severity ∈ { "critical", "high", "medium", "low" }
+  ⊨ category ∈ { "injection", "auth-bypass", "info-leak", "dos", "logic" }
+
+⊢ harden
+  given red-team→vulnerability
+  given red-team→exploit
+  given red-team→category
+  given target-code→code
+  given regression-tests[]
+  yield patched-code, patch-description
+
+  ∴ Read the vulnerability «red-team→vulnerability» with exploit
+    «red-team→exploit». Produce a patched version of «target-code→code»
+    that fixes THIS vulnerability WITHOUT breaking any existing
+    «regression-tests». The patch should be minimal — fix the flaw,
+    don't rewrite the whole function.
+
+  ⊨ patched-code is valid Python
+  ⊨ patched-code fixes the identified vulnerability
+  ⊨ patch-description explains what changed and why
+  ⊨ patched-code preserves correct login behavior for valid credentials
+
+⊢ verify-patch
+  given harden→patched-code
+  given red-team→exploit
+  given red-team→vulnerability
+  given regression-tests[]
+  yield exploit-blocked, regressions-pass, new-issues[]
+
+  ∴ Test «harden→patched-code» against:
+    1. The specific exploit from «red-team→exploit» — is it blocked?
+    2. All existing «regression-tests» — do they still pass?
+    3. Any NEW issues introduced by the patch?
+
+  ⊨ exploit-blocked ∈ { true, false }
+  ⊨ regressions-pass ∈ { true, false }
+  ⊨ if not exploit-blocked then patch is insufficient
+  ⊨ if not regressions-pass then patch introduces regression
+
+  ⊨? on failure:
+    retry with «oracle.failures» max 2
+
+⊢⊢ spawn-regression-test
+  given red-team→vulnerability
+  given red-team→exploit
+  given red-team→category
+  given harden→patched-code
+  given §regression-test-template
+  yield §new-regression-test
+  until length(new-regression-test) = 1
+  max 1
+
+  ∴ Spawn ONE regression test cell that permanently encodes this round's
+    vulnerability as a test. The test ensures future patches don't
+    RE-INTRODUCE this vulnerability. This cell joins the growing
+    regression-tests set for all future iterations.
+
+  ⊨ new-regression-test encodes the specific vulnerability and exploit
+
+⊢ regression-test-template
+  given vulnerability-desc
+  given exploit-scenario
+  given category
+  given code-to-test
+  yield passes, explanation
+
+  ∴ Test «code-to-test» against the vulnerability described in
+    «vulnerability-desc» using the exploit «exploit-scenario».
+    Does the code resist this attack?
+
+  ⊨ passes ∈ { true, false }
+  ⊨ explanation describes what was tested and the result
+
+⊢∘ evolve(red-team, target-code→code ≡ harden→patched-code)
+  through harden, verify-patch, spawn-regression-test
+  until red-team→vulnerability = "none"
+  max 5
+
+  -- Each iteration: red-team finds a vulnerability → harden patches it →
+  -- verify-patch confirms the fix → spawn-regression-test creates a
+  -- permanent test → the patched code becomes the new target.
+  --
+  -- The key: regression-tests ACCUMULATES. Each round adds one test.
+  -- The red-team must find NEW vulnerabilities. The harden step must
+  -- not break previous fixes. The regression tests enforce this.
+  --
+  -- Termination: red-team yields "none" when it can't find anything new.
+  -- Or max 5 rounds if the code is deeply flawed.
+
+⊢ security-report
+  given harden→patched-code
+  given regression-test-*→passes
+  given regression-test-*→explanation
+  given red-team→vulnerability
+  yield final-code, vulnerabilities-found, tests-accumulated, hardening-summary
+
+  ∴ Produce the final security report:
+    - The hardened code (final version after all patches)
+    - List of all vulnerabilities found across all rounds
+    - Count of regression tests accumulated
+    - Summary of the hardening process
+
+  ⊨ final-code is the last patched version
+  ⊨ vulnerabilities-found lists every vulnerability from every round
+  ⊨ tests-accumulated = number of regression test cells spawned
+  ⊨ hardening-summary describes the adversarial evolution arc
