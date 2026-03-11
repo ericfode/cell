@@ -1,0 +1,764 @@
+-- 22-fact-checked-article-frames.cell — full execution trace
+--
+-- Ready set analysis (initial):
+--   topic: ⊢= with no given → READY
+--   generate-article: given topic→title, topic→scope → BLOCKED
+--   spawn-fact-checkers: given generate-article→claims → BLOCKED
+--   aggregate-results: given spawn-fact-checkers→§checkers → BLOCKED
+--   rewrite-article: given generate-article→article-text, etc → BLOCKED
+--   final-article: given rewrite-article→article-text', etc → BLOCKED
+--   ⊢∘ fact-check-loop: coordinates iteration over generate-article through
+--     {spawn-fact-checkers, aggregate-results, rewrite-article}
+--
+-- Ready set: { topic }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 0: topic (hard cell, deterministic)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ topic
+  yield title, scope
+
+  ⊢= title ← "The History of Version Control Systems"
+  ⊢= scope ← "From early mainframe source management through distributed version control. Cover SCCS, RCS, CVS, Subversion, BitKeeper, Git, and Mercurial. Focus on factual milestones: creation dates, creators, key technical innovations."
+
+  yield title ≡ "The History of Version Control Systems"
+  yield scope ≡ "From early mainframe source management through distributed version control. Cover SCCS, RCS, CVS, Subversion, BitKeeper, Git, and Mercurial. Focus on factual milestones: creation dates, creators, key technical innovations."
+
+-- No oracles. Deterministic.
+-- Ready set after: { generate-article }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 1: generate-article (soft cell, LLM writes article and extracts claims)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ generate-article
+  given topic→title ≡ "The History of Version Control Systems"
+  given topic→scope ≡ "From early mainframe source management through distributed version control. Cover SCCS, RCS, CVS, Subversion, BitKeeper, Git, and Mercurial. Focus on factual milestones: creation dates, creators, key technical innovations."
+  yield article-text, claims[]
+
+  ∴ Write a concise article (6-8 paragraphs). Extract every factual claim.
+
+-- LLM evaluation:
+-- Writing article covering VCS history from 1972 to present day.
+-- Extracting verifiable factual claims from each paragraph.
+
+  yield article-text ≡ "The History of Version Control Systems
+
+The need to track changes in source code emerged alongside the earliest software projects. In the 1970s, programmers at Bell Labs faced the challenge of coordinating modifications to large codebases. Marc Rochkind created SCCS (Source Code Control System) in 1972 at Bell Labs, making it the first widely recognized version control system. SCCS stored deltas — the differences between file versions — rather than full copies, an innovation that made version tracking practical on storage-constrained mainframes.
+
+A decade later, Walter Tichy at Purdue University released RCS (Revision Control System) in 1982. RCS improved on SCCS by storing reverse deltas, keeping the most recent version in full and computing older versions on demand. This made checkout of the latest revision faster, which matched typical developer workflows. RCS remained file-oriented, however — each file had its own version history with no concept of a project-wide snapshot.
+
+The limitation of single-file versioning drove Dick Grune to create CVS (Concurrent Versions System) in 1986. CVS introduced the copy-modify-merge model, allowing multiple developers to edit the same file concurrently and reconcile changes later. It built on top of RCS for file-level storage but added a client-server architecture and the concept of a repository containing an entire project. CVS became the dominant open-source version control system throughout the 1990s.
+
+By the early 2000s, CVS's architectural limitations — no atomic commits, no rename tracking, no directory versioning — became acute. CollabNet founded the Subversion (SVN) project in 2000, with Karl Fogel and Jim Blandy leading the initial development. Subversion 1.0 shipped in 2004 and addressed CVS's core deficiencies: it provided atomic commits, versioned directories, and efficient branching through cheap copies. Subversion used a centralized model with a single authoritative repository.
+
+The shift to distributed version control began with BitKeeper, created by Larry McVoy in 1998. BitKeeper was used to manage the Linux kernel source from 2002 to 2005 under a controversial proprietary license. When Andrew Tridgell reverse-engineered the BitKeeper protocol in 2005, McVoy revoked the free license, precipitating a crisis in the kernel development community. This event directly motivated Linus Torvalds to create Git.
+
+Linus Torvalds began writing Git in April 2005 and released the first version within weeks. Git's design prioritized speed, data integrity through SHA-1 content addressing, and support for distributed non-linear workflows. The system stored full snapshots of every committed state rather than deltas, using compression and packfiles for efficiency. Junio Hamano took over as Git maintainer in July 2005 and has led development since.
+
+Around the same period, Matt Mackall released Mercurial in April 2005, also motivated by the BitKeeper crisis. Mercurial shared Git's distributed model but emphasized a simpler user interface and cross-platform compatibility. Both Git and Mercurial gained rapid adoption, but Git ultimately dominated, driven in large part by the launch of GitHub in 2008 by Tom Preston-Werner, Chris Wanstrath, PJ Hyett, and Scott Chacon. GitHub made Git accessible to a mass audience and established pull-request-based collaboration as the standard open-source workflow."
+
+  yield claims ≡ [
+    "Marc Rochkind created SCCS in 1972 at Bell Labs.",
+    "SCCS was the first widely recognized version control system.",
+    "SCCS stored deltas rather than full copies of files.",
+    "Walter Tichy at Purdue University released RCS in 1982.",
+    "RCS stored reverse deltas, keeping the most recent version in full.",
+    "Dick Grune created CVS in 1986.",
+    "CVS introduced the copy-modify-merge model.",
+    "CollabNet founded the Subversion project in 2000.",
+    "Karl Fogel and Jim Blandy led Subversion's initial development.",
+    "Subversion 1.0 shipped in 2004.",
+    "BitKeeper was created by Larry McVoy in 1998.",
+    "BitKeeper managed the Linux kernel source from 2002 to 2005.",
+    "Andrew Tridgell reverse-engineered the BitKeeper protocol in 2005.",
+    "Linus Torvalds began writing Git in April 2005.",
+    "Git uses SHA-1 content addressing for data integrity.",
+    "Junio Hamano took over as Git maintainer in July 2005.",
+    "Matt Mackall released Mercurial in April 2005.",
+    "GitHub was launched in 2008 by Tom Preston-Werner, Chris Wanstrath, PJ Hyett, and Scott Chacon."
+  ]
+
+-- oracle checks:
+--   ⊨ length(claims) ≥ 12 → ✓ (18 claims)
+--   ⊨ each claim is a single declarative sentence with verifiable fact → ✓
+--     (All are date/person/event claims, independently checkable)
+--   ⊨ article-text contains all claims embedded in prose → ✓
+--     (Each claim sentence appears within article paragraphs)
+--   ⊨ article-text has between 6 and 8 paragraphs → ✓ (7 paragraphs)
+--
+-- All oracles pass. Freeze output.
+-- Ready set after: { spawn-fact-checkers }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 2: spawn-fact-checkers (spawner, creates 18 fact-check cells)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢⊢ spawn-fact-checkers
+  given generate-article→claims ≡ [ ...18 claims... ]
+  yield §checkers[]
+
+  ∴ Spawn one fact-check cell per claim.
+
+-- Spawning 18 fact-check oracle cells. Each is independently evaluable.
+-- Ready set after spawning: { fact-check-1 .. fact-check-18 }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frames 3–20: fact-check-1 through fact-check-18 (parallel-ready)
+-- ═══════════════════════════════════════════════════════════════
+
+-- Evaluating all 18 fact-check cells. Order irrelevant (confluence).
+
+⊢ fact-check-1
+  given claim ≡ "Marc Rochkind created SCCS in 1972 at Bell Labs."
+  yield verdict, correction, confidence
+
+  ∴ Evaluate factual accuracy.
+
+-- LLM evaluation:
+-- SCCS was indeed created by Marc Rochkind at Bell Labs. The year 1972
+-- is widely cited. Confirmed.
+
+  yield verdict ≡ "pass"
+  yield correction ≡ ""
+  yield confidence ≡ "high"
+
+-- oracles: ✓ verdict ∈ valid set, ✓ pass → correction empty
+
+⊢ fact-check-2
+  given claim ≡ "SCCS was the first widely recognized version control system."
+  yield verdict, correction, confidence
+
+  ∴ Evaluate factual accuracy.
+
+-- LLM evaluation:
+-- SCCS is generally considered the first version control system. Some
+-- cite earlier ad-hoc systems, but SCCS is the first "widely recognized"
+-- formal VCS. The qualifier "widely recognized" is accurate.
+
+  yield verdict ≡ "pass"
+  yield correction ≡ ""
+  yield confidence ≡ "high"
+
+-- oracles: ✓
+
+⊢ fact-check-3
+  given claim ≡ "SCCS stored deltas rather than full copies of files."
+  yield verdict, correction, confidence
+
+  ∴ Evaluate factual accuracy.
+
+-- LLM evaluation:
+-- Correct. SCCS used interleaved deltas (a technique where all versions
+-- are interleaved in one file with annotations marking which lines belong
+-- to which version). This is a delta-based approach.
+
+  yield verdict ≡ "pass"
+  yield correction ≡ ""
+  yield confidence ≡ "high"
+
+-- oracles: ✓
+
+⊢ fact-check-4
+  given claim ≡ "Walter Tichy at Purdue University released RCS in 1982."
+  yield verdict, correction, confidence
+
+  ∴ Evaluate factual accuracy.
+
+-- LLM evaluation:
+-- Walter Tichy created RCS. He was at Purdue University. The initial
+-- publication describing RCS was in 1982. Confirmed.
+
+  yield verdict ≡ "pass"
+  yield correction ≡ ""
+  yield confidence ≡ "high"
+
+-- oracles: ✓
+
+⊢ fact-check-5
+  given claim ≡ "RCS stored reverse deltas, keeping the most recent version in full."
+  yield verdict, correction, confidence
+
+  ∴ Evaluate factual accuracy.
+
+-- LLM evaluation:
+-- Correct. RCS's key innovation over SCCS was storing the tip revision
+-- in full and using reverse deltas to reconstruct older revisions. This
+-- optimized for the common case of checking out the latest version.
+
+  yield verdict ≡ "pass"
+  yield correction ≡ ""
+  yield confidence ≡ "high"
+
+-- oracles: ✓
+
+⊢ fact-check-6
+  given claim ≡ "Dick Grune created CVS in 1986."
+  yield verdict, correction, confidence
+
+  ∴ Evaluate factual accuracy.
+
+-- LLM evaluation:
+-- Dick Grune wrote the initial shell scripts that became CVS in 1986.
+-- However, the system was substantially rewritten in C by Brian Berliner
+-- in 1989, which is the version that gained adoption. The claim that
+-- Grune "created CVS in 1986" is accurate for the original version.
+
+  yield verdict ≡ "pass"
+  yield correction ≡ ""
+  yield confidence ≡ "high"
+
+-- oracles: ✓
+
+⊢ fact-check-7
+  given claim ≡ "CVS introduced the copy-modify-merge model."
+  yield verdict, correction, confidence
+
+  ∴ Evaluate factual accuracy.
+
+-- LLM evaluation:
+-- CVS did popularize the copy-modify-merge model (as opposed to
+-- lock-modify-unlock). This was its key workflow innovation enabling
+-- concurrent development. Confirmed.
+
+  yield verdict ≡ "pass"
+  yield correction ≡ ""
+  yield confidence ≡ "high"
+
+-- oracles: ✓
+
+⊢ fact-check-8
+  given claim ≡ "CollabNet founded the Subversion project in 2000."
+  yield verdict, correction, confidence
+
+  ∴ Evaluate factual accuracy.
+
+-- LLM evaluation:
+-- CollabNet sponsored/initiated the Subversion project in 2000. "Founded"
+-- is a reasonable description — CollabNet hired Karl Fogel and others to
+-- build it. Confirmed.
+
+  yield verdict ≡ "pass"
+  yield correction ≡ ""
+  yield confidence ≡ "high"
+
+-- oracles: ✓
+
+⊢ fact-check-9
+  given claim ≡ "Karl Fogel and Jim Blandy led Subversion's initial development."
+  yield verdict, correction, confidence
+
+  ∴ Evaluate factual accuracy.
+
+-- LLM evaluation:
+-- Karl Fogel was indeed a key initial developer. Jim Blandy was involved
+-- early (he and Fogel conceived of the project). Ben Collins-Sussman was
+-- also a primary initial developer. The claim is not wrong — Fogel and
+-- Blandy did lead initial development — but it omits Collins-Sussman.
+-- Since the claim says "led" not "solely led", it's accurate as stated.
+
+  yield verdict ≡ "pass"
+  yield correction ≡ ""
+  yield confidence ≡ "medium"
+
+-- oracles: ✓
+
+⊢ fact-check-10
+  given claim ≡ "Subversion 1.0 shipped in 2004."
+  yield verdict, correction, confidence
+
+  ∴ Evaluate factual accuracy.
+
+-- LLM evaluation:
+-- Subversion 1.0 was released on February 23, 2004. Confirmed.
+
+  yield verdict ≡ "pass"
+  yield correction ≡ ""
+  yield confidence ≡ "high"
+
+-- oracles: ✓
+
+⊢ fact-check-11
+  given claim ≡ "BitKeeper was created by Larry McVoy in 1998."
+  yield verdict, correction, confidence
+
+  ∴ Evaluate factual accuracy.
+
+-- LLM evaluation:
+-- Larry McVoy created BitKeeper. The company BitMover was founded in 1998.
+-- BitKeeper itself was first released around 2000. The claim says "created
+-- in 1998" — the project was initiated/conceived around 1998 but the
+-- first public release was later. This is a date precision issue.
+-- The article conflates company founding with software creation.
+
+  yield verdict ≡ "fail"
+  yield correction ≡ "BitKeeper was created by Larry McVoy, who founded BitMover Inc. in 1998; BitKeeper was first released in 2000."
+  yield confidence ≡ "high"
+
+-- oracles: ✓ verdict = "fail", ✓ correction ≠ ""
+
+⊢ fact-check-12
+  given claim ≡ "BitKeeper managed the Linux kernel source from 2002 to 2005."
+  yield verdict, correction, confidence
+
+  ∴ Evaluate factual accuracy.
+
+-- LLM evaluation:
+-- The Linux kernel began using BitKeeper in early 2002 and stopped in
+-- April 2005. Confirmed.
+
+  yield verdict ≡ "pass"
+  yield correction ≡ ""
+  yield confidence ≡ "high"
+
+-- oracles: ✓
+
+⊢ fact-check-13
+  given claim ≡ "Andrew Tridgell reverse-engineered the BitKeeper protocol in 2005."
+  yield verdict, correction, confidence
+
+  ∴ Evaluate factual accuracy.
+
+-- LLM evaluation:
+-- Andrew Tridgell did reverse-engineer aspects of the BitKeeper protocol,
+-- which precipitated the license revocation. The characterization is
+-- somewhat simplified — Tridgell wrote a client that connected to the
+-- BitKeeper server, which McVoy considered a protocol violation. The
+-- claim is substantively accurate for a general audience.
+
+  yield verdict ≡ "pass"
+  yield correction ≡ ""
+  yield confidence ≡ "medium"
+
+-- oracles: ✓
+
+⊢ fact-check-14
+  given claim ≡ "Linus Torvalds began writing Git in April 2005."
+  yield verdict, correction, confidence
+
+  ∴ Evaluate factual accuracy.
+
+-- LLM evaluation:
+-- Linus Torvalds started Git development on April 3, 2005. The first
+-- Git commit is dated April 7, 2005. Confirmed.
+
+  yield verdict ≡ "pass"
+  yield correction ≡ ""
+  yield confidence ≡ "high"
+
+-- oracles: ✓
+
+⊢ fact-check-15
+  given claim ≡ "Git uses SHA-1 content addressing for data integrity."
+  yield verdict, correction, confidence
+
+  ∴ Evaluate factual accuracy.
+
+-- LLM evaluation:
+-- Git's original design uses SHA-1 hashes for content-addressable storage.
+-- (Git has been transitioning to SHA-256 but SHA-1 is the original and
+-- still default hash.) Confirmed for the historical context of this article.
+
+  yield verdict ≡ "pass"
+  yield correction ≡ ""
+  yield confidence ≡ "high"
+
+-- oracles: ✓
+
+⊢ fact-check-16
+  given claim ≡ "Junio Hamano took over as Git maintainer in July 2005."
+  yield verdict, correction, confidence
+
+  ∴ Evaluate factual accuracy.
+
+-- LLM evaluation:
+-- Junio Hamano became Git maintainer in July 2005 when Torvalds handed
+-- off maintenance. Confirmed.
+
+  yield verdict ≡ "pass"
+  yield correction ≡ ""
+  yield confidence ≡ "high"
+
+-- oracles: ✓
+
+⊢ fact-check-17
+  given claim ≡ "Matt Mackall released Mercurial in April 2005."
+  yield verdict, correction, confidence
+
+  ∴ Evaluate factual accuracy.
+
+-- LLM evaluation:
+-- Matt Mackall announced Mercurial on April 19, 2005. Confirmed.
+
+  yield verdict ≡ "pass"
+  yield correction ≡ ""
+  yield confidence ≡ "high"
+
+-- oracles: ✓
+
+⊢ fact-check-18
+  given claim ≡ "GitHub was launched in 2008 by Tom Preston-Werner, Chris Wanstrath, PJ Hyett, and Scott Chacon."
+  yield verdict, correction, confidence
+
+  ∴ Evaluate factual accuracy.
+
+-- LLM evaluation:
+-- GitHub launched in April 2008. The founders were Tom Preston-Werner,
+-- Chris Wanstrath, PJ Hyett, and Scott Chacon. However, Scott Chacon
+-- is commonly described as an early employee, not a co-founder. The
+-- three co-founders are Preston-Werner, Wanstrath, and Hyett. Chacon
+-- joined later as an early key contributor.
+
+  yield verdict ≡ "fail"
+  yield correction ≡ "GitHub was launched in 2008 by co-founders Tom Preston-Werner, Chris Wanstrath, and PJ Hyett."
+  yield confidence ≡ "high"
+
+-- oracles: ✓ verdict = "fail", ✓ correction ≠ ""
+
+-- All 18 fact-check cells evaluated.
+-- Ready set after: { aggregate-results }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 21: aggregate-results (soft cell, collects verdicts)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ aggregate-results
+  given spawn-fact-checkers→§checkers ≡ [ fact-check-1..fact-check-18 ]
+  yield pass-count, fail-count, uncertain-count, failed-claims[], all-pass
+
+  ∴ Collect verdicts from all 18 fact-check cells.
+
+-- LLM evaluation:
+-- Tallying verdicts:
+--   pass: 1,2,3,4,5,6,7,8,9,10,12,13,14,15,16,17 → 16 pass
+--   fail: 11 (BitKeeper date), 18 (GitHub founders) → 2 fail
+--   uncertain: 0
+-- Gathering failed claims with corrections.
+
+  yield pass-count ≡ 16
+  yield fail-count ≡ 2
+  yield uncertain-count ≡ 0
+  yield failed-claims ≡ [
+    {
+      claim: "BitKeeper was created by Larry McVoy in 1998.",
+      correction: "BitKeeper was created by Larry McVoy, who founded BitMover Inc. in 1998; BitKeeper was first released in 2000."
+    },
+    {
+      claim: "GitHub was launched in 2008 by Tom Preston-Werner, Chris Wanstrath, PJ Hyett, and Scott Chacon.",
+      correction: "GitHub was launched in 2008 by co-founders Tom Preston-Werner, Chris Wanstrath, and PJ Hyett."
+    }
+  ]
+  yield all-pass ≡ false
+
+-- oracle checks:
+--   ⊨ pass-count + fail-count + uncertain-count = 18 → ✓ (16 + 2 + 0 = 18)
+--   ⊨ length(failed-claims) = fail-count → ✓ (2 = 2)
+--   ⊨ fail-count = 0 and uncertain-count = 0 then all-pass = true → N/A
+--   ⊨ fail-count > 0 or uncertain-count > 0 then all-pass = false → ✓ (2 > 0)
+--
+-- All oracles pass. Freeze output.
+-- Ready set after: { rewrite-article }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 22: rewrite-article (soft cell, surgical replacement of failed claims)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ rewrite-article
+  given generate-article→article-text ≡ "The History of Version Control Systems ..."
+  given generate-article→claims ≡ [ ...18 claims... ]
+  given aggregate-results→failed-claims ≡ [
+    { claim: "BitKeeper was created by Larry McVoy in 1998.", correction: "BitKeeper was created by Larry McVoy, who founded BitMover Inc. in 1998; BitKeeper was first released in 2000." },
+    { claim: "GitHub was launched in 2008 by Tom Preston-Werner, Chris Wanstrath, PJ Hyett, and Scott Chacon.", correction: "GitHub was launched in 2008 by co-founders Tom Preston-Werner, Chris Wanstrath, and PJ Hyett." }
+  ]
+  given aggregate-results→all-pass ≡ false
+  yield article-text', claims'[], changes-made
+
+  ∴ Not all-pass. Replace failed claims in article text.
+
+-- LLM evaluation:
+-- Replacing 2 sentences:
+--   Paragraph 5: "...BitKeeper, created by Larry McVoy in 1998."
+--     → "...BitKeeper, created by Larry McVoy, who founded BitMover Inc.
+--        in 1998; BitKeeper was first released in 2000."
+--   Paragraph 7: "...the launch of GitHub in 2008 by Tom Preston-Werner,
+--     Chris Wanstrath, PJ Hyett, and Scott Chacon."
+--     → "...the launch of GitHub in 2008 by co-founders Tom Preston-Werner,
+--        Chris Wanstrath, and PJ Hyett."
+-- All other sentences preserved verbatim.
+
+  yield article-text' ≡ "The History of Version Control Systems
+
+The need to track changes in source code emerged alongside the earliest software projects. In the 1970s, programmers at Bell Labs faced the challenge of coordinating modifications to large codebases. Marc Rochkind created SCCS (Source Code Control System) in 1972 at Bell Labs, making it the first widely recognized version control system. SCCS stored deltas — the differences between file versions — rather than full copies, an innovation that made version tracking practical on storage-constrained mainframes.
+
+A decade later, Walter Tichy at Purdue University released RCS (Revision Control System) in 1982. RCS improved on SCCS by storing reverse deltas, keeping the most recent version in full and computing older versions on demand. This made checkout of the latest revision faster, which matched typical developer workflows. RCS remained file-oriented, however — each file had its own version history with no concept of a project-wide snapshot.
+
+The limitation of single-file versioning drove Dick Grune to create CVS (Concurrent Versions System) in 1986. CVS introduced the copy-modify-merge model, allowing multiple developers to edit the same file concurrently and reconcile changes later. It built on top of RCS for file-level storage but added a client-server architecture and the concept of a repository containing an entire project. CVS became the dominant open-source version control system throughout the 1990s.
+
+By the early 2000s, CVS's architectural limitations — no atomic commits, no rename tracking, no directory versioning — became acute. CollabNet founded the Subversion (SVN) project in 2000, with Karl Fogel and Jim Blandy leading the initial development. Subversion 1.0 shipped in 2004 and addressed CVS's core deficiencies: it provided atomic commits, versioned directories, and efficient branching through cheap copies. Subversion used a centralized model with a single authoritative repository.
+
+The shift to distributed version control began with BitKeeper, created by Larry McVoy, who founded BitMover Inc. in 1998; BitKeeper was first released in 2000. BitKeeper was used to manage the Linux kernel source from 2002 to 2005 under a controversial proprietary license. When Andrew Tridgell reverse-engineered the BitKeeper protocol in 2005, McVoy revoked the free license, precipitating a crisis in the kernel development community. This event directly motivated Linus Torvalds to create Git.
+
+Linus Torvalds began writing Git in April 2005 and released the first version within weeks. Git's design prioritized speed, data integrity through SHA-1 content addressing, and support for distributed non-linear workflows. The system stored full snapshots of every committed state rather than deltas, using compression and packfiles for efficiency. Junio Hamano took over as Git maintainer in July 2005 and has led development since.
+
+Around the same period, Matt Mackall released Mercurial in April 2005, also motivated by the BitKeeper crisis. Mercurial shared Git's distributed model but emphasized a simpler user interface and cross-platform compatibility. Both Git and Mercurial gained rapid adoption, but Git ultimately dominated, driven in large part by the launch of GitHub in 2008 by co-founders Tom Preston-Werner, Chris Wanstrath, and PJ Hyett. GitHub made Git accessible to a mass audience and established pull-request-based collaboration as the standard open-source workflow."
+
+  yield claims' ≡ [
+    "Marc Rochkind created SCCS in 1972 at Bell Labs.",
+    "SCCS was the first widely recognized version control system.",
+    "SCCS stored deltas rather than full copies of files.",
+    "Walter Tichy at Purdue University released RCS in 1982.",
+    "RCS stored reverse deltas, keeping the most recent version in full.",
+    "Dick Grune created CVS in 1986.",
+    "CVS introduced the copy-modify-merge model.",
+    "CollabNet founded the Subversion project in 2000.",
+    "Karl Fogel and Jim Blandy led Subversion's initial development.",
+    "Subversion 1.0 shipped in 2004.",
+    "BitKeeper was created by Larry McVoy, who founded BitMover Inc. in 1998; BitKeeper was first released in 2000.",
+    "BitKeeper managed the Linux kernel source from 2002 to 2005.",
+    "Andrew Tridgell reverse-engineered the BitKeeper protocol in 2005.",
+    "Linus Torvalds began writing Git in April 2005.",
+    "Git uses SHA-1 content addressing for data integrity.",
+    "Junio Hamano took over as Git maintainer in July 2005.",
+    "Matt Mackall released Mercurial in April 2005.",
+    "GitHub was launched in 2008 by co-founders Tom Preston-Werner, Chris Wanstrath, and PJ Hyett."
+  ]
+  yield changes-made ≡ 2
+
+-- oracle checks:
+--   ⊨ all-pass then article-text' = generate-article→article-text → N/A (not all-pass)
+--   ⊨ all-pass then changes-made = 0 → N/A
+--   ⊨ not all-pass then changes-made > 0 → ✓ (2 > 0)
+--   ⊨ length(claims') = length(claims) → ✓ (18 = 18)
+--
+-- All oracles pass. Freeze output.
+--
+-- ⊢∘ fact-check-loop: iteration 1 complete.
+--   aggregate-results→all-pass = false → continue loop.
+--   generate-article→article-text is now replaced by rewrite-article→article-text'.
+--   generate-article→claims is now replaced by rewrite-article→claims'.
+--   Fact-checkers will re-run on the corrected claims.
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ ITERATION 2 — fact-check-loop(generate-article)
+-- ═══════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 23: spawn-fact-checkers (iteration 2, re-spawn on corrected claims)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢⊢ spawn-fact-checkers
+  given generate-article→claims ≡ [ ...18 corrected claims... ]
+  yield §checkers[]
+
+  ∴ Spawn one fact-check cell per corrected claim.
+
+-- Spawning 18 fact-check cells on the revised claims list.
+-- Claims 1-10, 12-17 are unchanged from iteration 1.
+-- Claim 11 (BitKeeper) and claim 18 (GitHub) have been corrected.
+
+-- ═══════════════════════════════════════════════════════════════
+-- frames 24–41: fact-check-1' through fact-check-18' (iteration 2)
+-- ═══════════════════════════════════════════════════════════════
+
+-- Claims 1-10, 12-17: unchanged from iteration 1. All re-pass with
+-- same verdicts. Showing only the two corrected claims:
+
+⊢ fact-check-11'
+  given claim ≡ "BitKeeper was created by Larry McVoy, who founded BitMover Inc. in 1998; BitKeeper was first released in 2000."
+  yield verdict, correction, confidence
+
+  ∴ Evaluate factual accuracy.
+
+-- LLM evaluation:
+-- Larry McVoy founded BitMover Inc. around 1998. BitKeeper's first
+-- public availability was around 2000. The corrected claim accurately
+-- distinguishes between company founding and product release.
+
+  yield verdict ≡ "pass"
+  yield correction ≡ ""
+  yield confidence ≡ "high"
+
+-- oracles: ✓
+
+⊢ fact-check-18'
+  given claim ≡ "GitHub was launched in 2008 by co-founders Tom Preston-Werner, Chris Wanstrath, and PJ Hyett."
+  yield verdict, correction, confidence
+
+  ∴ Evaluate factual accuracy.
+
+-- LLM evaluation:
+-- GitHub launched in April 2008. The three co-founders are Tom
+-- Preston-Werner, Chris Wanstrath, and PJ Hyett. Scott Chacon was
+-- an early employee, not a co-founder. The corrected claim is accurate.
+
+  yield verdict ≡ "pass"
+  yield correction ≡ ""
+  yield confidence ≡ "high"
+
+-- oracles: ✓
+
+-- All 18 re-checks pass (16 unchanged pass + 2 corrected now pass).
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 42: aggregate-results (iteration 2)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ aggregate-results
+  given spawn-fact-checkers→§checkers ≡ [ fact-check-1'..fact-check-18' ]
+  yield pass-count, fail-count, uncertain-count, failed-claims[], all-pass
+
+  ∴ Collect verdicts from all 18 re-checked claims.
+
+-- LLM evaluation:
+-- All 18 claims now pass. Zero failures. Zero uncertain.
+
+  yield pass-count ≡ 18
+  yield fail-count ≡ 0
+  yield uncertain-count ≡ 0
+  yield failed-claims ≡ []
+  yield all-pass ≡ true
+
+-- oracle checks:
+--   ⊨ pass-count + fail-count + uncertain-count = 18 → ✓ (18 + 0 + 0 = 18)
+--   ⊨ length(failed-claims) = fail-count → ✓ (0 = 0)
+--   ⊨ fail-count = 0 and uncertain-count = 0 then all-pass = true → ✓
+--   ⊨ fail-count > 0 or uncertain-count > 0 then all-pass = false → N/A
+--
+-- All oracles pass. Freeze output.
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 43: rewrite-article (iteration 2, no changes needed)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ rewrite-article
+  given generate-article→article-text ≡ "The History of Version Control Systems ..."
+  given generate-article→claims ≡ [ ...18 corrected claims... ]
+  given aggregate-results→failed-claims ≡ []
+  given aggregate-results→all-pass ≡ true
+  yield article-text', claims'[], changes-made
+
+  ∴ All-pass = true. Output unchanged.
+
+  yield article-text' ≡ "The History of Version Control Systems ..."
+  yield claims' ≡ [ ...18 claims unchanged... ]
+  yield changes-made ≡ 0
+
+-- oracle checks:
+--   ⊨ all-pass then article-text' = generate-article→article-text → ✓
+--   ⊨ all-pass then changes-made = 0 → ✓ (0 = 0)
+--   ⊨ not all-pass then changes-made > 0 → N/A
+--   ⊨ length(claims') = length(claims) → ✓ (18 = 18)
+--
+-- All oracles pass. Freeze output.
+--
+-- ⊢∘ fact-check-loop: iteration 2 complete.
+--   aggregate-results→all-pass = true → HALT. Fixed point reached.
+--   Total iterations: 2 of max 3.
+
+-- Ready set after: { final-article }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 44: final-article (soft cell, assembles verified article)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ final-article
+  given rewrite-article→article-text' ≡ "The History of Version Control Systems ..."
+  given aggregate-results→pass-count ≡ 18
+  given aggregate-results→fail-count ≡ 0
+  given aggregate-results→uncertain-count ≡ 0
+  yield verified-article, fact-check-summary
+
+  ∴ Produce final verified article with fact-check summary.
+
+-- LLM evaluation:
+-- Assembling the verified article with appended summary statistics.
+
+  yield verified-article ≡ "The History of Version Control Systems
+
+The need to track changes in source code emerged alongside the earliest software projects. In the 1970s, programmers at Bell Labs faced the challenge of coordinating modifications to large codebases. Marc Rochkind created SCCS (Source Code Control System) in 1972 at Bell Labs, making it the first widely recognized version control system. SCCS stored deltas — the differences between file versions — rather than full copies, an innovation that made version tracking practical on storage-constrained mainframes.
+
+A decade later, Walter Tichy at Purdue University released RCS (Revision Control System) in 1982. RCS improved on SCCS by storing reverse deltas, keeping the most recent version in full and computing older versions on demand. This made checkout of the latest revision faster, which matched typical developer workflows. RCS remained file-oriented, however — each file had its own version history with no concept of a project-wide snapshot.
+
+The limitation of single-file versioning drove Dick Grune to create CVS (Concurrent Versions System) in 1986. CVS introduced the copy-modify-merge model, allowing multiple developers to edit the same file concurrently and reconcile changes later. It built on top of RCS for file-level storage but added a client-server architecture and the concept of a repository containing an entire project. CVS became the dominant open-source version control system throughout the 1990s.
+
+By the early 2000s, CVS's architectural limitations — no atomic commits, no rename tracking, no directory versioning — became acute. CollabNet founded the Subversion (SVN) project in 2000, with Karl Fogel and Jim Blandy leading the initial development. Subversion 1.0 shipped in 2004 and addressed CVS's core deficiencies: it provided atomic commits, versioned directories, and efficient branching through cheap copies. Subversion used a centralized model with a single authoritative repository.
+
+The shift to distributed version control began with BitKeeper, created by Larry McVoy, who founded BitMover Inc. in 1998; BitKeeper was first released in 2000. BitKeeper was used to manage the Linux kernel source from 2002 to 2005 under a controversial proprietary license. When Andrew Tridgell reverse-engineered the BitKeeper protocol in 2005, McVoy revoked the free license, precipitating a crisis in the kernel development community. This event directly motivated Linus Torvalds to create Git.
+
+Linus Torvalds began writing Git in April 2005 and released the first version within weeks. Git's design prioritized speed, data integrity through SHA-1 content addressing, and support for distributed non-linear workflows. The system stored full snapshots of every committed state rather than deltas, using compression and packfiles for efficiency. Junio Hamano took over as Git maintainer in July 2005 and has led development since.
+
+Around the same period, Matt Mackall released Mercurial in April 2005, also motivated by the BitKeeper crisis. Mercurial shared Git's distributed model but emphasized a simpler user interface and cross-platform compatibility. Both Git and Mercurial gained rapid adoption, but Git ultimately dominated, driven in large part by the launch of GitHub in 2008 by co-founders Tom Preston-Werner, Chris Wanstrath, and PJ Hyett. GitHub made Git accessible to a mass audience and established pull-request-based collaboration as the standard open-source workflow."
+
+  yield fact-check-summary ≡ "Fact-Check Summary: 18 claims checked. 18 passed. 0 failed. 0 uncertain. All claims verified after 2 iterations (2 claims corrected in iteration 1: BitKeeper creation date precision, GitHub co-founder attribution)."
+
+-- oracle checks:
+--   ⊨ verified-article contains the full article text → ✓
+--   ⊨ fact-check-summary includes total, passed, failed, uncertain → ✓
+--     (18 total, 18 passed, 0 failed, 0 uncertain)
+--   ⊨ fail-count = 0 then summary states "all claims verified" → ✓
+--
+-- All oracles pass. Freeze output.
+-- No further cells in ready set. Frontier exhausted.
+
+-- ═══════════════════════════════════════════════════════════════
+-- OBSERVATIONS
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= obs-fact-check-convergence
+  ∴ The ⊢∘ fact-check-loop converged in 2 iterations of max 3. Iteration 1
+    identified 2 factual errors out of 18 claims (11% error rate). Both were
+    precision errors — not outright fabrications but insufficiently precise
+    attributions. After surgical correction (replacing only the 2 failed
+    sentences), all 18 claims passed in iteration 2. The loop demonstrates
+    monotonic improvement: the correction does not introduce new errors.
+
+⊢= obs-spawner-as-parallel-oracle
+  ∴ The spawn-fact-checkers cell creates 18 independent oracle cells, one per
+    claim. These are all independently evaluable (no cross-dependencies), making
+    this a maximally parallel execution pattern. In a real Cell runtime, all 18
+    could execute simultaneously. This is the "embarrassingly parallel" oracle
+    pattern: break one complex verification task (article fact-checking) into N
+    independent simple verifications. The spawner transforms a monolithic quality
+    gate into a fine-grained, parallelizable verification mesh.
+
+⊢= obs-error-taxonomy
+  ∴ Two categories of factual error detected:
+    (1) Date precision: BitKeeper "created in 1998" conflated company founding
+    with product release. The corrected claim distinguishes "founded company 1998"
+    from "released product 2000". This is a common LLM error pattern — temporal
+    conflation of related events.
+    (2) Attribution scope: GitHub "launched by" four people included Scott Chacon,
+    who was an early employee, not a co-founder. The LLM included a prominent
+    associated person who wasn't in the founding group. This is the "halo
+    attribution" error — nearby prominent figures get absorbed into origin stories.
+
+⊢= obs-surgical-rewriting
+  ∴ The rewrite-article cell performs surgical replacement: only sentences
+    containing failed claims are modified. The 16 passing claims and their
+    surrounding prose are preserved verbatim. This locality property is critical
+    for convergence — if rewriting destabilized adjacent sentences, the loop
+    could oscillate. The ⊨ oracle "length(claims') = length(claims)" enforces
+    structural stability: no claims can be added or removed during correction,
+    only content-modified.
+
+⊢= obs-verification-cheaper-than-generation
+  ∴ Generating the article (1 LLM call) produced 18 claims. Verifying required
+    18 independent fact-checks. In terms of Cell's computational model: generation
+    is a single soft cell, verification is N soft cells. Each individual
+    fact-check is simpler than the original generation (checking a single claim
+    vs writing a coherent multi-paragraph article). This mirrors the NP/P
+    asymmetry from proof-carrying computation: producing the article is hard,
+    checking each claim is comparatively easy. The spawner pattern makes this
+    asymmetry explicit and exploitable.
+
+⊢= obs-loop-as-editorial-process
+  ∴ The ⊢∘ fact-check-loop models a real editorial fact-checking workflow:
+    (1) Writer produces draft (generate-article)
+    (2) Fact-checkers independently verify claims (spawn-fact-checkers)
+    (3) Editor aggregates results (aggregate-results)
+    (4) Writer revises only flagged passages (rewrite-article)
+    (5) Repeat until clean (⊢∘ until all-pass)
+    Cell's contribution is making this workflow executable, traceable, and
+    convergent. Each iteration's state is a hashable document. The editorial
+    process becomes a formal fixed-point computation.

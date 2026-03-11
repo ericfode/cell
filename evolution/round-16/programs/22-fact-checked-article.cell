@@ -1,0 +1,137 @@
+-- 22-fact-checked-article.cell
+-- Tests: ⊢∘ as fact-check correction loop, spawned oracle cells per claim,
+--        claim-level rewriting, convergence via all-claims-pass gate
+--
+-- Generates an article: "The history of version control systems".
+-- For each factual claim, spawn a fact-check oracle cell.
+-- Failed claims are rewritten. ⊢∘ loop until all claims pass.
+
+⊢ topic
+  yield title, scope
+
+  ⊢= title ← "The History of Version Control Systems"
+  ⊢= scope ← "From early mainframe source management through distributed version control. Cover SCCS, RCS, CVS, Subversion, BitKeeper, Git, and Mercurial. Focus on factual milestones: creation dates, creators, key technical innovations."
+
+⊢ generate-article
+  given topic→title
+  given topic→scope
+  yield article-text, claims[]
+
+  ∴ Write a concise article (6-8 paragraphs) titled «topic→title».
+    Scope: «topic→scope».
+
+    Each paragraph should contain 2-4 factual claims about dates, people,
+    or technical milestones. After writing, extract every factual claim as
+    a separate entry in claims[]. Each claim should be a single declarative
+    sentence that can be independently verified (e.g., "Git was created by
+    Linus Torvalds in 2005." not "Git was fast.").
+
+    Do NOT include opinions, subjective assessments, or vague statements
+    in the claims list — only verifiable facts.
+
+  ⊨ length(claims) ≥ 12
+  ⊨ each claim in claims is a single declarative sentence with a verifiable fact
+  ⊨ article-text contains all claims embedded in prose context
+  ⊨ article-text has between 6 and 8 paragraphs
+
+⊢⊢ spawn-fact-checkers
+  given generate-article→claims
+  yield §checkers[]
+
+  ∴ For each claim in «generate-article→claims», spawn a fact-check oracle cell:
+
+    ⊢ fact-check-N
+      given claim ≡ "<the Nth claim>"
+      yield verdict, correction, confidence
+
+      ∴ Evaluate whether «claim» is factually accurate.
+        - If accurate: verdict ≡ "pass", correction ≡ "", confidence ∈ {high, medium}
+        - If inaccurate: verdict ≡ "fail", correction ≡ "<corrected claim>",
+          confidence ∈ {high, medium}
+        - If unverifiable: verdict ≡ "uncertain", correction ≡ "",
+          confidence ≡ "low"
+
+        Use established knowledge about version control history.
+        Common errors to watch for: wrong dates (±1 year matters),
+        wrong attribution, conflated systems, anachronistic features.
+
+      ⊨ verdict ∈ {"pass", "fail", "uncertain"}
+      ⊨ if verdict = "fail" then correction ≠ ""
+      ⊨ if verdict = "pass" then correction = ""
+
+⊢ aggregate-results
+  given spawn-fact-checkers→§checkers
+  yield pass-count, fail-count, uncertain-count, failed-claims[], all-pass
+
+  ∴ Collect verdicts from all spawned fact-check cells.
+    Count pass, fail, and uncertain verdicts.
+    Gather the claim text and correction for each failed claim into failed-claims[].
+    Set all-pass = true only if fail-count = 0 AND uncertain-count = 0.
+
+  ⊨ pass-count + fail-count + uncertain-count = length(spawn-fact-checkers→§checkers)
+  ⊨ length(failed-claims) = fail-count
+  ⊨ if fail-count = 0 and uncertain-count = 0 then all-pass = true
+  ⊨ if fail-count > 0 or uncertain-count > 0 then all-pass = false
+
+⊢ rewrite-article
+  given generate-article→article-text
+  given generate-article→claims
+  given aggregate-results→failed-claims
+  given aggregate-results→all-pass
+  yield article-text', claims'[], changes-made
+
+  ∴ If «aggregate-results→all-pass» is true: output article-text' ≡
+    «generate-article→article-text» unchanged. Set changes-made ≡ 0.
+
+    If all-pass is false: for each entry in «aggregate-results→failed-claims»,
+    find the corresponding sentence in «generate-article→article-text» and
+    replace it with the corrected version from the fact-checker. Also update
+    the claims[] list to reflect the corrections. Set changes-made to the
+    number of claims rewritten.
+
+    Do NOT alter sentences whose claims passed. Preserve the article's
+    structure, tone, and flow. Only surgical replacements.
+
+  ⊨ if all-pass then article-text' = generate-article→article-text
+  ⊨ if all-pass then changes-made = 0
+  ⊨ if not all-pass then changes-made > 0
+  ⊨ length(claims') = length(generate-article→claims)
+
+  ⊨? on failure:
+    retry with «aggregate-results→failed-claims» appended to prompt
+    max 3 attempts
+
+⊢∘ fact-check-loop(generate-article)
+  through spawn-fact-checkers, aggregate-results, rewrite-article
+  until aggregate-results→all-pass = true
+  max 3
+
+  -- Each iteration: generate article with claims → spawn per-claim
+  -- fact-checkers → aggregate pass/fail → rewrite failed claims.
+  -- Rewritten article replaces generate-article's output, then
+  -- fact-checkers re-run on the new claims.
+  --
+  -- Interface frozen: generate-article always yields article-text + claims[].
+  -- Only the content evolves.
+  --
+  -- Termination: all claims pass or max 3 iterations.
+
+⊢ final-article
+  given rewrite-article→article-text'
+  given aggregate-results→pass-count
+  given aggregate-results→fail-count
+  given aggregate-results→uncertain-count
+  yield verified-article, fact-check-summary
+
+  ∴ Produce the final verified article from «rewrite-article→article-text'».
+
+    Append a fact-check summary:
+    - Total claims checked: «aggregate-results→pass-count» +
+      «aggregate-results→fail-count» + «aggregate-results→uncertain-count»
+    - Passed: «aggregate-results→pass-count»
+    - Failed (corrected): «aggregate-results→fail-count»
+    - Uncertain: «aggregate-results→uncertain-count»
+
+  ⊨ verified-article contains the full article text
+  ⊨ fact-check-summary includes total, passed, failed, and uncertain counts
+  ⊨ if aggregate-results→fail-count = 0 then fact-check-summary states "all claims verified"
