@@ -1,0 +1,149 @@
+-- 14-dependency-graph-builder.cell
+-- Tests: recursive graph construction, ⊢⊢ spawner, structural oracle (acyclicity),
+--        internal vs external dependency classification, DAG validation
+--
+-- Takes a codebase description. Identifies modules. For each module, identifies
+-- dependencies. For each internal dependency, recurses into that module's
+-- sub-modules. Builds a complete DAG. Oracle validates: is the DAG acyclic?
+--
+-- Codebase: Gas Town — a multi-agent workspace manager
+--   mayor (coordinator), witness (polecat lifecycle), refinery (merge queue),
+--   beads (issue tracking), gt CLI (orchestration), dolt (data layer)
+
+⊢ codebase
+  given description ≡ "Gas Town — a multi-agent workspace manager with: mayor (coordinator that dispatches work and handles escalations), witness (monitors polecat lifecycle, health checks, nudges stuck agents), refinery (bisecting merge queue that merges polecat branches), beads (Dolt-backed issue tracking with dependency DAG), gt CLI (orchestration commands: prime, hook, done, mail, escalate), dolt (SQL data layer providing versioned database for beads and agent state)"
+  yield description
+
+  ⊨ description names at least 4 distinct modules
+
+⊢ identify-modules
+  given codebase→description
+  yield modules[], module-descriptions[]
+
+  ∴ Read «codebase→description» and identify all top-level modules.
+    For each module, provide a one-line description of its responsibility.
+    Include only modules that are part of Gas Town itself (internal),
+    not external dependencies like Go stdlib or third-party libraries.
+
+  ⊨ length(modules) ≥ 4
+  ⊨ each module has a clear single responsibility
+  ⊨ modules are non-overlapping
+
+⊢⊢ spawn-dependency-analyzers
+  given identify-modules→modules
+  given identify-modules→module-descriptions
+  given §dependency-analyzer-template
+  yield §analyzer-cells[]
+  until length(analyzer-cells) = length(identify-modules→modules)
+  max 10
+
+  ∴ For each module in «identify-modules→modules», spawn a cell that
+    identifies what other modules it depends on and classifies each
+    dependency as internal (within Gas Town) or external.
+
+  ⊨ one analyzer cell per module
+
+⊢ dependency-analyzer-template
+  given module-name
+  given module-desc
+  given all-modules[]
+  yield depends-on[], dependency-types[], rationale
+
+  ∴ For module «module-name» («module-desc»), identify all modules it
+    depends on. For each dependency:
+    - Name the depended-on module
+    - Classify as "internal" (in «all-modules») or "external"
+    - Explain WHY the dependency exists (what service/data flows)
+
+    Only include DIRECT dependencies (not transitive).
+
+  ⊨ each dependency is classified as "internal" or "external"
+  ⊨ no self-dependencies (module cannot depend on itself)
+  ⊨ rationale explains each dependency's purpose
+
+⊢ build-adjacency
+  given analyzer-*→depends-on
+  given analyzer-*→dependency-types
+  given identify-modules→modules
+  yield edges[], internal-edges[], external-deps[]
+
+  ∴ Collect all dependency information from analyzer cells.
+    Build the adjacency list:
+    - edges: all (source, target) pairs
+    - internal-edges: only edges where both source and target are internal modules
+    - external-deps: external dependencies grouped by module
+
+  ⊨ every edge has a valid source and target
+  ⊨ internal-edges is a subset of edges
+  ⊨ no duplicate edges
+
+⊢ validate-acyclicity
+  given build-adjacency→internal-edges
+  given identify-modules→modules
+  yield is-acyclic, topological-order[], cycle-description
+
+  ∴ Check if the internal dependency graph is acyclic (a valid DAG).
+    Use topological sort: if all nodes can be ordered such that every
+    edge points from earlier to later in the order, the graph is acyclic.
+
+    If acyclic: produce the topological ordering.
+    If cyclic: describe the cycle (which modules form the loop).
+
+  ⊨ is-acyclic ∈ { true, false }
+  ⊨ if is-acyclic then topological-order contains all modules
+  ⊨ if not is-acyclic then cycle-description names the cycle
+
+  ⊨? on failure:
+    retry with «oracle.failures» max 2
+
+⊢⊢ spawn-sub-module-analyzers
+  given build-adjacency→internal-edges
+  given identify-modules→modules
+  given §sub-module-analyzer-template
+  yield §sub-analyzer-cells[]
+  until length(sub-analyzer-cells) = length(identify-modules→modules)
+  max 10
+
+  ∴ For each internal module, spawn a cell that identifies its
+    SUB-MODULES (internal components). This is the recursive step:
+    each module is itself composed of sub-modules with their own
+    internal dependency structure.
+
+  ⊨ one sub-analyzer cell per module
+
+⊢ sub-module-analyzer-template
+  given module-name
+  given module-deps[]
+  yield sub-modules[], sub-edges[], sub-is-acyclic
+
+  ∴ Decompose «module-name» into its internal sub-modules (2-4 components).
+    Identify dependencies between sub-modules. Check acyclicity within
+    this module.
+
+  ⊨ 2 ≤ length(sub-modules) ≤ 4
+  ⊨ sub-is-acyclic ∈ { true, false }
+  ⊨ sub-edges only reference sub-modules within this module
+
+⊢ assemble-full-graph
+  given identify-modules→modules
+  given build-adjacency→internal-edges
+  given build-adjacency→external-deps
+  given validate-acyclicity→is-acyclic
+  given validate-acyclicity→topological-order
+  given sub-analyzer-*→sub-modules
+  given sub-analyzer-*→sub-edges
+  given sub-analyzer-*→sub-is-acyclic
+  yield full-dag, layer-count, total-nodes, total-edges, summary
+
+  ∴ Assemble the complete two-level dependency graph:
+    Level 1: module-to-module dependencies (top-level DAG)
+    Level 2: sub-module dependencies within each module
+
+    Present the graph as a structured DAG with:
+    - Topological layer assignment (modules with no deps = layer 0)
+    - Total node and edge counts
+    - Any cycles detected at either level
+
+  ⊨ full-dag includes both levels
+  ⊨ layer-count ≥ 2
+  ⊨ summary describes the graph structure and any findings

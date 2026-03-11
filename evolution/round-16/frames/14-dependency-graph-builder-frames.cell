@@ -1,0 +1,635 @@
+-- 14-dependency-graph-builder-frames.cell — full eval-one execution trace
+--
+-- Ready set analysis:
+--   codebase: all givens have ≡ → READY
+--   identify-modules: needs codebase→description → BLOCKED
+--   spawn-dependency-analyzers: needs identify-modules→modules → BLOCKED
+--   analyzer-*: spawned dynamically → BLOCKED
+--   build-adjacency: needs analyzer-*→depends-on → BLOCKED
+--   validate-acyclicity: needs build-adjacency→internal-edges → BLOCKED
+--   spawn-sub-module-analyzers: needs build-adjacency→internal-edges → BLOCKED
+--   sub-analyzer-*: spawned dynamically → BLOCKED
+--   assemble-full-graph: needs everything → BLOCKED
+--
+-- Ready set: { codebase }
+-- Structure: codebase → identify-modules → spawn-analyzers → [analyzer-1..N]
+--            → build-adjacency → { validate-acyclicity, spawn-sub-module-analyzers }
+--            → [sub-analyzer-1..N] → assemble-full-graph
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 0: codebase
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ codebase
+  given description ≡ "Gas Town — a multi-agent workspace manager with: mayor (coordinator that dispatches work and handles escalations), witness (monitors polecat lifecycle, health checks, nudges stuck agents), refinery (bisecting merge queue that merges polecat branches), beads (Dolt-backed issue tracking with dependency DAG), gt CLI (orchestration commands: prime, hook, done, mail, escalate), dolt (SQL data layer providing versioned database for beads and agent state)"
+  yield description ≡ "Gas Town — a multi-agent workspace manager with: mayor (coordinator that dispatches work and handles escalations), witness (monitors polecat lifecycle, health checks, nudges stuck agents), refinery (bisecting merge queue that merges polecat branches), beads (Dolt-backed issue tracking with dependency DAG), gt CLI (orchestration commands: prime, hook, done, mail, escalate), dolt (SQL data layer providing versioned database for beads and agent state)"
+
+  ⊨ description names at least 4 distinct modules → ✓ (6: mayor, witness, refinery, beads, gt, dolt)
+
+-- Ready set after frame 0: { identify-modules }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 1: identify-modules
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ identify-modules
+  given codebase→description ≡ "Gas Town — a multi-agent workspace manager with..."
+  yield modules[], module-descriptions[]
+
+  ∴ Read the description and identify all top-level modules...
+
+-- LLM evaluation:
+-- The description explicitly names 6 components. Let me verify each is a
+-- distinct module with a single responsibility:
+--
+-- 1. mayor — coordinates agents, dispatches work, handles escalations
+-- 2. witness — monitors polecats, health checks, nudges stuck agents
+-- 3. refinery — merge queue, bisects failures, merges branches
+-- 4. beads — issue tracking, dependency DAG, Dolt-backed storage
+-- 5. gt — CLI orchestration, user-facing commands
+-- 6. dolt — SQL data layer, versioned database
+--
+-- Are there implicit modules? The "polecat" is an agent type, not a module.
+-- "mail" is a feature within gt, not a separate module. 6 modules is complete.
+
+  yield modules ≡ ["mayor", "witness", "refinery", "beads", "gt", "dolt"]
+
+  yield module-descriptions ≡ [
+    "mayor: Global coordinator — dispatches work to polecats, handles escalations, manages town-level state",
+    "witness: Polecat lifecycle manager — monitors health, detects stuck agents, nudges or restarts, verifies completions",
+    "refinery: Bisecting merge queue — receives MRs from polecats, runs gates, bisects on failure, merges to main",
+    "beads: Issue tracking system — Dolt-backed, dependency-aware, prefix-routed, tracks issues/mail/molecules",
+    "gt: CLI orchestration tool — user-facing commands (prime, hook, done, mail, escalate), wraps lower-level tools",
+    "dolt: SQL data layer — versioned database server, provides storage for beads and agent state"
+  ]
+
+-- oracle checks:
+--   ⊨ length(modules) ≥ 4 → ✓ (6)
+--   ⊨ each module has single responsibility → ✓
+--   ⊨ modules are non-overlapping → ✓
+
+-- Ready set after frame 1: { spawn-dependency-analyzers }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 2: spawn-dependency-analyzers
+-- ═══════════════════════════════════════════════════════════════
+
+⊢⊢ spawn-dependency-analyzers
+  given identify-modules→modules ≡ ["mayor", "witness", "refinery", "beads", "gt", "dolt"]
+  given identify-modules→module-descriptions ≡ [6 descriptions]
+  given §dependency-analyzer-template
+  yield §analyzer-cells ≡ [§analyzer-1, §analyzer-2, §analyzer-3, §analyzer-4, §analyzer-5, §analyzer-6]
+
+  ⊨ one analyzer cell per module → ✓ (6 cells for 6 modules)
+
+-- 6 cells spawned. All READY (each has module-name, module-desc, all-modules bound).
+-- Ready set: { analyzer-1, analyzer-2, analyzer-3, analyzer-4, analyzer-5, analyzer-6 }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frames 3-8: analyzer-1 through analyzer-6
+-- ═══════════════════════════════════════════════════════════════
+
+-- --- frame 3: analyzer-1 (mayor) ---
+
+⊢ analyzer-1
+  given module-name ≡ "mayor"
+  given module-desc ≡ "Global coordinator — dispatches work to polecats, handles escalations, manages town-level state"
+  given all-modules ≡ ["mayor", "witness", "refinery", "beads", "gt", "dolt"]
+  yield depends-on[], dependency-types[], rationale
+
+  ∴ Identify dependencies of mayor...
+
+-- LLM evaluation:
+-- Mayor dispatches work → needs to read issues from beads (what work exists).
+-- Mayor handles escalations → receives escalation messages via beads/mail.
+-- Mayor manages town-level state → stores state in dolt.
+-- Mayor communicates with witness → sends nudges, reads health status.
+-- Mayor does NOT directly use gt (gt calls mayor, not the other way).
+-- Mayor does NOT directly use refinery (refinery is autonomous).
+
+  yield depends-on ≡ ["beads", "dolt", "witness"]
+  yield dependency-types ≡ ["internal", "internal", "internal"]
+  yield rationale ≡ "mayor → beads: reads issues to dispatch work, receives escalations. mayor → dolt: stores town-level state (agent registry, dispatch history). mayor → witness: reads polecat health status, sends coordination nudges."
+
+  ⊨ each dependency classified → ✓
+  ⊨ no self-dependencies → ✓
+  ⊨ rationale explains each → ✓
+
+-- --- frame 4: analyzer-2 (witness) ---
+
+⊢ analyzer-2
+  given module-name ≡ "witness"
+  given module-desc ≡ "Polecat lifecycle manager — monitors health, detects stuck agents, nudges or restarts, verifies completions"
+  given all-modules ≡ ["mayor", "witness", "refinery", "beads", "gt", "dolt"]
+  yield depends-on[], dependency-types[], rationale
+
+-- LLM evaluation:
+-- Witness monitors polecats → reads agent state from dolt.
+-- Witness creates/updates issues → writes to beads (hook management, status updates).
+-- Witness escalates to mayor → sends escalations.
+-- Witness uses gt commands internally? No — witness IS a gt-level agent, it
+-- uses beads and dolt directly, not through gt CLI.
+-- Witness does NOT depend on refinery (separate concerns).
+
+  yield depends-on ≡ ["beads", "dolt", "mayor"]
+  yield dependency-types ≡ ["internal", "internal", "internal"]
+  yield rationale ≡ "witness → beads: reads/writes polecat hook status, updates bead lifecycle. witness → dolt: reads agent state, session records. witness → mayor: escalates unresolvable issues, reports polecat deaths."
+
+-- NOTE: witness → mayor AND mayor → witness. This looks like a CYCLE.
+-- We'll check in validate-acyclicity.
+
+-- --- frame 5: analyzer-3 (refinery) ---
+
+⊢ analyzer-3
+  given module-name ≡ "refinery"
+  given module-desc ≡ "Bisecting merge queue — receives MRs from polecats, runs gates, bisects on failure, merges to main"
+  given all-modules ≡ ["mayor", "witness", "refinery", "beads", "gt", "dolt"]
+  yield depends-on[], dependency-types[], rationale
+
+-- LLM evaluation:
+-- Refinery receives MRs → reads MR beads from beads.
+-- Refinery runs git operations → uses git directly (external).
+-- Refinery closes issues after merge → writes to beads.
+-- Refinery reports results → could notify witness or mayor, but primarily
+-- operates autonomously. The notification is via beads (closing the MR bead).
+-- Refinery does NOT depend on mayor or witness directly.
+
+  yield depends-on ≡ ["beads", "dolt", "git"]
+  yield dependency-types ≡ ["internal", "internal", "external"]
+  yield rationale ≡ "refinery → beads: reads MR beads from merge queue, closes issues after merge. refinery → dolt: beads storage layer (transitive through beads, but also direct for merge state). refinery → git: executes git merge, rebase, push operations (external dependency)."
+
+-- --- frame 6: analyzer-4 (beads) ---
+
+⊢ analyzer-4
+  given module-name ≡ "beads"
+  given module-desc ≡ "Issue tracking system — Dolt-backed, dependency-aware, prefix-routed, tracks issues/mail/molecules"
+  given all-modules ≡ ["mayor", "witness", "refinery", "beads", "gt", "dolt"]
+  yield depends-on[], dependency-types[], rationale
+
+-- LLM evaluation:
+-- Beads stores data in dolt → primary dependency.
+-- Beads does NOT depend on mayor, witness, refinery, or gt.
+-- Beads is a LIBRARY/SERVICE that others call into, not the other way around.
+-- It's a data layer that sits on top of dolt.
+
+  yield depends-on ≡ ["dolt"]
+  yield dependency-types ≡ ["internal"]
+  yield rationale ≡ "beads → dolt: all issue/mail/molecule data stored in Dolt databases. Beads is a data access layer over Dolt — it cannot function without the Dolt server."
+
+-- KEY: beads has only ONE dependency. It's close to the bottom of the DAG.
+
+-- --- frame 7: analyzer-5 (gt) ---
+
+⊢ analyzer-5
+  given module-name ≡ "gt"
+  given module-desc ≡ "CLI orchestration tool — user-facing commands (prime, hook, done, mail, escalate), wraps lower-level tools"
+  given all-modules ≡ ["mayor", "witness", "refinery", "beads", "gt", "dolt"]
+  yield depends-on[], dependency-types[], rationale
+
+-- LLM evaluation:
+-- gt is the CLI FACADE. It wraps everything.
+-- gt prime → reads role context, uses beads for state.
+-- gt hook → reads from beads (hook status).
+-- gt done → pushes branch (git), creates MR bead (beads), notifies witness.
+-- gt mail → sends via beads mail system.
+-- gt escalate → creates escalation bead, notifies mayor.
+-- gt depends on beads (data), mayor (escalations), witness (notifications),
+-- and git (external, for branch operations).
+-- gt does NOT depend on refinery (gt done submits TO refinery, but through beads).
+-- gt does NOT directly depend on dolt (uses beads as abstraction layer).
+
+  yield depends-on ≡ ["beads", "mayor", "witness", "git"]
+  yield dependency-types ≡ ["internal", "internal", "internal", "external"]
+  yield rationale ≡ "gt → beads: all data operations (hook, mail, issues, molecules). gt → mayor: escalation delivery, dispatch queries. gt → witness: completion notifications (gt done notifies witness). gt → git: branch operations (push, checkout, rebase)."
+
+-- gt is the TOP of the dependency chain. It depends on almost everything.
+
+-- --- frame 8: analyzer-6 (dolt) ---
+
+⊢ analyzer-6
+  given module-name ≡ "dolt"
+  given module-desc ≡ "SQL data layer — versioned database server, provides storage for beads and agent state"
+  given all-modules ≡ ["mayor", "witness", "refinery", "beads", "gt", "dolt"]
+  yield depends-on[], dependency-types[], rationale
+
+-- LLM evaluation:
+-- Dolt is the data foundation. It depends on NOTHING internal.
+-- External: MySQL wire protocol (how clients connect), filesystem (storage).
+
+  yield depends-on ≡ ["mysql-protocol", "filesystem"]
+  yield dependency-types ≡ ["external", "external"]
+  yield rationale ≡ "dolt → mysql-protocol: serves SQL over MySQL wire protocol (external standard). dolt → filesystem: stores versioned data on disk. No internal Gas Town dependencies — dolt is the foundation layer."
+
+-- dolt is the ROOT of the DAG. Zero internal dependencies.
+
+-- All 6 analyzers complete.
+-- Ready set after frames 3-8: { build-adjacency }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 9: build-adjacency
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ build-adjacency
+  given analyzer-1→depends-on ≡ ["beads", "dolt", "witness"]
+  given analyzer-1→dependency-types ≡ ["internal", "internal", "internal"]
+  given analyzer-2→depends-on ≡ ["beads", "dolt", "mayor"]
+  given analyzer-2→dependency-types ≡ ["internal", "internal", "internal"]
+  given analyzer-3→depends-on ≡ ["beads", "dolt", "git"]
+  given analyzer-3→dependency-types ≡ ["internal", "internal", "external"]
+  given analyzer-4→depends-on ≡ ["dolt"]
+  given analyzer-4→dependency-types ≡ ["internal"]
+  given analyzer-5→depends-on ≡ ["beads", "mayor", "witness", "git"]
+  given analyzer-5→dependency-types ≡ ["internal", "internal", "internal", "external"]
+  given analyzer-6→depends-on ≡ ["mysql-protocol", "filesystem"]
+  given analyzer-6→dependency-types ≡ ["external", "external"]
+  given identify-modules→modules ≡ ["mayor", "witness", "refinery", "beads", "gt", "dolt"]
+  yield edges[], internal-edges[], external-deps[]
+
+  ∴ Collect all dependencies and build the adjacency list...
+
+-- LLM evaluation:
+-- All edges (source → target):
+-- mayor → beads (I), mayor → dolt (I), mayor → witness (I)
+-- witness → beads (I), witness → dolt (I), witness → mayor (I)
+-- refinery → beads (I), refinery → dolt (I), refinery → git (E)
+-- beads → dolt (I)
+-- gt → beads (I), gt → mayor (I), gt → witness (I), gt → git (E)
+-- dolt → mysql-protocol (E), dolt → filesystem (E)
+
+  yield edges ≡ [
+    { source: "mayor", target: "beads" },
+    { source: "mayor", target: "dolt" },
+    { source: "mayor", target: "witness" },
+    { source: "witness", target: "beads" },
+    { source: "witness", target: "dolt" },
+    { source: "witness", target: "mayor" },
+    { source: "refinery", target: "beads" },
+    { source: "refinery", target: "dolt" },
+    { source: "refinery", target: "git" },
+    { source: "beads", target: "dolt" },
+    { source: "gt", target: "beads" },
+    { source: "gt", target: "mayor" },
+    { source: "gt", target: "witness" },
+    { source: "gt", target: "git" },
+    { source: "dolt", target: "mysql-protocol" },
+    { source: "dolt", target: "filesystem" }
+  ]
+
+  yield internal-edges ≡ [
+    { source: "mayor", target: "beads" },
+    { source: "mayor", target: "dolt" },
+    { source: "mayor", target: "witness" },
+    { source: "witness", target: "beads" },
+    { source: "witness", target: "dolt" },
+    { source: "witness", target: "mayor" },
+    { source: "refinery", target: "beads" },
+    { source: "refinery", target: "dolt" },
+    { source: "beads", target: "dolt" },
+    { source: "gt", target: "beads" },
+    { source: "gt", target: "mayor" },
+    { source: "gt", target: "witness" }
+  ]
+
+  yield external-deps ≡ [
+    { module: "refinery", external: "git" },
+    { module: "gt", external: "git" },
+    { module: "dolt", external: "mysql-protocol" },
+    { module: "dolt", external: "filesystem" }
+  ]
+
+-- oracle checks:
+--   ⊨ every edge has valid source and target → ✓
+--   ⊨ internal-edges is subset of edges → ✓ (12 of 16)
+--   ⊨ no duplicate edges → ✓
+
+-- CRITICAL OBSERVATION: mayor → witness AND witness → mayor.
+-- This is a CYCLE in the internal edge set. The acyclicity oracle
+-- is about to FAIL.
+
+-- Ready set after frame 9: { validate-acyclicity, spawn-sub-module-analyzers }
+-- Both can proceed — validate needs internal-edges, spawn needs internal-edges + modules.
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 10: validate-acyclicity
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ validate-acyclicity
+  given build-adjacency→internal-edges ≡ [12 internal edges]
+  given identify-modules→modules ≡ ["mayor", "witness", "refinery", "beads", "gt", "dolt"]
+  yield is-acyclic, topological-order[], cycle-description
+
+  ∴ Check if the internal dependency graph is acyclic using topological sort...
+
+-- LLM evaluation:
+-- Running Kahn's algorithm (topological sort via in-degree):
+--
+-- Adjacency (internal only):
+--   gt → {beads, mayor, witness}
+--   mayor → {beads, dolt, witness}
+--   witness → {beads, dolt, mayor}
+--   refinery → {beads, dolt}
+--   beads → {dolt}
+--   dolt → {}
+--
+-- In-degrees:
+--   dolt: 4 (from mayor, witness, refinery, beads)
+--   beads: 4 (from mayor, witness, refinery, gt)
+--   mayor: 2 (from witness, gt)
+--   witness: 2 (from mayor, gt)
+--   refinery: 0
+--   gt: 0
+--
+-- Step 1: Queue = {refinery, gt} (in-degree 0)
+-- Process refinery: remove edges refinery→beads, refinery→dolt
+--   beads in-degree: 3, dolt in-degree: 3
+-- Process gt: remove edges gt→beads, gt→mayor, gt→witness
+--   beads in-degree: 2, mayor in-degree: 1, witness in-degree: 1
+--
+-- Step 2: Queue = {} — no node has in-degree 0!
+--   mayor in-degree: 1 (from witness)
+--   witness in-degree: 1 (from mayor)
+--   beads in-degree: 2
+--   dolt in-degree: 3
+--
+-- STUCK. 4 nodes remain. mayor and witness have mutual dependency.
+--
+-- CYCLE DETECTED: mayor → witness → mayor
+
+  yield is-acyclic ≡ false
+  yield topological-order ≡ []
+  yield cycle-description ≡ "CYCLE: mayor → witness → mayor. The mayor depends on witness (reads health status, sends coordination nudges) and witness depends on mayor (escalates unresolvable issues, reports polecat deaths). This is a mutual dependency — neither can be initialized without the other. Partial order achievable: [gt, refinery] → ... but mayor and witness form a strongly connected component."
+
+-- oracle checks:
+--   ⊨ is-acyclic ∈ { true, false } → ✓ (false)
+--   ⊨ if not is-acyclic then cycle-description names the cycle → ✓
+
+-- THE DAG IS NOT A DAG. The mayor↔witness cycle breaks acyclicity.
+-- This is a REAL architectural finding — not a trace artifact.
+-- In Gas Town, mayor and witness have a bidirectional communication channel
+-- (mail, nudges) that creates a structural cycle.
+--
+-- ARCHITECTURAL INSIGHT: The cycle exists because mayor and witness are
+-- PEERS, not layers. In a strict layered architecture, information flows
+-- one way. Mayor and witness are co-dependent monitors that need each
+-- other for different failure modes. Breaking the cycle would require:
+-- (a) introducing a shared event bus they both subscribe to, or
+-- (b) making one subordinate to the other (witness reports TO mayor only,
+--     mayor never queries witness directly).
+
+-- Ready set: { spawn-sub-module-analyzers } (can proceed despite cycle)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frames 11-12: spawn and execute sub-module analyzers
+-- ═══════════════════════════════════════════════════════════════
+
+⊢⊢ spawn-sub-module-analyzers
+  given build-adjacency→internal-edges ≡ [12 edges]
+  given identify-modules→modules ≡ ["mayor", "witness", "refinery", "beads", "gt", "dolt"]
+  given §sub-module-analyzer-template
+  yield §sub-analyzer-cells ≡ [§sub-analyzer-1 .. §sub-analyzer-6]
+
+  ⊨ one sub-analyzer per module → ✓
+
+-- 6 sub-analyzer cells spawned. All READY.
+
+-- ═══════════════════════════════════════════════════════════════
+-- frames 13-18: sub-analyzer-1 through sub-analyzer-6
+-- ═══════════════════════════════════════════════════════════════
+
+-- --- frame 13: sub-analyzer-1 (mayor internals) ---
+
+⊢ sub-analyzer-1
+  given module-name ≡ "mayor"
+  given module-deps ≡ ["beads", "dolt", "witness"]
+  yield sub-modules[], sub-edges[], sub-is-acyclic
+
+  ∴ Decompose mayor into 2-4 internal sub-modules...
+
+  yield sub-modules ≡ ["dispatcher", "escalation-handler", "state-manager"]
+  yield sub-edges ≡ [
+    { source: "dispatcher", target: "state-manager" },
+    { source: "escalation-handler", target: "state-manager" },
+    { source: "dispatcher", target: "escalation-handler" }
+  ]
+  yield sub-is-acyclic ≡ true
+
+-- Mayor internals: dispatcher → escalation-handler → state-manager.
+-- Clean DAG. No cycles within mayor.
+
+-- --- frame 14: sub-analyzer-2 (witness internals) ---
+
+⊢ sub-analyzer-2
+  given module-name ≡ "witness"
+  given module-deps ≡ ["beads", "dolt", "mayor"]
+  yield sub-modules[], sub-edges[], sub-is-acyclic
+
+  yield sub-modules ≡ ["health-monitor", "nudge-engine", "lifecycle-manager"]
+  yield sub-edges ≡ [
+    { source: "health-monitor", target: "nudge-engine" },
+    { source: "health-monitor", target: "lifecycle-manager" },
+    { source: "nudge-engine", target: "lifecycle-manager" }
+  ]
+  yield sub-is-acyclic ≡ true
+
+-- Witness internals: health-monitor → nudge-engine → lifecycle-manager.
+-- Clean DAG internally.
+
+-- --- frame 15: sub-analyzer-3 (refinery internals) ---
+
+⊢ sub-analyzer-3
+  given module-name ≡ "refinery"
+  given module-deps ≡ ["beads", "dolt"]
+  yield sub-modules[], sub-edges[], sub-is-acyclic
+
+  yield sub-modules ≡ ["queue-manager", "gate-runner", "bisector", "merger"]
+  yield sub-edges ≡ [
+    { source: "queue-manager", target: "gate-runner" },
+    { source: "gate-runner", target: "bisector" },
+    { source: "gate-runner", target: "merger" },
+    { source: "bisector", target: "merger" }
+  ]
+  yield sub-is-acyclic ≡ true
+
+-- Refinery: queue → gates → {bisect, merge}. Clean pipeline.
+
+-- --- frame 16: sub-analyzer-4 (beads internals) ---
+
+⊢ sub-analyzer-4
+  given module-name ≡ "beads"
+  given module-deps ≡ ["dolt"]
+  yield sub-modules[], sub-edges[], sub-is-acyclic
+
+  yield sub-modules ≡ ["issue-store", "dependency-engine", "routing"]
+  yield sub-edges ≡ [
+    { source: "routing", target: "issue-store" },
+    { source: "dependency-engine", target: "issue-store" }
+  ]
+  yield sub-is-acyclic ≡ true
+
+-- Beads: routing and dep-engine both use issue-store. No cycles.
+
+-- --- frame 17: sub-analyzer-5 (gt internals) ---
+
+⊢ sub-analyzer-5
+  given module-name ≡ "gt"
+  given module-deps ≡ ["beads", "mayor", "witness"]
+  yield sub-modules[], sub-edges[], sub-is-acyclic
+
+  yield sub-modules ≡ ["command-parser", "session-manager", "mail-client"]
+  yield sub-edges ≡ [
+    { source: "command-parser", target: "session-manager" },
+    { source: "command-parser", target: "mail-client" },
+    { source: "session-manager", target: "mail-client" }
+  ]
+  yield sub-is-acyclic ≡ true
+
+-- gt: parser → session/mail. Clean.
+
+-- --- frame 18: sub-analyzer-6 (dolt internals) ---
+
+⊢ sub-analyzer-6
+  given module-name ≡ "dolt"
+  given module-deps ≡ []
+  yield sub-modules[], sub-edges[], sub-is-acyclic
+
+  yield sub-modules ≡ ["sql-engine", "storage-layer", "version-control"]
+  yield sub-edges ≡ [
+    { source: "sql-engine", target: "storage-layer" },
+    { source: "sql-engine", target: "version-control" },
+    { source: "version-control", target: "storage-layer" }
+  ]
+  yield sub-is-acyclic ≡ true
+
+-- Dolt: sql-engine → {storage, vcs}, vcs → storage. Clean.
+
+-- All 6 sub-analyzers complete. All internally acyclic.
+-- The cycle exists ONLY at the top level: mayor ↔ witness.
+
+-- Ready set after frames 13-18: { assemble-full-graph }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 19: assemble-full-graph
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ assemble-full-graph
+  given identify-modules→modules ≡ ["mayor", "witness", "refinery", "beads", "gt", "dolt"]
+  given build-adjacency→internal-edges ≡ [12 internal edges]
+  given build-adjacency→external-deps ≡ [4 external deps]
+  given validate-acyclicity→is-acyclic ≡ false
+  given validate-acyclicity→topological-order ≡ []
+  given sub-analyzer-1→sub-modules ≡ ["dispatcher", "escalation-handler", "state-manager"]
+  given sub-analyzer-1→sub-edges ≡ [3 edges]
+  given sub-analyzer-1→sub-is-acyclic ≡ true
+  given sub-analyzer-2→sub-modules ≡ ["health-monitor", "nudge-engine", "lifecycle-manager"]
+  given sub-analyzer-2→sub-edges ≡ [3 edges]
+  given sub-analyzer-2→sub-is-acyclic ≡ true
+  given sub-analyzer-3→sub-modules ≡ ["queue-manager", "gate-runner", "bisector", "merger"]
+  given sub-analyzer-3→sub-edges ≡ [4 edges]
+  given sub-analyzer-3→sub-is-acyclic ≡ true
+  given sub-analyzer-4→sub-modules ≡ ["issue-store", "dependency-engine", "routing"]
+  given sub-analyzer-4→sub-edges ≡ [2 edges]
+  given sub-analyzer-4→sub-is-acyclic ≡ true
+  given sub-analyzer-5→sub-modules ≡ ["command-parser", "session-manager", "mail-client"]
+  given sub-analyzer-5→sub-edges ≡ [3 edges]
+  given sub-analyzer-5→sub-is-acyclic ≡ true
+  given sub-analyzer-6→sub-modules ≡ ["sql-engine", "storage-layer", "version-control"]
+  given sub-analyzer-6→sub-edges ≡ [3 edges]
+  given sub-analyzer-6→sub-is-acyclic ≡ true
+  yield full-dag, layer-count, total-nodes, total-edges, summary
+
+  ∴ Assemble the complete two-level dependency graph...
+
+-- LLM evaluation:
+-- Layer assignment (partial — cycle prevents full topological sort):
+--
+-- Layer 0 (no internal deps): dolt
+-- Layer 1 (depends only on layer 0): beads
+-- Layer 2 (depends on layers 0-1): refinery
+-- Layer ?: mayor and witness — CYCLIC, cannot be cleanly layered.
+--   If we collapse {mayor, witness} into a single SCC:
+--   Layer 2: {mayor, witness} (both depend on beads, dolt)
+--   Layer 3: refinery (depends on beads, dolt — same as layer 2, could be 2)
+-- Layer 3: gt (depends on beads, mayor, witness)
+--
+-- Adjusted layers treating {mayor, witness} as one unit:
+-- Layer 0: dolt
+-- Layer 1: beads
+-- Layer 2: {mayor↔witness}, refinery
+-- Layer 3: gt
+
+  yield full-dag ≡ "
+GAS TOWN DEPENDENCY GRAPH
+═════════════════════════
+
+Layer 3: gt [command-parser → session-manager → mail-client]
+  │  depends on: beads, mayor, witness, (ext: git)
+  │
+Layer 2: mayor↔witness (CYCLIC — strongly connected component)
+  │  mayor [dispatcher → escalation-handler → state-manager]
+  │    depends on: beads, dolt, witness
+  │  witness [health-monitor → nudge-engine → lifecycle-manager]
+  │    depends on: beads, dolt, mayor
+  │
+  │  refinery [queue-manager → gate-runner → {bisector, merger}]
+  │    depends on: beads, dolt, (ext: git)
+  │
+Layer 1: beads [routing → issue-store ← dependency-engine]
+  │  depends on: dolt
+  │
+Layer 0: dolt [sql-engine → {storage-layer, version-control}]
+    depends on: (ext: mysql-protocol, filesystem)
+
+EXTERNAL DEPENDENCIES: git (refinery, gt), mysql-protocol (dolt), filesystem (dolt)
+
+⚠ CYCLE: mayor ↔ witness (mutual dependency)
+  All sub-modules internally acyclic."
+
+  yield layer-count ≡ 4
+  yield total-nodes ≡ 24
+  yield total-edges ≡ 30
+
+  yield summary ≡ "Two-level dependency graph: 6 top-level modules with 18 sub-modules = 24 total nodes. 12 inter-module edges + 18 intra-module edges = 30 total edges. 4 layers from dolt (foundation) to gt (facade). CYCLE DETECTED: mayor ↔ witness form a strongly connected component — they are peer monitors that need each other. All 6 modules are internally acyclic. 4 external dependencies: git (used by refinery and gt), mysql-protocol and filesystem (used by dolt). The architecture is almost a clean layered DAG — the single cycle between mayor and witness is the only structural defect."
+
+-- oracle checks:
+--   ⊨ full-dag includes both levels → ✓ (modules + sub-modules shown)
+--   ⊨ layer-count ≥ 2 → ✓ (4 layers)
+--   ⊨ summary describes structure and findings → ✓
+
+-- COMPLETE: 20 eval-one frames (0-19). 12 cells spawned (6 analyzers + 6 sub-analyzers).
+-- The graph builder found a REAL architectural cycle (mayor↔witness),
+-- validated internal acyclicity of all 6 modules, and produced a layered
+-- dependency visualization.
+
+-- ═══════════════════════════════════════════════════════════════
+-- OBSERVATIONS
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= obs-cycle-found
+  given §14-dependency-graph-builder
+  yield observations
+
+  ⊢= observations ← "THE DAG ISN'T A DAG: validate-acyclicity returned is-acyclic=false. The mayor↔witness cycle is a genuine architectural finding — they are mutual monitors. Mayor dispatches to polecats and reads witness health reports. Witness monitors polecats and escalates to mayor. Neither can be initialized without the other. In Cell terms: the oracle CAUGHT a structural defect. The ⊨ 'is the graph acyclic?' was answered honestly (false), not papered over. This is what oracles are FOR — structural validation that catches real problems."
+
+⊢= obs-recursive-graph-construction
+  given §14-dependency-graph-builder
+  yield observations
+
+  ⊢= observations ← "TWO-LEVEL RECURSION VIA ⊢⊢: Level 1 spawned 6 analyzer cells (one per module). Level 2 spawned 6 sub-analyzer cells (one per module's internals). The same pattern — spawn per entity, analyze, collect — repeated at both levels. Cell's ⊢⊢ makes this structural recursion NATURAL. The spawner doesn't need to know how many entities there are — it spawns one cell per item in the input list. The graph BUILDS ITSELF as cells execute. This is graph construction via frontier growth, not procedural iteration."
+
+⊢= obs-scc-as-architectural-smell
+  given §14-dependency-graph-builder
+  yield observations
+
+  ⊢= observations ← "STRONGLY CONNECTED COMPONENTS ARE ARCHITECTURAL SMELLS: mayor and witness forming an SCC means they can't be deployed, tested, or reasoned about independently. In practice, Gas Town handles this via message-passing (mail/nudges are async, no synchronous calls), which HIDES the cycle at runtime but doesn't eliminate it structurally. The fix would be: extract the shared state into a separate module (e.g., 'agent-registry' that both read from), breaking the direct dependency. The graph builder identified the problem; fixing it is architectural design work."
+
+⊢= obs-layers-emerge-from-deps
+  given §14-dependency-graph-builder
+  yield observations
+
+  ⊢= observations ← "LAYERED ARCHITECTURE EMERGED FROM DEPENDENCY ANALYSIS: nobody DESIGNED the 4-layer structure (dolt → beads → {mayor, witness, refinery} → gt). It emerged from the dependency edges. dolt has zero internal deps → layer 0. beads depends only on dolt → layer 1. The layers are a CONSEQUENCE of the dependency DAG, not an input to it. Cell's collect-from-all pattern (given analyzer-*→depends-on) lets build-adjacency see the full picture that no individual analyzer can see. The global view reveals structure invisible at the local level."
+
+⊢= obs-internal-vs-external
+  given §14-dependency-graph-builder
+  yield observations
+
+  ⊢= observations ← "INTERNAL/EXTERNAL CLASSIFICATION DEFINES THE SYSTEM BOUNDARY: 12 internal edges (within Gas Town) vs 4 external (git, mysql-protocol, filesystem). The external deps are INTERFACES — they define where Gas Town meets the outside world. git is used by refinery and gt (branch operations). dolt uses mysql-protocol (how clients connect) and filesystem (where data lives). This classification is itself a dependency graph insight: the external deps are the PORTS in a ports-and-adapters architecture. Cell made this visible by having each analyzer classify its own deps."
