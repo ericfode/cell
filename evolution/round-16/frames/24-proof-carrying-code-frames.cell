@@ -1,0 +1,572 @@
+-- 24-proof-carrying-code-frames.cell
+-- Execution trace of 24-proof-carrying-code.cell via eval-one
+--
+-- Spec: "merge two sorted lists into one sorted list"
+-- Demonstrates proof-carrying computation with gap-filling ⊢∘ loop:
+-- LLM generates code+proof (NP), crystallized verifier checks (P),
+-- gaps trigger regeneration. Code + proof ship together.
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 0: evaluate spec (trivial pass-through)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { spec }
+-- Blocked: { generate-code, generate-tests } — need spec→*
+
+⊢ spec
+  given description ≡ "merge two sorted lists into one sorted list"
+  given signature ≡ "merge_sorted(a: int[], b: int[]) -> int[]"
+  given preconditions ≡ "a is sorted ascending, b is sorted ascending"
+  given postconditions ≡ "result is sorted ascending, result is a permutation of a ++ b"
+  yield description, signature, preconditions, postconditions
+
+  yield description ≡ "merge two sorted lists into one sorted list"
+  yield signature ≡ "merge_sorted(a: int[], b: int[]) -> int[]"
+  yield preconditions ≡ "a is sorted ascending, b is sorted ascending"
+  yield postconditions ≡ "result is sorted ascending, result is a permutation of a ++ b"
+
+-- oracle checks:
+--   ⊨ description specifies algorithm, inputs, output → ✓
+--   ⊨ signature has typed parameters and return type → ✓
+--   ⊨ preconditions constrain both input lists → ✓
+--   ⊨ postconditions specify sortedness and permutation → ✓
+
+-- state after frame 0: spec frozen.
+-- Ready set: { generate-code, generate-tests }
+-- Both depend only on spec→* — confluence: either can go first.
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 1: evaluate generate-code (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { generate-code, generate-tests }
+-- Picking generate-code first (primary output of the program)
+
+⊢ generate-code
+  given spec→description ≡ "merge two sorted lists into one sorted list"
+  given spec→signature ≡ "merge_sorted(a: int[], b: int[]) -> int[]"
+  given spec→preconditions ≡ "a is sorted ascending, b is sorted ascending"
+  yield §implementation, code-text
+
+  ∴ Write a correct two-pointer merge implementation...
+
+-- LLM evaluation (simulated):
+
+  yield §implementation ≡ §merge-sorted-v1
+  yield code-text ≡ "
+    def merge_sorted(a: int[], b: int[]) -> int[]:
+      result = []
+      i = 0
+      j = 0
+      while i < len(a) and j < len(b):
+        if a[i] <= b[j]:
+          result.append(a[i])
+          i += 1
+        else:
+          result.append(b[j])
+          j += 1
+      while i < len(a):
+        result.append(a[i])
+        i += 1
+      while j < len(b):
+        result.append(b[j])
+        j += 1
+      return result
+  "
+
+-- oracle checks:
+--   ⊨ code-text contains a loop or iterative structure → ✓ (three while loops)
+--   ⊨ code-text compares elements from both lists → ✓ (a[i] <= b[j])
+--   ⊨ code-text handles exhaustion of either list → ✓ (two trailing while loops)
+
+-- state after frame 1: generate-code frozen.
+-- Ready set: { generate-tests }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 2: evaluate generate-tests (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { generate-tests }
+
+⊢ generate-tests
+  given spec→signature ≡ "merge_sorted(a: int[], b: int[]) -> int[]"
+  given spec→preconditions ≡ "a is sorted ascending, b is sorted ascending"
+  given spec→postconditions ≡ "result is sorted ascending, result is a permutation of a ++ b"
+  yield test-cases[], properties[]
+
+  ∴ Generate test cases for merge_sorted...
+
+-- LLM evaluation (simulated):
+
+  yield properties ≡ [
+    "P1: sorted output — result is in ascending order",
+    "P2: permutation — result contains exactly elements of a ++ b",
+    "P3: length — len(result) = len(a) + len(b)",
+    "P4: empty-left — merge([], b) = b",
+    "P5: empty-right — merge(a, []) = a",
+    "P6: both-empty — merge([], []) = []",
+    "P7: interleaved — elements from a and b alternate when values interleave",
+    "P8: duplicates — repeated values across lists handled correctly"
+  ]
+
+  yield test-cases ≡ [
+    { input-a: [1, 3, 5],       input-b: [2, 4, 6],       expected-output: [1, 2, 3, 4, 5, 6] },
+    { input-a: [1, 2, 3],       input-b: [4, 5, 6],       expected-output: [1, 2, 3, 4, 5, 6] },
+    { input-a: [4, 5, 6],       input-b: [1, 2, 3],       expected-output: [1, 2, 3, 4, 5, 6] },
+    { input-a: [],              input-b: [1, 2, 3],       expected-output: [1, 2, 3] },
+    { input-a: [1, 2, 3],       input-b: [],              expected-output: [1, 2, 3] },
+    { input-a: [],              input-b: [],              expected-output: [] },
+    { input-a: [1],             input-b: [2],             expected-output: [1, 2] },
+    { input-a: [2],             input-b: [1],             expected-output: [1, 2] },
+    { input-a: [1, 1, 3],       input-b: [1, 2, 3],       expected-output: [1, 1, 1, 2, 3, 3] },
+    { input-a: [1, 5, 9, 13],   input-b: [2, 6, 10, 14],  expected-output: [1, 2, 5, 6, 9, 10, 13, 14] },
+    { input-a: [1, 3, 5, 7, 9], input-b: [2, 4, 6, 8, 10], expected-output: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] },
+    { input-a: [10, 20, 30],    input-b: [5, 15, 25, 35],  expected-output: [5, 10, 15, 20, 25, 30, 35] },
+    { input-a: [1, 1, 1],       input-b: [1, 1, 1],       expected-output: [1, 1, 1, 1, 1, 1] },
+    { input-a: [42],            input-b: [42],            expected-output: [42, 42] }
+  ]
+
+-- oracle checks:
+--   ⊨ length(test-cases) ≥ 12 → ✓ (14)
+--   ⊨ properties covers sorted, permutation, empty, duplicate → ✓ (8 properties)
+--   ⊨ each test-case has input-a (sorted), input-b (sorted), expected-output (sorted) → ✓
+
+-- state after frame 2: generate-tests frozen.
+-- Ready set: { run-tests }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 3: evaluate run-tests (soft cell, LLM simulating execution)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { run-tests }
+
+⊢ run-tests
+  given generate-code→code-text ≡ "def merge_sorted(a, b): ..."
+  given generate-tests→test-cases ≡ [14 test cases]
+  yield results[], pass-count, fail-count, failure-details[]
+
+  ∴ Simulate executing merge_sorted on each test case...
+
+-- LLM evaluation (simulated):
+-- Tracing merge_sorted([1,3,5], [2,4,6]):
+--   i=0,j=0: a[0]=1≤b[0]=2 → append 1, i=1
+--   i=1,j=0: a[1]=3>b[0]=2 → append 2, j=1
+--   i=1,j=1: a[1]=3≤b[1]=4 → append 3, i=2
+--   i=2,j=1: a[2]=5>b[1]=4 → append 4, j=2
+--   i=2,j=2: a[2]=5≤b[2]=6 → append 5, i=3
+--   i=3: a exhausted → append b[2]=6
+--   result: [1,2,3,4,5,6] ✓
+-- Tracing merge_sorted([1,2,3], [4,5,6]):
+--   i=0,j=0: a[0]=1≤b[0]=4 → append 1, i=1
+--   i=1,j=0: a[1]=2≤b[0]=4 → append 2, i=2
+--   i=2,j=0: a[2]=3≤b[0]=4 → append 3, i=3
+--   i=3: a exhausted → append b[0..2]=[4,5,6]
+--   result: [1,2,3,4,5,6] ✓
+-- Tracing merge_sorted([4,5,6], [1,2,3]):
+--   i=0,j=0: a[0]=4>b[0]=1 → append 1, j=1
+--   i=0,j=1: a[0]=4>b[1]=2 → append 2, j=2
+--   i=0,j=2: a[0]=4>b[2]=3 → append 3, j=3
+--   j=3: b exhausted → append a[0..2]=[4,5,6]
+--   result: [1,2,3,4,5,6] ✓
+-- Tracing merge_sorted([], [1,2,3]):
+--   i=0: a empty, main loop skipped → append b[0..2]=[1,2,3]
+--   result: [1,2,3] ✓
+-- Tracing merge_sorted([1,2,3], []):
+--   j=0: b empty, main loop skipped → append a[0..2]=[1,2,3]
+--   result: [1,2,3] ✓
+-- Tracing merge_sorted([], []):
+--   both empty, all loops skipped
+--   result: [] ✓
+-- Tracing merge_sorted([1], [2]):
+--   i=0,j=0: a[0]=1≤b[0]=2 → append 1, i=1
+--   i=1: a exhausted → append b[0]=2
+--   result: [1,2] ✓
+-- Tracing merge_sorted([2], [1]):
+--   i=0,j=0: a[0]=2>b[0]=1 → append 1, j=1
+--   j=1: b exhausted → append a[0]=2
+--   result: [1,2] ✓
+-- Tracing merge_sorted([1,1,3], [1,2,3]):
+--   i=0,j=0: a[0]=1≤b[0]=1 → append 1, i=1
+--   i=1,j=0: a[1]=1≤b[0]=1 → append 1, i=2
+--   i=2,j=0: a[2]=3>b[0]=1 → append 1, j=1
+--   i=2,j=1: a[2]=3>b[1]=2 → append 2, j=2
+--   i=2,j=2: a[2]=3≤b[2]=3 → append 3, i=3
+--   i=3: a exhausted → append b[2]=3
+--   result: [1,1,1,2,3,3] ✓
+-- Tracing merge_sorted([1,5,9,13], [2,6,10,14]):
+--   i=0,j=0: 1≤2 → 1, i=1
+--   i=1,j=0: 5>2 → 2, j=1
+--   i=1,j=1: 5≤6 → 5, i=2
+--   i=2,j=1: 9>6 → 6, j=2
+--   i=2,j=2: 9≤10 → 9, i=3
+--   i=3,j=2: 13>10 → 10, j=3
+--   i=3,j=3: 13≤14 → 13, i=4
+--   i=4: a exhausted → append 14
+--   result: [1,2,5,6,9,10,13,14] ✓
+-- Tracing merge_sorted([1,3,5,7,9], [2,4,6,8,10]):
+--   alternating: 1,2,3,4,5,6,7,8,9 then append 10
+--   result: [1,2,3,4,5,6,7,8,9,10] ✓
+-- Tracing merge_sorted([10,20,30], [5,15,25,35]):
+--   5,10,15,20,25,30,35
+--   result: [5,10,15,20,25,30,35] ✓
+-- Tracing merge_sorted([1,1,1], [1,1,1]):
+--   all equal: 1,1,1,1,1,1 (≤ takes from a first)
+--   result: [1,1,1,1,1,1] ✓
+-- Tracing merge_sorted([42], [42]):
+--   i=0,j=0: 42≤42 → 42, i=1 → a exhausted → append 42
+--   result: [42,42] ✓
+
+  yield results ≡ [
+    { input: "[1,3,5], [2,4,6]",     actual: [1,2,3,4,5,6],             expected: [1,2,3,4,5,6],             pass: true },
+    { input: "[1,2,3], [4,5,6]",     actual: [1,2,3,4,5,6],             expected: [1,2,3,4,5,6],             pass: true },
+    { input: "[4,5,6], [1,2,3]",     actual: [1,2,3,4,5,6],             expected: [1,2,3,4,5,6],             pass: true },
+    { input: "[], [1,2,3]",          actual: [1,2,3],                   expected: [1,2,3],                   pass: true },
+    { input: "[1,2,3], []",          actual: [1,2,3],                   expected: [1,2,3],                   pass: true },
+    { input: "[], []",               actual: [],                        expected: [],                        pass: true },
+    { input: "[1], [2]",             actual: [1,2],                     expected: [1,2],                     pass: true },
+    { input: "[2], [1]",             actual: [1,2],                     expected: [1,2],                     pass: true },
+    { input: "[1,1,3], [1,2,3]",     actual: [1,1,1,2,3,3],             expected: [1,1,1,2,3,3],             pass: true },
+    { input: "[1,5,9,13], [2,6,10,14]", actual: [1,2,5,6,9,10,13,14],  expected: [1,2,5,6,9,10,13,14],      pass: true },
+    { input: "[1,3,5,7,9], [2,4,6,8,10]", actual: [1,2,3,4,5,6,7,8,9,10], expected: [1,2,3,4,5,6,7,8,9,10], pass: true },
+    { input: "[10,20,30], [5,15,25,35]", actual: [5,10,15,20,25,30,35], expected: [5,10,15,20,25,30,35],     pass: true },
+    { input: "[1,1,1], [1,1,1]",     actual: [1,1,1,1,1,1],             expected: [1,1,1,1,1,1],             pass: true },
+    { input: "[42], [42]",           actual: [42,42],                   expected: [42,42],                   pass: true }
+  ]
+
+  yield pass-count ≡ 14
+  yield fail-count ≡ 0
+  yield failure-details ≡ []
+
+-- oracle checks:
+--   ⊨ length(results) = length(test-cases) → ✓ (14 = 14)
+--   ⊨ pass-count + fail-count = length(results) → ✓ (14 + 0 = 14)
+--   ⊨ fail-count > 0 implies failure-details non-empty → ✓ (vacuous — fail-count = 0)
+
+-- state after frame 3: run-tests frozen.
+-- Ready set: { generate-proof }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 4: evaluate generate-proof (soft cell, LLM — NP-hard creative work)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { generate-proof }
+-- This is where the LLM constructs a formal correctness argument.
+-- The proof must be machine-checkable by the crystallized verifier.
+
+⊢ generate-proof
+  given generate-code→code-text ≡ "def merge_sorted(a, b): ..."
+  given spec→preconditions ≡ "a is sorted ascending, b is sorted ascending"
+  given spec→postconditions ≡ "result is sorted ascending, result is a permutation of a ++ b"
+  given run-tests→pass-count ≡ 14
+  yield proof-argument, invariants[], termination-argument, properties-proved[]
+
+  ∴ Generate formal correctness argument for merge_sorted...
+
+-- LLM evaluation (simulated):
+
+  yield invariants ≡ [
+    "INV1 (loop invariant): At the start of each iteration of the main loop, result[0..k-1] is sorted, and result[0..k-1] is a permutation of a[0..i-1] ++ b[0..j-1], where k = i + j.",
+    "INV2 (order bridge): The last element of result (if non-empty) is ≤ a[i] and ≤ b[j] (when both are valid indices). This ensures appending min(a[i], b[j]) maintains sorted order.",
+    "INV3 (index bounds): 0 ≤ i ≤ len(a) and 0 ≤ j ≤ len(b) at each loop entry."
+  ]
+
+  yield termination-argument ≡ "The quantity i + j increases by exactly 1 each iteration (either i or j is incremented, never both, never neither). The upper bound is len(a) + len(b). When i + j = len(a) + len(b), at least one of i ≥ len(a) or j ≥ len(b) holds, and the main while condition fails. The trailing loops each also terminate: i increases to len(a) in the first, j increases to len(b) in the second. Total iterations ≤ len(a) + len(b)."
+
+  yield properties-proved ≡ ["sortedness", "permutation", "termination", "length-preservation"]
+
+  yield proof-argument ≡ "
+    THEOREM: merge_sorted(a, b) returns a sorted list that is a
+    permutation of a ++ b, given a and b are sorted ascending.
+
+    PRECONDITION: a is sorted ascending, b is sorted ascending.
+
+    PROOF:
+
+    Step 1 — Initialization:
+      i = 0, j = 0, result = [].
+      INV1 holds vacuously: result[0..-1] = ∅ is sorted and is a permutation
+      of a[0..-1] ++ b[0..-1] = ∅ ++ ∅ = ∅.
+      INV2 holds vacuously: result is empty, no last element to check.
+      INV3 holds: i = 0 ∈ [0, len(a)], j = 0 ∈ [0, len(b)].
+
+    Step 2 — Sortedness preservation (main loop body):
+      Case a[i] ≤ b[j]: append a[i] to result.
+        By INV2, last element of result ≤ a[i] (or result was empty).
+        So appending a[i] maintains sorted order.
+        New last element is a[i]. Since a is sorted, a[i] ≤ a[i+1].
+        Since a[i] ≤ b[j] was the branch condition, a[i] ≤ b[j].
+        So INV2 is preserved for the new state (i+1, j).
+      Case a[i] > b[j]: append b[j] to result. Symmetric argument.
+        By INV2, last element of result ≤ b[j].
+        Since b is sorted, b[j] ≤ b[j+1].
+        Since b[j] < a[i], b[j] < a[i] ≤ a[i] (trivially).
+        INV2 preserved for (i, j+1).
+
+    Step 3 — Permutation preservation:
+      Each iteration appends exactly one element: either a[i] or b[j].
+      The element is consumed (index advances). No element is duplicated
+      or skipped. After the main loop: a[0..i-1] and b[0..j-1] are in
+      result. The trailing loops append a[i..len(a)-1] and b[j..len(b)-1]
+      respectively. Total: all of a ++ b, each exactly once.
+      Therefore result is a permutation of a ++ b. ∎
+
+    Step 4 — Termination:
+      Variant function V = (len(a) - i) + (len(b) - j).
+      V ∈ ℕ (since i ≤ len(a), j ≤ len(b) by INV3).
+      Each main loop iteration: V decreases by 1 (one index advances).
+      V = 0 ⟹ i = len(a) ∧ j = len(b) ⟹ loop condition false.
+      Trailing loops: each also has a strictly decreasing variant.
+      Total work: O(len(a) + len(b)). ∎
+
+    Step 5 — Postcondition discharge:
+      At termination: i = len(a), j = len(b), all elements consumed.
+      By INV1: result is sorted (maintained through every append).
+      By Step 3: result is a permutation of a ++ b.
+      By Step 4: the algorithm terminates.
+      len(result) = len(a) + len(b) (each element appended exactly once).
+      All postconditions satisfied. ∎
+
+    Step 6 — Precondition usage:
+      Step 2 relies on 'a is sorted ascending' to conclude a[i] ≤ a[i+1],
+      ensuring that the new last element of result is ≤ the next candidate
+      from a. Similarly for b. Without the sortedness precondition, we
+      could not guarantee that appending min(a[i], b[j]) maintains the
+      sorted order of result. The two-pointer strategy is ONLY valid
+      because both inputs are sorted.
+
+    QED.
+  "
+
+-- oracle checks:
+--   ⊨ proof-argument contains at least 5 logical steps → ✓ (6 steps)
+--   ⊨ invariants includes loop invariant referencing i, j, result → ✓ (INV1)
+--   ⊨ termination-argument identifies monotonically increasing quantity → ✓ (i + j)
+--   ⊨ properties-proved includes "sortedness" and "permutation" → ✓
+
+-- state after frame 4: generate-proof frozen.
+-- Ready set: { verify-proof }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 5: evaluate verify-proof (⊢= crystallized — deterministic check)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { verify-proof }
+-- P-time structural verification. No LLM needed.
+-- This is the proof-carrying computation pattern in action.
+
+⊢ verify-proof ▸ crystallized
+  given generate-proof→proof-argument ≡ "THEOREM: merge_sorted..."
+  given generate-proof→invariants ≡ [INV1, INV2, INV3]
+  given generate-proof→termination-argument ≡ "i + j increases by 1..."
+  given generate-proof→properties-proved ≡ ["sortedness", "permutation", "termination", "length-preservation"]
+  given generate-code→code-text ≡ "def merge_sorted(a, b): ..."
+  yield proof-valid, gaps[], verdict
+
+  ⊢= proof-valid ← (
+    has-loop-invariant(invariants) ∧            -- ✓ INV1 is a loop invariant
+    invariant-references(invariants, ["i", "j", "result"]) ∧  -- ✓ INV1 refs all three
+    has-monotone-quantity(termination-argument) ∧  -- ✓ "i + j increases by 1"
+    has-upper-bound(termination-argument) ∧     -- ✓ "bounded by len(a) + len(b)"
+    proof-covers(proof-argument, ["sortedness", "permutation", "termination"]) ∧  -- ✓ steps 2, 3, 4
+    proof-uses-precondition(proof-argument, "sorted")  -- ✓ step 6
+  )
+  -- All conjuncts true:
+
+  yield proof-valid ≡ true
+
+  ⊢= gaps ← missing-from(proof-argument, [
+    "loop-invariant",              -- present (step 1, INV1)
+    "sortedness-preservation",     -- present (step 2)
+    "permutation",                 -- present (step 3)
+    "termination",                 -- present (step 4)
+    "postcondition-discharge"      -- present (step 5)
+  ])
+  -- All required components present:
+
+  yield gaps ≡ []
+
+  ⊢= verdict ← proof-valid ∧ gaps = [] → "proof complete"
+
+  yield verdict ≡ "proof complete"
+
+-- oracle checks:
+--   ⊨ verdict ∈ valid set → ✓ ("proof complete")
+--   ⊨ proof-valid → gaps has at most 1 element → ✓ (gaps = [])
+--   ⊨ not proof-valid → gaps ≥ 2 → ✓ (vacuous — proof-valid is true)
+
+-- KEY MOMENT: The crystallized verifier (⊢=) checked the LLM-generated proof
+-- WITHOUT calling the LLM. Pure structural verification in P-time.
+-- The ⊢∘ evolution loop checks: verdict = "proof complete"? YES.
+-- ⊢∘ CONVERGES after iteration 1 — proof was complete on first generation.
+
+-- state after frame 5: verify-proof frozen.
+-- Ready set: { fill-gaps }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 6: evaluate fill-gaps (soft cell, LLM — but trivial this iteration)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { fill-gaps }
+-- Since verdict = "proof complete", this is a no-op pass-through.
+
+⊢ fill-gaps
+  given verify-proof→gaps ≡ []
+  given verify-proof→verdict ≡ "proof complete"
+  given generate-proof→proof-argument ≡ "THEOREM: merge_sorted..."
+  given generate-code→code-text ≡ "def merge_sorted(a, b): ..."
+  given spec→preconditions ≡ "a is sorted ascending, b is sorted ascending"
+  yield proof-patch, patched-steps[]
+
+  ∴ Verdict is "proof complete" → no gaps to fill...
+
+-- LLM evaluation (simulated):
+
+  yield proof-patch ≡ "none"
+  yield patched-steps ≡ []
+
+-- oracle checks:
+--   ⊨ verdict = "proof complete" → proof-patch = "none" → ✓
+--   ⊨ verdict ≠ "proof complete" → patched-steps covers gaps → ✓ (vacuous)
+--   ⊨ each patched-step references its gap → ✓ (vacuous — no steps)
+
+-- ⊢∘ evolve: verdict = "proof complete" → CONVERGED.
+-- Evolution loop terminates after 1 iteration.
+
+-- state after frame 6: fill-gaps frozen.
+-- Ready set: { assemble-certificate }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 7: evaluate assemble-certificate (soft cell, LLM — assembly)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { assemble-certificate }
+-- Final deliverable: code + proof + evidence bundled together.
+
+⊢ assemble-certificate
+  given generate-code→code-text ≡ "def merge_sorted(a, b): ..."
+  given fill-gaps→proof-patch ≡ "none"
+  given generate-proof→proof-argument ≡ "THEOREM: merge_sorted..."
+  given generate-proof→properties-proved ≡ ["sortedness", "permutation", "termination", "length-preservation"]
+  given verify-proof→verdict ≡ "proof complete"
+  given verify-proof→gaps ≡ []
+  given run-tests→pass-count ≡ 14
+  yield certificate, confidence-level
+
+  ∴ Assemble proof-carrying certificate...
+
+-- LLM evaluation (simulated):
+
+  yield certificate ≡ "
+    ╔══════════════════════════════════════════════════════════════╗
+    ║  PROOF-CARRYING CERTIFICATE                                  ║
+    ║  merge_sorted(a: int[], b: int[]) -> int[]                   ║
+    ╠══════════════════════════════════════════════════════════════╣
+    ║                                                              ║
+    ║  CODE (verified):                                            ║
+    ║    def merge_sorted(a, b):                                   ║
+    ║      result, i, j = [], 0, 0                                 ║
+    ║      while i < len(a) and j < len(b):                        ║
+    ║        if a[i] <= b[j]: result.append(a[i]); i += 1         ║
+    ║        else: result.append(b[j]); j += 1                    ║
+    ║      result += a[i:] + b[j:]                                 ║
+    ║      return result                                           ║
+    ║                                                              ║
+    ║  TESTS: 14/14 passing                                        ║
+    ║    Properties: sorted-output, permutation, length,           ║
+    ║    empty-left, empty-right, both-empty, interleaved,         ║
+    ║    duplicates                                                ║
+    ║                                                              ║
+    ║  PROOF: 6-step correctness argument                          ║
+    ║    Loop invariant: result[0..k] sorted ∧ perm of a[0..i]++b[0..j] ║
+    ║    Sortedness: min(a[i],b[j]) append preserves order         ║
+    ║    Permutation: each element consumed exactly once            ║
+    ║    Termination: i+j strictly increasing, bounded by |a|+|b|  ║
+    ║    Postcondition: sortedness ∧ permutation ∧ termination     ║
+    ║    Precondition: sorted inputs enable two-pointer strategy    ║
+    ║                                                              ║
+    ║  PROPERTIES PROVED:                                          ║
+    ║    ✓ sortedness    ✓ permutation                             ║
+    ║    ✓ termination   ✓ length-preservation                     ║
+    ║                                                              ║
+    ║  VERIFICATION: ✓ proof complete                              ║
+    ║    Crystallized verifier (⊢=) confirmed all 5 proof          ║
+    ║    components present. No gaps. No patches needed.           ║
+    ║                                                              ║
+    ║  CONFIDENCE: HIGH                                            ║
+    ║    All 14 tests pass ∧ proof complete ∧ 4 properties proved  ║
+    ╚══════════════════════════════════════════════════════════════╝
+  "
+
+  yield confidence-level ≡ "high"
+
+-- oracle checks:
+--   ⊨ certificate includes code, proof, test-count, verdict, properties-proved → ✓
+--   ⊨ confidence-level ∈ valid set → ✓ ("high")
+--   ⊨ verdict = "proof complete" ∧ pass-count ≥ 12 → confidence-level = "high" → ✓
+
+-- state after frame 7: assemble-certificate frozen.
+-- Ready set: { } — no more cells with unbound yields.
+-- Frontier exhausted. Program complete (for this fixed set of cells).
+
+-- ═══════════════════════════════════════════════════════════════
+-- EXECUTION SUMMARY
+-- ═══════════════════════════════════════════════════════════════
+--
+-- Total frames: 8 (0-7)
+-- ⊢∘ iterations: 1 (proof was complete on first generation — no gap-filling needed)
+-- Cells evaluated: spec, generate-code, generate-tests, run-tests,
+--   generate-proof, verify-proof, fill-gaps, assemble-certificate
+-- Crystallized cells: 1 (verify-proof — ran without LLM)
+-- Soft cells: 6 (required LLM simulation)
+-- Pass-through cells: 1 (spec)
+--
+-- Input: 1 natural language specification ("merge two sorted lists")
+-- Output: proof-carrying certificate with code, tests, and formal proof
+-- Tests: 14/14 passing across 8 properties
+-- Proof: 6-step argument verified by crystallized checker
+-- Properties proved: sortedness, permutation, termination, length-preservation
+-- Confidence: HIGH
+--
+-- Key observations:
+--
+-- ⊢= Observation 1: proof-carrying computation for merge is a textbook NP/P split
+--   Generating a correct merge implementation is easy (the algorithm is well-known),
+--   but generating a FORMAL PROOF of its correctness is hard — the LLM must
+--   identify the right invariants (INV1: sorted prefix is permutation of consumed
+--   elements; INV2: last element ≤ next candidates from both lists), construct
+--   the sortedness preservation argument (requires case analysis on the comparison
+--   branch), and prove termination (i+j increasing, bounded). The crystallized
+--   verifier checks all this structurally in constant time per component. The
+--   asymmetry is real: the LLM spent most of its effort in frame 4 (proof
+--   generation), while the verifier in frame 5 just checked boxes.
+--
+-- ⊢= Observation 2: the ⊢∘ gap-filling loop embeds proof repair in the language
+--   Unlike program 19 which evolved CODE through test-driven development, this
+--   program evolves the PROOF through structure-driven verification. The cycle is:
+--   generate proof → verify structure → fill gaps → re-verify. This is exactly
+--   how interactive theorem provers work: the prover proposes, the checker
+--   identifies holes, the prover fills them. Cell's ⊢∘ combinator captures this
+--   pattern as a first-class construct. In this trace, the proof was complete on
+--   iteration 1 — but the mechanism for iterative proof repair was ready. A
+--   deliberately incomplete proof (missing the permutation argument, say) would
+--   trigger fill-gaps to construct Step 3 as a patch.
+--
+-- ⊢= Observation 3: the dual proof structure — tests AND formal argument
+--   Tests (frame 3) and proof (frame 4) are INDEPENDENT evidence channels.
+--   The tests provide empirical confidence: 14 concrete executions covering
+--   empty lists, interleaving, duplicates, etc. The proof provides deductive
+--   confidence: a logical argument that the algorithm is correct for ALL inputs.
+--   Neither subsumes the other. Tests catch implementation bugs the proof might
+--   miss (if the proof argues about an idealized version). The proof catches
+--   classes of bugs tests might miss (can't test every input). Together they
+--   form a proof-carrying computation: code arrives with its own evidence.
+--
+-- ⊢= Observation 4: crystallization boundary aligns with computational complexity
+--   verify-proof is crystallized (⊢=) because checking proof structure is
+--   syntactic pattern matching — does the proof mention "loop-invariant"?
+--   Does it reference i, j, result? Does it have a termination argument?
+--   These are P-time string/structure checks. generate-proof is soft (∴) because
+--   constructing a valid proof requires creative mathematical reasoning — choosing
+--   the right invariant, structuring the case analysis, connecting preconditions
+--   to the algorithm's correctness. This is the same P/NP boundary that makes
+--   all proof-carrying systems work, from PCC in compilers to zero-knowledge proofs.
+--
+-- ⊢= Observation 5: generate-code and generate-tests are confluent and independent
+--   Frames 1 and 2 evaluated cells from the same ready set. generate-tests does
+--   NOT see generate-code's output — it generates tests from the SPEC alone. This
+--   independence is crucial: the oracle (tests) doesn't know the implementation
+--   strategy, so it can't be biased. Confluence guarantees the same tests whether
+--   we evaluate code first or tests first. This mirrors the principle that test
+--   writers should work from the specification, not the implementation.
