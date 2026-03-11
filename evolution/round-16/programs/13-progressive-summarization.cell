@@ -1,0 +1,104 @@
+-- 13-progressive-summarization.cell
+-- Tests: oracle-terminated recursion, ⊥ as stop signal, progressive compression, ⊢⊢ spawner
+--
+-- Takes a long document. Pass 1: summarize to 50%. Oracle: key info preserved?
+-- Pass 2: 25%. Continue halving until oracle says info loss unacceptable.
+-- ⊥ from oracle STOPS the loop — bottom as a genuine stop signal.
+-- Meta: Cell summarizes its own specification.
+
+⊢ document
+  yield text, word-count
+
+  ⊢= text ← "Cell Language Specification v0.1
+
+What Cell Is: Cell is a self-bootstrapping metacircular language for LLMs. Programs are documents. Execution fills in values. The document IS the program IS the state. Cells start as natural language (soft) and progressively crystallize into deterministic code (hard) under oracle pressure.
+
+Core Syntax: ⊢ declares a cell with given inputs, yield outputs, ∴ for natural language body, ⊢= for deterministic body, ⊨ for oracle assertions, ⊨? for recovery policy, § for quotation, «» for interpolation, ≡ for binding, → for output access, ▸ for stage annotation, ⊢∘ for evolution loops.
+
+Execution Model (eval-one): Kahn's algorithm, one step at a time. Find cells with all given inputs bound. Pick one. Evaluate it. Spawn oracle claim cells. If claims pass, freeze output. If claims fail, retry or produce ⊥. Properties: document-is-state, monotonicity, non-termination by design, confluence, content addressing, fusion of classical and semantic substrates.
+
+Quotation: § passes a cell's definition as data. §greet is the definition, greet→message is the output. Enables code-as-data, reflection, self-modification.
+
+Crystallization: Progression from soft (∴) to hard (⊢=). Verification crystallizes before computation. Oracles on soft cells are guardrails; on crystallized cells, contracts. crystallize and eval-one are permanently soft.
+
+Oracle System: Every ⊨ is syntactic sugar for a claim cell spawned by cell-zero. Oracle types: deterministic, structural, semantic, ambiguous. ⊨? defines retry with feedback. Retry is graph rewrite preserving immutability. Oracle promotion: when oracle states the implementation, runtime can crystallize.
+
+Proof-Carrying Computation: LLM finds solution (NP space), crystallized verifier checks it (P space). Verifier always catches wrong answers.
+
+Evolution Loops (⊢∘): First-class fixed-point combinator over cell definitions. Interface freeze constraint: implementation changes, interface cannot. Generalizes to tournament, beam search, adversarial co-evolution.
+
+Self-Crystallization: crystallize cell reads §target, writes ⊢= replacement, verify-crystal checks against oracles. 'May replace' is permission (deontic). The ∴ is the specification, ⊢= is the optimization. Both coexist.
+
+Bootstrap Sequence: External syntax → LLM executes first cells → describe parses syntax → crystallize writes ⊢= → verify checks → more crystallize → LLM cost drops. Trajectory: soft everywhere → hard core, soft frontier.
+
+Oracle Classification: Assertions (post-hoc check, catch formatting) vs Rules (prescription, catch reasoning). Conditional oracles may have soft preconditions. Exhaustion handler: escalate, error-value(⊥), partial-accept.
+
+Frontier Growth (⊢⊢): Spawner cells create new cells joining the frontier. Semantic automata — never-terminating. Monotonicity preserved, confluence preserved, termination not guaranteed. § marks crystallization boundary.
+
+Cell-as-Agent Pattern: inbox → §handlers[] → dispatch → results[] → act → actions[]. Cell's eval/apply. Code-as-data via §. Open: streaming, error propagation."
+
+  ⊢= word-count ← 347
+
+⊢ summarize
+  given document→text
+  given target-ratio ≡ 0.50
+  yield summary, actual-word-count
+
+  ∴ Summarize «document→text» to approximately «target-ratio» of its original
+    length. Preserve the most important concepts, relationships, and distinctive
+    features. Cut examples, elaboration, and redundancy first. Every sentence
+    in the summary must carry load — no filler.
+
+  ⊨ actual-word-count ≤ target-ratio × 347 × 1.1
+  ⊨ actual-word-count ≥ target-ratio × 347 × 0.5
+
+⊢ check-fidelity
+  given document→text
+  given summarize→summary
+  given summarize→actual-word-count
+  yield preserved-concepts[], lost-concepts[], fidelity-score, acceptable
+
+  ∴ Compare «summarize→summary» against «document→text». Identify which key
+    concepts were preserved and which were lost. A concept is "key" if an
+    implementor needs it to build a correct Cell runtime. Score fidelity 1-10
+    where 10 = no meaningful loss. Set acceptable = false if any CRITICAL
+    concept is lost (one that would cause an incorrect implementation).
+
+  ⊨ fidelity-score ∈ {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+  ⊨ if acceptable = false then lost-concepts is non-empty
+  ⊨ if fidelity-score ≤ 3 then acceptable = false
+
+⊢ compress-further
+  given summarize→summary
+  given check-fidelity→acceptable
+  given check-fidelity→lost-concepts
+  given target-ratio ≡ 0.50
+  yield next-summary, next-word-count, halted
+
+  ∴ If «check-fidelity→acceptable» is true:
+    Summarize «summarize→summary» to 50% of ITS current length (halving again).
+    Set halted = false.
+    If «check-fidelity→acceptable» is false:
+    The previous summary was the last acceptable one. Output ⊥ for
+    next-summary. Set halted = true. The compression has bottomed out.
+
+  ⊨ if acceptable then next-word-count ≤ actual-word-count × 0.6
+  ⊨ if not acceptable then halted = true
+  ⊨ if not acceptable then next-summary = ⊥
+
+  ⊨? on failure:
+    retry with «check-fidelity→lost-concepts» appended to prompt
+    max 2 attempts
+
+⊢⊢ recurse-compression
+  given compress-further→next-summary
+  given compress-further→next-word-count
+  given compress-further→halted
+  given document→text
+  yield §compression-steps[]
+  until halted = true ∨ next-word-count < 20
+
+  ∴ If not halted: spawn a new {summarize, check-fidelity, compress-further}
+    chain, feeding next-summary as the new input and halving target-ratio.
+    Each spawned chain is a new compression level.
+    If halted: stop spawning. The recursion has bottomed out via ⊥.
