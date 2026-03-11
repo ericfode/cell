@@ -1,0 +1,147 @@
+-- 17-collaborative-world-builder.cell
+-- Tests: parallel creative generation, consistency oracle, ⊢∘ convergence loop,
+--        cross-cell reading (each creator reads others' outputs)
+--
+-- Seed: "a space station in the year 3000". Three creator cells work in parallel:
+-- geography (physical layout), history (backstory), culture (customs/social).
+-- Each reads the others' outputs. A consistency oracle checks for contradictions.
+-- If contradictions found, the contradicting cell rewrites. ⊢∘ loop until consistent.
+--
+-- This demonstrates Cell's parallel creative generation with cross-validation:
+-- independent cells produce content, then a global oracle enforces coherence.
+
+⊢ seed
+  given premise ≡ "A space station in the year 3000 — humanity's last outpost after Earth became uninhabitable. Population: ~50,000. Orbiting a gas giant in the Tau Ceti system, 12 light-years from Earth."
+  yield premise
+
+  ⊨ premise establishes setting, location, and scale
+
+⊢ geography
+  given seed→premise
+  given history→backstory
+  given culture→customs
+  yield layout, sectors[], environment
+
+  ∴ Design the physical layout of the space station described in «seed→premise».
+    Consider the backstory in «history→backstory» and customs in «culture→customs»
+    when designing spaces. Include:
+    - Overall shape and structure
+    - Named sectors with purposes
+    - Environmental systems (air, water, gravity, power)
+    Ensure the physical layout is consistent with the station's history and culture.
+
+  ⊨ layout describes overall structure with dimensions
+  ⊨ length(sectors) ≥ 4
+  ⊨ environment addresses life support systems
+
+⊢ history
+  given seed→premise
+  given geography→layout
+  given culture→customs
+  yield backstory, key-events[], founding-era
+
+  ∴ Write the backstory for the space station in «seed→premise».
+    Consider the physical layout in «geography→layout» and cultural customs
+    in «culture→customs». Include:
+    - Why and when it was built
+    - Key historical events (3-5)
+    - How the founding era shaped current society
+    Ensure the history is consistent with the station's physical design and culture.
+
+  ⊨ backstory spans at least 100 years
+  ⊨ length(key-events) ≥ 3
+  ⊨ founding-era explains origin context
+
+⊢ culture
+  given seed→premise
+  given geography→layout
+  given history→backstory
+  yield customs, social-structure, traditions[], taboos[]
+
+  ∴ Design the culture of the space station in «seed→premise».
+    Consider the physical constraints in «geography→layout» and historical
+    context in «history→backstory». Include:
+    - Social structure (governance, classes, roles)
+    - Traditions (3-5 unique customs shaped by station life)
+    - Taboos (what's forbidden and why)
+    Ensure the culture is consistent with the station's geography and history.
+
+  ⊨ social-structure describes governance
+  ⊨ length(traditions) ≥ 3
+  ⊨ length(taboos) ≥ 2
+  ⊨ customs reflect life in an enclosed space environment
+
+⊢ check-consistency
+  given geography→layout
+  given geography→sectors
+  given geography→environment
+  given history→backstory
+  given history→key-events
+  given culture→customs
+  given culture→social-structure
+  given culture→traditions
+  given culture→taboos
+  yield consistent, contradictions[], severity
+
+  ∴ Read ALL outputs from geography, history, and culture.
+    Check for contradictions:
+    1. Does the geography support the population implied by the culture?
+    2. Does the history explain how the geography came to be?
+    3. Do cultural taboos make sense given the physical constraints?
+    4. Are there timeline inconsistencies?
+    5. Do sector names/purposes match cultural and historical references?
+
+    List ALL contradictions found. Rate severity: "none", "minor", "major".
+
+  ⊨ consistent ∈ { true, false }
+  ⊨ if not consistent then contradictions is non-empty
+  ⊨ severity ∈ { "none", "minor", "major" }
+
+⊢ resolve-contradictions
+  given check-consistency→contradictions
+  given check-consistency→severity
+  given §geography
+  given §history
+  given §culture
+  yield resolution-plan, cells-to-rewrite[]
+
+  ∴ For each contradiction in «check-consistency→contradictions»,
+    determine which cell (geography, history, or culture) should
+    rewrite to fix it. The cell with the WEAKER claim yields.
+    Produce a resolution plan explaining each fix.
+
+  ⊨ each contradiction maps to exactly one cell to rewrite
+  ⊨ resolution-plan explains the resolution logic
+
+⊢∘ evolve(geography, seed→premise ≡ seed→premise)
+  through check-consistency, resolve-contradictions
+  until check-consistency→consistent = true
+  max 3
+
+  -- Each iteration: all three creators generate content → consistency oracle
+  -- checks for contradictions → resolve identifies which cell to rewrite →
+  -- that cell regenerates with contradiction context.
+  --
+  -- The ⊢∘ loop rewrites the contradicting cell's ∴ output.
+  -- Interface (given/yield) is frozen. Only the content changes.
+
+⊢ world-document
+  given seed→premise
+  given geography→layout
+  given geography→sectors
+  given geography→environment
+  given history→backstory
+  given history→key-events
+  given history→founding-era
+  given culture→customs
+  given culture→social-structure
+  given culture→traditions
+  given culture→taboos
+  given check-consistency→consistent
+  yield document, word-count
+
+  ∴ Assemble the final world-building document from all sources.
+    Organize as: Setting → Geography → History → Culture → Consistency Status.
+
+  ⊨ document integrates all three perspectives
+  ⊨ check-consistency→consistent = true (must be resolved before assembly)

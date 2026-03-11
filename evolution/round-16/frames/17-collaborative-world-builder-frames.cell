@@ -1,0 +1,504 @@
+-- 17-collaborative-world-builder-frames.cell — full eval-one execution trace
+--
+-- Ready set analysis:
+--   seed: all givens have ≡ → READY
+--   geography: needs seed→premise, history→backstory, culture→customs → BLOCKED
+--   history: needs seed→premise, geography→layout, culture→customs → BLOCKED
+--   culture: needs seed→premise, geography→layout, history→backstory → BLOCKED
+--
+-- CIRCULAR DEPENDENCY DETECTED in the program!
+-- geography needs history→backstory, history needs geography→layout,
+-- culture needs both. This is a THREE-WAY cycle.
+--
+-- Resolution: eval-one bootstraps via PARTIAL evaluation.
+-- First pass: each creator runs with only seed→premise bound (others unbound).
+-- This produces initial content. Second pass (⊢∘ iteration): each creator
+-- now has the others' outputs and can refine for consistency.
+--
+-- In Cell semantics: the circular given references are treated as OPTIONAL
+-- context — the cell CAN execute with only seed→premise, but IMPROVES with
+-- the cross-references. This matches the spec's soft cell behavior: ∴ blocks
+-- use whatever context is available.
+--
+-- Revised ready set: { seed }
+-- After seed: { geography, history, culture } — all have seed→premise,
+-- optional cross-refs unbound on first pass.
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 0: seed
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ seed
+  given premise ≡ "A space station in the year 3000 — humanity's last outpost after Earth became uninhabitable. Population: ~50,000. Orbiting a gas giant in the Tau Ceti system, 12 light-years from Earth."
+  yield premise ≡ "A space station in the year 3000 — humanity's last outpost after Earth became uninhabitable. Population: ~50,000. Orbiting a gas giant in the Tau Ceti system, 12 light-years from Earth."
+
+  ⊨ premise establishes setting, location, and scale → ✓
+
+-- Ready set after frame 0: { geography, history, culture }
+-- All three have seed→premise bound. Cross-references unbound (first pass).
+-- PARALLEL-ELIGIBLE: confluence guarantees any order. We pick geography first.
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ ITERATION 1: Initial generation (cross-refs unbound)
+-- ═══════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 1: geography (iteration 1 — no cross-context)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ geography
+  given seed→premise ≡ "A space station in the year 3000..."
+  given history→backstory ≡ (unbound — first pass)
+  given culture→customs ≡ (unbound — first pass)
+  yield layout, sectors[], environment
+
+  ∴ Design the physical layout of the space station...
+
+-- LLM evaluation (working from seed alone):
+-- 50,000 people orbiting a gas giant. Need rotating sections for gravity,
+-- radiation shielding, power from the gas giant (hydrogen scooping or
+-- magnetic field tapping). Classic torus or cylinder design.
+
+  yield layout ≡ "Erebus Station is a triple-ring torus, 2km outer diameter. Three concentric rings rotate at different speeds to provide variable gravity: Outer Ring (0.9g, residential), Middle Ring (0.5g, industrial/agricultural), Inner Ring (0.1g, docking/zero-g manufacturing). A non-rotating central spine houses the command center, communications array, and hydrogen scoop that dips into the gas giant's upper atmosphere for fuel."
+
+  yield sectors ≡ [
+    "The Commons (Outer Ring, 90°) — residential quarters, markets, public spaces for ~30,000 residents",
+    "The Greenway (Middle Ring, full circumference) — hydroponic farms, oxygen gardens, water recycling wetlands",
+    "The Foundry (Middle Ring, 120°) — manufacturing, mining drone control, material processing",
+    "The Docks (Inner Ring) — spacecraft berths, cargo loading, zero-g assembly yards",
+    "The Spine — command center, long-range comms, hydrogen scoop control, AI core",
+    "The Underbelly (between rings) — maintenance tunnels, radiation shielding, waste processing"
+  ]
+
+  yield environment ≡ "Closed-loop life support: The Greenway produces oxygen and processes CO2 via engineered algae and hydroponic crops. Water recycled at 99.7% efficiency through biofiltration wetlands. Power: hydrogen scooped from gas giant atmosphere provides fusion fuel. Backup: solar collectors on the station's sun-facing side. Radiation: gas giant's magnetic field provides partial shielding; station hull has 3m of regolith and water-ice composite armor. Artificial gravity via ring rotation — variable by ring."
+
+-- oracle checks:
+--   ⊨ layout describes overall structure with dimensions → ✓ (2km, triple-ring)
+--   ⊨ length(sectors) ≥ 4 → ✓ (6 sectors)
+--   ⊨ environment addresses life support → ✓ (air, water, power, radiation, gravity)
+
+-- Ready set after frame 1: { history } (or culture — parallel eligible)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 2: history (iteration 1 — no cross-context)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ history
+  given seed→premise ≡ "A space station in the year 3000..."
+  given geography→layout ≡ (unbound — first pass)
+  given culture→customs ≡ (unbound — first pass)
+  yield backstory, key-events[], founding-era
+
+  ∴ Write the backstory for the space station...
+
+-- LLM evaluation (working from seed alone):
+
+  yield backstory ≡ "Erebus Station was constructed between 2847 and 2873 by the Exodus Compact — an alliance of Earth's last functioning governments. Earth's biosphere collapsed in the 2780s after cascading tipping points (methane clathrate release, ocean acidification, crop blight pandemic). The generation ship Prometheus carried 12,000 colonists on an 80-year journey to Tau Ceti, arriving in 2927. They found no habitable planets, only the gas giant Hades. Rather than despair, Chief Engineer Yuki Tanaka proposed building a permanent station in Hades's orbit, using atmospheric scooping for fuel. Construction of the permanent station (replacing the Prometheus hull) took from 2930 to 2955. By 3000, the population has grown to 50,000 across three generations born on-station."
+
+  yield key-events ≡ [
+    "2780s — Earth's biosphere collapse triggers the Exodus Compact",
+    "2847-2873 — Construction of generation ship Prometheus",
+    "2927 — Arrival at Tau Ceti. No habitable worlds found. The Disappointment.",
+    "2930-2955 — Erebus Station construction in orbit around gas giant Hades",
+    "2971 — The Schism: a faction (the Returnists) attempted to commandeer the Prometheus engines to return to Earth. Failed. 200 casualties. Led to the founding of the Keepers (station security force)."
+  ]
+
+  yield founding-era ≡ "The Disappointment (2927) shaped everything. Colonists expected a new Earth and found only a gas giant. The psychological trauma of permanent exile — no planet beneath your feet, ever — drove the culture toward radical self-sufficiency and a near-religious reverence for the station itself. 'We are the station and the station is us' became the founding creed."
+
+-- oracle checks:
+--   ⊨ backstory spans at least 100 years → ✓ (2780s to 3000 = ~220 years)
+--   ⊨ length(key-events) ≥ 3 → ✓ (5 events)
+--   ⊨ founding-era explains origin → ✓ (The Disappointment)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 3: culture (iteration 1 — no cross-context)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ culture
+  given seed→premise ≡ "A space station in the year 3000..."
+  given geography→layout ≡ (unbound — first pass)
+  given history→backstory ≡ (unbound — first pass)
+  yield customs, social-structure, traditions[], taboos[]
+
+  ∴ Design the culture of the space station...
+
+-- LLM evaluation (working from seed alone):
+
+  yield customs ≡ "Station culture is shaped by two facts: everything is recycled, and there is nowhere else to go. Resources are communal by necessity. Privacy is a luxury — quarters are small, public spaces are shared. Social bonds are intense; isolation is the worst punishment. Music and storytelling thrive (low resource cost). Physical fighting is almost unknown — in an enclosed system, every injury costs everyone."
+
+  yield social-structure ≡ "Governed by the Circle of Twelve — elected representatives, one per station sector (originally one per deck of the Prometheus). Executive decisions by the Station Commander (elected every 8 years). No hereditary authority. All citizens required to serve 2 years in a civic role (maintenance, farming, teaching, or security). Class divisions exist informally: Spine workers (engineers, commanders) have higher status than Ring workers (farmers, manufacturers), creating tension."
+
+  yield traditions ≡ [
+    "The Naming Day — when a child turns 12, they choose their adult name and their civic service specialty. The whole sector celebrates.",
+    "Harvest Festival — quarterly celebration when the Greenway's crops are rotated. Feasting, music, dancing in the low-gravity Middle Ring.",
+    "The Vigil — annual day of silence commemorating Earth. All lights dimmed for 24 hours. Citizens share stories of the old world passed down through generations.",
+    "Ring Walk — a coming-of-age tradition where adolescents walk the full circumference of all three rings in one day (~18km total). Tests endurance and teaches the station's geography."
+  ]
+
+  yield taboos ≡ [
+    "Wasting water — the most serious social offense. Even spilling a cup draws disapproval. 'Water-waster' is the worst insult.",
+    "Speaking of leaving — suggesting the station should be abandoned or that a better home exists elsewhere. This echoes the Returnist heresy. Called 'the wind talk' (there is no wind in space).",
+    "Hoarding — keeping resources beyond your allocation. Quarters are inspected randomly. Hoarding is punished by public shaming and loss of sector voting rights."
+  ]
+
+-- oracle checks:
+--   ⊨ social-structure describes governance → ✓ (Circle of Twelve, Commander)
+--   ⊨ length(traditions) ≥ 3 → ✓ (4)
+--   ⊨ length(taboos) ≥ 2 → ✓ (3)
+--   ⊨ customs reflect enclosed space life → ✓ (recycling, communal, no fighting)
+
+-- All three creators have produced initial content.
+-- Ready set after frame 3: { check-consistency }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 4: check-consistency (iteration 1)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ check-consistency
+  given geography→layout ≡ "Erebus Station is a triple-ring torus, 2km outer diameter..."
+  given geography→sectors ≡ [6 sectors]
+  given geography→environment ≡ "Closed-loop life support..."
+  given history→backstory ≡ "Erebus Station was constructed between 2847 and 2873..."
+  given history→key-events ≡ [5 events]
+  given culture→customs ≡ "Station culture is shaped by two facts..."
+  given culture→social-structure ≡ "Governed by the Circle of Twelve — one per station sector..."
+  given culture→traditions ≡ [4 traditions]
+  given culture→taboos ≡ [3 taboos]
+  yield consistent, contradictions[], severity
+
+  ∴ Check for contradictions across all three domains...
+
+-- LLM evaluation:
+-- Cross-referencing geography ↔ history ↔ culture:
+--
+-- 1. SECTOR COUNT vs GOVERNANCE: Geography defines 6 sectors (Commons, Greenway,
+--    Foundry, Docks, Spine, Underbelly). Culture says "Circle of Twelve — one per
+--    sector (originally one per deck of Prometheus)." But there are only 6 sectors,
+--    not 12. Either there need to be 12 sectors, or the governance needs 6
+--    representatives, or the Circle of Twelve predates the current sector layout.
+--    CONTRADICTION: 6 sectors ≠ 12 representatives "one per sector".
+--
+-- 2. NAMING: Geography calls the station "Erebus Station" and the gas giant isn't
+--    named. History calls the gas giant "Hades" and the station "Erebus Station".
+--    CONSISTENT — Erebus was the primordial deity of darkness (fitting for a gas
+--    giant orbit), Hades = underworld (fitting for a gas giant).
+--
+-- 3. RING WALK DISTANCE: Culture says Ring Walk is ~18km (all three rings).
+--    Geography: Outer Ring 2km diameter → circumference ~6.28km. Middle Ring
+--    would be smaller (~5km?). Inner Ring smaller still (~3km?). Total ~14km,
+--    not 18km. MINOR INCONSISTENCY.
+--
+-- 4. TIMELINE: History says station built 2930-2955. History says Prometheus
+--    construction 2847-2873, journey 80 years (arriving ~2927-2953?). Wait —
+--    if construction was 2847-2873 and journey was 80 years, arrival would be
+--    ~2953, not 2927. CONTRADICTION: 2873 + 80 = 2953, but history says arrival
+--    in 2927. The math doesn't work.
+--
+-- 5. HARVEST FESTIVAL: Culture says "quarterly when Greenway crops rotated."
+--    Geography says Greenway has "hydroponic farms, oxygen gardens." Hydroponic
+--    crops don't have traditional harvest cycles — they grow continuously.
+--    But "rotation" could mean rotating which crops are grown. MINOR — not
+--    a contradiction, just needs clarification.
+
+  yield consistent ≡ false
+
+  yield contradictions ≡ [
+    "C1 (MAJOR): Culture says 'Circle of Twelve — one per sector' but geography defines only 6 sectors. Either sectors need to double, governance needs to halve, or the 'one per sector' claim needs revision.",
+    "C2 (MAJOR): History timeline error — Prometheus construction 2847-2873 + 80-year journey = arrival ~2953, but history states arrival in 2927. 26-year discrepancy.",
+    "C3 (MINOR): Ring Walk distance claimed as ~18km but calculated circumferences of three rings total ~14-15km based on 2km outer diameter."
+  ]
+
+  yield severity ≡ "major"
+
+-- oracle checks:
+--   ⊨ consistent ∈ { true, false } → ✓ (false)
+--   ⊨ contradictions non-empty → ✓ (3 contradictions)
+--   ⊨ severity ∈ { "none", "minor", "major" } → ✓ ("major")
+
+-- TWO MAJOR CONTRADICTIONS FOUND. The consistency oracle works.
+-- The creators generated independently (no cross-context on first pass),
+-- so inconsistencies are expected. The ⊢∘ loop will fix them.
+
+-- Ready set after frame 4: { resolve-contradictions }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 5: resolve-contradictions (iteration 1)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ resolve-contradictions
+  given check-consistency→contradictions ≡ [C1: sector/governance mismatch, C2: timeline error, C3: distance error]
+  given check-consistency→severity ≡ "major"
+  given §geography
+  given §history
+  given §culture
+  yield resolution-plan, cells-to-rewrite[]
+
+  ∴ Determine which cells should rewrite to fix each contradiction...
+
+-- LLM evaluation:
+--
+-- C1 (sectors vs governance): Culture says "one per sector." Geography has 6
+-- sectors. The weaker claim is culture's "one per sector" — the 12 comes from
+-- the Prometheus's original deck count. FIX: rewrite culture to explain that
+-- the Circle of Twelve is a HISTORICAL structure (12 decks on Prometheus),
+-- now mapped to 6 sectors with 2 representatives each. Culture rewrites.
+--
+-- C2 (timeline): History says construction 2847-2873 AND arrival 2927. These
+-- numbers are both in history. FIX: adjust departure/arrival dates. If
+-- construction ended 2873 and journey was 80 years, arrival = 2953. Or if
+-- arrival is 2927, then departure was ~2847 and construction was earlier.
+-- History rewrites.
+--
+-- C3 (distance): Culture says ~18km for Ring Walk. Geography implies ~14-15km.
+-- FIX: culture adjusts distance to ~15km, or geography adjusts ring sizes.
+-- Culture's claim is weaker (approximate). Culture rewrites.
+
+  yield resolution-plan ≡ "C1: Culture rewrites governance — Circle of Twelve maps 2 reps per 6 sectors (historical from 12 Prometheus decks). C2: History rewrites timeline — adjust to construction 2830-2847, departure 2847, arrival 2927 (80 years). Station construction 2930-2955 stays. C3: Culture adjusts Ring Walk distance to ~15km."
+
+  yield cells-to-rewrite ≡ ["culture", "history"]
+
+-- ⊢∘ loop: consistent = false → CONTINUE
+-- Rewriting culture and history with contradiction context.
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ ITERATION 2: Revised generation (with cross-context + fixes)
+-- ═══════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 6: history (iteration 2 — with geography context + fix)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ history
+  given seed→premise ≡ "A space station in the year 3000..."
+  given geography→layout ≡ "Erebus Station is a triple-ring torus, 2km outer diameter..."
+  given culture→customs ≡ "Station culture is shaped by two facts..."
+  yield backstory, key-events[], founding-era
+
+  ∴ Write the backstory. FIX TIMELINE: construction must end before departure.
+    Journey is 80 years. Arrival 2927 means departure ~2847.
+
+-- LLM evaluation (with geography cross-context and timeline fix):
+
+  yield backstory ≡ "Erebus Station traces its origin to the Exodus Compact, formed in the 2780s when Earth's biosphere entered terminal collapse. The generation ship Prometheus was designed from 2790 and constructed between 2810 and 2847 — a 37-year engineering effort involving every remaining industrial nation. Prometheus departed Earth orbit in 2847 carrying 12,000 colonists across 12 habitation decks. After an 80-year voyage, the Prometheus reached Tau Ceti in 2927 — only to find no habitable worlds. The sole candidate was Hades, a gas giant with a hydrogen-rich atmosphere. Chief Engineer Yuki Tanaka proposed a permanent orbital station using Hades's atmosphere for fusion fuel. Erebus Station was built between 2930 and 2955, incorporating sections of the Prometheus hull into the triple-ring torus design. By 3000, the station houses 50,000 souls across three generations born knowing no other home."
+
+  yield key-events ≡ [
+    "2780s — Earth biosphere collapse triggers the Exodus Compact",
+    "2810-2847 — Construction of generation ship Prometheus (12 habitation decks)",
+    "2847 — Prometheus departs Earth orbit with 12,000 colonists",
+    "2927 — Arrival at Tau Ceti. No habitable planets. The Disappointment.",
+    "2930-2955 — Erebus Station construction in orbit around gas giant Hades",
+    "2971 — The Schism: Returnist faction attempted to commandeer Prometheus engines. Failed. 200 casualties. Led to founding of the Keepers."
+  ]
+
+  yield founding-era ≡ "The Disappointment (2927) shaped everything. Colonists expected a new Earth and found only a gas giant. The psychological trauma of permanent exile — no planet beneath your feet, ever — drove the culture toward radical self-sufficiency and reverence for the station. 'We are the station and the station is us' became the founding creed. The 12 decks of the Prometheus became the organizational template: even after building Erebus's 6 sectors, governance retained the 12-representative structure as a link to the ship that carried them."
+
+-- oracle checks:
+--   ⊨ backstory spans ≥ 100 years → ✓ (2780s to 3000 = ~220 years)
+--   ⊨ length(key-events) ≥ 3 → ✓ (6 events)
+--   ⊨ founding-era explains origin → ✓
+
+-- TIMELINE NOW CONSISTENT: 2810-2847 (build) → 2847 (depart) → 2927 (arrive).
+-- 2847 + 80 = 2927. ✓
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 7: culture (iteration 2 — with all cross-context + fixes)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ culture
+  given seed→premise ≡ "A space station in the year 3000..."
+  given geography→layout ≡ "Erebus Station is a triple-ring torus, 2km outer diameter..."
+  given history→backstory ≡ "Erebus Station traces its origin to the Exodus Compact..."
+  yield customs, social-structure, traditions[], taboos[]
+
+  ∴ Design the culture. FIX: Circle of Twelve = 2 reps per 6 sectors (from
+    12 Prometheus decks). Ring Walk distance = ~15km.
+
+-- LLM evaluation (with full cross-context and fixes):
+
+  yield customs ≡ "Station culture is shaped by two inescapable facts: everything is recycled, and there is nowhere else to go. Resources are communal by necessity — private property exists only for personal items that fit in a single storage locker. Privacy is scarce; quarters are small (8m² per person), public spaces are shared. Social bonds are intense, forged in the knowledge that every face you see is one you'll see for life. Music and oral storytelling thrive (zero material cost). Physical violence is nearly unknown — in an enclosed system, every injury depletes the whole."
+
+  yield social-structure ≡ "Governed by the Circle of Twelve — two elected representatives per each of the station's 6 sectors, preserving the original structure of the 12 habitation decks aboard the Prometheus. Executive decisions made by the Station Commander (elected every 8 years from among the Twelve). No hereditary authority. All citizens required to serve 2 years in civic duty (maintenance, farming, teaching, or Keeper security). Informal class tension persists: Spine workers (engineers, commanders) carry higher status than Ring workers (farmers, manufacturers), a divide the Circle struggles to bridge."
+
+  yield traditions ≡ [
+    "The Naming Day — at age 12, a child chooses their adult name and civic service specialty. Their home sector celebrates with feasting and gifts of handmade tools.",
+    "Harvest Festival — quarterly when the Greenway rotates crop cycles. Feasting, music, and low-gravity dancing in the Middle Ring. The only time alcohol is distributed freely.",
+    "The Vigil — annual day of silence commemorating Earth and the 80-year voyage. All lights dimmed for 24 hours. Elders share stories of the old world. Children carry small blue orbs representing Earth.",
+    "The Ring Walk — coming-of-age tradition: adolescents walk the full circumference of all three rings in one day (~15km). Tests endurance, teaches the station's geography, and bonds the cohort for life."
+  ]
+
+  yield taboos ≡ [
+    "Wasting water — the gravest social offense. Even spilling a cup draws collective disapproval. 'Water-waster' is the worst insult in station vernacular, worse than any profanity.",
+    "Wind talk — speaking of leaving the station or suggesting a better home exists elsewhere. Echoes the Returnist Schism of 2971. Named because 'there is no wind in space' — the desire for an open sky is considered a dangerous delusion.",
+    "Hoarding — keeping resources beyond your single-locker allocation. Quarters subject to random community inspections. Punishment: public accounting (your hoard displayed in the Commons) and loss of sector voting rights for one election cycle."
+  ]
+
+-- oracle checks:
+--   ⊨ social-structure describes governance → ✓ (Circle of Twelve, 2 per sector)
+--   ⊨ length(traditions) ≥ 3 → ✓ (4)
+--   ⊨ length(taboos) ≥ 2 → ✓ (3)
+--   ⊨ customs reflect enclosed space life → ✓
+
+-- FIXES APPLIED:
+-- Circle of Twelve: "two representatives per each of the 6 sectors" ✓
+-- Ring Walk: "~15km" ✓
+-- Cross-references: history's founding-era explains the 12-deck origin,
+-- culture's governance references it. Geography's sectors align.
+
+-- Ready set after frames 6-7: { check-consistency }
+-- Geography didn't need rewriting — its outputs are unchanged.
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 8: check-consistency (iteration 2)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ check-consistency
+  given geography→layout ≡ "Erebus Station is a triple-ring torus, 2km outer diameter..."
+  given geography→sectors ≡ [6 sectors]
+  given geography→environment ≡ "Closed-loop life support..."
+  given history→backstory ≡ "...Prometheus designed from 2790, constructed 2810-2847, departed 2847, arrived 2927..."
+  given history→key-events ≡ [6 events, timeline corrected]
+  given culture→customs ≡ "...everything is recycled, nowhere else to go..."
+  given culture→social-structure ≡ "Circle of Twelve — two per each of 6 sectors, from 12 Prometheus decks..."
+  given culture→traditions ≡ [4 traditions, Ring Walk corrected to ~15km]
+  given culture→taboos ≡ [3 taboos, wind talk references 2971 Schism]
+  yield consistent, contradictions[], severity
+
+  ∴ Re-check all outputs for contradictions...
+
+-- LLM evaluation:
+--
+-- C1 (sector/governance): Circle of Twelve = 2 reps × 6 sectors. History
+-- explains 12 Prometheus decks as origin. RESOLVED. ✓
+--
+-- C2 (timeline): 2810-2847 construction, 2847 departure, +80 years = 2927
+-- arrival. 2930-2955 station construction. All dates consistent. RESOLVED. ✓
+--
+-- C3 (Ring Walk): Now ~15km. Outer ring ~6.3km + Middle ~5km + Inner ~3.5km
+-- = ~14.8km ≈ 15km. RESOLVED. ✓
+--
+-- New checks:
+-- - Culture references "the Returnist Schism of 2971" in taboos — matches
+--   history's key-event #6. ✓
+-- - Culture's "8m² per person" × 30,000 in Commons = 240,000 m². Commons
+--   is 90° of Outer Ring (¼ circumference × ring width). Circumference
+--   ~6.3km, ¼ = 1.575km. If ring cross-section is ~200m wide: 1575m × 200m
+--   = 315,000 m². Enough for 240,000 m² of quarters + corridors. ✓
+-- - 12,000 initial colonists → 50,000 by year 3000 (73 years of station life).
+--   Growth rate: ~2% annual. High but plausible with medical advances and
+--   intentional population growth policy for a new colony. ✓
+--
+-- No contradictions found.
+
+  yield consistent ≡ true
+  yield contradictions ≡ []
+  yield severity ≡ "none"
+
+-- oracle checks:
+--   ⊨ consistent ∈ { true, false } → ✓ (true)
+--   ⊨ severity ∈ { "none", "minor", "major" } → ✓ ("none")
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ LOOP: iteration 2 complete, consistent = true → CONVERGED
+-- ═══════════════════════════════════════════════════════════════
+
+-- 2 iterations. First pass: independent generation (3 contradictions found).
+-- Second pass: targeted rewrites with cross-context (all resolved).
+
+-- Ready set after frame 8: { world-document }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 9: world-document
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ world-document
+  given seed→premise ≡ "A space station in the year 3000..."
+  given geography→layout ≡ "Erebus Station is a triple-ring torus..."
+  given geography→sectors ≡ [6 sectors]
+  given geography→environment ≡ "Closed-loop life support..."
+  given history→backstory ≡ "Erebus Station traces its origin..."
+  given history→key-events ≡ [6 events]
+  given history→founding-era ≡ "The Disappointment (2927)..."
+  given culture→customs ≡ "Station culture is shaped by two facts..."
+  given culture→social-structure ≡ "Circle of Twelve..."
+  given culture→traditions ≡ [4 traditions]
+  given culture→taboos ≡ [3 taboos]
+  given check-consistency→consistent ≡ true
+  yield document, word-count
+
+  ∴ Assemble the final world-building document...
+
+  yield document ≡ "
+═══ EREBUS STATION — WORLD BIBLE ═══
+
+SETTING
+A space station orbiting Hades, a gas giant in the Tau Ceti system, 12 light-years from Earth. Year 3000. Population: ~50,000. Humanity's last outpost.
+
+GEOGRAPHY
+Erebus Station is a triple-ring torus, 2km outer diameter. Three concentric rings rotate at variable speeds: Outer Ring (0.9g residential), Middle Ring (0.5g industrial/agricultural), Inner Ring (0.1g docking/zero-g). Non-rotating central Spine houses command and the hydrogen scoop.
+
+Sectors: The Commons (residential, 30,000 people), The Greenway (farms, oxygen gardens), The Foundry (manufacturing), The Docks (spacecraft, cargo), The Spine (command, AI core), The Underbelly (maintenance, shielding).
+
+Life support is closed-loop: engineered algae for oxygen, 99.7% water recycling, fusion power from gas giant hydrogen, 3m regolith/ice radiation armor.
+
+HISTORY
+2780s: Earth biosphere collapses. Exodus Compact formed.
+2810-2847: Generation ship Prometheus constructed (12 habitation decks).
+2847: Departure. 12,000 colonists.
+2927: Arrival at Tau Ceti. No habitable worlds. The Disappointment.
+2930-2955: Erebus Station built in Hades orbit, incorporating Prometheus hull sections.
+2971: The Schism — Returnist faction tried to commandeer engines. Failed. 200 dead. The Keepers founded.
+3000: 50,000 residents. Three generations born on-station.
+
+CULTURE
+Governance: Circle of Twelve (2 elected reps per 6 sectors, structure inherited from Prometheus's 12 decks). Station Commander elected every 8 years. 2-year mandatory civic service.
+
+Traditions: Naming Day (age 12, choose adult name + specialty), Harvest Festival (quarterly, low-g dancing), The Vigil (annual Earth remembrance, lights dimmed 24h), Ring Walk (coming-of-age, ~15km circumference walk).
+
+Taboos: Water-wasting (worst insult), Wind talk (speaking of leaving), Hoarding (public shaming + voting rights loss).
+
+Social fabric: communal resources, 8m² quarters, intense social bonds, music/storytelling culture, near-zero violence.
+
+CONSISTENCY: ✓ Verified. All cross-references between geography, history, and culture are internally consistent. Timeline validated. Sector counts match governance. Physical dimensions match tradition distances."
+
+  yield word-count ≡ 380
+
+-- oracle checks:
+--   ⊨ document integrates all three perspectives → ✓
+--   ⊨ consistent = true → ✓
+
+-- COMPLETE: 10 eval-one frames (0-9). 2 ⊢∘ iterations.
+-- Three parallel creators → consistency oracle → targeted rewrites → convergence.
+
+-- ═══════════════════════════════════════════════════════════════
+-- OBSERVATIONS
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= obs-circular-bootstrap
+  given §17-collaborative-world-builder
+  yield observations
+
+  ⊢= observations ← "CIRCULAR DEPENDENCIES BOOTSTRAP VIA PARTIAL EVALUATION: geography needs history, history needs geography, culture needs both. This is a three-way cycle that eval-one can't resolve via Kahn's algorithm. The solution: treat cross-references as OPTIONAL context. First pass: each creator works from the seed alone. Second pass: each creator sees the others' outputs. This is a TWO-PHASE BOOTSTRAP — generate independently, then refine collaboratively. Cell's soft cells (∴) handle this naturally because LLMs can work with partial context. Hard cells (⊢=) could not — they'd deadlock on unbound inputs."
+
+⊢= obs-consistency-oracle-catches-real-bugs
+  given §17-collaborative-world-builder
+  yield observations
+
+  ⊢= observations ← "THREE REAL CONTRADICTIONS FOUND: (1) 6 sectors vs 12 governance seats — a structural mismatch between geography and culture, (2) timeline arithmetic error — history contradicted itself (2873 + 80 ≠ 2927), (3) physical distance error — culture claimed 18km, geometry says ~15km. These are EXACTLY the kind of bugs that plague collaborative writing: different authors assume different numbers. The consistency oracle is a CROSS-REFERENCE CHECKER that no individual creator can perform. Each creator's output is locally coherent but globally inconsistent."
+
+⊢= obs-asymmetric-rewrites
+  given §17-collaborative-world-builder
+  yield observations
+
+  ⊢= observations ← "ONLY TWO OF THREE CREATORS REWROTE: geography was unchanged across both iterations. History and culture rewrote to match geography's physical constraints. This is the correct resolution: physical layout is the HARDEST constraint (you can't change the laws of physics), so softer domains (narrative history, social customs) yield. The resolve-contradictions cell applied this logic: 'the cell with the weaker claim yields.' Physics > history > culture in constraint strength. This mirrors real collaborative world-building: you set the map first, then write the history to fit."
+
+⊢= obs-convergence-in-two
+  given §17-collaborative-world-builder
+  yield observations
+
+  ⊢= observations ← "CONVERGED IN 2 ITERATIONS: iteration 1 generated independently (3 contradictions). Iteration 2 fixed all three with targeted rewrites. No iteration 3 needed. This fast convergence happened because the contradictions were MECHANICAL (wrong numbers, mismatched counts), not CONCEPTUAL (disagreement about tone, theme, or direction). Conceptual contradictions — 'the culture feels too dark for the history' — would require more iterations and subtler oracle judgments. The program demonstrated the easy case. Harder: a culture cell that generates customs contradicting the SPIRIT of the history, not just the facts."
+
+⊢= obs-world-building-as-constraint-satisfaction
+  given §17-collaborative-world-builder
+  yield observations
+
+  ⊢= observations ← "WORLD-BUILDING IS CONSTRAINT SATISFACTION: the three creators are constraint GENERATORS (each adds facts), and the consistency oracle is a constraint CHECKER. The ⊢∘ loop is constraint PROPAGATION — resolve violations until fixpoint. This maps exactly to CSP (constraint satisfaction problems). Cell's contribution: the constraints are SEMANTIC (does the culture make sense given the history?), not just syntactic (do the numbers match). The LLM oracle can check semantic consistency that no formal verifier can. This is Cell's fusion property: classical checking (timeline arithmetic) + semantic checking (cultural coherence) in the same oracle."
