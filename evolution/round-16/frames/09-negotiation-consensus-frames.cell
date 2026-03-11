@@ -1,0 +1,464 @@
+-- 09-negotiation-consensus-frames.cell
+-- Execution trace of 09-negotiation-consensus.cell via eval-one
+--
+-- Question: "What programming language should a startup use for their backend?"
+-- Perspectives: CTO (pragmatist), Senior Dev (perfectionist),
+--               Junior Dev (learner), Investor (cost-conscious)
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 0: evaluate question (trivial pass-through)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { question }
+-- Blocked: { perspective-cto, perspective-senior, perspective-junior,
+--            perspective-investor } — all need question→text
+
+⊢ question
+  given text ≡ "What programming language should a startup use for their backend?"
+  yield text
+
+-- eval-one: pass-through. text already bound via given ≡.
+
+  yield text ≡ "What programming language should a startup use for their backend?"
+
+-- oracle check:
+--   ⊨ text is a debatable question with multiple valid positions → ✓
+
+-- state after frame 0: question frozen.
+-- Ready set: { perspective-cto, perspective-senior, perspective-junior,
+--              perspective-investor }
+-- NOTE: All four perspective cells become ready simultaneously.
+--       eval-one picks ONE. Confluence guarantees order doesn't matter.
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 1: evaluate perspective-cto (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { perspective-cto, perspective-senior, perspective-junior,
+--              perspective-investor }
+-- Pick: perspective-cto (arbitrary — all four are independent)
+
+⊢ perspective-cto
+  given question→text ≡ "What programming language should a startup use for their backend?"
+  yield position, reasoning, priorities[]
+
+  ∴ You are a pragmatist CTO...
+
+-- LLM evaluation (simulated):
+
+  yield position ≡ "TypeScript (Node.js)"
+
+  yield reasoning ≡ "TypeScript on Node.js maximizes our runway. We share code between frontend and backend — one language means a smaller team ships faster. The npm ecosystem has a package for everything, so we're not rebuilding infrastructure. TypeScript gives us enough type safety to prevent the worst bugs without the ceremony of compiled languages. The hiring pool is enormous: every frontend dev is a potential full-stack hire. Time-to-market wins in early-stage startups, and TypeScript is the fastest path from idea to deployed product."
+
+  yield priorities ≡ [
+    "1. Time-to-market: Ship MVP in weeks, not months",
+    "2. Hiring pool: Largest possible candidate funnel",
+    "3. Code sharing: One language across the stack",
+    "4. Ecosystem: npm packages reduce build-vs-buy decisions",
+    "5. Good enough type safety: Catches bugs without slowing us down"
+  ]
+
+-- oracle checks:
+--   ⊨ position names a specific programming language → ✓ (TypeScript)
+--   ⊨ reasoning references practical business concerns → ✓ (hiring, time-to-market, cost)
+--   ⊨ length(priorities) ≥ 3 → ✓ (5 priorities)
+
+-- state after frame 1: perspective-cto frozen.
+-- Ready set: { perspective-senior, perspective-junior, perspective-investor }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 2: evaluate perspective-senior (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { perspective-senior, perspective-junior, perspective-investor }
+
+⊢ perspective-senior
+  given question→text ≡ "What programming language should a startup use for their backend?"
+  yield position, reasoning, priorities[]
+
+  ∴ You are a perfectionist Senior Developer...
+
+-- LLM evaluation (simulated):
+
+  yield position ≡ "Rust"
+
+  yield reasoning ≡ "Rust gives us correctness guarantees that no other mainstream language matches. The borrow checker eliminates entire categories of bugs — no null pointer dereferences, no data races, no use-after-free. Yes, the learning curve is steep, but the payoff is massive: production systems that just don't crash. Performance is C-level without the footguns. As we scale, we won't hit the Node.js wall where single-threaded event loops choke on CPU-bound work. The type system is the best in any systems language. We build it right once instead of rewriting from Python/Node later."
+
+  yield priorities ≡ [
+    "1. Correctness: The compiler catches bugs humans miss",
+    "2. Performance: C-level speed with memory safety",
+    "3. Maintainability: Strong types make refactoring safe",
+    "4. Long-term cost: No rewrite from prototype language later",
+    "5. Concurrency: Fearless concurrency via ownership model"
+  ]
+
+-- oracle checks:
+--   ⊨ position names a specific programming language → ✓ (Rust)
+--   ⊨ reasoning references technical quality concerns → ✓ (type safety, performance, correctness)
+--   ⊨ length(priorities) ≥ 3 → ✓ (5 priorities)
+
+-- state after frame 2: perspective-senior frozen.
+-- Ready set: { perspective-junior, perspective-investor }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 3: evaluate perspective-junior (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { perspective-junior, perspective-investor }
+
+⊢ perspective-junior
+  given question→text ≡ "What programming language should a startup use for their backend?"
+  yield position, reasoning, priorities[]
+
+  ∴ You are a Junior Developer who values learning and growth...
+
+-- LLM evaluation (simulated):
+
+  yield position ≡ "Python"
+
+  yield reasoning ≡ "Python is where I can be productive from day one. The syntax reads like English, the community is incredibly welcoming, and there are tutorials for everything. Django and FastAPI make building APIs straightforward — I can follow along and actually understand what's happening. Python is the #1 language taught in CS programs, so every new hire can contribute immediately. Plus, if we ever need ML or data analysis, Python is already the standard. I'd rather ship something I understand than struggle with a language that makes me feel like I'm fighting the compiler."
+
+  yield priorities ≡ [
+    "1. Onboarding speed: New devs productive in days, not weeks",
+    "2. Learning resources: Tutorials, courses, StackOverflow answers everywhere",
+    "3. Readability: Code is self-documenting, easy to review",
+    "4. Versatility: Web, data science, ML, scripting — one language",
+    "5. Community: Welcoming, large, responsive"
+  ]
+
+-- oracle checks:
+--   ⊨ position names a specific programming language → ✓ (Python)
+--   ⊨ reasoning references learning and growth concerns → ✓ (onboarding, tutorials, community)
+--   ⊨ length(priorities) ≥ 3 → ✓ (5 priorities)
+
+-- state after frame 3: perspective-junior frozen.
+-- Ready set: { perspective-investor }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 4: evaluate perspective-investor (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { perspective-investor }
+
+⊢ perspective-investor
+  given question→text ≡ "What programming language should a startup use for their backend?"
+  yield position, reasoning, priorities[]
+
+  ∴ You are a cost-conscious Investor...
+
+-- LLM evaluation (simulated):
+
+  yield position ≡ "TypeScript (Node.js)"
+
+  yield reasoning ≡ "I'm looking at the burn rate. TypeScript developers are abundant and cheaper than Rust specialists. A full-stack TypeScript team of 3 can do the work of 5 split across languages. Node.js hosting is cheap — serverless on AWS Lambda or Vercel costs pennies at startup scale. The ecosystem means less custom code, fewer engineer-months, faster revenue. I've seen too many startups die because they over-engineered in a 'better' language and ran out of runway before product-market fit. Ship fast, validate, then optimize. You can always rewrite the hot paths later."
+
+  yield priorities ≡ [
+    "1. Burn rate: Minimize cost per feature shipped",
+    "2. Talent cost: Abundant developers keep salaries competitive",
+    "3. Speed to revenue: Fastest path to paying customers",
+    "4. Infrastructure cost: Cheap hosting at startup scale",
+    "5. Optionality: Easy to hire, easy to pivot, easy to sell"
+  ]
+
+-- oracle checks:
+--   ⊨ position names a specific programming language → ✓ (TypeScript)
+--   ⊨ reasoning references financial and market concerns → ✓ (burn rate, cost, revenue)
+--   ⊨ length(priorities) ≥ 3 → ✓ (5 priorities)
+
+-- state after frame 4: perspective-investor frozen.
+-- Ready set: { mediate }
+-- NOTE: All four perspectives frozen. CTO and Investor agree (TypeScript).
+--       Senior (Rust) and Junior (Python) dissent. 2-1-1 split.
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 5: evaluate mediate (soft cell, LLM) — ⊢∘ ITERATION 1
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { mediate }
+-- Blocked: { revise-cto, revise-senior, revise-junior, revise-investor }
+
+⊢ mediate
+  given perspective-cto→position ≡ "TypeScript (Node.js)"
+  given perspective-cto→reasoning ≡ "TypeScript on Node.js maximizes our runway..."
+  given perspective-senior→position ≡ "Rust"
+  given perspective-senior→reasoning ≡ "Rust gives us correctness guarantees..."
+  given perspective-junior→position ≡ "Python"
+  given perspective-junior→reasoning ≡ "Python is where I can be productive from day one..."
+  given perspective-investor→position ≡ "TypeScript (Node.js)"
+  given perspective-investor→reasoning ≡ "I'm looking at the burn rate..."
+  yield common-ground[], disagreements[], consensus-score
+
+  ∴ Identify common ground, disagreements, consensus score...
+
+-- LLM evaluation (simulated):
+
+  yield common-ground ≡ [
+    "All parties agree the language must have a large ecosystem to avoid reinventing the wheel.",
+    "All parties agree hiring difficulty is a real constraint — exotic languages are risky.",
+    "CTO, Junior, and Investor agree that time-to-market matters more than theoretical perfection in early-stage startups.",
+    "Senior and CTO agree that type safety is valuable — they differ on how much is needed."
+  ]
+
+  yield disagreements ≡ [
+    "D1: Performance ceiling — Senior argues Node.js will hit a wall at scale; CTO and Investor argue that's a future problem, not a startup problem.",
+    "D2: Learning curve trade-off — Senior accepts steep learning (Rust pays off long-term); Junior and Investor argue steep learning curves burn runway and morale.",
+    "D3: Rewrite risk — Senior says 'build right once'; CTO and Investor say 'ship fast, rewrite later is fine'; Junior worries about inheriting rewrites.",
+    "D4: Type safety spectrum — CTO accepts 'good enough' (TypeScript); Senior demands 'total' (Rust); Junior prefers 'optional' (Python)."
+  ]
+
+  yield consensus-score ≡ 4
+
+-- oracle checks:
+--   ⊨ length(common-ground) ≥ 1 → ✓ (4 items)
+--   ⊨ consensus-score ∈ [0, 10] → ✓ (4)
+--   ⊨ if all four name same language then score ≥ 8 → ✓ (vacuous — they don't)
+--   ⊨ disagreements is empty iff score = 10 → ✓ (score ≠ 10, disagreements non-empty)
+
+-- state after frame 5: mediate frozen.
+-- ⊢∘ CHECK: consensus-score = 4 < 8 → CONTINUE. Revision cells fire.
+-- Ready set: { revise-cto, revise-senior, revise-junior, revise-investor }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 6: evaluate revise-cto (soft cell, LLM) — ⊢∘ ITERATION 1
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { revise-cto, revise-senior, revise-junior, revise-investor }
+-- All four revision cells are independent — confluence allows any order.
+
+⊢ revise-cto
+  given perspective-cto→position ≡ "TypeScript (Node.js)"
+  given perspective-cto→reasoning ≡ "TypeScript on Node.js maximizes our runway..."
+  given mediate→common-ground ≡ ["All parties agree ecosystem matters...", ...]
+  given mediate→disagreements ≡ ["D1: Performance ceiling...", "D2: Learning curve...", "D3: Rewrite risk...", "D4: Type safety spectrum..."]
+  yield position, reasoning, priorities[]
+
+-- LLM evaluation (simulated):
+
+  yield position ≡ "TypeScript (Node.js)"
+
+  yield reasoning ≡ "I'm holding my position. On D1 (performance ceiling): at startup scale, Node.js handles millions of requests per day. If we're lucky enough to hit scale problems, we'll have revenue to fund targeted rewrites. On D3 (rewrite risk): I acknowledge the Senior's concern, but the data is clear — most startups die from slow shipping, not from technical debt. I do concede on D4: I'd adopt strict TypeScript config (strict: true, no-any) to move closer to the Senior's type safety expectations. That's a free upgrade."
+
+  yield priorities ≡ [
+    "1. Time-to-market (unchanged)",
+    "2. Hiring pool (unchanged)",
+    "3. Strict TypeScript config (concession toward type safety)",
+    "4. Code sharing across stack (unchanged)",
+    "5. Plan for targeted rewrites at scale (concession toward long-term)"
+  ]
+
+-- oracle checks:
+--   ⊨ position names a specific language → ✓ (TypeScript)
+--   ⊨ reasoning addresses at least one disagreement → ✓ (D1, D3, D4)
+
+-- state after frame 6: revise-cto frozen.
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 7: evaluate revise-senior (soft cell, LLM) — ⊢∘ ITERATION 1
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ revise-senior
+  given perspective-senior→position ≡ "Rust"
+  given perspective-senior→reasoning ≡ "Rust gives us correctness guarantees..."
+  given mediate→common-ground ≡ [...]
+  given mediate→disagreements ≡ ["D1: Performance ceiling...", "D2: Learning curve...", ...]
+  yield position, reasoning, priorities[]
+
+-- LLM evaluation (simulated):
+
+  yield position ≡ "TypeScript (Node.js) with strict config"
+
+  yield reasoning ≡ "I'll concede. On D2 (learning curve): the mediator is right that Rust's curve would burn 2-3 months of a 4-person startup's time. That's potentially fatal. On D1 (performance ceiling): I still believe this will bite us, but I accept the CTO's point that it's a scaling problem, not a survival problem. My concession has a condition: we use strict TypeScript with no 'any' escape hatches, ESLint rules enforced in CI, and we adopt a modular architecture so individual services can be rewritten in Rust when (not if) performance matters. TypeScript with discipline is acceptable. TypeScript without discipline is JavaScript with extra steps."
+
+  yield priorities ≡ [
+    "1. Strict TypeScript (no-any, strictNullChecks, exhaustive switch)",
+    "2. Modular architecture (rewrite-ready service boundaries)",
+    "3. CI-enforced linting (no style drift)",
+    "4. Performance monitoring from day one (know when to rewrite)",
+    "5. Accept faster shipping in exchange for disciplined type safety"
+  ]
+
+-- oracle checks:
+--   ⊨ position names a specific language → ✓ (TypeScript)
+--   ⊨ reasoning addresses at least one disagreement → ✓ (D1, D2)
+
+-- NOTE: MAJOR SHIFT. Senior moved from Rust to TypeScript (with conditions).
+-- This creates potential supermajority: CTO + Senior + Investor = 3 of 4.
+
+-- state after frame 7: revise-senior frozen.
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 8: evaluate revise-junior (soft cell, LLM) — ⊢∘ ITERATION 1
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ revise-junior
+  given perspective-junior→position ≡ "Python"
+  given perspective-junior→reasoning ≡ "Python is where I can be productive from day one..."
+  given mediate→common-ground ≡ [...]
+  given mediate→disagreements ≡ [...]
+  yield position, reasoning, priorities[]
+
+-- LLM evaluation (simulated):
+
+  yield position ≡ "TypeScript (Node.js)"
+
+  yield reasoning ≡ "I was attached to Python's readability, but the common ground analysis changed my mind. On D4 (type safety): TypeScript's type system actually helps me learn — the compiler tells me what I got wrong, like a patient teacher. On D2 (learning curve): TypeScript is much easier than Rust, and I'd already need to learn it for frontend work anyway. Python is friendlier for a first language, but TypeScript is friendlier for a first job at a startup. I'll trade some readability for the career benefit of being full-stack. My condition: good documentation, pair programming support, and realistic onboarding timeline."
+
+  yield priorities ≡ [
+    "1. Good onboarding docs and examples (non-negotiable)",
+    "2. Pair programming for first month (learning support)",
+    "3. TypeScript is learnable (concession from Python)",
+    "4. Full-stack capability (career growth)",
+    "5. Community resources for TypeScript are abundant"
+  ]
+
+-- oracle checks:
+--   ⊨ position names a specific language → ✓ (TypeScript)
+--   ⊨ reasoning addresses at least one disagreement → ✓ (D2, D4)
+
+-- NOTE: Junior shifted from Python to TypeScript.
+-- Now 4 of 4 perspectives agree on TypeScript.
+
+-- state after frame 8: revise-junior frozen.
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 9: evaluate revise-investor (soft cell, LLM) — ⊢∘ ITERATION 1
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ revise-investor
+  given perspective-investor→position ≡ "TypeScript (Node.js)"
+  given perspective-investor→reasoning ≡ "I'm looking at the burn rate..."
+  given mediate→common-ground ≡ [...]
+  given mediate→disagreements ≡ [...]
+  yield position, reasoning, priorities[]
+
+-- LLM evaluation (simulated):
+
+  yield position ≡ "TypeScript (Node.js)"
+
+  yield reasoning ≡ "Holding firm — the common ground validates my position. On D1 (performance ceiling): I agree with the CTO that this is a scaling luxury. If we need Rust-level performance, we've already won — we have revenue and can afford specialists. On D3 (rewrite risk): the Senior's modular architecture concession addresses my concern. If we build service boundaries now, targeted rewrites later are cheap. I'll support the Senior's strict TypeScript requirement — it costs nothing in developer time and reduces the bug rate, which reduces firefighting, which reduces burn rate."
+
+  yield priorities ≡ [
+    "1. Burn rate minimization (unchanged)",
+    "2. Support strict TypeScript (free quality gain)",
+    "3. Modular architecture for future optionality",
+    "4. Talent abundance (unchanged)",
+    "5. Speed to revenue (unchanged)"
+  ]
+
+-- oracle checks:
+--   ⊨ position names a specific language → ✓ (TypeScript)
+--   ⊨ reasoning addresses at least one disagreement → ✓ (D1, D3)
+
+-- state after frame 9: revise-investor frozen.
+-- ⊢∘ rewrites perspective cells with revised outputs. Unfreezes mediate.
+-- Ready set: { mediate }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 10: evaluate mediate (⊢∘ ITERATION 2 — convergence check)
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ iteration 2: perspective outputs replaced with revisions.
+-- mediate re-evaluates with updated positions.
+
+⊢ mediate
+  given perspective-cto→position ≡ "TypeScript (Node.js)"
+  given perspective-cto→reasoning ≡ "Holding position. Conceding strict config and rewrite planning..."
+  given perspective-senior→position ≡ "TypeScript (Node.js) with strict config"
+  given perspective-senior→reasoning ≡ "Conceding from Rust. Condition: strict TypeScript, modular architecture..."
+  given perspective-junior→position ≡ "TypeScript (Node.js)"
+  given perspective-junior→reasoning ≡ "Shifting from Python. TypeScript learnable, full-stack career benefit..."
+  given perspective-investor→position ≡ "TypeScript (Node.js)"
+  given perspective-investor→reasoning ≡ "Holding firm. Supporting strict TypeScript and modular architecture..."
+  yield common-ground[], disagreements[], consensus-score
+
+-- LLM evaluation (simulated):
+
+  yield common-ground ≡ [
+    "UNANIMOUS: All four perspectives now agree on TypeScript (Node.js).",
+    "UNANIMOUS: All accept strict TypeScript configuration (strictNullChecks, no-any).",
+    "UNANIMOUS: All support modular architecture for future rewrite optionality.",
+    "3 of 4 (CTO, Senior, Investor) agree performance monitoring should start early.",
+    "Junior's conditions (good docs, pair programming) are accepted by all as good practice."
+  ]
+
+  yield disagreements ≡ [
+    "D-minor: Senior wants ESLint CI enforcement as a hard gate; CTO sees it as a nice-to-have. Low stakes — resolvable in sprint planning."
+  ]
+
+  yield consensus-score ≡ 9
+
+-- oracle checks:
+--   ⊨ length(common-ground) ≥ 1 → ✓ (5 items)
+--   ⊨ consensus-score ∈ [0, 10] → ✓ (9)
+--   ⊨ if all four name same language then score ≥ 8 → ✓ (all TypeScript, score 9 ≥ 8)
+--   ⊨ disagreements is empty iff score = 10 → ✓ (score ≠ 10, 1 minor disagreement)
+
+-- state after frame 10: mediate frozen (v2).
+-- ⊢∘ CHECK: consensus-score = 9 ≥ 8 → CONVERGED. Exit evolution loop.
+-- ⊢∘ evolution completed in 2 iterations. Consensus reached.
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 11: evaluate synthesize (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { synthesize }
+-- All upstream cells frozen. This is the final output cell.
+
+⊢ synthesize
+  given mediate→common-ground ≡ ["UNANIMOUS: TypeScript...", ...]
+  given mediate→disagreements ≡ ["D-minor: ESLint enforcement..."]
+  given mediate→consensus-score ≡ 9
+  given revise-cto→position ≡ "TypeScript (Node.js)"
+  given revise-senior→position ≡ "TypeScript (Node.js) with strict config"
+  given revise-junior→position ≡ "TypeScript (Node.js)"
+  given revise-investor→position ≡ "TypeScript (Node.js)"
+  yield recommendation, dissent-record
+
+-- LLM evaluation (simulated):
+
+  yield recommendation ≡ "TypeScript (Node.js) with strict configuration. The team reached near-unanimous consensus (9/10) after two rounds of negotiation. The winning argument was pragmatic: TypeScript offers the best balance of type safety (satisfying the Senior), time-to-market (satisfying the CTO and Investor), and learnability (satisfying the Junior). Key conditions: strict TypeScript config (no-any, strictNullChecks), modular service architecture for future rewrite optionality, good onboarding documentation, and performance monitoring from day one. The Senior's shift from Rust was the decisive moment — they accepted that startup survival trumps theoretical correctness, provided engineering discipline is maintained."
+
+  yield dissent-record ≡ "Minor dissent: The Senior Developer wants CI-enforced ESLint as a hard deployment gate. The CTO considers it a nice-to-have that shouldn't block deploys. This is a process disagreement (CI policy), not a language disagreement — resolvable in the first sprint planning session. No perspective dissents on the choice of TypeScript itself."
+
+-- oracle checks:
+--   ⊨ recommendation names a specific language → ✓ (TypeScript)
+--   ⊨ recommendation explains reasoning → ✓ (balance of concerns, consensus process)
+--   ⊨ if score < 10 then dissent-record non-empty → ✓ (score = 9, minor dissent recorded)
+--   ⊨ dissent-record attributes views to perspectives → ✓ (Senior vs CTO on ESLint)
+
+-- state after frame 11: synthesize frozen.
+-- No more ready cells. Program quiescent.
+
+-- ═══════════════════════════════════════════════════════════════
+-- EXECUTION SUMMARY
+-- ═══════════════════════════════════════════════════════════════
+--
+-- Total frames: 12 (0-11)
+-- ⊢∘ iterations: 2 (converged when consensus-score = 9 ≥ 8)
+-- Cells evaluated: question, perspective-cto, perspective-senior,
+--   perspective-junior, perspective-investor, mediate (×2),
+--   revise-cto, revise-senior, revise-junior, revise-investor, synthesize
+--
+-- Key observations:
+--
+-- ⊢= Observation 1: N-way parallel evaluation works naturally
+--   Frames 1-4 evaluate four perspective cells independently. Confluence
+--   guarantees the same mediation result regardless of evaluation order.
+--   In a parallel runtime, all four could execute simultaneously.
+--
+-- ⊢= Observation 2: mediator pattern enables structured multi-agent negotiation
+--   The mediator cell acts as a synchronization barrier: it waits for all N
+--   perspectives, identifies common ground and disagreements, then enables
+--   the revision cells. This is a reusable pattern for any N-party decision.
+--
+-- ⊢= Observation 3: ⊢∘ convergence via consensus score is judgment-gated
+--   The convergence condition (consensus-score ≥ 8) is a semantic judgment,
+--   not a structural check. The mediator must assess whether positions have
+--   converged — this oracle is inherently soft. This is fine: the mediator
+--   IS the oracle, and the evolution loop IS the verification mechanism.
+--
+-- ⊢= Observation 4: perspectives shift via reasoned concession, not averaging
+--   The Senior didn't "average" toward TypeScript — they made a specific
+--   concession (startup survival > theoretical correctness) with specific
+--   conditions (strict config, modular architecture). The Junior didn't
+--   abandon Python randomly — they identified a concrete benefit (full-stack
+--   career growth). Cell's oracle system forces each revision to justify
+--   itself against the disagreement list, preventing mindless convergence.
+--
+-- ⊢= Observation 5: supermajority emerged from asymmetric concession costs
+--   The CTO and Investor held firm (low concession cost — their position was
+--   already popular). The Senior made a large concession (Rust → TypeScript)
+--   but extracted conditions. The Junior made a medium concession (Python →
+--   TypeScript) for career benefits. The negotiation reflects real-world
+--   dynamics: parties with more at stake negotiate harder for conditions.

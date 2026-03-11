@@ -1,0 +1,205 @@
+-- 09-negotiation-consensus.cell
+-- N perspective cells argue positions. A mediator finds common ground and
+-- remaining disagreements. Perspectives revise. Mediator re-evaluates.
+-- ⊢∘ loop until supermajority consensus.
+--
+-- Tests: N-way parallel evaluation, ⊢⊢ spawner, judgment-gated ⊢∘ iteration,
+--        § quotation for perspective rewriting
+--
+-- Question: "What programming language should a startup use for their backend?"
+-- Perspectives: CTO (pragmatist), Senior Dev (perfectionist),
+--               Junior Dev (learner), Investor (cost-conscious)
+
+⊢ question
+  given text ≡ "What programming language should a startup use for their backend?"
+  yield text
+
+  ⊨ text is a debatable question with multiple valid positions
+
+⊢ perspective-cto
+  given question→text
+  yield position, reasoning, priorities[]
+
+  ∴ You are a pragmatist CTO. Answer «question→text» from your perspective.
+    State your recommended language, your reasoning (hiring pool, ecosystem,
+    time-to-market), and your ranked priorities.
+
+  ⊨ position names a specific programming language
+  ⊨ reasoning references practical business concerns
+  ⊨ length(priorities) ≥ 3
+
+⊢ perspective-senior
+  given question→text
+  yield position, reasoning, priorities[]
+
+  ∴ You are a perfectionist Senior Developer. Answer «question→text» from
+    your perspective. State your recommended language, your reasoning
+    (type safety, maintainability, performance, correctness), and your
+    ranked priorities.
+
+  ⊨ position names a specific programming language
+  ⊨ reasoning references technical quality concerns
+  ⊨ length(priorities) ≥ 3
+
+⊢ perspective-junior
+  given question→text
+  yield position, reasoning, priorities[]
+
+  ∴ You are a Junior Developer who values learning and growth. Answer
+    «question→text» from your perspective. State your recommended language,
+    your reasoning (learning resources, community, career growth, ease of
+    onboarding), and your ranked priorities.
+
+  ⊨ position names a specific programming language
+  ⊨ reasoning references learning and growth concerns
+  ⊨ length(priorities) ≥ 3
+
+⊢ perspective-investor
+  given question→text
+  yield position, reasoning, priorities[]
+
+  ∴ You are a cost-conscious Investor. Answer «question→text» from your
+    perspective. State your recommended language, your reasoning (developer
+    cost, infrastructure cost, speed to revenue, talent availability),
+    and your ranked priorities.
+
+  ⊨ position names a specific programming language
+  ⊨ reasoning references financial and market concerns
+  ⊨ length(priorities) ≥ 3
+
+⊢ mediate
+  given perspective-cto→position
+  given perspective-cto→reasoning
+  given perspective-senior→position
+  given perspective-senior→reasoning
+  given perspective-junior→position
+  given perspective-junior→reasoning
+  given perspective-investor→position
+  given perspective-investor→reasoning
+  yield common-ground[], disagreements[], consensus-score
+
+  ∴ You are a neutral mediator. Given the four positions:
+    - CTO: «perspective-cto→position» because «perspective-cto→reasoning»
+    - Senior: «perspective-senior→position» because «perspective-senior→reasoning»
+    - Junior: «perspective-junior→position» because «perspective-junior→reasoning»
+    - Investor: «perspective-investor→position» because «perspective-investor→reasoning»
+
+    Identify:
+    1. Common ground: points all or most parties agree on
+    2. Remaining disagreements: specific points of conflict
+    3. Consensus score (0-10): 0 = total disagreement, 10 = full consensus
+
+    A supermajority (≥ 3 of 4 agreeing on the same language OR all 4 agreeing
+    on key priorities even if languages differ) earns score ≥ 8.
+
+  ⊨ length(common-ground) ≥ 1
+  ⊨ consensus-score ∈ [0, 10]
+  ⊨ if all four positions name the same language then consensus-score ≥ 8
+  ⊨ disagreements is empty iff consensus-score = 10
+
+⊢ revise-cto
+  given perspective-cto→position
+  given perspective-cto→reasoning
+  given mediate→common-ground
+  given mediate→disagreements
+  yield position, reasoning, priorities[]
+
+  ∴ You are the CTO. The mediator found common ground: «mediate→common-ground»
+    and disagreements: «mediate→disagreements». Reconsider your position
+    «perspective-cto→position». You may maintain, adjust, or change it.
+    Address at least one disagreement. Explain what changed (or didn't) and why.
+
+  ⊨ position names a specific programming language
+  ⊨ reasoning addresses at least one item from mediate→disagreements
+
+⊢ revise-senior
+  given perspective-senior→position
+  given perspective-senior→reasoning
+  given mediate→common-ground
+  given mediate→disagreements
+  yield position, reasoning, priorities[]
+
+  ∴ You are the Senior Developer. The mediator found common ground:
+    «mediate→common-ground» and disagreements: «mediate→disagreements».
+    Reconsider your position «perspective-senior→position». You may maintain,
+    adjust, or change it. Address at least one disagreement.
+
+  ⊨ position names a specific programming language
+  ⊨ reasoning addresses at least one item from mediate→disagreements
+
+⊢ revise-junior
+  given perspective-junior→position
+  given perspective-junior→reasoning
+  given mediate→common-ground
+  given mediate→disagreements
+  yield position, reasoning, priorities[]
+
+  ∴ You are the Junior Developer. The mediator found common ground:
+    «mediate→common-ground» and disagreements: «mediate→disagreements».
+    Reconsider your position «perspective-junior→position». You may maintain,
+    adjust, or change it. Address at least one disagreement.
+
+  ⊨ position names a specific programming language
+  ⊨ reasoning addresses at least one item from mediate→disagreements
+
+⊢ revise-investor
+  given perspective-investor→position
+  given perspective-investor→reasoning
+  given mediate→common-ground
+  given mediate→disagreements
+  yield position, reasoning, priorities[]
+
+  ∴ You are the Investor. The mediator found common ground:
+    «mediate→common-ground» and disagreements: «mediate→disagreements».
+    Reconsider your position «perspective-investor→position». You may maintain,
+    adjust, or change it. Address at least one disagreement.
+
+  ⊨ position names a specific programming language
+  ⊨ reasoning addresses at least one item from mediate→disagreements
+
+⊢∘ evolve(perspective-cto, question→text)
+  through mediate, revise-cto
+  until mediate→consensus-score ≥ 8
+  max 3
+
+⊢∘ evolve(perspective-senior, question→text)
+  through mediate, revise-senior
+  until mediate→consensus-score ≥ 8
+  max 3
+
+⊢∘ evolve(perspective-junior, question→text)
+  through mediate, revise-junior
+  until mediate→consensus-score ≥ 8
+  max 3
+
+⊢∘ evolve(perspective-investor, question→text)
+  through mediate, revise-investor
+  until mediate→consensus-score ≥ 8
+  max 3
+
+  -- All four ⊢∘ loops share the same mediator and convergence condition.
+  -- Each perspective revises independently in response to mediator feedback.
+  -- Convergence happens when 3+ perspectives align (supermajority).
+
+⊢ synthesize
+  given mediate→common-ground
+  given mediate→disagreements
+  given mediate→consensus-score
+  given revise-cto→position
+  given revise-senior→position
+  given revise-junior→position
+  given revise-investor→position
+  yield recommendation, dissent-record
+
+  ∴ Produce a final recommendation based on the negotiation outcome.
+    If consensus-score ≥ 8: state the consensus position with the shared
+    reasoning that brought parties together.
+    If consensus-score < 8: state the majority position and record the
+    minority dissent with its reasoning.
+
+    Include: which perspectives shifted, which held firm, and why.
+
+  ⊨ recommendation names a specific programming language
+  ⊨ recommendation explains the reasoning behind the choice
+  ⊨ if mediate→consensus-score < 10 then dissent-record is non-empty
+  ⊨ dissent-record attributes each dissenting view to its perspective
