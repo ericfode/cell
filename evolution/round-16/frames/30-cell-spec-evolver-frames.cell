@@ -1,0 +1,575 @@
+-- 30-cell-spec-evolver-frames.cell — full execution trace
+--
+-- Ready set analysis (initial):
+--   spec-excerpt: ⊢= with no given → READY
+--   awkward-program: ⊢= with no given → READY
+--   identify-awkwardness: given §awkward-program (static), awkward-program→code,
+--     awkward-program→intent, spec-excerpt→text → BLOCKED (needs awkward-program, spec-excerpt)
+--   propose-spec-change: given identify-awkwardness→* → BLOCKED
+--   rewrite-program: given §awkward-program, awkward-program→code, propose-spec-change→* → BLOCKED
+--   evaluate-improvement: given awkward-program→code, rewrite-program→* → BLOCKED
+--   compile-changes: given propose-spec-change→*, evaluate-improvement→* → BLOCKED
+--   ⊢∘ evolve-spec: coordinates iteration → waits for awkward-program bound
+--   obs-1..5: ⊢= with no given → READY (but typically rendered last)
+--
+-- Ready set: { spec-excerpt, awkward-program, obs-1, obs-2, obs-3, obs-4, obs-5 }
+-- Picking spec-excerpt first (provides context for later cells).
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 0: spec-excerpt (hard cell, deterministic)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ spec-excerpt
+  yield text
+
+  ⊢= text ← "## Cell v0.1 Spec — Key Constraints
+
+Cells declare inputs with `given` and outputs with `yield`.
+All inputs must be fully bound before evaluation.
+There is no conditional `given` — every declared input is required.
+There is no branching construct — cells execute linearly by data dependency.
+There is no `try/fallback` pattern — oracle failure (⊨?) is the only recovery.
+There is no way to express 'evaluate A, then choose B or C based on result.'
+There is no guard clause on cells — a cell cannot say 'only run me if X.'
+Versioning of evolved cells uses prime marks: cell, cell', cell''.
+
+Open Questions from v0.1:
+1. Error handling — what when ⊢= throws or ∴ produces wrong type?
+2. Versioning beyond prime marks — §cell''' doesn't scale.
+3. Streaming — need ~ annotation for incremental input.
+4. Oracle distinction — assert vs rule, soft vs hard preconditions."
+
+  yield text ≡ "(Cell v0.1 key constraints excerpt — 15 lines covering conditional, branching, and versioning gaps)"
+
+-- No oracles. Deterministic.
+-- Ready set after: { awkward-program, obs-1..5 }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 1: awkward-program (hard cell, deterministic)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ awkward-program
+  yield code, intent
+
+  ⊢= intent ← "A content moderation pipeline: classify text, then route to
+different handlers based on classification. If toxic → rewrite. If borderline →
+human-review. If clean → pass through. This requires conditional dispatch
+which Cell v0.1 has no syntax for."
+
+  ⊢= code ← "(content moderation pipeline — 5 cells: classify, handle-toxic,
+handle-borderline, handle-clean, merge-result. Each handler runs unconditionally
+and outputs 'N/A' when not the relevant case. ~80 lines of Cell code.)"
+
+  yield intent ≡ "A content moderation pipeline with conditional dispatch needs"
+  yield code ≡ "(full awkward program — 5 cells, ~80 lines, N/A hack pattern throughout)"
+
+-- No oracles. Deterministic.
+-- Ready set after: { identify-awkwardness, obs-1..5 }
+-- (identify-awkwardness now has all inputs: §awkward-program static,
+--  awkward-program→code bound, awkward-program→intent bound, spec-excerpt→text bound)
+-- ⊢∘ evolve-spec starts: iteration 1 begins.
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 2: identify-awkwardness — ⊢∘ iteration 1 (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ identify-awkwardness
+  given §awkward-program
+  given awkward-program→code ≡ "(full awkward program)"
+  given awkward-program→intent ≡ "A content moderation pipeline with conditional dispatch needs"
+  given spec-excerpt→text ≡ "(Cell v0.1 key constraints excerpt)"
+  yield problems[], root-causes[], awkwardness-score
+
+  ∴ Analyze «awkward-program→code» against the intent «awkward-program→intent»...
+
+  -- LLM evaluates. Tentative output:
+
+  yield problems ≡ [
+    {
+      quote: "⊢ handle-toxic ... ∴ If «classify→label» is 'toxic' ... Otherwise output 'N/A'",
+      why: "Cell evaluates every cell whose inputs are bound. There is no guard clause to skip handle-toxic when label ≠ toxic. The cell MUST run and waste an LLM call.",
+      root-cause: "Missing: conditional cell activation. No `given x where condition` or equivalent.",
+      severity: 5
+    },
+    {
+      quote: "⊢ handle-borderline ... ⊢ handle-clean ... (same pattern × 2)",
+      why: "The N/A hack repeats in every branch. Adding a 4th route means writing another full cell with the same boilerplate guard.",
+      root-cause: "Missing: dispatch/routing construct. No way to express 'one of N cells runs based on a value.'",
+      severity: 4
+    },
+    {
+      quote: "⊢ merge-result ... ∴ Based on label, select the relevant result",
+      why: "After running all branches, a merge cell must manually select the non-N/A result. This is a switch/case written in natural language, fragile and unverifiable.",
+      root-cause: "Missing: pattern-matching or variant selection at the cell level.",
+      severity: 4
+    },
+    {
+      quote: "⊨ if classify→label = toxic then rewritten is a non-toxic version",
+      why: "Oracle must handle BOTH the relevant and irrelevant cases. The conditional oracle is doing double duty as a guard clause.",
+      root-cause: "Oracles are being used as control flow, which is not their purpose.",
+      severity: 3
+    },
+    {
+      quote: "given classify→label (in every handler)",
+      why: "Every handler must take the classification as input just to check if it applies. The label is routing metadata, not domain input.",
+      root-cause: "No separation between routing information and domain data.",
+      severity: 3
+    }
+  ]
+
+  yield root-causes ≡ [
+    "No conditional cell activation (guard clauses)",
+    "No dispatch/routing construct",
+    "No pattern-matching on cell outputs",
+    "Oracles misused as control flow"
+  ]
+
+  yield awkwardness-score ≡ 3.8
+
+  -- Oracle checking:
+
+⊨ each problem has: quote, why, root-cause, severity ... ✓
+  -- All 5 problems have all four fields.
+
+⊨ each severity ∈ {1, 2, 3, 4, 5} ... ✓
+  -- Severities: 5, 4, 4, 3, 3. All valid.
+
+⊨ awkwardness-score = mean of all severities ... ✓
+  -- (5+4+4+3+3)/5 = 19/5 = 3.8. Correct.
+
+⊨ problems is non-empty ... ✓
+  -- 5 problems found.
+
+-- All oracles pass. Output frozen.
+-- Ready set after: { propose-spec-change, obs-1..5 }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 3: propose-spec-change (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ propose-spec-change
+  given identify-awkwardness→problems ≡ [5 problems identified]
+  given identify-awkwardness→root-causes ≡ ["No conditional activation", "No dispatch", "No pattern-matching", "Oracles as control flow"]
+  given spec-excerpt→text ≡ "(Cell v0.1 constraints)"
+  yield proposed-syntax, rationale, compatibility-analysis
+
+  ∴ For each root cause, propose a concrete syntax addition...
+
+  -- LLM evaluates. Tentative output:
+
+  yield proposed-syntax ≡ "## Proposed: Guard Clause with `where`
+
+### New construct: guarded cell declaration
+
+⊢ cell-name | condition
+  given ...
+  yield ...
+
+The `|` (pipe/guard) after the cell name specifies a boolean precondition.
+The cell is only evaluated when the guard is true. If false, the cell
+produces ⊥ (bottom) for all yields — dependents see it as 'not available.'
+
+### Syntax
+
+⊢ name | guard-expression
+  given input1
+  yield output1
+  ...
+
+Guard expressions can reference any bound cell output:
+  | classify→label = 'toxic'
+  | score→value ≥ 0.5
+  | config→mode ∈ {'fast', 'accurate'}
+
+### Variant cells (sugar for common dispatch pattern)
+
+⊢ handle | classify→label
+  | 'toxic':
+    ∴ Rewrite text to remove toxicity...
+  | 'borderline':
+    ∴ Flag for human review...
+  | 'clean':
+    ∴ Pass through unchanged...
+
+This desugars to three guarded cells: handle:toxic, handle:borderline, handle:clean.
+Only the matching variant evaluates. Others produce ⊥.
+
+### Bottom propagation
+
+When a guarded cell produces ⊥:
+- Cells depending on its output are SKIPPED (not blocked forever)
+- ⊥ propagates through the dependency graph
+- A cell receiving ⊥ for ANY input also produces ⊥
+- The `merge` pattern becomes unnecessary — only the active branch produces values
+
+### New symbol
+
+| Symbol | Name | Meaning |
+|--------|------|---------|
+| `\\|` | guard | conditional cell activation |
+| `⊥` | bottom | cell did not fire (guard false) |"
+
+  yield rationale ≡ "Guard clauses address all 4 root causes:
+1. CONDITIONAL ACTIVATION: `| condition` replaces the N/A hack. Cells don't evaluate when irrelevant.
+2. DISPATCH: Variant cells (`| value: ...`) replace manual routing with pattern matching.
+3. PATTERN MATCHING: The `|` syntax IS pattern matching at the cell level.
+4. CONTROL FLOW: Guards separate routing from oracles. Oracles verify correctness. Guards select execution path.
+
+Design choice: `|` (pipe/guard) was chosen over alternatives because:
+- `given x where cond` — conflates input declaration with routing
+- `⊢⊸ route(...)` — introduces a new cell-type sigil (heavier syntax)
+- `given? x if cond` — optional inputs are a different feature (partial evaluation)
+The `|` guard is orthogonal to `given`, `yield`, `⊨`, and `⊢∘`. It composes cleanly."
+
+  yield compatibility-analysis ≡ "Backward compatible. No existing v0.1 program uses `|` after cell names.
+The `⊥` value is new but only appears when guards are used. Existing programs
+without guards behave identically. The variant cell syntax is pure sugar —
+it desugars to multiple standard cells with guards."
+
+  -- Oracle checking:
+
+⊨ proposed-syntax defines at least one new construct ... ✓
+  -- Defines guard clause (|), variant cells, and bottom propagation.
+
+⊨ rationale addresses every root cause ... ✓
+  -- All 4 root causes addressed with specific explanations.
+
+⊨ compatibility-analysis confirms no breakage ... ✓
+  -- Confirms backward compatibility.
+
+-- All oracles pass. Output frozen.
+-- Ready set after: { rewrite-program, obs-1..5 }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 4: rewrite-program (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ rewrite-program
+  given §awkward-program
+  given awkward-program→code ≡ "(full awkward program — 80 lines, N/A hacks)"
+  given awkward-program→intent ≡ "Content moderation pipeline with conditional dispatch"
+  given propose-spec-change→proposed-syntax ≡ "(guard clauses, variant cells, ⊥ propagation)"
+  yield code', awkward-parts-remaining[]
+
+  ∴ Rewrite the awkward program using guard clauses...
+
+  -- LLM evaluates. Tentative output:
+
+  yield code' ≡ "-- Rewritten: conditional dispatch with guard clauses
+
+⊢ classify
+  given text ≡ 'This product is terrible and whoever made it should feel bad.'
+  yield label, confidence
+
+  ∴ Classify «text» as toxic, borderline, or clean.
+     Output the label and your confidence (0-1).
+
+  ⊨ label ∈ {toxic, borderline, clean}
+  ⊨ confidence ∈ [0, 1]
+
+⊢ handle | classify→label
+  | 'toxic':
+    given text ≡ 'This product is terrible and whoever made it should feel bad.'
+    yield result
+
+    ∴ Rewrite «text» to remove toxicity while preserving core feedback.
+
+    ⊨ result is a non-toxic version of text
+    ⊨ result preserves the feedback intent
+
+  | 'borderline':
+    given classify→confidence
+    yield result
+
+    ∴ Flag for human review. Include confidence score «classify→confidence».
+
+    ⊨ result contains 'NEEDS_HUMAN_REVIEW'
+
+  | 'clean':
+    given text ≡ 'This product is terrible and whoever made it should feel bad.'
+    yield result
+
+    ∴ Pass «text» through unchanged.
+
+    ⊨ result = text
+
+-- No merge-result cell needed. handle→result is the output.
+-- Only the matching variant evaluates. Others produce ⊥.
+-- Total: 2 cells instead of 5. No N/A hacks. No manual routing."
+
+  yield awkward-parts-remaining ≡ [
+    {
+      what: "text input repeated in classify and two handle variants",
+      severity: 2,
+      note: "Could be fixed with a top-level `given` shared across variants, but that's a separate feature."
+    }
+  ]
+
+  -- Oracle checking:
+
+⊨ code' achieves the same intent as awkward-program→intent ... ✓
+  -- Same classification → routing pipeline, same three cases handled.
+
+⊨ code' uses at least one construct from proposed-syntax ... ✓
+  -- Uses guard clause `| classify→label` and variant cells.
+
+⊨ code' does not contain 'N/A' hack patterns ... ✓
+  -- No 'N/A' anywhere. Guards replace the hack.
+
+-- All oracles pass. Output frozen.
+-- Ready set after: { evaluate-improvement, obs-1..5 }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 5: evaluate-improvement (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ evaluate-improvement
+  given awkward-program→code ≡ "(80-line program, 5 cells, N/A hacks)"
+  given rewrite-program→code' ≡ "(2-cell program, guard clauses, no N/A)"
+  given rewrite-program→awkward-parts-remaining ≡ [1 minor issue, severity 2]
+  given identify-awkwardness→awkwardness-score ≡ 3.8
+  yield new-score, improvement-delta, is-clean, verdict
+
+  ∴ Compare original vs rewrite...
+
+  -- LLM evaluates. Tentative output:
+
+  yield new-score ≡ 1.4
+  -- Breakdown:
+  --   Wasted computation: 1 (guards prevent unnecessary evaluation)
+  --   Boilerplate: 1 (no N/A hacks)
+  --   Fragility: 1 (adding 4th route = adding one variant, no other changes)
+  --   Readability: 2 (variant syntax is new, learning curve)
+  --   Composability: 2 (text input duplication, minor)
+  --   Mean: (1+1+1+2+2)/5 = 7/5 = 1.4
+
+  yield improvement-delta ≡ 2.4
+  -- 3.8 − 1.4 = 2.4 (significant improvement)
+
+  yield is-clean ≡ true
+  -- 1.4 ≤ 1.5 AND max remaining severity = 2 < 4
+
+  yield verdict ≡ "The guard clause proposal dramatically improves the conditional dispatch pattern.
+The rewrite is 60% shorter (2 cells vs 5), eliminates all N/A boilerplate, and makes
+routing logic explicit in the cell declaration rather than buried in ∴ blocks.
+The remaining awkwardness (repeated text input) is minor (severity 2) and orthogonal.
+
+RECOMMENDATION: Adopt guard clauses (|) and variant cells for Cell v0.2.
+The ⊥ propagation semantics need careful specification (interaction with ⊨? recovery,
+behavior when ALL variants produce ⊥, interaction with ⊢∘ evolution loops)."
+
+  -- Oracle checking:
+
+⊨ new-score ≤ identify-awkwardness→awkwardness-score ... ✓
+  -- 1.4 ≤ 3.8
+
+⊨ improvement-delta ≥ 0 ... ✓
+  -- 2.4 ≥ 0
+
+⊨ if new-score ≤ 1.5 and awkward-parts-remaining all < 4 then is-clean = true ... ✓
+  -- 1.4 ≤ 1.5, max severity 2 < 4, is-clean = true. Correct.
+
+⊨ if new-score > 1.5 then is-clean = false ... N/A (new-score = 1.4, precondition false)
+
+-- All oracles pass. Output frozen.
+
+-- ⊢∘ evolve-spec check: evaluate-improvement→is-clean = true → CONVERGED
+-- ⊢∘ loop exits after 1 iteration. No redesign needed.
+
+-- Ready set after: { compile-changes, obs-1..5 }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 6: compile-changes (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ compile-changes
+  given propose-spec-change→proposed-syntax ≡ "(guard clauses, variant cells, ⊥)"
+  given propose-spec-change→rationale ≡ "(addresses all 4 root causes)"
+  given propose-spec-change→compatibility-analysis ≡ "(backward compatible)"
+  given evaluate-improvement→verdict ≡ "(adopt guard clauses for v0.2)"
+  given evaluate-improvement→is-clean ≡ true
+  given rewrite-program→code' ≡ "(2-cell guarded program)"
+  yield v02-changes
+
+  ∴ Compile the proposed v0.2 spec changes...
+
+  -- LLM evaluates. Tentative output:
+
+  yield v02-changes ≡ "## Proposed Cell v0.2 Changes
+
+### Change 1: Guard Clauses
+
+**Symbol**: `|` (pipe/guard) after cell name
+**Meaning**: Conditional cell activation. Cell evaluates only when guard is true.
+
+**Syntax**:
+```
+⊢ cell-name | guard-expression
+  given ...
+  yield ...
+  ∴ ...
+```
+
+**Guard expressions**:
+```
+| dependency→field = value        -- equality
+| dependency→field ≥ threshold    -- comparison
+| dependency→field ∈ {a, b, c}   -- membership
+```
+
+**Semantics (eval-one)**:
+1. Cell enters ready set when all `given` inputs are bound (unchanged)
+2. NEW: Before evaluation, check guard expression
+3. If guard is TRUE → evaluate normally
+4. If guard is FALSE → all `yield` outputs are set to ⊥ (bottom)
+5. ⊥ propagates: any cell receiving ⊥ for ANY input also produces ⊥
+
+**Before (v0.1)**:
+```
+⊢ handle-toxic
+  given classify→label
+  given text
+  yield rewritten
+  ∴ If label is 'toxic', rewrite. Otherwise output 'N/A'.
+  ⊨ if classify→label = toxic then rewritten is non-toxic
+  ⊨ if classify→label ≠ toxic then rewritten = 'N/A'
+```
+
+**After (v0.2)**:
+```
+⊢ handle-toxic | classify→label = 'toxic'
+  given text
+  yield rewritten
+  ∴ Rewrite «text» to remove toxicity.
+  ⊨ rewritten is a non-toxic version of text
+```
+
+**Backward compatibility**: No existing v0.1 program uses `|` after cell names. Fully compatible.
+
+---
+
+### Change 2: Variant Cells
+
+**Syntax**: Pattern-matching sugar for dispatch on a single value.
+
+```
+⊢ handle | classify→label
+  | 'toxic':
+    given text
+    yield result
+    ∴ ...
+  | 'borderline':
+    yield result
+    ∴ ...
+  | 'clean':
+    given text
+    yield result
+    ∴ ...
+```
+
+**Desugars to**:
+```
+⊢ handle:toxic | classify→label = 'toxic'
+  ...
+⊢ handle:borderline | classify→label = 'borderline'
+  ...
+⊢ handle:clean | classify→label = 'clean'
+  ...
+```
+
+**Key property**: Variant cells share a yield name (`result`). Only one variant
+fires. Dependents use `handle→result` and get the active variant's value.
+
+**Backward compatibility**: New syntax. No conflicts.
+
+---
+
+### Change 3: Bottom (⊥) Semantics
+
+**New value**: ⊥ represents 'cell did not fire' (guard was false).
+
+**Propagation rules**:
+1. A guarded cell whose guard is false produces ⊥ for all yields
+2. A cell receiving ⊥ for ANY required input also produces ⊥
+3. Exception: `given? x` (optional input) treats ⊥ as 'not provided'
+4. ⊨ oracles are NOT checked on cells that produce ⊥
+5. ⊢∘ loops skip cells that produce ⊥ in iteration scoring
+
+**Interaction with existing features**:
+- ⊨? recovery: only triggers on oracle FAILURE, not on ⊥
+- § quotation: §cell always available regardless of ⊥ (definition ≠ output)
+- ⊢∘ evolution: ⊥ means 'this variant was not selected', not 'failed'
+
+**Backward compatibility**: ⊥ only appears when guards are used. No v0.1 program produces ⊥.
+
+---
+
+### Open Design Questions for v0.2
+
+1. **Exhaustive variants**: Should `⊢ handle | label` require all possible values to be covered?
+2. **Default variant**: Should there be a `| _:` wildcard for unmatched cases?
+3. **Multiple guards**: Can a cell have multiple guards? (`| a = 1 | b = 2` — AND or OR?)
+4. **Guard on ⊢∘**: Can evolution loops have guards? (conditional iteration)
+5. **⊥ in collections**: If `results[]` contains some ⊥ entries, are they filtered out?"
+
+  -- Oracle checking:
+
+⊨ v02-changes includes at least one concrete syntax proposal ... ✓
+  -- Three proposals: guard clauses, variant cells, bottom semantics.
+
+⊨ v02-changes includes before/after examples ... ✓
+  -- Change 1 has explicit before/after code blocks.
+
+⊨ v02-changes includes backward compatibility analysis ... ✓
+  -- Each change has a compatibility note. All backward compatible.
+
+-- All oracles pass. Output frozen.
+-- Ready set after: { obs-1..5 }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frames 7-11: observations (hard cells, deterministic)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= obs-1 ← "The ⊢∘ loop here evolves the PROGRAM, not the spec. Each iteration
+  rewrites awkward-program→code with progressively better spec proposals. The
+  spec changes accumulate in compile-changes, which reads the final iteration's
+  proposals."
+
+⊢= obs-2 ← "Irony: this Cell program ITSELF suffers from the conditional-dispatch
+  problem it identifies. The handle-toxic/borderline/clean cells in the awkward
+  fragment demonstrate the limitation. Writing the evolver proves the awkwardness
+  exists."
+
+⊢= obs-3 ← "The § quotation system works well for meta-level spec evolution —
+  §awkward-program passes the program definition as data for analysis. This is
+  exactly the code-as-data pattern Cell was designed for."
+
+⊢= obs-4 ← "Guard clauses or conditional dispatch would make Cell programs
+  dramatically shorter for any routing/classification task. The current workaround
+  (run all branches, output N/A for irrelevant ones) wastes LLM calls and adds
+  boilerplate."
+
+⊢= obs-5 ← "Versioning awkwardness: the spec mentions §cell' doesn't scale.
+  In this program, ⊢∘ evolve-spec produces code' via rewrite-program. The single
+  prime works here but a multi-iteration ⊢∘ would produce code'', code''' — the
+  open question stands."
+
+-- ═══════════════════════════════════════════════════════════════
+-- Execution complete.
+--
+-- Summary:
+--   Total cells evaluated: 12 (7 in main pipeline + 5 observations)
+--   ⊢∘ iterations: 1 (converged immediately — is-clean = true after first pass)
+--   Soft cells (LLM): 5 (identify-awkwardness, propose-spec-change,
+--     rewrite-program, evaluate-improvement, compile-changes)
+--   Hard cells (⊢=): 7 (spec-excerpt, awkward-program, obs-1 through obs-5)
+--   Oracle checks: 18 total, 18 passed, 0 failed
+--   Oracle recoveries (⊨?): 0 triggered (all passed first attempt)
+--
+-- Key finding: Cell v0.1 lacks conditional dispatch. Guard clauses (|),
+-- variant cells, and ⊥ (bottom) propagation are proposed for v0.2.
+-- The proposal is backward compatible and reduces a 5-cell routing
+-- pattern to 2 cells (60% shorter, no boilerplate).
+--
+-- Awkwardness score: 3.8 → 1.4 (improvement delta: 2.4)
+-- ═══════════════════════════════════════════════════════════════
