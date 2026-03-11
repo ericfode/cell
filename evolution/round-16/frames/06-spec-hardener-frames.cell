@@ -1,0 +1,430 @@
+-- 06-spec-hardener-frames.cell — full execution trace
+--
+-- Ready set analysis (initial):
+--   oracle-spec: ⊢= with no given → READY
+--   attack: given §oracle-spec (static quotation) → READY (§ is always available)
+--     BUT attack also reads oracle-spec→text? No — it uses §oracle-spec (definition).
+--     §oracle-spec is always available as a cell definition. READY.
+--   defend: given §oracle-spec (static), attack→ambiguities → BLOCKED (needs attack)
+--   judge-fix: given attack→ambiguities, defend→§oracle-spec', §oracle-spec → BLOCKED
+--   ⊢∘ harden: coordinates iteration over {attack, defend, judge-fix}
+--
+-- However, ⊢∘ harden(oracle-spec) means oracle-spec is the EVOLVING cell.
+-- The ⊢∘ loop replaces oracle-spec with oracle-spec' each iteration.
+-- So oracle-spec must be evaluated first to establish its initial value.
+--
+-- Ready set: { oracle-spec }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 0: oracle-spec (hard cell, deterministic)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ oracle-spec
+  yield text
+
+  ⊢= text ← "## Oracle System
+
+### Oracles are cells
+
+Every ⊨ assertion is syntactic sugar for a claim cell that cell-zero spawns
+after evaluation. The claim cell checks the oracle against the tentative output.
+This means oracles participate in the same graph mechanics as everything else —
+no special oracle machinery.
+
+### Oracle types
+
+⊨ result = 55                    -- deterministic (exact value check)
+⊨ sorted is a permutation        -- structural (checkable by code)
+⊨ summary is 2-3 sentences       -- semantic (requires LLM judgment)
+⊨ reversed read backwards = text -- ambiguous (needs interpretation commitment)
+
+### Oracle failure recovery (⊨?)
+..."
+
+  yield text ≡ "(full Oracle System spec section — 4 subsections, ~30 lines)"
+
+-- No oracles on hard cells. Deterministic evaluation.
+-- Ready set after: { attack }
+-- (attack uses §oracle-spec which is the cell definition, always available;
+-- but ⊢∘ harden starts the loop now that oracle-spec is bound)
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ ITERATION 0 — initial spec, first attack
+-- ═══════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 1: attack v0 (soft cell, LLM evaluation)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ attack
+  given §oracle-spec ≡ "(full cell definition of oracle-spec, including ⊢= body)"
+  yield ambiguities[], severity
+
+  ∴ You are a hostile specification reader. Find ambiguities in «§oracle-spec».
+
+-- LLM evaluation:
+-- The attacker reads the Oracle System section and looks for genuine ambiguities.
+-- Several real issues exist in this spec section:
+
+  yield ambiguities ≡ [
+    {
+      quote: "cell-zero spawns after evaluation",
+      interpretation-A: "cell-zero spawns claim cells AFTER the cell's ∴ body completes — tentative output exists, then claims are spawned to check it",
+      interpretation-B: "cell-zero spawns claim cells as PART OF evaluation — claims run concurrently with or before the output is finalized",
+      concrete-bug: "If an implementor reads 'after evaluation' as 'after outputs are frozen,' claim cells would check already-committed values and retry would be impossible — violating the retry semantics described later"
+    },
+    {
+      quote: "The tentative output lives in the claim cells, NOT in the original cell's state",
+      interpretation-A: "The claim cell STORES the tentative output — the original cell has no output field until oracles pass",
+      interpretation-B: "The claim cell REFERENCES the tentative output which is stored somewhere else (a staging area) — neither cell owns the data",
+      concrete-bug: "If an implementor puts tentative output in claim cells, dropping failed claims (as the retry paragraph says) also drops the output. The next retry has no record of what was tried. But if it's in a staging area, who manages that?"
+    },
+    {
+      quote: "cell-zero drops the failed claim cells, rewrites the original cell (with failure context), and re-evaluates",
+      interpretation-A: "cell-zero is a distinguished runtime entity that exists outside the cell graph — a privileged meta-agent",
+      interpretation-B: "cell-zero is itself a cell in the graph that happens to have spawning/rewriting authority",
+      concrete-bug: "If cell-zero is a regular cell, it needs given/yield/⊨ like everything else — who spawns ITS claim cells? Infinite regress. If it's a privileged entity, the spec claims 'no special oracle machinery' but cell-zero IS special machinery."
+    },
+    {
+      quote: "the runtime can crystallize automatically",
+      interpretation-A: "The runtime detects oracles that are implementations and promotes them WITHOUT any cell requesting crystallization",
+      interpretation-B: "The runtime merely FLAGS promotable oracles; the crystallize cell must still be invoked",
+      concrete-bug: "If automatic, the runtime needs oracle classification logic (is this oracle an implementation?) which is itself a soft/semantic judgment — who checks the classifier? If manual, the word 'automatically' is misleading."
+    }
+  ]
+  yield severity ≡ "critical"
+
+-- oracle checks (spawned as claim cells):
+--   ⊨ each ambiguity has: quote, interpretation-A, interpretation-B, concrete-bug → ✓
+--     (all 4 ambiguities have all required fields)
+--   ⊨ severity ∈ {"critical", "moderate", "none"} → ✓ ("critical")
+--   ⊨ if severity = "none" then ambiguities is empty → ✓ (vacuously: severity ≠ "none")
+
+-- attack→severity = "critical" ≠ "none" → ⊢∘ continues to defend
+-- Ready set after: { defend }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 2: defend v0 (soft cell, LLM evaluation — rewrites oracle-spec)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ defend
+  given §oracle-spec ≡ "(full cell definition of oracle-spec)"
+  given attack→ambiguities ≡ [
+    { quote: "cell-zero spawns after evaluation", ... },
+    { quote: "tentative output lives in the claim cells", ... },
+    { quote: "cell-zero drops the failed claim cells", ... },
+    { quote: "the runtime can crystallize automatically", ... }
+  ]
+  yield §oracle-spec'
+
+  ∴ Rewrite «§oracle-spec» to fix each ambiguity in «attack→ambiguities».
+
+-- LLM evaluation:
+-- The defender reads each ambiguity and rewrites the spec to eliminate it.
+-- For each: chooses one interpretation, states it explicitly, preserves clear parts.
+
+  yield §oracle-spec' ≡ "⊢ oracle-spec
+  yield text
+
+  ⊢= text ← \"## Oracle System
+
+### Oracles are cells
+
+Every ⊨ assertion is syntactic sugar for a claim cell. When a cell's ∴ body
+completes, it produces a TENTATIVE output stored in a staging area (not yet
+frozen into yield ≡). Cell-zero then spawns one claim cell per ⊨ assertion.
+Each claim cell receives the tentative output as a given and evaluates whether
+the assertion holds. This means oracles participate in the same graph mechanics
+as everything else — no special oracle-checking machinery beyond cell-zero's
+spawn authority.
+
+### Cell-zero's role
+
+Cell-zero is a PRIVILEGED runtime entity, not a regular cell. It does not have
+given/yield/⊨ of its own. It is the eval-one scheduler: it selects ready cells,
+dispatches evaluation, spawns claim cells, and manages retry. The claim that
+there is 'no special oracle machinery' means oracle CHECKING is done by regular
+cells (the claim cells). Oracle SCHEDULING is done by cell-zero, which is
+special by definition — it is the interpreter.
+
+### Oracle types
+
+⊨ result = 55                    -- deterministic (exact value check)
+⊨ sorted is a permutation        -- structural (checkable by code)
+⊨ summary is 2-3 sentences       -- semantic (requires LLM judgment)
+⊨ reversed read backwards = text -- ambiguous (needs interpretation commitment)
+
+### Tentative output lifecycle
+
+1. Cell's ∴ body executes → tentative output stored in staging area
+2. Cell-zero spawns claim cells, each receiving the tentative output as given
+3. All claim cells evaluate (they are regular cells in the graph)
+4. If ALL claims pass (✓) → cell-zero freezes output: yield ≡ value written
+5. If ANY claim fails (✗) → tentative output is DISCARDED (not the claim cells'
+   responsibility to store it). Cell-zero proceeds to retry (see ⊨? below).
+   The staging area is cleared. Failed claim cells are dropped from the graph.
+
+### Oracle failure recovery (⊨?)
+
+⊨? on failure:
+  retry with «oracle.failures» appended to prompt
+  max 3 attempts
+
+⊨? is a meta-oracle — policy about what to do when ⊨ fails.
+Key insight: retry WITH FEEDBACK, not blind retry.
+
+Retry is a graph rewrite: cell-zero drops the failed claim cells, clears the
+staging area, rewrites the original cell's ∴ body (appending failure context
+from the failed claims), and re-evaluates. The original cell remains unfrozen
+throughout — its yield never received ≡ because claims failed. This is why
+retry doesn't violate immutability: no frozen value was ever written.
+
+### Oracle promotion
+
+When an oracle like ⊨ n = len(tokens) literally states the implementation,
+the runtime MAY promote it to a ⊢= body. This is NOT automatic — the runtime
+flags the oracle as a promotion candidate, and the crystallize cell (or a human
+operator) decides whether to accept the promotion. The oracle is the
+implementation CANDIDATE, not the implementation itself.\""
+
+-- oracle checks:
+--   ⊨ §oracle-spec' addresses every ambiguity → ✓
+--     ambiguity 1 (spawns after evaluation): fixed — "When a cell's ∴ body completes"
+--       + staging area lifecycle added
+--     ambiguity 2 (tentative output location): fixed — staging area model explicit
+--     ambiguity 3 (cell-zero nature): fixed — new "Cell-zero's role" subsection
+--     ambiguity 4 (automatic crystallization): fixed — "MAY promote" + "flags candidate"
+--   ⊨ §oracle-spec' preserves unambiguous parts → ✓
+--     oracle types unchanged, core semantics preserved
+--   ⊨ §oracle-spec' is a complete spec section → ✓
+
+-- ⊢∘ applies the rewrite: oracle-spec is replaced by oracle-spec' for next iteration.
+-- Ready set after: { judge-fix }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 3: judge-fix v0 (soft cell, LLM evaluation)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ judge-fix
+  given attack→ambiguities ≡ [4 ambiguities as above]
+  given defend→§oracle-spec' ≡ "(rewritten spec with staging area, cell-zero section, etc.)"
+  given §oracle-spec ≡ "(original spec)"
+  yield rulings[], all-fixed, remaining-issues
+
+  ∴ For each ambiguity, rule whether the rewrite fixes it.
+
+-- LLM evaluation:
+-- The judge compares each ambiguity against the rewritten spec.
+
+  yield rulings ≡ [
+    { ambiguity: "spawns after evaluation", ruling: "fixed", explanation: "New text says 'When a cell's ∴ body completes, it produces a TENTATIVE output stored in a staging area. Cell-zero then spawns one claim cell per ⊨.' The temporal ordering is now explicit: ∴ completes → staging → spawn claims. No ambiguity about when spawning occurs." },
+    { ambiguity: "tentative output location", ruling: "fixed", explanation: "New 'Tentative output lifecycle' section explicitly defines a staging area. Step 5 says 'tentative output is DISCARDED' on failure — the staging area is cleared. No confusion about who owns the data." },
+    { ambiguity: "cell-zero nature", ruling: "fixed", explanation: "New 'Cell-zero's role' section explicitly states it is a PRIVILEGED runtime entity, not a regular cell. Resolves the infinite regress problem. Clarifies that 'no special oracle machinery' means oracle CHECKING (claim cells) is regular, oracle SCHEDULING (cell-zero) is privileged." },
+    { ambiguity: "automatic crystallization", ruling: "fixed", explanation: "Changed 'can crystallize automatically' to 'MAY promote it' and 'flags the oracle as a promotion candidate.' The crystallize cell or human operator decides. No ambiguity about who triggers crystallization." }
+  ]
+  yield all-fixed ≡ true
+  yield remaining-issues ≡ ""
+
+-- oracle checks:
+--   ⊨ rulings has same length as attack→ambiguities → ✓ (4 rulings, 4 ambiguities)
+--   ⊨ each ruling is "fixed" or "not-fixed" with explanation → ✓ (all "fixed" with explanation)
+--   ⊨ all-fixed = true iff every ruling is "fixed" → ✓
+--   ⊨ remaining-issues is empty iff all-fixed = true → ✓
+
+-- All fixes accepted. ⊢∘ continues: oracle-spec' becomes new oracle-spec.
+-- Next iteration: attack runs against the HARDENED spec.
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ ITERATION 1 — hardened spec v1, second attack
+-- ═══════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 4: attack v1 (soft cell, LLM evaluation against hardened spec)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ attack
+  given §oracle-spec ≡ "(hardened v1 — with staging area, cell-zero section, lifecycle, etc.)"
+  yield ambiguities[], severity
+
+  ∴ You are a hostile specification reader. Find ambiguities in «§oracle-spec».
+
+-- LLM evaluation:
+-- The attacker now reads the HARDENED spec. The 4 original ambiguities are fixed.
+-- But the hardening introduced new specificity that can be probed:
+
+  yield ambiguities ≡ [
+    {
+      quote: "staging area",
+      interpretation-A: "The staging area is a single per-cell buffer — one tentative output at a time, cleared on retry",
+      interpretation-B: "The staging area is an append-log — all tentative outputs are recorded (for failure context in retries), only the latest is checked",
+      concrete-bug: "If single buffer, failure context in ⊨? retries has no access to previous tentative outputs. The spec says 'retry with oracle.failures appended to prompt' but doesn't say whether PREVIOUS tentative outputs are available. An implementor might discard history needed for good retries."
+    },
+    {
+      quote: "spawns one claim cell per ⊨ assertion",
+      interpretation-A: "Claim cells are spawned simultaneously — all check in parallel",
+      interpretation-B: "Claim cells are spawned sequentially — fail-fast on first failure",
+      concrete-bug: "If parallel, all claims run even if the first fails (wasted compute). If sequential/fail-fast, later claim cells never run — their potential failure context is lost, making retry less informed. The spec doesn't state the execution strategy."
+    }
+  ]
+  yield severity ≡ "moderate"
+
+-- oracle checks:
+--   ⊨ each ambiguity has: quote, interpretation-A, interpretation-B, concrete-bug → ✓
+--   ⊨ severity ∈ {"critical", "moderate", "none"} → ✓ ("moderate")
+--   ⊨ if severity = "none" then ambiguities is empty → ✓ (vacuously: severity ≠ "none")
+
+-- attack→severity = "moderate" ≠ "none" → ⊢∘ continues
+-- Ready set after: { defend }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 5: defend v1 (soft cell, LLM evaluation — patches v1 spec)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ defend
+  given §oracle-spec ≡ "(hardened v1 spec)"
+  given attack→ambiguities ≡ [
+    { quote: "staging area", ... buffer vs log ... },
+    { quote: "spawns one claim cell per ⊨", ... parallel vs sequential ... }
+  ]
+  yield §oracle-spec'
+
+  ∴ Rewrite «§oracle-spec» to fix each ambiguity.
+
+-- LLM evaluation:
+-- The defender patches the hardened spec to address the two new ambiguities.
+
+  yield §oracle-spec' ≡ "(hardened v2 spec with additions:)
+
+### Tentative output lifecycle (UPDATED)
+
+1. Cell's ∴ body executes → tentative output stored in staging area.
+   The staging area is a per-cell HISTORY BUFFER: it retains all tentative
+   outputs from previous attempts (if any) alongside the current one.
+   On retry, the failure context includes oracle.failures (which claims failed
+   and why) but NOT previous tentative outputs — the prompt receives only
+   the failure reasons. The history buffer exists for debugging/tracing only.
+2. Cell-zero spawns one claim cell per ⊨ assertion. ALL claim cells are
+   spawned and evaluated. There is no fail-fast: every claim runs to completion
+   so that retry has the FULL set of failure reasons, not just the first.
+   Claim cells are independent and may execute in any order (confluence).
+3. All claim cells evaluate (they are regular cells in the graph)
+4. If ALL claims pass (✓) → cell-zero freezes output: yield ≡ value written.
+   Staging area history is discarded (or archived for tracing).
+5. If ANY claim fails (✗) → current tentative output is superseded (history
+   retained for tracing). Cell-zero collects ALL failure reasons.
+   Failed claim cells are dropped from the graph. Cell-zero proceeds to retry."
+
+-- oracle checks:
+--   ⊨ §oracle-spec' addresses every ambiguity → ✓
+--     staging area: "per-cell HISTORY BUFFER" + "failure context includes oracle.failures
+--       but NOT previous tentative outputs"
+--     spawn strategy: "ALL claim cells are spawned and evaluated. There is no fail-fast"
+--   ⊨ §oracle-spec' preserves unambiguous parts → ✓
+--   ⊨ §oracle-spec' is a complete spec section → ✓
+
+-- Ready set after: { judge-fix }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 6: judge-fix v1 (soft cell, LLM evaluation)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ judge-fix
+  given attack→ambiguities ≡ [2 ambiguities: staging area, spawn strategy]
+  given defend→§oracle-spec' ≡ "(hardened v2 spec)"
+  given §oracle-spec ≡ "(hardened v1 spec)"
+  yield rulings[], all-fixed, remaining-issues
+
+  ∴ For each ambiguity, rule whether the rewrite fixes it.
+
+  yield rulings ≡ [
+    { ambiguity: "staging area", ruling: "fixed", explanation: "Spec now explicitly defines staging area as a 'per-cell HISTORY BUFFER' that retains previous attempts. Clarifies that retry prompt gets oracle.failures only, not previous outputs. The distinction between debugging history and retry context is clean." },
+    { ambiguity: "spawn strategy", ruling: "fixed", explanation: "Spec now states 'ALL claim cells are spawned and evaluated. There is no fail-fast.' This is unambiguous. Also notes claim cells are independent and may execute in any order (confluence), which is consistent with the proven confluence property." }
+  ]
+  yield all-fixed ≡ true
+  yield remaining-issues ≡ ""
+
+-- oracle checks:
+--   ⊨ rulings has same length as attack→ambiguities → ✓ (2 rulings, 2 ambiguities)
+--   ⊨ each ruling is "fixed" or "not-fixed" → ✓
+--   ⊨ all-fixed = true iff every ruling is "fixed" → ✓
+--   ⊨ remaining-issues is empty iff all-fixed = true → ✓
+
+-- All fixes accepted. ⊢∘ continues: oracle-spec' becomes new oracle-spec.
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ ITERATION 2 — hardened spec v2, third attack
+-- ═══════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 7: attack v2 (soft cell, LLM evaluation against hardened v2 spec)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ attack
+  given §oracle-spec ≡ "(hardened v2 — staging area history buffer, no fail-fast, cell-zero privileged, promotion flagged-not-automatic)"
+  yield ambiguities[], severity
+
+  ∴ You are a hostile specification reader. Find ambiguities in «§oracle-spec».
+
+-- LLM evaluation:
+-- The attacker reads the twice-hardened spec. The major ambiguities are resolved.
+-- The spec now has: explicit temporal ordering, staging area semantics, cell-zero
+-- status, claim cell spawn strategy, promotion gating. The attacker probes for
+-- remaining edge cases:
+
+  yield ambiguities ≡ []
+  yield severity ≡ "none"
+
+-- oracle checks:
+--   ⊨ each ambiguity has: quote, interpretation-A, interpretation-B, concrete-bug → ✓ (vacuous)
+--   ⊨ severity ∈ {"critical", "moderate", "none"} → ✓ ("none")
+--   ⊨ if severity = "none" then ambiguities is empty → ✓
+
+-- attack→severity = "none" → ⊢∘ TERMINATES. Spec is hardened.
+
+-- ═══════════════════════════════════════════════════════════════
+-- COMPLETE: 8 eval-one steps across 3 ⊢∘ iterations
+-- ═══════════════════════════════════════════════════════════════
+--
+-- Iteration 0 (severity: critical, 4 ambiguities):
+--   "spawns after evaluation" timing, tentative output ownership,
+--   cell-zero nature, automatic crystallization
+--   → All 4 fixed by defender, all 4 accepted by judge
+--
+-- Iteration 1 (severity: moderate, 2 ambiguities):
+--   staging area semantics (buffer vs log), claim cell spawn strategy
+--   → Both fixed, both accepted
+--
+-- Iteration 2 (severity: none, 0 ambiguities):
+--   Attacker finds no more ambiguities → ⊢∘ terminates
+--
+-- The spec grew from ~30 lines to ~50 lines. Each addition was FORCED by a
+-- concrete ambiguity that a hostile reader identified. No bloat — every new
+-- sentence closes a real loophole.
+
+-- ═══════════════════════════════════════════════════════════════
+-- OBSERVATIONS
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= obs-adversarial-convergence
+  yield observation
+  ⊢= observation ← "ADVERSARIAL LOOPS CONVERGE: severity went critical → moderate → none in 3 iterations. The attacker found 4 ambiguities in v0, 2 in v1, 0 in v2. Each hardening pass reduced the attack surface. This is the spec equivalent of a fuzzer finding fewer crashes over time — the attack surface shrinks monotonically because fixes are additive (new precision) not subtractive (removing features)."
+
+⊢= obs-meta-circularity
+  yield observation
+  ⊢= observation ← "CELL HARDENED ITS OWN SPEC: the Oracle System section of the Cell v0.1 spec was hardened BY a Cell program. The ambiguities found are REAL — 'spawns after evaluation' IS ambiguous, cell-zero's nature IS underspecified, oracle promotion IS unclear about automation. A Cell program discovered genuine defects in Cell's own specification. This is metacircular validation: the language found bugs in its own definition."
+
+⊢= obs-three-role-separation
+  yield observation
+  ⊢= observation ← "THREE ROLES ARE NECESSARY: attack (find), defend (fix), judge (verify). Merging attack+defend creates conflicts of interest — the fixer knows the bugs and can write fixes that LOOK good but don't actually eliminate the ambiguity. Merging defend+judge removes adversarial pressure — the fixer grades their own work. The three-role separation is the minimum for trustworthy spec hardening. Cell's dataflow graph makes this separation natural: each role is a cell with explicit inputs and outputs."
+
+⊢= obs-evolution-as-adversarial
+  yield observation
+  ⊢= observation ← "⊢∘ GENERALIZES BEYOND SELF-IMPROVEMENT: in program 02, ⊢∘ improved a prompt via judge+improve (cooperative). Here, ⊢∘ hardens a spec via attack+defend+judge (adversarial). Same mechanism, different topology. The until condition changed from 'score ≥ 8' (quality threshold) to 'severity = none' (attack surface eliminated). ⊢∘ is a general fixed-point combinator — it doesn't care whether the loop is cooperative or adversarial, only that it converges."
+
+⊢= obs-spec-growth-as-signal
+  yield observation
+  ⊢= observation ← "SPEC GROWTH IS A QUALITY SIGNAL: the Oracle System section grew from ~30 to ~50 lines. But growth was NOT bloat — every addition was forced by a concrete ambiguity with two contradictory interpretations and a real implementor bug. If the defender adds text that doesn't close an ambiguity, the judge rejects it. Growth under adversarial pressure is specification DENSITY increasing — more precision per line, more lines because precision demands it."
+
+⊢= obs-exhaustion-meaning
+  yield observation
+  ⊢= observation ← "ATTACKER EXHAUSTION = SPEC COMPLETENESS (for this attacker): severity='none' means THIS attacker, at THIS capability level, found no more ambiguities. A stronger attacker might find more. This is the fundamental limit of adversarial testing — completeness is relative to attacker capability. The max 4 bound on ⊢∘ is a safety net, not a quality gate. True termination came from attacker exhaustion at iteration 2, not from hitting the bound."

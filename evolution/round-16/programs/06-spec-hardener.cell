@@ -1,0 +1,107 @@
+-- 06-spec-hardener.cell
+-- Tests: multi-role adversarial loop, judgment gates, ⊢∘ evolution, § quotation
+--
+-- A Cell program that hardens a specification through adversarial pressure.
+-- An attacker cell finds ambiguities/loopholes in the spec. A defender cell
+-- rewrites the spec to close them. A judge cell rules whether the fix works.
+-- Uses ⊢∘ loop until the attacker can't find any more ambiguities.
+-- Meta: Cell hardens its own Oracle System spec section.
+
+⊢ oracle-spec
+  yield text
+
+  ⊢= text ← "## Oracle System
+
+### Oracles are cells
+
+Every ⊨ assertion is syntactic sugar for a claim cell that cell-zero spawns
+after evaluation. The claim cell checks the oracle against the tentative output.
+This means oracles participate in the same graph mechanics as everything else —
+no special oracle machinery.
+
+### Oracle types
+
+⊨ result = 55                    -- deterministic (exact value check)
+⊨ sorted is a permutation        -- structural (checkable by code)
+⊨ summary is 2-3 sentences       -- semantic (requires LLM judgment)
+⊨ reversed read backwards = text -- ambiguous (needs interpretation commitment)
+
+### Oracle failure recovery (⊨?)
+
+⊨? on failure:
+  retry with «oracle.failures» appended to prompt
+  max 3 attempts
+
+⊨? is a meta-oracle — policy about what to do when ⊨ fails.
+Key insight: retry WITH FEEDBACK, not blind retry.
+
+Retry is a graph rewrite: cell-zero drops the failed claim cells, rewrites the
+original cell (with failure context), and re-evaluates. The tentative output
+lives in the claim cells, NOT in the original cell's state. The original remains
+unfrozen until oracles pass. This is why retry doesn't violate immutability.
+
+### Oracle promotion
+
+When an oracle like ⊨ n = len(tokens) literally states the implementation,
+the runtime can crystallize automatically. The oracle IS the implementation."
+
+⊢ attack
+  given §oracle-spec
+  yield ambiguities[], severity
+
+  ∴ You are a hostile specification reader. Your goal is to find genuine
+    ambiguities, underspecifications, and loopholes in «§oracle-spec».
+    For each ambiguity: state what the spec says, what two contradictory
+    interpretations are possible, and what concrete bug an implementor
+    could introduce by choosing the wrong interpretation.
+    Rate overall severity: "critical" (spec is dangerously ambiguous),
+    "moderate" (implementors would likely guess wrong on some points),
+    or "none" (spec is airtight for this section).
+
+  ⊨ each ambiguity has: quote, interpretation-A, interpretation-B, concrete-bug
+  ⊨ severity ∈ {"critical", "moderate", "none"}
+  ⊨ if severity = "none" then ambiguities is empty
+
+⊢ defend
+  given §oracle-spec
+  given attack→ambiguities
+  yield §oracle-spec'
+
+  ∴ You are a specification author defending clarity. For each ambiguity
+    in «attack→ambiguities», rewrite the relevant section of «§oracle-spec»
+    to eliminate the ambiguity. Every fix must:
+    - Choose ONE interpretation and state it explicitly
+    - Not introduce new ambiguities
+    - Preserve all existing semantics that are already clear
+    Output the complete rewritten spec section.
+
+  ⊨ §oracle-spec' addresses every ambiguity in attack→ambiguities
+  ⊨ §oracle-spec' preserves the meaning of unambiguous parts of §oracle-spec
+  ⊨ §oracle-spec' is a complete spec section (not a diff or patch)
+
+⊢ judge-fix
+  given attack→ambiguities
+  given defend→§oracle-spec'
+  given §oracle-spec
+  yield rulings[], all-fixed, remaining-issues
+
+  ∴ For each ambiguity in «attack→ambiguities», rule whether
+    «defend→§oracle-spec'» actually fixes it. A fix is valid if:
+    - The ambiguous language is replaced with unambiguous language
+    - The chosen interpretation is stated, not implied
+    - No new ambiguity is introduced by the fix
+    If all are fixed, set all-fixed = true. Otherwise list remaining issues.
+
+  ⊨ rulings has same length as attack→ambiguities
+  ⊨ each ruling is "fixed" or "not-fixed" with explanation
+  ⊨ all-fixed = true iff every ruling is "fixed"
+  ⊨ remaining-issues is empty iff all-fixed = true
+
+  ⊨? on failure:
+    retry with «judge-fix→rulings» appended to prompt
+    max 2 attempts
+
+⊢∘ harden(oracle-spec)
+  through attack, defend, judge-fix
+  until attack→severity = "none"
+  max 4
