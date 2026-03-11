@@ -1,0 +1,148 @@
+-- 01-research-plan-evolver.cell
+-- A Cell program that evolves a research plan through hypothesis generation,
+-- experiment design, feasibility evaluation, and hypothesis revision.
+--
+-- Tests: ⊢∘ evolution loop, ⊢⊢ spawner, oracle-gated convergence
+--
+-- Problem: "Why do some open-source projects thrive while others with
+-- similar quality die?"
+
+⊢ problem
+  given statement ≡ "Why do some open-source projects thrive while others with similar quality die?"
+  yield statement
+
+  ⊨ statement is a clear research question
+
+⊢ hypothesize
+  given problem→statement
+  yield hypotheses[]
+
+  ∴ Given the research question «problem→statement», generate 3-5 distinct,
+    testable hypotheses. Each hypothesis should propose a specific causal
+    mechanism. Format as a numbered list.
+
+  ⊨ length(hypotheses) ≥ 3
+  ⊨ each hypothesis proposes a testable causal claim
+  ⊨ hypotheses are mutually distinct (not restatements)
+
+⊢ design-experiments
+  given hypothesize→hypotheses
+  yield experiments[]
+
+  ∴ For each hypothesis in «hypothesize→hypotheses», design one experiment
+    that could confirm or refute it. Each experiment should specify:
+    what data to collect, how to measure it, and what outcome supports
+    or refutes the hypothesis.
+
+  ⊨ length(experiments) = length(hypothesize→hypotheses)
+  ⊨ each experiment maps to exactly one hypothesis
+  ⊨ each experiment specifies measurable outcomes
+
+⊢ evaluate-feasibility
+  given design-experiments→experiments
+  yield feasible[], infeasible[]
+
+  ∴ For each experiment in «design-experiments→experiments», evaluate whether
+    it could be conducted with publicly available data (GitHub API, package
+    manager stats, mailing list archives, etc.). Classify as feasible or
+    infeasible. For infeasible ones, explain why.
+
+  ⊨ length(feasible) + length(infeasible) = length(design-experiments→experiments)
+  ⊨ each feasible experiment uses publicly available data sources
+
+⊢⊢ spawn-experiments
+  given evaluate-feasibility→feasible
+  given hypothesize→hypotheses
+  given §experiment-template
+  yield §experiment-cells[]
+  until length(experiment-cells) = length(evaluate-feasibility→feasible)
+  max 5
+
+  ∴ For each feasible experiment in «evaluate-feasibility→feasible», spawn
+    a cell that simulates running the experiment. Each spawned cell receives
+    the experiment description and its corresponding hypothesis.
+
+  ⊨ length(experiment-cells) = length(evaluate-feasibility→feasible)
+
+  -- template for spawned cells:
+  -- ⊢ experiment-{index}
+  --   given hypothesis ≡ "{the specific hypothesis}"
+  --   given experiment-desc ≡ "{the experiment description}"
+  --   yield result, supports-hypothesis
+  --   ∴ Simulate running «experiment-desc» to test «hypothesis».
+  --     Based on what we know about open-source ecosystems, what would
+  --     the likely findings be? State the result and whether it supports
+  --     or refutes the hypothesis.
+  --   ⊨ result describes concrete findings
+  --   ⊨ supports-hypothesis ∈ { "supports", "refutes", "inconclusive" }
+
+⊢ experiment-template
+  given hypothesis
+  given experiment-desc
+  yield result, supports-hypothesis
+
+  ∴ Simulate running «experiment-desc» to test «hypothesis».
+    Based on what we know about open-source ecosystems, what would
+    the likely findings be? State the result and whether it supports
+    or refutes the hypothesis.
+
+  ⊨ result describes concrete findings
+  ⊨ supports-hypothesis ∈ { "supports", "refutes", "inconclusive" }
+
+⊢ collect-results
+  given experiment-*→result
+  given experiment-*→supports-hypothesis
+  given hypothesize→hypotheses
+  yield evidence-map[]
+
+  ∴ Collect all experiment results. For each original hypothesis, compile
+    the evidence: which experiments supported it, which refuted it, which
+    were inconclusive. Produce an evidence map.
+
+  ⊨ evidence-map covers every original hypothesis
+  ⊨ each entry links hypothesis to its experimental evidence
+
+⊢ revise-hypotheses
+  given collect-results→evidence-map
+  given hypothesize→hypotheses
+  yield revised-hypotheses[], convergence-score
+
+  ∴ Given the evidence map «collect-results→evidence-map» and the original
+    hypotheses «hypothesize→hypotheses», revise the hypotheses:
+    - Strengthen supported hypotheses with evidence
+    - Weaken or discard refuted hypotheses
+    - Refine inconclusive hypotheses to be more specific
+    Assign a convergence score (0-10): how close are we to a stable
+    explanation of the phenomenon?
+
+  ⊨ each revised hypothesis cites supporting evidence
+  ⊨ convergence-score ∈ [0, 10]
+  ⊨ refuted hypotheses are removed or substantially rewritten
+
+⊢∘ evolve(hypothesize, problem→statement)
+  through revise-hypotheses
+  until revise-hypotheses→convergence-score ≥ 8
+  max 3
+
+  -- Each iteration: hypothesize produces hypotheses → experiments are
+  -- designed → feasibility evaluated → feasible experiments spawned →
+  -- results collected → hypotheses revised. The revised hypotheses
+  -- feed back into the next iteration.
+  --
+  -- The evolution loop rewrites hypothesize's output with the revised
+  -- hypotheses, then re-runs the downstream cells. Interface (given/yield)
+  -- is frozen; only the output changes.
+
+⊢ synthesize-findings
+  given revise-hypotheses→revised-hypotheses
+  given revise-hypotheses→convergence-score
+  given collect-results→evidence-map
+  yield final-report
+
+  ∴ Produce a final research synthesis. State the strongest hypotheses
+    that survived the evidence, the key findings, and what further research
+    would be needed. This is the conclusion of the research plan evolution.
+
+  ⊨ final-report references specific evidence
+  ⊨ final-report identifies remaining open questions
+  ⊨ final-report is 5-10 sentences

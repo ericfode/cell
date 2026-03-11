@@ -1,0 +1,561 @@
+-- 01-research-plan-evolver-frames.cell
+-- Execution trace of 01-research-plan-evolver.cell via eval-one
+--
+-- Problem: "Why do some open-source projects thrive while others with
+-- similar quality die?"
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 0: evaluate problem (trivial pass-through)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { problem } — only cell with all givens bound
+-- Blocked: { hypothesize } — needs problem→statement
+-- Blocked: everything else — transitive
+
+⊢ problem
+  given statement ≡ "Why do some open-source projects thrive while others with similar quality die?"
+  yield statement
+
+-- eval-one: problem is a pass-through. statement is already bound via given ≡.
+-- No ∴ body, no ⊢= body. Yield inherits from given.
+
+  yield statement ≡ "Why do some open-source projects thrive while others with similar quality die?"
+
+-- oracle check:
+--   ⊨ statement is a clear research question → ✓
+
+-- state after frame 0: problem frozen.
+-- Ready set: { hypothesize }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 1: evaluate hypothesize (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { hypothesize }
+-- Blocked: { design-experiments } — needs hypothesize→hypotheses
+
+⊢ hypothesize
+  given problem→statement ≡ "Why do some open-source projects thrive while others with similar quality die?"
+  yield hypotheses[]
+
+  ∴ Generate 3-5 distinct, testable hypotheses...
+
+-- LLM evaluation (simulated):
+
+  yield hypotheses ≡ [
+    "H1: Projects with a single charismatic maintainer who actively engages contributors on social platforms attract exponentially more contributors than technically superior but socially quiet projects.",
+    "H2: Projects that are adopted as dependencies by one or more popular frameworks experience a network-effect growth flywheel that sustains them independent of code quality.",
+    "H3: Projects with low onboarding friction (good first-issue labels, CONTRIBUTING.md, quick build times) retain first-time contributors at 3-5x the rate of projects without these, and contributor retention is the primary predictor of survival.",
+    "H4: Projects backed by corporate sponsors survive maintainer burnout because paid contributors bridge gaps; unfunded projects die when the primary maintainer exits regardless of community size."
+  ]
+
+-- oracle checks:
+--   ⊨ length(hypotheses) ≥ 3 → ✓ (4 hypotheses)
+--   ⊨ each hypothesis proposes a testable causal claim → ✓
+--     H1: charismatic maintainer → contributor growth (testable via social metrics)
+--     H2: dependency adoption → growth flywheel (testable via package graph)
+--     H3: onboarding friction → contributor retention (testable via issue labels, docs)
+--     H4: corporate backing → burnout resilience (testable via funding data)
+--   ⊨ hypotheses are mutually distinct → ✓ (social, ecosystem, onboarding, funding)
+
+-- state after frame 1: hypothesize frozen.
+-- Ready set: { design-experiments }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 2: evaluate design-experiments (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { design-experiments }
+-- Blocked: { evaluate-feasibility } — needs design-experiments→experiments
+
+⊢ design-experiments
+  given hypothesize→hypotheses ≡ ["H1: Projects with a single charismatic...", "H2: Projects that are adopted...", "H3: Projects with low onboarding friction...", "H4: Projects backed by corporate sponsors..."]
+  yield experiments[]
+
+  ∴ For each hypothesis, design one experiment...
+
+-- LLM evaluation (simulated):
+
+  yield experiments ≡ [
+    "E1 (tests H1): Sample 200 GitHub projects in the same domain (e.g., Python web frameworks) with similar star counts at year 1. Measure maintainer's Twitter/blog followers, GitHub comment responsiveness (median time to first reply), and conference talk count. Correlate with 5-year contributor growth rate. Outcome: if r > 0.5 between social engagement score and contributor growth, supports H1.",
+    "E2 (tests H2): Using libraries.io dependency data, identify projects that were adopted by a top-50 npm/PyPI package between 2018-2020. Compare their contributor and download trajectories against matched controls (same language, similar stars, not adopted). Outcome: if adopted projects grow >2x faster, supports H2.",
+    "E3 (tests H3): Scrape 500 GitHub repos for CONTRIBUTING.md presence, good-first-issue labels, and CI build time. Track first-time contributor return rate (contributed again within 6 months). Regression: does onboarding friction score predict return rate? Outcome: if friction explains >30% of variance in return rate, supports H3.",
+    "E4 (tests H4): Identify 100 projects that lost their primary maintainer (no commits for 6+ months). Split by funding status (Open Collective, GitHub Sponsors, corporate employer). Compare survival rate (active 2 years later). Outcome: if funded projects survive at >2x the rate, supports H4."
+  ]
+
+-- oracle checks:
+--   ⊨ length(experiments) = length(hypotheses) → ✓ (4 = 4)
+--   ⊨ each experiment maps to exactly one hypothesis → ✓ (E1→H1, E2→H2, E3→H3, E4→H4)
+--   ⊨ each experiment specifies measurable outcomes → ✓ (all have quantitative thresholds)
+
+-- state after frame 2: design-experiments frozen.
+-- Ready set: { evaluate-feasibility }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 3: evaluate evaluate-feasibility (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { evaluate-feasibility }
+-- Blocked: { spawn-experiments } — needs feasible[], hypotheses
+
+⊢ evaluate-feasibility
+  given design-experiments→experiments ≡ ["E1...", "E2...", "E3...", "E4..."]
+  yield feasible[], infeasible[]
+
+  ∴ Evaluate feasibility with publicly available data...
+
+-- LLM evaluation (simulated):
+
+  yield feasible ≡ [
+    "E2 (tests H2): libraries.io provides full dependency graphs via API. npm/PyPI download stats are public. GitHub contributor counts are API-accessible. Fully feasible.",
+    "E3 (tests H3): CONTRIBUTING.md and issue labels are GitHub API fields. CI build time is harder but approximable from Actions logs. First-time contributor detection is possible via commit history. Feasible with some approximation.",
+    "E4 (tests H4): Open Collective and GitHub Sponsors data is partially public. Corporate employment is detectable from commit email domains. Maintainer departure detectable from commit gaps. Feasible with some manual validation."
+  ]
+
+  yield infeasible ≡ [
+    "E1 (tests H1): Twitter follower counts require Twitter API (restricted since 2023). Conference talk data has no central registry. Blog presence requires manual search across platforms. INFEASIBLE — social media data access is unreliable and labor-intensive."
+  ]
+
+-- oracle checks:
+--   ⊨ length(feasible) + length(infeasible) = 4 → ✓ (3 + 1 = 4)
+--   ⊨ each feasible experiment uses publicly available data sources → ✓
+--     E2: libraries.io API, npm/PyPI, GitHub API
+--     E3: GitHub API, Actions logs
+--     E4: Open Collective, GitHub Sponsors, commit emails
+
+-- state after frame 3: evaluate-feasibility frozen.
+-- Ready set: { spawn-experiments }
+-- NOTE: H1 is now orphaned — no experiment will test it.
+--       The ⊢∘ loop should catch this and potentially revise or drop H1.
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 4: evaluate spawn-experiments (⊢⊢ spawner fires)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { spawn-experiments }
+-- spawn-experiments is ⊢⊢ — it produces cells, not just values
+
+⊢⊢ spawn-experiments
+  given evaluate-feasibility→feasible ≡ ["E2...", "E3...", "E4..."]
+  given hypothesize→hypotheses ≡ ["H1...", "H2...", "H3...", "H4..."]
+  given §experiment-template
+  yield §experiment-cells[]
+  until length(experiment-cells) = 3
+  max 5
+
+-- LLM evaluation (simulated):
+-- Spawner instantiates experiment-template 3 times, one per feasible experiment.
+
+  yield experiment-cells ≡ [§experiment-0, §experiment-1, §experiment-2]
+
+-- oracle check:
+--   ⊨ length(experiment-cells) = length(feasible) → ✓ (3 = 3)
+
+-- SPAWNER EFFECT: 3 new cells enter the frontier:
+
+⊢ experiment-0
+  given hypothesis ≡ "H2: Projects that are adopted as dependencies by one or more popular frameworks experience a network-effect growth flywheel that sustains them independent of code quality."
+  given experiment-desc ≡ "E2: Using libraries.io dependency data, identify projects adopted by a top-50 npm/PyPI package between 2018-2020. Compare contributor and download trajectories against matched controls."
+  yield result, supports-hypothesis
+
+  ∴ Simulate running «experiment-desc» to test «hypothesis».
+
+  ⊨ result describes concrete findings
+  ⊨ supports-hypothesis ∈ { "supports", "refutes", "inconclusive" }
+
+⊢ experiment-1
+  given hypothesis ≡ "H3: Projects with low onboarding friction retain first-time contributors at 3-5x the rate of projects without these, and contributor retention is the primary predictor of survival."
+  given experiment-desc ≡ "E3: Scrape 500 GitHub repos for CONTRIBUTING.md, good-first-issue labels, CI build time. Track first-time contributor return rate."
+  yield result, supports-hypothesis
+
+  ∴ Simulate running «experiment-desc» to test «hypothesis».
+
+  ⊨ result describes concrete findings
+  ⊨ supports-hypothesis ∈ { "supports", "refutes", "inconclusive" }
+
+⊢ experiment-2
+  given hypothesis ≡ "H4: Projects backed by corporate sponsors survive maintainer burnout because paid contributors bridge gaps."
+  given experiment-desc ≡ "E4: Identify 100 projects that lost their primary maintainer. Split by funding status. Compare survival rate 2 years later."
+  yield result, supports-hypothesis
+
+  ∴ Simulate running «experiment-desc» to test «hypothesis».
+
+  ⊨ result describes concrete findings
+  ⊨ supports-hypothesis ∈ { "supports", "refutes", "inconclusive" }
+
+-- state after frame 4: spawn-experiments frozen, 3 new cells in frontier.
+-- Ready set: { experiment-0, experiment-1, experiment-2 } — all ready
+-- Blocked: { collect-results } — needs experiment-*→result
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 5: evaluate experiment-0 (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { experiment-0, experiment-1, experiment-2 }
+-- Pick: experiment-0 (arbitrary — confluence)
+
+⊢ experiment-0
+  given hypothesis ≡ "H2: Projects adopted as dependencies by popular frameworks..."
+  given experiment-desc ≡ "E2: libraries.io dependency data..."
+  yield result, supports-hypothesis
+
+  ∴ Simulate running E2 to test H2...
+
+-- LLM evaluation (simulated):
+
+  yield result ≡ "Analysis of 45 npm packages adopted by React, Vue, or Angular between 2018-2020 vs 45 matched controls: adopted packages saw 4.2x median contributor growth over 3 years (p<0.001). Download counts grew 8.7x vs 1.3x for controls. However, 6 of 45 adopted packages (13%) still died — they were replaced by alternatives that the framework switched to. The dependency flywheel is powerful but not unconditional; it can reverse if the upstream framework drops you."
+
+  yield supports-hypothesis ≡ "supports"
+
+-- oracle checks:
+--   ⊨ result describes concrete findings → ✓ (specific numbers, sample sizes)
+--   ⊨ supports-hypothesis ∈ { "supports", "refutes", "inconclusive" } → ✓
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 6: evaluate experiment-1 (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { experiment-1, experiment-2 }
+-- Pick: experiment-1
+
+⊢ experiment-1
+  given hypothesis ≡ "H3: Low onboarding friction → contributor retention..."
+  given experiment-desc ≡ "E3: Scrape repos for contributor onboarding signals..."
+  yield result, supports-hypothesis
+
+  ∴ Simulate running E3 to test H3...
+
+-- LLM evaluation (simulated):
+
+  yield result ≡ "Of 500 GitHub repos sampled across Python and JavaScript ecosystems: repos with CONTRIBUTING.md had 1.8x higher first-time contributor return rate. Repos with good-first-issue labels: 2.1x. Repos with both: 2.7x. But the 3-5x claim in H3 is overstated — onboarding friction explains ~22% of variance in return rate, below the 30% threshold. More importantly, contributor retention alone predicted project survival with only 0.41 AUC, barely above chance. Projects died for other reasons (maintainer burnout, ecosystem shift) even with high retention."
+
+  yield supports-hypothesis ≡ "inconclusive"
+
+-- oracle checks:
+--   ⊨ result describes concrete findings → ✓
+--   ⊨ supports-hypothesis ∈ { "supports", "refutes", "inconclusive" } → ✓
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 7: evaluate experiment-2 (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { experiment-2 }
+-- Pick: experiment-2
+
+⊢ experiment-2
+  given hypothesis ≡ "H4: Corporate sponsors → burnout resilience..."
+  given experiment-desc ≡ "E4: Track projects that lost primary maintainer, split by funding..."
+  yield result, supports-hypothesis
+
+  ∴ Simulate running E4 to test H4...
+
+-- LLM evaluation (simulated):
+
+  yield result ≡ "Of 87 projects where the primary maintainer went inactive for 6+ months: funded projects (Open Collective or corporate, n=31) survived at 74% rate vs unfunded (n=56) at 32%. The effect was strongest for corporate-backed projects (82% survival) vs donation-funded (61%). However, causation is ambiguous: corporate-backed projects may have been more important to begin with, attracting both funding AND successor maintainers. A notable counter-example: left-pad (unfunded) was immediately forked and maintained by the community because of extreme dependency centrality."
+
+  yield supports-hypothesis ≡ "supports"
+
+-- oracle checks:
+--   ⊨ result describes concrete findings → ✓
+--   ⊨ supports-hypothesis ∈ { "supports", "refutes", "inconclusive" } → ✓
+
+-- state after frames 5-7: all experiment-* cells frozen.
+-- Ready set: { collect-results }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 8: evaluate collect-results (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { collect-results }
+-- Blocked: { revise-hypotheses } — needs evidence-map
+
+⊢ collect-results
+  given experiment-0→result ≡ "Analysis of 45 npm packages..."
+  given experiment-0→supports-hypothesis ≡ "supports"
+  given experiment-1→result ≡ "Of 500 GitHub repos..."
+  given experiment-1→supports-hypothesis ≡ "inconclusive"
+  given experiment-2→result ≡ "Of 87 projects..."
+  given experiment-2→supports-hypothesis ≡ "supports"
+  given hypothesize→hypotheses ≡ ["H1...", "H2...", "H3...", "H4..."]
+  yield evidence-map[]
+
+  ∴ Compile evidence for each hypothesis...
+
+-- LLM evaluation (simulated):
+
+  yield evidence-map ≡ [
+    { hypothesis: "H1 (charismatic maintainer)", evidence: "UNTESTED — experiment deemed infeasible. No data collected.", verdict: "unknown" },
+    { hypothesis: "H2 (dependency flywheel)", evidence: "E2 SUPPORTS: 4.2x contributor growth for adopted packages. Flywheel is real but reversible — 13% died when framework switched away.", verdict: "supported with caveat" },
+    { hypothesis: "H3 (onboarding friction)", evidence: "E3 INCONCLUSIVE: onboarding signals help (1.8-2.7x return rate) but explain only 22% of variance. Retention alone doesn't predict survival (0.41 AUC).", verdict: "partially supported, overstated" },
+    { hypothesis: "H4 (corporate backing)", evidence: "E4 SUPPORTS: 74% vs 32% survival after maintainer departure. But causation unclear — corporate backing correlates with project importance.", verdict: "supported with confound" }
+  ]
+
+-- oracle checks:
+--   ⊨ evidence-map covers every original hypothesis → ✓ (all 4 covered)
+--   ⊨ each entry links hypothesis to evidence → ✓
+
+-- state after frame 8: collect-results frozen.
+-- Ready set: { revise-hypotheses }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 9: evaluate revise-hypotheses (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { revise-hypotheses }
+-- This is the convergence check for ⊢∘ evolve
+
+⊢ revise-hypotheses
+  given collect-results→evidence-map ≡ [...]
+  given hypothesize→hypotheses ≡ ["H1...", "H2...", "H3...", "H4..."]
+  yield revised-hypotheses[], convergence-score
+
+  ∴ Revise hypotheses based on evidence...
+
+-- LLM evaluation (simulated):
+
+  yield revised-hypotheses ≡ [
+    "H2' (STRENGTHENED): Dependency adoption by popular frameworks is a strong growth driver (4.2x contributor growth), but the flywheel is fragile — projects must maintain framework compatibility or risk being dropped. The network effect is powerful but creates a dependency that can reverse.",
+    "H3' (REFINED): Onboarding friction reduction improves contributor retention modestly (1.8-2.7x) but is insufficient alone to ensure survival. Onboarding quality is a necessary but not sufficient condition — it must be paired with ecosystem embeddedness or sustainable funding.",
+    "H4' (REFINED): Financial sustainability (especially corporate backing) dramatically improves resilience to maintainer departure (74% vs 32% survival), but the causal mechanism may be project importance rather than funding per se. Projects important enough to attract funding are also important enough to attract volunteer successors.",
+    "H5 (NEW — emerged from evidence): Project survival is primarily determined by ecosystem centrality — being depended upon by other projects. This single factor subsumes parts of H2 (dependency flywheel) and H4 (corporate interest follows importance). Centrality creates both the economic incentive for funding and the community incentive for succession."
+  ]
+
+  yield convergence-score ≡ 6
+
+-- oracle checks:
+--   ⊨ each revised hypothesis cites supporting evidence → ✓
+--     H2' cites 4.2x growth, H3' cites 1.8-2.7x and AUC, H4' cites 74% vs 32%
+--     H5 synthesizes across experiments
+--   ⊨ convergence-score ∈ [0, 10] → ✓ (6)
+--   ⊨ refuted hypotheses removed or rewritten → ✓
+--     H1 dropped (untested). H3 substantially rewritten. H5 emerged.
+
+-- ⊢∘ CHECK: convergence-score = 6 < 8. NOT CONVERGED.
+-- The evolution loop reruns: revised-hypotheses feed back as hypothesize→hypotheses.
+-- H1 (charismatic maintainer) dropped — no experiment tested it, insufficient basis.
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ ITERATION 2: EVOLUTION LOOP RESTARTS
+-- ═══════════════════════════════════════════════════════════════
+-- hypothesize is rewritten: its output is now revised-hypotheses from iteration 1.
+-- Interface (given/yield) is preserved. Only the yield ≡ values change.
+-- Downstream cells (design-experiments, evaluate-feasibility, spawn-experiments,
+-- experiment-*, collect-results, revise-hypotheses) are unfrozen and re-evaluated.
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 10: design-experiments (iteration 2)
+-- ═══════════════════════════════════════════════════════════════
+-- hypothesize→hypotheses now contains [H2', H3', H4', H5]
+
+⊢ design-experiments
+  given hypothesize→hypotheses ≡ ["H2' (dependency flywheel, fragile)...", "H3' (onboarding necessary but insufficient)...", "H4' (funding vs importance confound)...", "H5 (ecosystem centrality)..."]
+  yield experiments[]
+
+-- LLM evaluation (simulated):
+
+  yield experiments ≡ [
+    "E2' (tests H2'): Identify packages that were DROPPED by a framework (e.g., moment.js by many frameworks in favor of date-fns). Track contributor trajectory after being dropped. If >50% lose significant contributors within 1 year, supports the fragility clause of H2'.",
+    "E3' (tests H3'): Control for ecosystem centrality. Among projects with EQUAL dependency counts, does onboarding quality predict survival? If yes, H3' stands. If no, onboarding is merely correlated with well-managed projects.",
+    "E4' (tests H4'): Distinguish causation from correlation. Compare projects that RECEIVED corporate funding after initial growth vs projects that had corporate funding from inception. If late-funded projects survive at similar rates, suggests funding is causal. If only early-funded survive, suggests selection bias.",
+    "E5 (tests H5): Measure ecosystem centrality (PageRank in the dependency graph) for 1000 projects. Correlate with 5-year survival. If centrality alone explains >50% of survival variance, H5 is the dominant factor."
+  ]
+
+-- oracle checks: ✓ (4 experiments for 4 hypotheses, all measurable)
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 11: evaluate-feasibility (iteration 2)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ evaluate-feasibility
+  given design-experiments→experiments ≡ ["E2'...", "E3'...", "E4'...", "E5..."]
+  yield feasible[], infeasible[]
+
+-- LLM evaluation (simulated):
+
+  yield feasible ≡ [
+    "E2' (tests H2'): Framework migration history is documented in changelogs and package.json. libraries.io tracks this. Feasible.",
+    "E3' (tests H3'): Dependency count is API-accessible. Controlling for it is a standard regression technique. Feasible.",
+    "E5 (tests H5): PageRank on dependency graph is computable from libraries.io data. Survival is measurable from GitHub. Feasible."
+  ]
+
+  yield infeasible ≡ [
+    "E4' (tests H4'): Distinguishing early vs late funding requires funding history timelines. Open Collective has some data, but GitHub Sponsors doesn't expose start dates publicly. Corporate funding timing requires manual research. INFEASIBLE at scale."
+  ]
+
+-- oracle checks: ✓ (3 + 1 = 4)
+-- H4' funding confound remains unresolved — interesting for observations.
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 12: spawn-experiments (iteration 2, ⊢⊢)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢⊢ spawn-experiments
+  given evaluate-feasibility→feasible ≡ ["E2'...", "E3'...", "E5..."]
+  given hypothesize→hypotheses ≡ ["H2'...", "H3'...", "H4'...", "H5..."]
+  yield §experiment-cells[]
+
+-- Spawns 3 new experiment cells: experiment-3, experiment-4, experiment-5
+
+⊢ experiment-3
+  given hypothesis ≡ "H2': Dependency flywheel is powerful but fragile — projects must maintain framework compatibility."
+  given experiment-desc ≡ "E2': Track packages dropped by frameworks. Measure contributor loss within 1 year."
+  yield result, supports-hypothesis
+
+  ∴ Simulate running «experiment-desc» to test «hypothesis».
+
+  ⊨ result describes concrete findings
+  ⊨ supports-hypothesis ∈ { "supports", "refutes", "inconclusive" }
+
+⊢ experiment-4
+  given hypothesis ≡ "H3': Onboarding quality is necessary but insufficient for survival without ecosystem embeddedness."
+  given experiment-desc ≡ "E3': Control for ecosystem centrality. Test if onboarding predicts survival among equally-central projects."
+  yield result, supports-hypothesis
+
+  ∴ Simulate running «experiment-desc» to test «hypothesis».
+
+  ⊨ result describes concrete findings
+  ⊨ supports-hypothesis ∈ { "supports", "refutes", "inconclusive" }
+
+⊢ experiment-5
+  given hypothesis ≡ "H5: Ecosystem centrality (dependency PageRank) is the dominant survival predictor."
+  given experiment-desc ≡ "E5: PageRank on dependency graph for 1000 projects. Correlate with 5-year survival."
+  yield result, supports-hypothesis
+
+  ∴ Simulate running «experiment-desc» to test «hypothesis».
+
+  ⊨ result describes concrete findings
+  ⊨ supports-hypothesis ∈ { "supports", "refutes", "inconclusive" }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAMES 13-15: evaluate experiment-3, experiment-4, experiment-5
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { experiment-3, experiment-4, experiment-5 }
+
+⊢ experiment-3
+  given hypothesis ≡ "H2': Dependency flywheel is fragile..."
+  given experiment-desc ≡ "E2': Track packages dropped by frameworks..."
+  yield result, supports-hypothesis
+
+  yield result ≡ "Of 23 packages dropped by major frameworks between 2017-2022 (e.g., moment.js, request, coffee-script): 78% lost >50% of contributors within 18 months. However, 5 of 23 (22%) pivoted successfully — they found new upstream adopters or became standalone tools. The flywheel reversal is real but not always fatal for projects with intrinsic utility beyond the framework dependency."
+
+  yield supports-hypothesis ≡ "supports"
+
+-- oracle checks: ✓
+
+⊢ experiment-4
+  given hypothesis ≡ "H3': Onboarding necessary but insufficient..."
+  given experiment-desc ≡ "E3': Control for centrality, test onboarding effect..."
+  yield result, supports-hypothesis
+
+  yield result ≡ "Among projects with similar dependency PageRank (±0.5 std dev), onboarding quality still predicted contributor return rate (β=0.18, p=0.03) but did NOT predict 5-year survival (β=0.04, p=0.61). Onboarding helps attract contributors but doesn't determine whether the project lives or dies. The survival signal comes from ecosystem position, not contributor experience."
+
+  yield supports-hypothesis ≡ "refutes"
+
+-- oracle checks: ✓
+-- H3' is refuted: onboarding helps contributor flow but not survival.
+
+⊢ experiment-5
+  given hypothesis ≡ "H5: Ecosystem centrality is dominant predictor..."
+  given experiment-desc ≡ "E5: PageRank on dependency graph, correlate with survival..."
+  yield result, supports-hypothesis
+
+  yield result ≡ "PageRank in the npm/PyPI dependency graph correlated with 5-year project survival at r=0.67 (R²=0.45). Adding two additional features — corporate funding (binary) and maintainer count (log) — improved to R²=0.63. Centrality alone explains 45% of survival variance; with funding and team size, 63%. No single factor exceeds 50% alone, but centrality is by far the strongest individual predictor. Projects in the top decile of PageRank had 91% survival rate vs 34% for bottom decile."
+
+  yield supports-hypothesis ≡ "supports"
+
+-- oracle checks: ✓
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 16: collect-results (iteration 2)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ collect-results
+  given experiment-3→result ≡ "78% lost >50% contributors after framework drop..."
+  given experiment-3→supports-hypothesis ≡ "supports"
+  given experiment-4→result ≡ "Onboarding predicts contributor flow but not survival..."
+  given experiment-4→supports-hypothesis ≡ "refutes"
+  given experiment-5→result ≡ "PageRank R²=0.45, centrality + funding + team = R²=0.63..."
+  given experiment-5→supports-hypothesis ≡ "supports"
+  given hypothesize→hypotheses ≡ ["H2'...", "H3'...", "H4'...", "H5..."]
+  yield evidence-map[]
+
+  yield evidence-map ≡ [
+    { hypothesis: "H2' (fragile flywheel)", evidence: "E2' SUPPORTS: 78% contributor loss after framework drop. Fragility confirmed. But 22% survived via pivot.", verdict: "supported" },
+    { hypothesis: "H3' (onboarding insufficient)", evidence: "E3' REFUTES: controlling for centrality, onboarding doesn't predict survival. It helps contributor flow but not project longevity.", verdict: "refuted" },
+    { hypothesis: "H4' (funding confound)", evidence: "UNTESTED in iteration 2 — experiment infeasible. However E5 shows funding adds R² when combined with centrality.", verdict: "partially informed" },
+    { hypothesis: "H5 (ecosystem centrality)", evidence: "E5 SUPPORTS: centrality is strongest single predictor (R²=0.45). Combined model with funding and team size reaches R²=0.63.", verdict: "strongly supported" }
+  ]
+
+-- oracle checks: ✓
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 17: revise-hypotheses (iteration 2)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ revise-hypotheses
+  given collect-results→evidence-map ≡ [...]
+  given hypothesize→hypotheses ≡ ["H2'...", "H3'...", "H4'...", "H5..."]
+  yield revised-hypotheses[], convergence-score
+
+  yield revised-hypotheses ≡ [
+    "H2'' (STABLE): The dependency flywheel is a powerful but fragile growth mechanism. Projects adopted as framework dependencies grow ~4x faster, but 78% lose momentum when dropped. The flywheel is a necessary accelerant, not a permanent guarantee.",
+    "H4'' (REFINED): Financial sustainability contributes to project survival independently of centrality (adds ~9% explained variance). The causal direction remains unresolved but the effect is real even as a covariate.",
+    "H5' (DOMINANT — CONVERGING): Ecosystem centrality (dependency PageRank) is the single strongest predictor of open-source project survival, explaining 45% of variance alone. Combined with funding and team size, the model explains 63%. The answer to 'why do some thrive?' is primarily: they become load-bearing infrastructure that others depend on. Quality matters for getting adopted, but position in the dependency graph determines survival."
+  ]
+
+  yield convergence-score ≡ 8
+
+-- oracle checks:
+--   ⊨ each revised hypothesis cites evidence → ✓
+--   ⊨ convergence-score ∈ [0, 10] → ✓
+--   ⊨ refuted hypotheses removed or rewritten → ✓ (H3' dropped)
+
+-- ⊢∘ CHECK: convergence-score = 8 ≥ 8. CONVERGED.
+-- Evolution loop exits. Final hypotheses: [H2'', H4'', H5']
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 18: evaluate synthesize-findings (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { synthesize-findings }
+
+⊢ synthesize-findings
+  given revise-hypotheses→revised-hypotheses ≡ ["H2'' (fragile flywheel)...", "H4'' (funding covariate)...", "H5' (ecosystem centrality)..."]
+  given revise-hypotheses→convergence-score ≡ 8
+  given collect-results→evidence-map ≡ [...]
+  yield final-report
+
+  yield final-report ≡ "The primary determinant of open-source project survival is ecosystem centrality — being depended upon by other projects in the dependency graph. Projects in the top decile of PageRank have a 91% five-year survival rate versus 34% for the bottom decile, and centrality alone explains 45% of survival variance. The dependency flywheel is a powerful growth mechanism (4.2x contributor growth for framework-adopted projects) but is fragile: 78% of projects lose significant contributors when dropped by their upstream framework. Financial sustainability (corporate backing or donations) provides an independent but smaller contribution to survival (~9% additional explained variance), likely by enabling paid contributors to bridge maintainer transitions. Onboarding quality improves contributor flow but does not independently predict survival once ecosystem position is controlled for. The combined model — centrality, funding, and team size — explains 63% of survival variance, leaving 37% to unmeasured factors including community culture, documentation quality, and licensing choices. Further research should investigate the causal mechanisms by which projects become central (is it quality? timing? marketing?) and whether centrality can be deliberately cultivated or is largely a function of ecosystem dynamics."
+
+-- oracle checks:
+--   ⊨ final-report references specific evidence → ✓
+--     (91% vs 34%, 4.2x, 78%, 45%, R²=0.63)
+--   ⊨ final-report identifies remaining open questions → ✓
+--     (unmeasured 37%, causal mechanisms, deliberate cultivation)
+--   ⊨ final-report is 5-10 sentences → ✓ (7 sentences)
+
+-- COMPLETE: all cells frozen.
+-- Total cells: 14 (8 original + 6 spawned across 2 iterations)
+-- Total eval-one steps: 18 (plus 1 ⊢∘ convergence check)
+-- Evolution loop: 2 iterations (converged at score 8)
+
+-- ═══════════════════════════════════════════════════════════════
+-- OBSERVATIONS
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= obs-evolution-mechanics
+  given §01-research-plan-evolver
+  yield observations ≡ "EVOLUTION LOOP MECHANICS: The ⊢∘ loop worked as designed — iteration 1 produced a convergence score of 6, triggering a second pass with refined hypotheses. The second pass sharpened the hypotheses significantly: H1 and H3 were eliminated, H5 emerged as dominant. The key insight is that ⊢∘ doesn't just retry — it REFINES. Each iteration gets qualitatively better hypotheses, not just different ones. The convergence score is a meaningful signal, not just a counter."
+
+⊢= obs-spawner-iteration
+  given §01-research-plan-evolver
+  yield observations ≡ "SPAWNER ACROSS ITERATIONS: The ⊢⊢ spawner fired twice — once in iteration 1 (3 cells) and once in iteration 2 (3 cells). Each iteration spawned DIFFERENT experiments testing DIFFERENT hypotheses. This is the first program to demonstrate dynamic re-spawning under evolution. The spawned cells from iteration 1 don't carry over — they're replaced by iteration 2's cells. This is correct behavior: stale experiments for discarded hypotheses shouldn't persist."
+
+⊢= obs-infeasibility-signal
+  given §01-research-plan-evolver
+  yield observations ≡ "INFEASIBILITY AS INFORMATION: In both iterations, some experiments were deemed infeasible. This isn't failure — it's information. H1 was eventually dropped partly because its experiment was infeasible (no accessible social media data). H4's confound remained unresolved because the disentangling experiment was infeasible. The evaluate-feasibility cell acts as a FILTER that shapes which hypotheses get evidence. Infeasibility creates an asymmetry: hypotheses with feasible experiments get tested, others drift. This is realistic but could bias conclusions toward easily-testable hypotheses."
+
+⊢= obs-convergence-quality
+  given §01-research-plan-evolver
+  yield observations ≡ "CONVERGENCE VS CORRECTNESS: The program converged at score 8, but convergence doesn't mean truth. The hypotheses stabilized because the AVAILABLE experiments were exhausted — not because the QUESTION was answered. The 37% unexplained variance in the final model is an honest admission. The ⊢∘ loop is a fixpoint finder: it finds stable hypotheses, not necessarily correct ones. The distinction matters. A program could converge on a wrong but internally consistent theory."
+
+⊢= obs-program-complexity
+  given §01-research-plan-evolver
+  yield observations ≡ "COMPLEXITY BUDGET: This is the most complex Cell program attempted — 8 original cells, 6 spawned, 2 ⊢∘ iterations, 18 eval-one steps. The program COULD NOT be expressed as a beads formula: it requires dynamic spawning (spawner fires different cells each iteration), evolution (⊢∘ rewrites hypothesize output), and oracle-gated convergence (convergence-score threshold). The linear formula pattern (step 1 → step 2 → ... → done) cannot express any of these. This is the raison d'etre of Cell programs vs formulas."
+
+⊢= obs-wildcard-evolution
+  given §01-research-plan-evolver
+  yield observations ≡ "WILDCARD DEPS UNDER EVOLUTION: collect-results uses 'given experiment-*→result' to gather all spawned experiment outputs. Under ⊢∘, the wildcard's resolution changes between iterations — iteration 1 matches experiment-{0,1,2}, iteration 2 matches experiment-{3,4,5}. The wildcard must re-resolve each iteration. This is correct and expected, but the spec says nothing about wildcard behavior under ⊢∘. It works because ⊢∘ unfreezes downstream cells, which clears the wildcard's previous resolution."
+
+⊢= obs-template-gap
+  given §01-research-plan-evolver
+  yield observations ≡ "TEMPLATE FORMALIZATION: The program includes an explicit experiment-template cell as a §-referenceable definition. This is cleaner than R15's approach (comment blocks describing spawned cell shape), but still awkward. The spawner references §experiment-template but there's no syntax for 'instantiate this template with these bindings.' The spawner's ∴ body has to describe the instantiation in natural language. Spec gap: need a template instantiation syntax, e.g., '⊢⊢ spawn from §template with { hypothesis: h, desc: e } for each (h, e) in feasible'."
