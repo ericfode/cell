@@ -1,0 +1,385 @@
+-- 26-cell-zero-exerciser.cell
+-- Metacircular execution trace: cell-zero evaluating p1-parallel-confluence
+--
+-- This program feeds the p1-parallel-confluence program (5 cells: config,
+-- poet, scientist, child, combine) into cell-zero's eval-one kernel.
+-- Each frame traces one phase of cell-zero's evaluation loop applied to
+-- the target program.
+--
+-- Tests: § quotation (program-as-data), metacircular evaluation,
+--        confluence (3 independent cells ready simultaneously),
+--        hard vs soft cell distinction, oracle claim spawning
+--
+-- Key property demonstrated: cell-zero IS a Cell program evaluating
+-- another Cell program. The evaluation trace is itself a Cell document.
+
+-- ═══════════════════════════════════════════════════════════════
+-- INPUT: the target program as quoted data
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ target
+  yield §program
+
+  ⊢= §program ← §p1-parallel-confluence
+
+  ⊨ §program contains cells: config, poet, scientist, child, combine
+
+-- ═══════════════════════════════════════════════════════════════
+-- STEP 1: cell-zero.read-graph — parse the target into graph data
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ invoke-read-graph
+  given §cell-zero.read-graph
+  given target→§program
+  yield cells[], edges[]
+
+  ∴ Apply cell-zero's read-graph to «target→§program».
+    Parse all ⊢ declarations into cells.
+    Extract all given cell→output edges.
+
+  ⊨ cells = [config, poet, scientist, child, combine]
+  ⊨ edges = [
+    (config→topic, poet),
+    (config→topic, scientist),
+    (config→topic, child),
+    (poet→poem, combine),
+    (scientist→fact, combine),
+    (child→question, combine)
+  ]
+
+-- ═══════════════════════════════════════════════════════════════
+-- STEP 2: cell-zero.check-inputs — find the ready set
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ invoke-check-inputs-0
+  given invoke-read-graph→cells
+  given invoke-read-graph→edges
+  given target→§program
+  yield ready-cells-0[], blocked-cells-0[]
+
+  ∴ Apply cell-zero's check-inputs.
+    config has given topic ≡ "the moon" — all givens bound.
+    poet, scientist, child depend on config→topic — BLOCKED.
+    combine depends on all three — BLOCKED.
+
+  ⊨ ready-cells-0 = [config]
+  ⊨ blocked-cells-0 = [poet, scientist, child, combine]
+
+-- ═══════════════════════════════════════════════════════════════
+-- STEP 3: cell-zero.pick-cell → config (only ready cell)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= pick-cell-0
+  given invoke-check-inputs-0→ready-cells-0
+  yield §target-0
+
+  ⊢= §target-0 ← config
+
+  ⊨ §target-0 ∈ ready-cells-0
+
+-- ═══════════════════════════════════════════════════════════════
+-- STEP 4: cell-zero.evaluate → config is a pass-through
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= evaluate-config
+  given pick-cell-0→§target-0
+  yield tentative-outputs-0[]
+
+  ⊢= tentative-outputs-0 ← [topic ≡ "the moon"]
+
+  ⊨ |tentative-outputs-0| = |config.yields|
+  ⊨ topic = "the moon"
+
+-- ═══════════════════════════════════════════════════════════════
+-- STEP 5: cell-zero.spawn-claims → one oracle on config
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ spawn-claims-0
+  given evaluate-config→tentative-outputs-0
+  given pick-cell-0→§target-0
+  yield §claim-cells-0[]
+
+  ∴ config has one oracle: ⊨ topic is a noun phrase.
+    Spawn one claim cell that checks "the moon" is a noun phrase.
+
+  ⊨ |§claim-cells-0| = 1
+
+⊢ check-claims-0
+  given spawn-claims-0→§claim-cells-0
+  yield all-pass-0, failed-oracles-0[]
+
+  ∴ Evaluate the claim: is "the moon" a noun phrase? Yes — article + noun.
+
+  ⊢= all-pass-0 ← true
+  ⊢= failed-oracles-0 ← []
+
+-- ═══════════════════════════════════════════════════════════════
+-- STEP 6: cell-zero.decide → FREEZE config
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= decide-0
+  given check-claims-0→all-pass-0
+  yield action-0
+
+  ⊢= action-0 ← "freeze"
+
+  ⊨ action-0 = "freeze"
+
+-- ═══════════════════════════════════════════════════════════════
+-- STATE AFTER EVAL-ONE STEP 0: config frozen
+-- Ready set: { poet, scientist, child } — CONFLUENCE!
+-- Blocked: { combine }
+-- ═══════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════
+-- STEP 7: check-inputs again — three cells ready simultaneously
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ invoke-check-inputs-1
+  given invoke-read-graph→cells
+  given invoke-read-graph→edges
+  yield ready-cells-1[], blocked-cells-1[]
+
+  ∴ config is frozen with topic ≡ "the moon".
+    poet, scientist, child each depend only on config→topic — all READY.
+    combine depends on all three outputs — still BLOCKED.
+
+    CONFLUENCE POINT: any ordering of {poet, scientist, child}
+    produces the same final state. cell-zero can pick any one.
+
+  ⊨ ready-cells-1 = [poet, scientist, child]
+  ⊨ blocked-cells-1 = [combine]
+
+-- ═══════════════════════════════════════════════════════════════
+-- STEP 8: pick-cell → poet (leaf-first heuristic, all equivalent)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= pick-cell-1
+  given invoke-check-inputs-1→ready-cells-1
+  yield §target-1
+
+  ⊢= §target-1 ← poet
+
+  ⊨ §target-1 ∈ ready-cells-1
+
+-- ═══════════════════════════════════════════════════════════════
+-- STEP 9: evaluate poet — soft cell, requires LLM
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ evaluate-poet
+  given pick-cell-1→§target-1
+  yield tentative-outputs-1[]
+
+  ∴ Evaluate poet's ∴ body: "Write a haiku about «config→topic»"
+    where config→topic ≡ "the moon".
+
+    Simulated LLM output (haiku, 5-7-5):
+
+  ⊢= tentative-outputs-1 ← [poem ≡ "Silver crescent glows\nAbove the whispering pines\nNight breathes, soft and still"]
+
+  ⊨ |tentative-outputs-1| = 1
+
+⊢ spawn-claims-1
+  given evaluate-poet→tentative-outputs-1
+  given pick-cell-1→§target-1
+  yield §claim-cells-1[]
+
+  ∴ poet has two oracles:
+    ⊨ poem is exactly 3 lines
+    ⊨ poem follows 5-7-5 syllable pattern
+    Spawn two claim cells.
+
+  ⊨ |§claim-cells-1| = 2
+
+⊢ check-claims-1
+  given spawn-claims-1→§claim-cells-1
+  yield all-pass-1, failed-oracles-1[]
+
+  ∴ Claim 1: "Silver crescent glows / Above the whispering pines / Night breathes, soft and still"
+    — 3 lines (\n separated) → ✓
+    Claim 2: syllables — Sil-ver cres-cent glows (5), A-bove the whis-per-ing pines (7),
+    Night breathes, soft and still (5) → ✓
+
+  ⊢= all-pass-1 ← true
+  ⊢= failed-oracles-1 ← []
+
+⊢= decide-1
+  given check-claims-1→all-pass-1
+  yield action-1
+
+  ⊢= action-1 ← "freeze"
+
+-- ═══════════════════════════════════════════════════════════════
+-- STATE AFTER EVAL-ONE STEP 1: poet frozen
+-- Ready set: { scientist, child }
+-- Blocked: { combine }
+-- ═══════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════
+-- STEP 10: evaluate scientist — soft cell, LLM
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= pick-cell-2
+  given invoke-check-inputs-1→ready-cells-1
+  yield §target-2
+
+  ⊢= §target-2 ← scientist
+
+⊢ evaluate-scientist
+  given pick-cell-2→§target-2
+  yield tentative-outputs-2[]
+
+  ∴ Evaluate scientist's ∴ body: "State one surprising scientific fact
+    about «config→topic» in a single sentence."
+
+    Simulated LLM output:
+
+  ⊢= tentative-outputs-2 ← [fact ≡ "The Moon is drifting away from Earth at a rate of approximately 3.8 centimeters per year."]
+
+  ⊨ |tentative-outputs-2| = 1
+
+⊢ check-claims-2
+  given evaluate-scientist→tentative-outputs-2
+  yield all-pass-2, failed-oracles-2[]
+
+  ∴ Claim 1: fact is one sentence → ✓ (single period at end)
+    Claim 2: fact is factually accurate → ✓ (confirmed: lunar recession ≈ 3.8 cm/year)
+
+  ⊢= all-pass-2 ← true
+  ⊢= failed-oracles-2 ← []
+
+⊢= decide-2
+  given check-claims-2→all-pass-2
+  yield action-2
+
+  ⊢= action-2 ← "freeze"
+
+-- ═══════════════════════════════════════════════════════════════
+-- STATE AFTER EVAL-ONE STEP 2: scientist frozen
+-- Ready set: { child }
+-- Blocked: { combine }
+-- ═══════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════
+-- STEP 11: evaluate child — soft cell, LLM
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= pick-cell-3
+  yield §target-3
+
+  ⊢= §target-3 ← child
+
+⊢ evaluate-child
+  given pick-cell-3→§target-3
+  yield tentative-outputs-3[]
+
+  ∴ Evaluate child's ∴ body: "Ask a question about «config→topic»
+    the way a curious 5-year-old would."
+
+    Simulated LLM output:
+
+  ⊢= tentative-outputs-3 ← [question ≡ "Why does the moon follow me when I walk?"]
+
+  ⊨ |tentative-outputs-3| = 1
+
+⊢ check-claims-3
+  given evaluate-child→tentative-outputs-3
+  yield all-pass-3, failed-oracles-3[]
+
+  ∴ Claim 1: question ends with "?" → ✓
+    Claim 2: question uses simple vocabulary → ✓
+    ("follow", "walk", "why", "moon" — all simple words)
+
+  ⊢= all-pass-3 ← true
+  ⊢= failed-oracles-3 ← []
+
+⊢= decide-3
+  given check-claims-3→all-pass-3
+  yield action-3
+
+  ⊢= action-3 ← "freeze"
+
+-- ═══════════════════════════════════════════════════════════════
+-- STATE AFTER EVAL-ONE STEP 3: child frozen
+-- Ready set: { combine } — all inputs now bound!
+-- Blocked: { } — empty
+-- ═══════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════
+-- STEP 12: evaluate combine — hard cell (⊢=), deterministic
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= pick-cell-4
+  yield §target-4
+
+  ⊢= §target-4 ← combine
+
+⊢= evaluate-combine
+  given pick-cell-4→§target-4
+  yield tentative-outputs-4[]
+
+  ⊢= tentative-outputs-4 ← [document ≡ "POEM:\nSilver crescent glows\nAbove the whispering pines\nNight breathes, soft and still\n\nFACT:\nThe Moon is drifting away from Earth at a rate of approximately 3.8 centimeters per year.\n\nQUESTION:\nWhy does the moon follow me when I walk?"]
+
+  ⊨ document contains poet→poem
+  ⊨ document contains scientist→fact
+  ⊨ document contains child→question
+
+⊢ check-claims-4
+  given evaluate-combine→tentative-outputs-4
+  yield all-pass-4, failed-oracles-4[]
+
+  ∴ Claim: document contains all three inputs → ✓
+    - "Silver crescent glows" present (poet→poem) ✓
+    - "Moon is drifting away" present (scientist→fact) ✓
+    - "moon follow me when I walk?" present (child→question) ✓
+
+  ⊢= all-pass-4 ← true
+  ⊢= failed-oracles-4 ← []
+
+⊢= decide-4
+  given check-claims-4→all-pass-4
+  yield action-4
+
+  ⊢= action-4 ← "freeze"
+
+-- ═══════════════════════════════════════════════════════════════
+-- QUIESCENCE: all cells frozen, ready set empty
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ invoke-check-inputs-final
+  given invoke-read-graph→cells
+  yield ready-cells-final[], blocked-cells-final[]
+
+  ∴ All five cells are frozen. No cells remain ready. Quiesce.
+
+  ⊨ ready-cells-final = []
+  ⊨ blocked-cells-final = []
+
+-- ═══════════════════════════════════════════════════════════════
+-- OBSERVATIONS
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= obs-metacircular
+  yield observation
+
+  ⊢= observation ← "cell-zero's eval-one loop executed p1-parallel-confluence in 5 frames. Each frame corresponds to one complete cycle of cell-zero's phases: read-graph → check-inputs → pick-cell → evaluate → spawn-claims → check-claims → decide."
+
+⊢= obs-confluence
+  yield observation
+
+  ⊢= observation ← "After config froze (frame 0), three cells became ready simultaneously: {poet, scientist, child}. Confluence guarantees any execution order among them produces the same final document. We chose poet → scientist → child, but scientist → child → poet or any permutation yields identical combine→document."
+
+⊢= obs-soft-vs-hard
+  yield observation
+
+  ⊢= observation ← "Soft cells (poet, scientist, child) required LLM evaluation of ∴ bodies. Hard cells (config, combine) used ⊢= for deterministic computation. cell-zero's evaluate phase dispatches correctly based on cell type — this is the fusion property."
+
+⊢= obs-oracle-protocol
+  yield observation
+
+  ⊢= observation ← "Each eval-one step spawned claim cells from the target cell's ⊨ oracles. 10 total oracle checks across 5 frames: config(1), poet(2), scientist(2), child(2), combine(1). All passed — no retries needed. The claim cell protocol verified tentative outputs before freezing."
+
+⊢= obs-state-progression
+  yield observation
+
+  ⊢= observation ← "State transitions: h0(nothing frozen) → h1(config) → h2(config,poet) → h3(config,poet,scientist) → h4(config,poet,scientist,child) → h5(all frozen, quiescent). Each transition is a content-addressable hash step. The document IS the state."
