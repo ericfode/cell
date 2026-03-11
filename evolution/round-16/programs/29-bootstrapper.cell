@@ -1,0 +1,204 @@
+-- 29-bootstrapper.cell
+-- Start with ZERO cells. Meta-cell bootstraps an entire program from a problem
+-- statement, spawning cells on demand via ⊢⊢ until the problem is solved.
+--
+-- Tests: ⊢⊢ spawner as sole execution strategy, ⊢∘ evolution loop for
+--        iterative problem-solving, § quotation for dynamic cell creation,
+--        meta-level reasoning (deciding WHAT cells to create), oracle-gated
+--        completion detection
+--
+-- Key insight: the program doesn't know its own structure at write time.
+-- The meta-cell reads the problem, decides what's needed, and builds the
+-- program incrementally. This is Cell's bootstrap sequence in miniature.
+--
+-- Problem: "Plan a weekend trip to Tokyo for someone who loves ramen
+-- and architecture."
+
+⊢ problem
+  given statement ≡ "Plan a weekend trip to Tokyo for someone who loves ramen and architecture."
+  yield statement
+
+  ⊨ statement is a concrete problem that requires multi-step reasoning
+
+-- ═══════════════════════════════════════════════════════════════
+-- THE META-CELL: reads problem, decides what cells are needed
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ analyze-problem
+  given problem→statement
+  yield needed-cells[], rationale
+
+  ∴ Read «problem→statement» carefully. You are bootstrapping a Cell program
+    from scratch — there are currently ZERO domain cells. Decide what
+    processing stages are needed to solve this problem:
+
+    - What information needs to be gathered? (research cells)
+    - What decisions need to be made? (planning cells)
+    - What outputs need to be produced? (synthesis cells)
+    - What quality checks are needed? (validation cells)
+
+    For each needed cell, specify:
+      name: a descriptive kebab-case name
+      type: research | planning | synthesis | validation
+      purpose: one sentence describing what it does
+      inputs: what it needs from other cells (or "none" for root cells)
+      outputs: what it produces
+
+    Also provide rationale explaining why this set of cells is sufficient
+    to solve the problem.
+
+  ⊨ length(needed-cells) ≥ 3
+  ⊨ needed-cells includes at least one research cell
+  ⊨ needed-cells includes at least one synthesis cell
+  ⊨ needed-cells dataflow forms a DAG (no cycles)
+  ⊨ needed-cells collectively address the full problem
+
+-- ═══════════════════════════════════════════════════════════════
+-- SPAWNER: creates the cells that analyze-problem decided on
+-- ═══════════════════════════════════════════════════════════════
+
+⊢⊢ spawn-domain-cells
+  given analyze-problem→needed-cells
+  given §cell-template
+  yield §domain-cells[]
+  until length(domain-cells) = length(analyze-problem→needed-cells)
+  max 10
+
+  ∴ For each cell specification in «analyze-problem→needed-cells», instantiate
+    a concrete Cell declaration from «§cell-template». Wire the given/yield
+    lines according to the inputs/outputs specified. Use ∴ for soft cells
+    (research, planning, synthesis) and ⊢= where deterministic logic suffices
+    (validation with checkable criteria). Each spawned cell must have at least
+    one ⊨ oracle assertion.
+
+  ⊨ one domain-cell per needed-cell specification
+  ⊨ every domain-cell has at least one ⊨ assertion
+
+⊢ cell-template
+  given task-description
+  given dependencies[]
+  yield result
+
+  ∴ Execute «task-description» using «dependencies» as context.
+
+  ⊨ result addresses «task-description» completely
+
+-- ═══════════════════════════════════════════════════════════════
+-- INTEGRATION: collects results from all spawned cells
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ integrate-results
+  given domain-cells-*→result
+  given problem→statement
+  yield solution, completeness-score
+
+  ∴ Read all results from the spawned domain cells. Synthesize them into
+    a coherent solution to «problem→statement».
+
+    The solution should be a complete, actionable plan that:
+    - Addresses every aspect of the original problem
+    - Integrates all the research, planning, and synthesis outputs
+    - Is internally consistent (no contradictions between parts)
+
+    Also assess completeness: on a scale of 1-10, how well does this
+    solution address the problem? Score below 7 = needs more work.
+
+  ⊨ solution is a coherent, actionable response to the problem
+  ⊨ completeness-score is a number between 1 and 10
+  ⊨ solution references specific details (not generic platitudes)
+
+-- ═══════════════════════════════════════════════════════════════
+-- GAP ANALYSIS: identifies what's missing, spawns more if needed
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ identify-gaps
+  given integrate-results→solution
+  given integrate-results→completeness-score
+  given problem→statement
+  yield gaps[], needs-more-cells
+
+  ∴ Review «integrate-results→solution» against «problem→statement».
+    Completeness score: «integrate-results→completeness-score».
+
+    If completeness-score < 7, identify specific gaps:
+    - Missing information (things not researched)
+    - Missing logistics (things not planned)
+    - Missing synthesis (connections not made)
+
+    For each gap, describe what additional cell would fill it.
+    Set needs-more-cells = true if any gaps found, false otherwise.
+
+  ⊨ if completeness-score < 7 then needs-more-cells = true
+  ⊨ if needs-more-cells then length(gaps) ≥ 1
+  ⊨ each gap specifies what additional cell would address it
+
+⊢⊢ spawn-gap-fillers
+  given identify-gaps→gaps
+  given identify-gaps→needs-more-cells
+  given §cell-template
+  yield §gap-cells[]
+  until needs-more-cells = false ∨ length(gap-cells) = length(identify-gaps→gaps)
+  max 5
+
+  ∴ If «identify-gaps→needs-more-cells» is true, for each gap in
+    «identify-gaps→gaps», spawn a cell to fill it. Otherwise, spawn nothing.
+
+  ⊨ if needs-more-cells then one gap-cell per gap
+  ⊨ if not needs-more-cells then gap-cells is empty
+
+-- ═══════════════════════════════════════════════════════════════
+-- FINAL SYNTHESIS: produces the complete answer
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ final-synthesis
+  given integrate-results→solution
+  given gap-cells-*→result
+  given problem→statement
+  yield final-plan
+
+  ∴ Combine the initial solution «integrate-results→solution» with any
+    gap-filler results «gap-cells-*→result» into a final, polished plan
+    for «problem→statement».
+
+    The final plan should be:
+    - Complete (covers all aspects of the problem)
+    - Specific (names real places, gives real times, real prices)
+    - Actionable (a person could follow this plan as-is)
+    - Personalized (reflects the stated preferences: ramen + architecture)
+
+  ⊨ final-plan is a complete weekend trip itinerary
+  ⊨ final-plan includes specific ramen restaurants
+  ⊨ final-plan includes specific architectural landmarks
+  ⊨ final-plan covers both Saturday and Sunday
+  ⊨ final-plan includes practical logistics (transit, timing, costs)
+
+-- ═══════════════════════════════════════════════════════════════
+-- EVOLUTION LOOP: refine the bootstrap cycle
+-- ═══════════════════════════════════════════════════════════════
+
+⊢∘ evolve(analyze-problem, problem→statement)
+  through identify-gaps, analyze-problem
+  until identify-gaps→needs-more-cells = false
+  max 3
+
+  -- Each iteration: analyze-problem decides what's needed →
+  -- spawn-domain-cells creates them → integrate-results combines →
+  -- identify-gaps checks completeness → if gaps found, analyze-problem
+  -- re-runs with awareness of what was missing. The program GROWS
+  -- itself until the problem is solved.
+
+-- ═══════════════════════════════════════════════════════════════
+-- OBSERVATIONS
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= obs-bootstrap-from-zero
+  ∴ "The bootstrapper starts with zero domain knowledge. The meta-cell (analyze-problem) is the only cell that knows Cell syntax — it reads the problem and decides what cells to create. This mirrors Cell's own bootstrap: the spec defines syntax, the LLM executes first cells, then the system grows itself."
+
+⊢= obs-spawner-as-strategy
+  ∴ "⊢⊢ is not just parallelism — it's the bootstrapper's primary execution strategy. Without spawning, the program has no domain cells at all. The spawner IS the program's growth mechanism."
+
+⊢= obs-evolution-as-completeness
+  ∴ "⊢∘ here doesn't improve quality of a fixed output — it grows the program's STRUCTURE. Each iteration may add new cells. The evolution loop converges when the gap analysis finds nothing missing, not when a quality threshold is met."
+
+⊢= obs-meta-level-separation
+  ∴ "Clean separation: analyze-problem reasons ABOUT what cells to create (meta-level). The spawned cells reason WITHIN their domain (object-level). The meta-cell never does domain work directly. The domain cells don't know they were bootstrapped."

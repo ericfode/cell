@@ -1,0 +1,794 @@
+-- 29-bootstrapper-frames.cell
+-- Execution trace of 29-bootstrapper.cell via eval-one
+--
+-- Problem: "Plan a weekend trip to Tokyo for someone who loves ramen
+-- and architecture."
+--
+-- Key: This program starts with ZERO domain cells. The meta-cell analyzes
+-- the problem, spawns domain cells via ⊢⊢, they execute, results integrate,
+-- gaps identified, more cells spawned if needed. The program builds itself.
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 0: evaluate problem (trivial pass-through)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { problem }
+-- Blocked: { analyze-problem } — needs problem→statement
+-- Blocked: everything else — transitive
+
+⊢ problem
+  given statement ≡ "Plan a weekend trip to Tokyo for someone who loves ramen and architecture."
+  yield statement
+
+-- eval-one: problem is a pass-through. statement already bound via given ≡.
+
+  yield statement ≡ "Plan a weekend trip to Tokyo for someone who loves ramen and architecture."
+
+-- oracle check:
+--   ⊨ statement is a concrete problem that requires multi-step reasoning → ✓
+--     (trip planning requires research, logistics, personalization)
+
+-- state after frame 0: problem frozen.
+-- Ready set: { analyze-problem }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 1: evaluate analyze-problem (soft cell, LLM) — ⊢∘ ITERATION 1
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { analyze-problem }
+-- Blocked: { spawn-domain-cells } — needs analyze-problem→needed-cells
+-- Blocked: everything downstream — transitive
+--
+-- This is the BOOTSTRAP MOMENT. Zero domain cells exist. The meta-cell
+-- must decide from scratch what processing is needed.
+
+⊢ analyze-problem
+  given problem→statement ≡ "Plan a weekend trip to Tokyo for someone who loves ramen and architecture."
+  yield needed-cells[], rationale
+
+-- LLM evaluation:
+
+  yield needed-cells ≡ [
+    {
+      name: "research-ramen",
+      type: "research",
+      purpose: "Find the best ramen restaurants in Tokyo, covering different styles (tonkotsu, shoyu, miso, tsukemen) and neighborhoods.",
+      inputs: "none",
+      outputs: "ramen-spots[]"
+    },
+    {
+      name: "research-architecture",
+      type: "research",
+      purpose: "Identify notable architectural landmarks in Tokyo — traditional temples, modern skyscrapers, famous buildings by renowned architects (Ando, Kuma, Tange).",
+      inputs: "none",
+      outputs: "architecture-spots[]"
+    },
+    {
+      name: "research-logistics",
+      type: "research",
+      purpose: "Gather practical info: Tokyo transit system (Suica card, JR lines, Metro), typical costs, neighborhood geography, weekend timing considerations.",
+      inputs: "none",
+      outputs: "logistics-info"
+    },
+    {
+      name: "plan-day-saturday",
+      type: "planning",
+      purpose: "Build Saturday itinerary combining ramen and architecture spots with transit routing.",
+      inputs: "research-ramen→ramen-spots, research-architecture→architecture-spots, research-logistics→logistics-info",
+      outputs: "saturday-plan"
+    },
+    {
+      name: "plan-day-sunday",
+      type: "planning",
+      purpose: "Build Sunday itinerary for remaining spots, with different neighborhood focus than Saturday.",
+      inputs: "research-ramen→ramen-spots, research-architecture→architecture-spots, research-logistics→logistics-info, plan-day-saturday→saturday-plan",
+      outputs: "sunday-plan"
+    },
+    {
+      name: "synthesize-itinerary",
+      type: "synthesis",
+      purpose: "Combine both days into a complete weekend itinerary with practical tips, budget estimate, and alternatives.",
+      inputs: "plan-day-saturday→saturday-plan, plan-day-sunday→sunday-plan, research-logistics→logistics-info",
+      outputs: "full-itinerary"
+    }
+  ]
+
+  yield rationale ≡ "The problem requires three research streams (ramen, architecture, logistics) that can run in parallel — these are root cells with no dependencies. Two planning cells sequence the days (Sunday depends on Saturday to avoid duplication). One synthesis cell combines everything. This gives complete coverage: what to see, what to eat, how to get around, and practical details."
+
+-- oracle checks:
+--   ⊨ length(needed-cells) ≥ 3 → ✓ (6 cells)
+--   ⊨ needed-cells includes at least one research cell → ✓ (3 research cells)
+--   ⊨ needed-cells includes at least one synthesis cell → ✓ (synthesize-itinerary)
+--   ⊨ needed-cells dataflow forms a DAG → ✓
+--     research-ramen, research-architecture, research-logistics (roots)
+--     → plan-day-saturday → plan-day-sunday → synthesize-itinerary
+--   ⊨ needed-cells collectively address the full problem → ✓
+--     ramen ✓, architecture ✓, logistics ✓, both days ✓, integration ✓
+
+-- state after frame 1: analyze-problem frozen.
+-- Ready set: { spawn-domain-cells }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 2: evaluate spawn-domain-cells (⊢⊢ spawner)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { spawn-domain-cells }
+-- Blocked: { integrate-results } — needs domain-cells-*→result
+--
+-- The spawner creates 6 new cells. The program GROWS from 4 cells
+-- (problem, analyze-problem, cell-template, integrate-results + meta)
+-- to 10 cells. This is the bootstrap in action.
+
+⊢⊢ spawn-domain-cells
+  given analyze-problem→needed-cells ≡ [... 6 cell specs ...]
+  given §cell-template
+  yield §domain-cells[]
+
+-- eval-one: spawner instantiates 6 cells from cell-template.
+-- Each cell is wired per the needed-cells specification.
+
+-- SPAWNED: research-ramen (root cell, no dependencies)
+
+⊢ research-ramen
+  given task-description ≡ "Find the best ramen restaurants in Tokyo, covering different styles (tonkotsu, shoyu, miso, tsukemen) and neighborhoods."
+  given dependencies ≡ []
+  yield result
+
+  ∴ Research top ramen restaurants in Tokyo. Cover:
+    - Different ramen styles: tonkotsu (pork bone), shoyu (soy sauce), miso, shio (salt), tsukemen (dipping)
+    - Different neighborhoods: Shinjuku, Shibuya, Ikebukuro, Roppongi, Asakusa
+    - Include both famous chains and hidden gems
+    - Note approximate price range and any queueing expectations
+
+  ⊨ result includes at least 6 specific restaurants with names and neighborhoods
+  ⊨ result covers at least 3 different ramen styles
+
+-- SPAWNED: research-architecture (root cell, no dependencies)
+
+⊢ research-architecture
+  given task-description ≡ "Identify notable architectural landmarks in Tokyo — traditional temples, modern skyscrapers, famous buildings by renowned architects (Ando, Kuma, Tange)."
+  given dependencies ≡ []
+  yield result
+
+  ∴ Research architecturally significant buildings and sites in Tokyo. Cover:
+    - Traditional: temples, shrines, gardens with notable architecture
+    - Modern: skyscrapers, museums, cultural centers by famous architects
+    - Architects: Tadao Ando, Kengo Kuma, Kenzo Tange, SANAA, Toyo Ito
+    - Include opening hours and any admission fees
+
+  ⊨ result includes at least 8 specific sites with architect attribution where applicable
+  ⊨ result covers both traditional and modern architecture
+
+-- SPAWNED: research-logistics (root cell, no dependencies)
+
+⊢ research-logistics
+  given task-description ≡ "Gather practical info: Tokyo transit system (Suica card, JR lines, Metro), typical costs, neighborhood geography, weekend timing considerations."
+  given dependencies ≡ []
+  yield result
+
+  ∴ Research practical logistics for a Tokyo weekend trip:
+    - Transit: Suica/Pasmo IC cards, JR Yamanote line, Tokyo Metro, cost per ride
+    - Neighborhoods: relative locations, walking distances, key stations
+    - Weekend specifics: which attractions are less crowded on weekends, typical shop hours
+    - Budget: typical meal costs, transit day costs, admission fees
+
+  ⊨ result includes transit system overview with specific lines and costs
+  ⊨ result includes neighborhood geography useful for route planning
+
+-- SPAWNED: plan-day-saturday
+
+⊢ plan-day-saturday
+  given research-ramen→result
+  given research-architecture→result
+  given research-logistics→result
+  yield result
+
+  ∴ Build a Saturday itinerary combining ramen and architecture:
+    - Morning: start with an architectural site that opens early
+    - Lunch: a top ramen spot nearby
+    - Afternoon: 2-3 more architectural sites in a walkable cluster
+    - Dinner: another ramen restaurant, different style from lunch
+    - Include specific transit directions between stops
+    - Focus on one or two neighborhoods to minimize travel time
+
+  ⊨ result is a time-sequenced itinerary (morning → evening)
+  ⊨ result includes at least 2 ramen meals and 3 architectural sites
+  ⊨ result includes transit directions between each stop
+
+-- SPAWNED: plan-day-sunday
+
+⊢ plan-day-sunday
+  given research-ramen→result
+  given research-architecture→result
+  given research-logistics→result
+  given plan-day-saturday→result
+  yield result
+
+  ∴ Build a Sunday itinerary that complements Saturday:
+    - Choose DIFFERENT neighborhoods than Saturday
+    - Cover ramen styles not yet tried
+    - Visit architectural sites not yet seen
+    - Account for Sunday-specific hours (some shrines busier, some shops closed)
+    - Include a leisurely breakfast spot or morning activity
+    - End at a reasonable time for departure
+
+  ⊨ result does not duplicate any Saturday venues
+  ⊨ result covers different neighborhoods than Saturday
+  ⊨ result includes at least 1 ramen meal and 2 architectural sites
+
+-- SPAWNED: synthesize-itinerary
+
+⊢ synthesize-itinerary
+  given plan-day-saturday→result
+  given plan-day-sunday→result
+  given research-logistics→result
+  yield result
+
+  ∴ Combine Saturday and Sunday into a polished weekend itinerary:
+    - Full schedule with times for both days
+    - Total budget estimate
+    - Packing/preparation tips
+    - Alternative options if weather is bad or a spot is closed
+    - A "best of" summary for someone short on time
+
+  ⊨ result is a complete, ready-to-use weekend itinerary
+  ⊨ result includes budget estimate
+  ⊨ result includes contingency alternatives
+
+-- spawner oracle checks:
+--   ⊨ one domain-cell per needed-cell specification → ✓ (6 specs → 6 cells)
+--   ⊨ every domain-cell has at least one ⊨ assertion → ✓ (all 6 have oracles)
+
+-- state after frame 2: spawn-domain-cells frozen. 6 new cells added to frontier.
+-- Ready set: { research-ramen, research-architecture, research-logistics }
+-- (all three root research cells are ready — no dependencies)
+-- Blocked: { plan-day-saturday } — needs all three research results
+-- Blocked: { plan-day-sunday } — needs research + saturday
+-- Blocked: { synthesize-itinerary } — needs both day plans + logistics
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 3: evaluate research-ramen (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { research-ramen, research-architecture, research-logistics }
+-- Pick: research-ramen (confluence — any order valid)
+
+⊢ research-ramen
+  given task-description ≡ "Find the best ramen restaurants in Tokyo..."
+  given dependencies ≡ []
+  yield result
+
+-- LLM evaluation:
+
+  yield result ≡ "Top Tokyo Ramen Restaurants:
+
+1. Fuunji (Shinjuku) — TSUKEMEN. Legendary dipping noodles. Rich fish + pork broth. ¥1,000. Expect 20-30min queue.
+2. Ichiran (Shibuya/Shinjuku/multiple) — TONKOTSU. Solo booth dining, customizable richness/noodle firmness. ¥980. Open 24hrs.
+3. Afuri (Ebisu/Roppongi) — SHIO (yuzu salt). Light, citrusy broth. Modern interior. ¥1,100. Less queue than others.
+4. Rokurinsha (Tokyo Station) — TSUKEMEN. Thick, chewy noodles in concentrated broth. ¥1,050. Ramen Street underground.
+5. Menya Musashi (Shinjuku) — TONKOTSU SHOYU blend. Dual-soup style. ¥950. Near west exit.
+6. Soranoiro (Tokyo Station) — VEGAN option available. Creative modern ramen. ¥1,200. Ramen Street.
+7. Fuji Ramen (Asakusa) — SHOYU. Old-school Tokyo-style. Simple, clean flavors. ¥850. No queue on weekends.
+8. Tsuta (Sugamo) — SHOYU. First Michelin-starred ramen. Truffle oil accent. ¥1,500. Reservation system.
+
+Price range: ¥850-1,500 per bowl (~$6-10 USD). Most shops are counter-only, 10-20 seats."
+
+-- oracle checks:
+--   ⊨ result includes at least 6 specific restaurants with names and neighborhoods → ✓ (8 restaurants, all with neighborhoods)
+--   ⊨ result covers at least 3 different ramen styles → ✓ (tsukemen, tonkotsu, shio, tonkotsu shoyu, shoyu, vegan — 6 styles)
+
+-- state after frame 3: research-ramen frozen.
+-- Ready set: { research-architecture, research-logistics }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 4: evaluate research-architecture (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { research-architecture, research-logistics }
+-- Pick: research-architecture
+
+⊢ research-architecture
+  given task-description ≡ "Identify notable architectural landmarks in Tokyo..."
+  given dependencies ≡ []
+  yield result
+
+-- LLM evaluation:
+
+  yield result ≡ "Notable Tokyo Architecture:
+
+MODERN:
+1. 21_21 Design Sight (Roppongi) — Tadao Ando. Sunken concrete gallery. ¥1,200. Closed Tues.
+2. Nezu Museum (Omotesando) — Kengo Kuma. Bamboo façade, stunning garden. ¥1,300. Closed Mon.
+3. National Art Center Tokyo (Roppongi) — Kisho Kurokawa. Undulating glass curtain wall. Free entry (exhibitions vary). Closed Tues.
+4. Tokyo International Forum (Yurakucho) — Rafael Viñoly. Ship-hull glass atrium. Free to enter.
+5. Prada Aoyama (Omotesando) — Herzog & de Meuron. Diamond-grid glass façade. Free (retail).
+6. Tokyo Skytree (Sumida) — Nikken Sekkei. 634m, neo-futuristic. ¥2,100-3,100. Open daily.
+7. Nakagin Capsule Tower site (Ginza) — Kisho Kurokawa (demolished 2022, memorial plaque). Free.
+8. teamLab Borderless (Azabudai Hills) — Digital art in Mori Building. ¥3,800. Open daily.
+
+TRADITIONAL:
+9. Senso-ji (Asakusa) — Tokyo's oldest temple, 7th century. Thunder Gate (Kaminarimon). Free. Opens 6am.
+10. Meiji Jingu (Harajuku) — Shinto shrine in forest. Cypress wood torii gate. Free. Opens at sunrise.
+11. Tokyo National Museum (Ueno) — Taniguchi Yoshiro main building, Imperial Crown style. ¥1,000. Closed Mon.
+12. Nezu Shrine (Yanaka) — 1706, vermillion torii tunnel. Free. Quiet alternative to tourist shrines.
+
+NEIGHBORHOODS FOR ARCHITECTURE WALKS:
+- Omotesando: 'Champs-Élysées of Tokyo' — Ando, Kuma, SANAA, Ito all have buildings on one street
+- Roppongi: Art Triangle (National Art Center, Mori Art Museum, Suntory Museum)
+- Asakusa/Sumida: Traditional + Skytree contrast"
+
+-- oracle checks:
+--   ⊨ result includes at least 8 specific sites with architect attribution → ✓ (12 sites, architects named for most)
+--   ⊨ result covers both traditional and modern architecture → ✓ (8 modern, 4 traditional)
+
+-- state after frame 4: research-architecture frozen.
+-- Ready set: { research-logistics }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 5: evaluate research-logistics (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { research-logistics }
+-- Blocked: { plan-day-saturday } — needs all three research results (now 2/3 ready)
+-- After this frame, plan-day-saturday becomes ready.
+
+⊢ research-logistics
+  given task-description ≡ "Gather practical info: Tokyo transit system..."
+  given dependencies ≡ []
+  yield result
+
+-- LLM evaluation:
+
+  yield result ≡ "Tokyo Weekend Logistics:
+
+TRANSIT:
+- Get a Suica or Pasmo IC card at any station (¥500 deposit + charge). Tap on/off everywhere.
+- JR Yamanote Line: circular loop connecting Shinjuku, Shibuya, Harajuku, Tokyo, Ueno, Ikebukuro. ¥150-200 per ride.
+- Tokyo Metro: 13 lines covering inner city. ¥170-320 per ride. 24-hour weekend pass: ¥600.
+- JR + Metro day pass combo: not available. Use IC card — simpler.
+- Google Maps works perfectly for Tokyo transit. Real-time, accurate.
+- Last trains: ~midnight. First trains: ~5am.
+
+NEIGHBORHOOD GEOGRAPHY (walking clusters):
+- Roppongi ↔ Omotesando: 1 stop (Chiyoda line) or 25min walk through Aoyama
+- Asakusa → Sumida/Skytree: 15min walk across river
+- Harajuku ↔ Omotesando: 5min walk (same area)
+- Shinjuku ↔ Shibuya: 2 stops (JR Yamanote) or 30min walk
+- Ueno ↔ Yanaka: 10min walk
+
+WEEKEND SPECIFICS:
+- Temples: busy Sat-Sun mornings. Go early (before 9am) or late afternoon.
+- Ramen shops: peak 11:30-13:00. Go at 11:00 or after 14:00 to skip queues.
+- Museums: closed Mon/Tues (varies). All open weekends.
+- Shopping streets (Omotesando, Ginza): bustling but enjoyable.
+
+BUDGET (per person, per day):
+- Transit: ¥1,000-1,500
+- Ramen lunch: ¥1,000
+- Ramen dinner: ¥1,000
+- Museum/attraction: ¥1,000-3,000
+- Snacks/drinks: ¥500-1,000
+- Daily total: ¥4,500-7,500 (~$30-50 USD)
+- Weekend total: ¥9,000-15,000 (~$60-100 USD, excluding hotel)"
+
+-- oracle checks:
+--   ⊨ result includes transit system overview with specific lines and costs → ✓ (Yamanote, Metro, IC cards, prices)
+--   ⊨ result includes neighborhood geography useful for route planning → ✓ (walking clusters with times)
+
+-- state after frame 5: research-logistics frozen.
+-- Ready set: { plan-day-saturday }
+-- (all three research cells done — planning can begin)
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 6: evaluate plan-day-saturday (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { plan-day-saturday }
+-- Blocked: { plan-day-sunday } — needs plan-day-saturday→result
+
+⊢ plan-day-saturday
+  given research-ramen→result ≡ "Top Tokyo Ramen Restaurants: [8 restaurants...]"
+  given research-architecture→result ≡ "Notable Tokyo Architecture: [12 sites...]"
+  given research-logistics→result ≡ "Tokyo Weekend Logistics: [transit, geography, budget...]"
+  yield result
+
+-- LLM evaluation:
+
+  yield result ≡ "SATURDAY — Omotesando + Roppongi (Modern Architecture Focus)
+
+8:30  Meiji Jingu shrine — Arrive early to beat crowds. Walk through the
+      forested approach. Stunning cypress torii and peaceful shrine grounds.
+      (Free, Harajuku station JR Yamanote)
+
+10:00 Walk down Omotesando — The architecture boulevard. See:
+      - Prada Aoyama (Herzog & de Meuron, diamond glass)
+      - Tod's (Toyo Ito, tree-branch concrete)
+      - Dior (SANAA, translucent curves)
+      All free to enter/browse. 25 min walk end-to-end.
+
+11:00 RAMEN LUNCH: Afuri (Ebisu, 2 stops from Omotesando on Hibiya line)
+      Yuzu shio ramen — light, citrusy. ¥1,100. Minimal queue at 11:00 opening.
+
+12:00 Walk from Ebisu to Roppongi (20min) or take Hibiya line (1 stop).
+
+12:30 Nezu Museum (Kengo Kuma) — Bamboo façade. Excellent garden with
+      tea pavilion. Allow 90min. ¥1,300.
+      [NOTE: Actually in Omotesando — visit before Ebisu]
+
+12:30 21_21 Design Sight (Tadao Ando) — Sunken concrete gallery in
+      Roppongi Midtown garden. Allow 60min. ¥1,200.
+
+14:00 National Art Center Tokyo (Kisho Kurokawa) — 5min walk from 21_21.
+      Undulating glass wall. Café inside with inverted-cone seating.
+      Free entry. Allow 90min if there's an exhibition.
+
+16:00 teamLab Borderless (Azabudai Hills, 10min walk) — Digital art
+      immersion inside Mori Building. ¥3,800. Allow 90-120min.
+      Book tickets online in advance.
+
+18:30 RAMEN DINNER: Ichiran (Roppongi branch, 10min walk)
+      Tonkotsu solo-booth experience. Customize everything. ¥980.
+
+Transit: Suica IC card. Harajuku → Omotesando (walk) → Ebisu (Hibiya) → Roppongi (walk).
+Neighborhoods: Harajuku/Omotesando cluster + Roppongi cluster. Minimal transit.
+Budget: ¥1,100 + ¥1,300 + ¥1,200 + ¥3,800 + ¥980 + ~¥500 transit = ~¥8,880"
+
+-- oracle checks:
+--   ⊨ result is a time-sequenced itinerary (morning → evening) → ✓ (8:30 → 18:30)
+--   ⊨ result includes at least 2 ramen meals and 3 architectural sites → ✓
+--     Ramen: Afuri (lunch), Ichiran (dinner) = 2
+--     Architecture: Meiji Jingu, Omotesando walk (Prada/Tod's/Dior), 21_21, National Art Center, teamLab = 5+
+--   ⊨ result includes transit directions between each stop → ✓ (walk/Hibiya line noted)
+
+-- state after frame 6: plan-day-saturday frozen.
+-- Ready set: { plan-day-sunday }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 7: evaluate plan-day-sunday (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { plan-day-sunday }
+-- Blocked: { synthesize-itinerary } — needs both day plans
+
+⊢ plan-day-sunday
+  given research-ramen→result ≡ "Top Tokyo Ramen Restaurants: [8 restaurants...]"
+  given research-architecture→result ≡ "Notable Tokyo Architecture: [12 sites...]"
+  given research-logistics→result ≡ "Tokyo Weekend Logistics: [transit, geography, budget...]"
+  given plan-day-saturday→result ≡ "SATURDAY — Omotesando + Roppongi [...]"
+  yield result
+
+-- LLM evaluation:
+
+  yield result ≡ "SUNDAY — Asakusa + Ueno (Traditional + Contrast)
+
+8:00  Senso-ji temple (Asakusa) — Arrive at opening to see Thunder Gate
+      and Nakamise shopping street before crowds. Tokyo's oldest temple.
+      Photograph the five-story pagoda. (Free, Asakusa station Ginza line)
+
+9:30  Walk to Tokyo Skytree (15min across Sumida River) — The 634m tower
+      contrasts dramatically with old Asakusa. View from base is free.
+      Observation deck: ¥2,100. Go early = no queue.
+
+11:00 RAMEN LUNCH: Fuji Ramen (Asakusa, walk back 10min)
+      Old-school Tokyo shoyu ramen. ¥850. No queue on weekends.
+      Completely different style from yesterday's yuzu shio and tonkotsu.
+
+12:00 Take Ginza line from Asakusa to Ueno (5min, 3 stops).
+
+12:15 Tokyo National Museum (Ueno) — Imperial Crown architecture by
+      Taniguchi. Japan's largest museum. Focus on the main building's
+      architecture + Gallery of Horyuji Treasures (Taniguchi Yoshio,
+      glass-and-water design). ¥1,000. Allow 2hrs.
+
+14:30 Walk from Ueno to Yanaka (10min) — Through Ueno Park, past the
+      old-Tokyo neighborhood. Wooden houses, narrow lanes, temple cats.
+      Visit Nezu Shrine — 1706 vermillion torii tunnel, peaceful escape.
+      (Free)
+
+16:00 OPTIONAL: Tsuta ramen (Sugamo, 2 stops JR from Nishi-Nippori)
+      Michelin-starred shoyu ramen with truffle. ¥1,500. If reservation
+      available, don't miss it. If not, continue walking Yanaka.
+
+17:00 Return to base. Ginza line or JR Yamanote back.
+
+Transit: Ginza line (Asakusa ↔ Ueno), JR Yamanote (Ueno area → return).
+Neighborhoods: Asakusa/Sumida cluster + Ueno/Yanaka cluster. All walkable within clusters.
+Budget: ¥2,100 + ¥850 + ¥1,000 + ¥1,500 (optional) + ~¥600 transit = ~¥4,550-6,050"
+
+-- oracle checks:
+--   ⊨ result does not duplicate any Saturday venues → ✓
+--     Saturday: Meiji Jingu, Omotesando, Afuri, 21_21, National Art Center, teamLab, Ichiran
+--     Sunday: Senso-ji, Skytree, Fuji Ramen, Tokyo National Museum, Nezu Shrine, Tsuta — zero overlap
+--   ⊨ result covers different neighborhoods than Saturday → ✓
+--     Saturday: Harajuku/Omotesando, Roppongi. Sunday: Asakusa, Ueno, Yanaka.
+--   ⊨ result includes at least 1 ramen meal and 2 architectural sites → ✓
+--     Ramen: Fuji Ramen (+ optional Tsuta). Architecture: Senso-ji, Skytree, Tokyo National Museum, Nezu Shrine = 4
+
+-- state after frame 7: plan-day-sunday frozen.
+-- Ready set: { synthesize-itinerary }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 8: evaluate synthesize-itinerary (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { synthesize-itinerary }
+-- After this frame, integrate-results becomes ready.
+
+⊢ synthesize-itinerary
+  given plan-day-saturday→result ≡ "SATURDAY — Omotesando + Roppongi [...]"
+  given plan-day-sunday→result ≡ "SUNDAY — Asakusa + Ueno [...]"
+  given research-logistics→result ≡ "Tokyo Weekend Logistics: [...]"
+  yield result
+
+-- LLM evaluation:
+
+  yield result ≡ "TOKYO WEEKEND TRIP — Ramen & Architecture
+
+═══ SATURDAY: Modern Tokyo (Omotesando → Roppongi) ═══
+08:30  Meiji Jingu shrine (Harajuku) — forest approach, cypress torii
+10:00  Omotesando architecture walk — Prada, Tod's, Dior façades
+11:00  🍜 Afuri, Ebisu — yuzu shio ramen (¥1,100)
+12:30  21_21 Design Sight (Ando) — sunken concrete gallery (¥1,200)
+14:00  National Art Center (Kurokawa) — glass wave wall (free)
+16:00  teamLab Borderless, Azabudai Hills (¥3,800, book ahead)
+18:30  🍜 Ichiran, Roppongi — tonkotsu solo booth (¥980)
+
+═══ SUNDAY: Traditional Tokyo (Asakusa → Ueno → Yanaka) ═══
+08:00  Senso-ji temple — Thunder Gate, pagoda, Nakamise street
+09:30  Tokyo Skytree — 634m tower across Sumida River (¥2,100)
+11:00  🍜 Fuji Ramen, Asakusa — old-school shoyu (¥850)
+12:15  Tokyo National Museum (Ueno) — Imperial Crown + Horyuji gallery (¥1,000)
+14:30  Yanaka walk + Nezu Shrine — torii tunnel, temple cats
+16:00  🍜 Tsuta, Sugamo (optional) — Michelin truffle shoyu (¥1,500)
+
+═══ PRACTICAL ═══
+Transit: Buy Suica IC card on arrival. Tap everywhere. ~¥1,000-1,500/day.
+Budget: ~¥13,000-15,000 total (~$90-100 USD, excluding hotel/flights).
+Ramen tip: Go at 11:00 opening or after 14:00 to avoid peak queues.
+Weather backup: If rain — swap outdoor walks for Mori Art Museum (Roppongi), Ginza shopping arcades, or extra time at teamLab/National Museum.
+Architecture tip: Omotesando is best walked slowly. Every building is a statement.
+
+═══ RAMEN SCORECARD ═══
+Styles covered: yuzu shio (Afuri), tonkotsu (Ichiran), shoyu (Fuji), truffle shoyu (Tsuta)
+Range: ¥850-1,500 per bowl. Budget ~¥4,000-4,500 for all ramen meals."
+
+-- oracle checks:
+--   ⊨ result is a complete, ready-to-use weekend itinerary → ✓
+--   ⊨ result includes budget estimate → ✓ (¥13,000-15,000 total)
+--   ⊨ result includes contingency alternatives → ✓ (weather backup section)
+
+-- state after frame 8: synthesize-itinerary frozen.
+-- Ready set: { integrate-results }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 9: evaluate integrate-results (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { integrate-results }
+-- Blocked: { identify-gaps } — needs integrate-results→solution, →completeness-score
+
+⊢ integrate-results
+  given domain-cells-*→result ≡ [research-ramen, research-architecture, research-logistics, plan-day-saturday, plan-day-sunday, synthesize-itinerary results]
+  given problem→statement ≡ "Plan a weekend trip to Tokyo for someone who loves ramen and architecture."
+  yield solution, completeness-score
+
+-- LLM evaluation:
+-- integrate-results collects all 6 domain cell outputs and synthesizes.
+-- synthesize-itinerary already did most of the work — integrate-results
+-- checks for coherence and completeness.
+
+  yield solution ≡ "Complete Tokyo Weekend Itinerary for a ramen and architecture lover. Saturday covers modern architecture in Omotesando and Roppongi with yuzu shio and tonkotsu ramen. Sunday covers traditional architecture in Asakusa, Ueno, and Yanaka with shoyu and Michelin-starred ramen. Total budget ~¥13,000-15,000 excluding accommodation. Four distinct ramen styles across the weekend. Nine architectural sites spanning temples, modern galleries, and iconic towers. Transit via Suica IC card on JR and Metro. Weather alternatives included."
+
+  yield completeness-score ≡ 8
+
+-- oracle checks:
+--   ⊨ solution is a coherent, actionable response to the problem → ✓
+--   ⊨ completeness-score is a number between 1 and 10 → ✓ (8)
+--   ⊨ solution references specific details (not generic platitudes) → ✓
+--     Specific: Afuri, Ichiran, Fuji Ramen, Tsuta, Meiji Jingu, Omotesando,
+--     21_21, National Art Center, teamLab, Senso-ji, Skytree, Tokyo National
+--     Museum, Nezu Shrine, Suica card, ¥13,000-15,000
+
+-- state after frame 9: integrate-results frozen.
+-- Ready set: { identify-gaps }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 10: evaluate identify-gaps (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { identify-gaps }
+-- This determines whether ⊢∘ evolve continues.
+
+⊢ identify-gaps
+  given integrate-results→solution ≡ "Complete Tokyo Weekend Itinerary..."
+  given integrate-results→completeness-score ≡ 8
+  given problem→statement ≡ "Plan a weekend trip to Tokyo for someone who loves ramen and architecture."
+  yield gaps[], needs-more-cells
+
+-- LLM evaluation:
+-- Score is 8 (≥ 7), so the threshold is met. But are there still gaps?
+
+  yield gaps ≡ []
+
+  yield needs-more-cells ≡ false
+
+-- oracle checks:
+--   ⊨ if completeness-score < 7 then needs-more-cells = true → ✓ (score = 8, condition not triggered)
+--   ⊨ if needs-more-cells then length(gaps) ≥ 1 → ✓ (needs-more-cells = false, condition not triggered)
+--   ⊨ each gap specifies what additional cell would address it → ✓ (vacuously true, no gaps)
+
+-- state after frame 10: identify-gaps frozen.
+-- ⊢∘ evolve check: identify-gaps→needs-more-cells = false → CONVERGED
+-- Evolution loop exits after iteration 1. No more cells needed.
+
+-- Ready set: { spawn-gap-fillers, final-synthesis }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 11: evaluate spawn-gap-fillers (⊢⊢ spawner, trivial)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { spawn-gap-fillers, final-synthesis }
+-- Pick: spawn-gap-fillers (spawner evaluates before dependents)
+
+⊢⊢ spawn-gap-fillers
+  given identify-gaps→gaps ≡ []
+  given identify-gaps→needs-more-cells ≡ false
+  given §cell-template
+  yield §gap-cells[]
+
+-- eval-one: needs-more-cells = false. Spawner produces empty list.
+
+  yield gap-cells ≡ []
+
+-- oracle checks:
+--   ⊨ if needs-more-cells then one gap-cell per gap → ✓ (not triggered)
+--   ⊨ if not needs-more-cells then gap-cells is empty → ✓ (empty)
+
+-- state after frame 11: spawn-gap-fillers frozen. No new cells spawned.
+-- Ready set: { final-synthesis }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 12: evaluate final-synthesis (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { final-synthesis }
+-- This is the terminal output of the bootstrapped program.
+
+⊢ final-synthesis
+  given integrate-results→solution ≡ "Complete Tokyo Weekend Itinerary..."
+  given gap-cells-*→result ≡ []
+  given problem→statement ≡ "Plan a weekend trip to Tokyo for someone who loves ramen and architecture."
+  yield final-plan
+
+-- LLM evaluation:
+
+  yield final-plan ≡ "YOUR TOKYO WEEKEND: RAMEN × ARCHITECTURE
+
+━━━ SATURDAY: Modern Tokyo ━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Morning — Harajuku & Omotesando
+  08:30  Meiji Jingu — Tokyo's most serene shrine. Walk the gravel path
+         through 100-year-old forest. The shrine itself: clean cypress lines,
+         copper roof gone green. Free. JR Harajuku station, south exit.
+
+  10:00  Omotesando Architecture Boulevard — Every major architect competed
+         here. Walk south to north:
+         • Prada (Herzog & de Meuron) — diamond glass crystal
+         • Tod's (Toyo Ito) — tree-branch concrete lattice
+         • Dior (SANAA) — translucent organic curves
+         All free to enter. Allow 60min for photos and browsing.
+
+Lunch
+  11:00  🍜 AFURI, Ebisu — Yuzu shio (salt + citrus) ramen. Light, fragrant,
+         modern. Get the limited yuzu-tsukemen if available. ¥1,100.
+         Hibiya line from Omotesando to Ebisu, 2 stops.
+
+Afternoon — Roppongi Art Triangle
+  12:30  21_21 Design Sight (Tadao Ando) — Sunken concrete gallery in
+         Midtown garden. Ando's signature: raw concrete, light shafts.
+         ¥1,200. Allow 60min.
+
+  14:00  National Art Center Tokyo (Kisho Kurokawa) — The glass wave.
+         16,000m² of undulating curtain wall. The café inside sits on
+         inverted concrete cones. Free entry. 5min walk from 21_21.
+
+  16:00  teamLab Borderless at Azabudai Hills — Digital art immersion
+         inside Mori Building tower. Book tickets 2+ days ahead. ¥3,800.
+         Allow 90-120min. 10min walk from Art Center.
+
+Dinner
+  18:30  🍜 ICHIRAN, Roppongi — The tonkotsu ritual. Solo booth, paper
+         order form: richness, garlic, spice, noodle firmness. Classic
+         Hakata-style pork bone broth. ¥980. Open 24hrs.
+
+  🚇 Transit: Harajuku → walk → Omotesando → Hibiya line → Ebisu → walk → Roppongi
+  💴 Budget: ~¥8,900 (ramen ¥2,080 + attractions ¥6,200 + transit ¥600)
+
+━━━ SUNDAY: Traditional Tokyo ━━━━━━━━━━━━━━━━━━━━━━━━
+
+Morning — Asakusa & Sumida
+  08:00  Senso-ji — Tokyo's oldest temple (628 AD). Through the Thunder
+         Gate (Kaminarimon), down Nakamise-dori, past the five-story pagoda.
+         Arrive early — by 10am it's packed. Free. Ginza line to Asakusa.
+
+  09:30  Tokyo Skytree — Walk 15min across Sumida River for the approach.
+         The 634m tower is neo-futuristic steel lattice, designed after
+         traditional Japanese 'sori' curves. Observation deck ¥2,100.
+         Morning = shortest queue.
+
+Lunch
+  11:00  🍜 FUJI RAMEN, Asakusa — Old-school Tokyo shoyu. Clear soy broth,
+         thin noodles, chashu, nori. What ramen was before it got famous.
+         ¥850. Walk back from Skytree, 10min.
+
+Afternoon — Ueno & Yanaka
+  12:15  Tokyo National Museum, Ueno — Imperial Crown architecture (1937,
+         Taniguchi Yoshiro). Inside: Gallery of Horyuji Treasures by his
+         son (Taniguchi Yoshio) — glass-and-water minimalism. ¥1,000.
+         Ginza line Asakusa → Ueno, 5min. Allow 2hrs.
+
+  14:30  Yanaka neighborhood walk — 10min walk from Ueno through old Tokyo.
+         Wooden houses, narrow lanes, cat statues. Then Nezu Shrine (1706):
+         a tunnel of vermillion torii gates in total silence. Free.
+
+Late Afternoon (optional)
+  16:00  🍜 TSUTA, Sugamo — First Michelin-starred ramen. Shoyu base with
+         Italian truffle oil and sun-dried tomato. ¥1,500. Reservations
+         via ticket machine. JR from Nishi-Nippori, 2 stops.
+
+  🚇 Transit: Asakusa → walk → Skytree → walk → Asakusa → Ginza line → Ueno → walk → Yanaka → JR
+  💴 Budget: ~¥5,450-6,950 (ramen ¥850-2,350 + attractions ¥3,100 + transit ¥700)
+
+━━━ PRACTICAL NOTES ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  🎫 Transit: Buy Suica IC card at any JR station. ¥500 deposit + top up.
+     Tap on/off for all JR, Metro, and buses. Google Maps for navigation.
+
+  💴 Total weekend budget: ~¥14,000-16,000 (~$95-110 USD)
+     Excludes: hotel, flights, shopping
+
+  ☔ Rain plan: Swap outdoor walks for Mori Art Museum (¥2,000, Roppongi Hills),
+     Ginza underground shopping, or extra time at teamLab / National Museum.
+
+  🍜 Ramen styles covered:
+     • Yuzu shio (Afuri) — light, citrus
+     • Tonkotsu (Ichiran) — rich, pork
+     • Shoyu (Fuji) — classic, clean
+     • Truffle shoyu (Tsuta) — Michelin, fancy
+
+  🏛️ Architecture covered:
+     Traditional — Meiji Jingu, Senso-ji, Nezu Shrine
+     Modern — Ando, Kurokawa, Herzog & de Meuron, Ito, SANAA, teamLab
+     Monumental — Tokyo Skytree, Tokyo National Museum"
+
+-- oracle checks:
+--   ⊨ final-plan is a complete weekend trip itinerary → ✓ (Saturday + Sunday, start to finish)
+--   ⊨ final-plan includes specific ramen restaurants → ✓ (Afuri, Ichiran, Fuji, Tsuta — all named with prices)
+--   ⊨ final-plan includes specific architectural landmarks → ✓ (12+ sites with architects)
+--   ⊨ final-plan covers both Saturday and Sunday → ✓
+--   ⊨ final-plan includes practical logistics → ✓ (transit, timing, costs, rain plan)
+
+-- state after frame 12: final-synthesis frozen.
+-- ALL cells evaluated. Program complete.
+
+-- ═══════════════════════════════════════════════════════════════
+-- OBSERVATIONS
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= obs-bootstrap-from-zero
+  yield observation ≡ "The bootstrapper started with exactly 4 structural cells (problem, analyze-problem, cell-template, spawn-domain-cells) and zero domain knowledge. After frame 2, the program had 10 cells — 6 spawned by the meta-cell. The domain structure emerged entirely from LLM reasoning about the problem statement. This is Cell's bootstrap sequence: the spec defines the mechanism, the LLM provides the domain intelligence."
+
+⊢= obs-spawner-as-strategy
+  yield observation ≡ "⊢⊢ spawn-domain-cells is not a parallelism optimization — it IS the program. Without it, there are no domain cells at all. The spawner transforms a meta-level description (needed-cells[]) into executable cells. This is eval/apply: analyze-problem is eval (what cells?), spawn-domain-cells is apply (create them)."
+
+⊢= obs-evolution-as-completeness
+  yield observation ≡ "⊢∘ evolve converged in one iteration because the initial cell decomposition scored 8/10 on completeness. The evolution loop's convergence criterion (needs-more-cells = false) tests structural adequacy, not output quality. Quality is handled by the oracle assertions on each individual cell. This separation is clean: ⊢∘ grows the program, ⊨ guards each cell."
+
+⊢= obs-meta-level-separation
+  yield observation ≡ "The meta-cell (analyze-problem) reasons about WHAT cells to create. The domain cells (research-ramen, plan-day-saturday, etc.) reason WITHIN their domains. Neither crosses the boundary. analyze-problem never writes ramen reviews. research-ramen doesn't know it was bootstrapped. This is the Liskov principle for Cell: meta-level and object-level are substitution-independent."
+
+⊢= obs-parallel-research-phase
+  yield observation ≡ "Frames 3-5 (research-ramen, research-architecture, research-logistics) were all in the ready set simultaneously after frame 2. Confluence guarantees any execution order gives the same result. In a parallel runtime, all three would execute simultaneously — the bootstrap naturally discovered parallelizable structure from the problem."
+
+⊢= obs-program-growth-trajectory
+  yield observation ≡ "Cell count trajectory: frame 0: 4 structural cells → frame 2: 10 cells (6 spawned) → frame 11: 10 cells (gap spawner added 0). The program could have grown to 15+ cells if completeness scored below 7. The trajectory is monotonic (cells only added) and oracle-gated (gaps must be specific). Growth terminates when the meta-cell judges sufficiency."
+
+-- ═══════════════════════════════════════════════════════════════
+-- EXECUTION SUMMARY
+-- ═══════════════════════════════════════════════════════════════
+-- Total frames: 13 (0-12)
+-- Cells at start: 4 (structural meta-cells)
+-- Cells spawned: 6 (by spawn-domain-cells)
+-- Cells gap-filled: 0 (completeness ≥ 7, no gaps)
+-- Final cell count: 10
+-- ⊢∘ iterations: 1 (converged immediately)
+-- Oracle checks: all ✓ (no failures, no retries)
+-- Parallel opportunities: frames 3-5 (3 independent research cells)
+-- Bootstrap insight: the program designed itself from a single sentence
