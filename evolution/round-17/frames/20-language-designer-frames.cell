@@ -1,0 +1,947 @@
+-- 20-language-designer-frames.cell (R17, v0.2)
+-- Execution trace of 20-language-designer.cell via eval-one
+--
+-- v0.2 execution notes:
+--   - File-scope ⊨? active: all cells get retry-3 + error-value(⊥) policy
+--   - ⊢∘ refine loop max 4 — drives grammar redesign until critique→is-clean
+--   - Oracles on ⊢∘-managed cell (draft-dsl) are aspirational, not gates
+--   - Wildcard deps: critique uses example-*→code, example-*→label
+--   - ⊢⊢ spawn-examples explicit accumulate (v0.2)
+--   - Guard clause on redesign: only fires when critique→is-clean = false
+--   - Observation cells (⊢=) at trace end per v0.2 convention
+--
+-- Domain: cooking recipe DSL design via iterative critique
+
+-- ═══════════════════════════════════════════════════════════════
+-- READY-SET ANALYSIS (initial state)
+-- ═══════════════════════════════════════════════════════════════
+--
+-- Cells in graph:
+--   domain          — no given deps, ⊢= body → immediately ready
+--   draft-dsl       — given domain→name, domain→requirements → blocked
+--   spawn-examples  — given §draft-dsl, draft-dsl→grammar, etc. → blocked
+--   critique        — given example-*→code, example-*→label → blocked
+--                     (wildcard: no matching cells yet → blocked)
+--   redesign        — given critique→is-clean where is-clean = false → blocked
+--   ⊢∘ refine       — manages draft-dsl through spawn-examples, critique, redesign
+--
+-- Ready set: { domain }
+-- Blocked: { draft-dsl, spawn-examples, critique, redesign }
+-- ⊢∘ refine: dormant until draft-dsl first evaluated
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 0: evaluate domain (deterministic, ⊢= body)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { domain }
+-- Blocked: { draft-dsl, spawn-examples, critique, redesign }
+
+⊢ domain
+  yield name, requirements[]
+
+  ⊢= name ← "RecipeCell"
+  ⊢= requirements ← [
+    "Describe cooking recipes as structured steps with durations",
+    "Express timing constraints between steps (parallel, sequential, start-before-end)",
+    "Specify ingredient substitutions with ratio adjustments",
+    "Handle conditional steps (e.g., if using substitution X, add step Y)",
+    "Be readable by a home cook, not just a programmer"
+  ]
+
+-- eval-one: deterministic ⊢= body. No LLM needed.
+
+  yield name ≡ "RecipeCell"
+  yield requirements ≡ [
+    "Describe cooking recipes as structured steps with durations",
+    "Express timing constraints between steps (parallel, sequential, start-before-end)",
+    "Specify ingredient substitutions with ratio adjustments",
+    "Handle conditional steps (e.g., if using substitution X, add step Y)",
+    "Be readable by a home cook, not just a programmer"
+  ]
+
+-- No oracles on domain — pure data cell.
+
+-- state after frame 0: domain frozen.
+-- Ready set: { draft-dsl }
+-- Blocked: { spawn-examples, critique, redesign }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 1: evaluate draft-dsl (soft cell, LLM) — ⊢∘ ITERATION 1
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { draft-dsl }
+-- ⊢∘ refine begins: draft-dsl is the target cell, iteration 1.
+-- v0.2: oracles on draft-dsl are aspirational (⊢∘-managed).
+
+⊢ draft-dsl
+  given domain→name ≡ "RecipeCell"
+  given domain→requirements ≡ [...]
+  yield grammar, explanation
+
+  ∴ Design a mini-DSL called «domain→name» for cooking recipes...
+
+-- LLM evaluation:
+
+  yield grammar ≡ "
+    <recipe>       ::= RECIPE <name> SERVES <n> TIME <duration>
+                         <ingredients> <steps>
+    <ingredients>  ::= INGREDIENTS: <ingredient>+
+    <ingredient>   ::= <name> <amount> <unit> [OR <name> <amount> <unit> RATIO <ratio>]
+    <steps>        ::= STEPS: <step>+
+    <step>         ::= <label>: <action> FOR <duration>
+                      | <label>: <action> FOR <duration> THEN <label>
+                      | <label>: <action> FOR <duration> WHILE <label>
+                      | <label>: WAIT-UNTIL <label> REMAINING <duration>
+                      | IF-SUB <ingredient-name> : <action> FOR <duration>
+    <duration>     ::= <n> min | <n> hr
+    <ratio>        ::= <n>:<n>
+    <amount>       ::= <number> [<fraction>]
+    <unit>         ::= cups | tbsp | tsp | oz | g | lb | cloves | whole
+  "
+
+  yield explanation ≡ "RecipeCell grammar walkthrough:
+
+    RECIPE header: Every recipe starts with RECIPE followed by its name,
+    serving count (SERVES n), and estimated total time (TIME duration).
+
+    INGREDIENTS block: Lists each ingredient with amount and unit.
+    Substitutions use OR: 'butter 2 tbsp OR olive-oil 2 tbsp RATIO 1:1'
+    means you can replace butter with olive oil at equal quantity.
+
+    STEPS block: Each step has a label, an action description, and a duration.
+    Timing operators:
+    - THEN: sequential — step B starts after step A finishes.
+    - WHILE: parallel — step B runs concurrently with step A.
+    - WAIT-UNTIL ... REMAINING: start this step when another step has
+      the specified time remaining (e.g., WAIT-UNTIL rice REMAINING 5 min).
+
+    IF-SUB: Conditional step tied to a substitution choice. Only executes
+    if the named ingredient substitution is active.
+
+    Durations use 'min' or 'hr'. Amounts support fractions (1/2, 1/4)."
+
+-- oracle checks (aspirational under ⊢∘):
+--   ⊨ grammar defines syntax for: recipe, ingredient, step, timing, substitution → ✓
+--   ⊨ grammar includes at least one timing operator → ✓ (THEN, WHILE, WAIT-UNTIL)
+--   ⊨ grammar includes substitution syntax with ratio adjustment → ✓ (OR...RATIO)
+--   ⊨ explanation covers every production rule in grammar → ✓
+--   NOTE: All pass on first draft. Aspirational oracles serve as feedback
+--   signals — even if they failed, ⊢∘ would continue (not block freezing).
+
+-- state after frame 1: draft-dsl frozen (tentative — ⊢∘ may rewrite).
+-- Ready set: { spawn-examples }
+-- Blocked: { critique (needs example-*), redesign (needs critique) }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 2: evaluate spawn-examples (⊢⊢ spawner, LLM) — ⊢∘ ITER 1
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { spawn-examples }
+-- ⊢⊢ spawner: will create example-0, example-1, example-2 in the graph.
+-- v0.2: accumulate mode (explicit). Spawned cells persist across ⊢∘ iters
+--   unless ⊢∘ re-fires spawn-examples, which re-spawns fresh examples.
+
+⊢⊢ spawn-examples accumulate
+  given §draft-dsl
+  given draft-dsl→grammar ≡ "<recipe> ::= RECIPE <name> SERVES <n> TIME <duration>..."
+  given draft-dsl→explanation ≡ "RecipeCell grammar walkthrough:..."
+  given domain→requirements ≡ [...]
+  yield §example-0, §example-1, §example-2
+
+-- LLM evaluation: spawner creates three cells in the graph.
+
+-- SPAWNED CELL: example-0
+⊢ example-0
+  yield code, label
+
+  ⊢= label ← "simple"
+  ⊢= code ← "RECIPE Scrambled Eggs with Toast SERVES 2 TIME 15 min
+
+    INGREDIENTS:
+      eggs 4 whole
+      butter 1 tbsp OR olive-oil 1 tbsp RATIO 1:1
+      bread 2 whole
+      salt 1/4 tsp
+      pepper 1/4 tsp
+
+    STEPS:
+      toast: toast bread FOR 3 min
+      heat: melt butter in pan FOR 2 min THEN toast
+      scramble: stir eggs gently in pan FOR 4 min THEN heat
+      season: add salt and pepper FOR 1 min THEN scramble
+  "
+
+-- SPAWNED CELL: example-1
+⊢ example-1
+  yield code, label
+
+  ⊢= label ← "medium"
+  ⊢= code ← "RECIPE Pasta with Tomato Sauce SERVES 4 TIME 35 min
+
+    INGREDIENTS:
+      pasta 400 g
+      fresh-tomatoes 6 whole OR canned-tomatoes 800 g RATIO 6:800
+      garlic 3 cloves
+      olive-oil 2 tbsp
+      parmesan 50 g OR nutritional-yeast 30 g RATIO 5:3
+      basil 10 g
+      salt 1 tsp
+
+    STEPS:
+      boil-water: bring water to boil FOR 10 min
+      cook-pasta: add pasta to boiling water FOR 12 min THEN boil-water
+      saute: heat olive-oil and garlic FOR 3 min
+      simmer-sauce: add tomatoes and simmer FOR 20 min THEN saute WHILE cook-pasta
+      drain: drain pasta FOR 1 min THEN cook-pasta
+      combine: toss pasta with sauce FOR 2 min THEN drain
+      garnish: add parmesan and basil FOR 1 min THEN combine
+  "
+
+-- SPAWNED CELL: example-2
+⊢ example-2
+  yield code, label
+
+  ⊢= label ← "complex"
+  ⊢= code ← "RECIPE Stir-Fry with Rice SERVES 4 TIME 40 min
+
+    INGREDIENTS:
+      rice 2 cups
+      chicken 500 g OR tofu 400 g RATIO 5:4
+      broccoli 200 g
+      bell-pepper 2 whole
+      soy-sauce 3 tbsp
+      ginger 1 tbsp
+      garlic 2 cloves
+      sesame-oil 1 tbsp
+      vegetable-oil 2 tbsp
+
+    STEPS:
+      rice: cook rice in rice cooker FOR 30 min
+      IF-SUB tofu: press tofu between towels FOR 15 min
+      prep-veg: chop broccoli and bell pepper FOR 8 min WHILE rice
+      heat-wok: heat wok with vegetable-oil FOR 2 min WAIT-UNTIL rice REMAINING 5 min
+      cook-protein: stir-fry chicken or tofu FOR 5 min THEN heat-wok
+      stir-fry-veg: add vegetables and stir-fry FOR 4 min THEN cook-protein
+      sauce: add soy-sauce ginger garlic FOR 2 min THEN stir-fry-veg
+      finish: drizzle sesame-oil and serve with rice FOR 1 min THEN sauce
+  "
+
+-- oracle checks on spawn-examples:
+--   ⊨ spawns exactly 3 cells named example-0, example-1, example-2 → ✓
+--   ⊨ each spawned cell yields code, label → ✓
+
+-- state after frame 2: spawn-examples frozen. Three example cells added to graph.
+-- Ready set: { example-0, example-1, example-2 }
+-- NOTE: All three are ⊢= cells — they freeze immediately on eval.
+-- Blocked: { critique (needs all example-*→code, example-*→label frozen) }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 3: evaluate example-0 (deterministic, ⊢= body)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { example-0, example-1, example-2 }
+-- Pick: example-0 (arbitrary — all three independent, confluence holds)
+
+⊢ example-0
+  yield code, label
+
+-- eval-one: deterministic ⊢= body.
+
+  yield label ≡ "simple"
+  yield code ≡ "RECIPE Scrambled Eggs with Toast SERVES 2 TIME 15 min..."
+
+-- No oracles. Data cell.
+
+-- state after frame 3: example-0 frozen.
+-- Ready set: { example-1, example-2 }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 4: evaluate example-1 (deterministic, ⊢= body)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { example-1, example-2 }
+
+⊢ example-1
+  yield code, label
+
+  yield label ≡ "medium"
+  yield code ≡ "RECIPE Pasta with Tomato Sauce SERVES 4 TIME 35 min..."
+
+-- state after frame 4: example-1 frozen.
+-- Ready set: { example-2 }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 5: evaluate example-2 (deterministic, ⊢= body)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { example-2 }
+
+⊢ example-2
+  yield code, label
+
+  yield label ≡ "complex"
+  yield code ≡ "RECIPE Stir-Fry with Rice SERVES 4 TIME 40 min..."
+
+-- state after frame 5: example-2 frozen.
+-- Wildcard resolution: example-*→code resolves to [example-0, example-1, example-2].
+-- All three frozen → critique's wildcard deps satisfied.
+-- Ready set: { critique }
+-- Blocked: { redesign (needs critique→is-clean) }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 6: evaluate critique (soft cell, LLM) — ⊢∘ ITERATION 1
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { critique }
+-- Wildcard given example-*→code resolves to 3 entries (by spawn order).
+
+⊢ critique
+  given example-*→code ≡ [
+    "RECIPE Scrambled Eggs with Toast SERVES 2 TIME 15 min...",
+    "RECIPE Pasta with Tomato Sauce SERVES 4 TIME 35 min...",
+    "RECIPE Stir-Fry with Rice SERVES 4 TIME 40 min..."
+  ]
+  given example-*→label ≡ ["simple", "medium", "complex"]
+  given draft-dsl→grammar ≡ "<recipe> ::= RECIPE <name> SERVES <n> TIME <duration>..."
+  given domain→requirements ≡ [...]
+  yield awkward-parts[], severity-scores[], overall-score, is-clean
+
+  ∴ Evaluate each example for DSL usability...
+
+-- LLM evaluation:
+
+  yield awkward-parts ≡ [
+    "A1 (medium, line: simmer-sauce): 'THEN saute WHILE cook-pasta' chains THEN and WHILE on the same step. Ambiguous: does the sauce start after saute AND run parallel to cook-pasta? Or does WHILE bind tighter than THEN? A home cook would not parse operator precedence. Severity: 4. Fix: separate into two timing declarations or introduce explicit grouping.",
+    "A2 (complex, line: heat-wok): 'WAIT-UNTIL rice REMAINING 5 min' is placed after a WHILE clause on the same line. Unclear whether WHILE and WAIT-UNTIL can coexist. Grammar doesn't define precedence for multiple timing operators on one step. Severity: 3. Fix: restrict each step to exactly one timing operator.",
+    "A3 (complex, line: IF-SUB): 'IF-SUB tofu: press tofu between towels FOR 15 min' — the conditional step has no timing relation to other steps. When does pressing happen relative to rice? Need a timing operator on conditional steps too. Severity: 3. Fix: allow IF-SUB steps to also carry THEN/WHILE/WAIT-UNTIL.",
+    "A4 (medium, line: RATIO): 'fresh-tomatoes 6 whole OR canned-tomatoes 800 g RATIO 6:800' — the ratio 6:800 mixes units (count vs grams). Ratio should be unitless or the grammar should enforce same-unit substitutions. Severity: 2. Fix: require same unit or add explicit unit conversion syntax.",
+    "A5 (simple, line: heat): 'melt butter in pan FOR 2 min THEN toast' reads as 'melt butter, then toast' which is backwards — you toast first, then heat the pan. THEN means 'after', so 'heat THEN toast' means heat happens after toast. The example is correct but counterintuitive. Severity: 2. Fix: consider AFTER keyword instead of THEN to reduce confusion ('heat AFTER toast')."
+  ]
+
+  yield severity-scores ≡ [4, 3, 3, 2, 2]
+
+  yield overall-score ≡ 2.8
+
+  yield is-clean ≡ false
+
+-- oracle checks:
+--   ⊨ each severity-score ∈ {1, 2, 3, 4, 5} → ✓ (4, 3, 3, 2, 2)
+--   ⊨ overall-score = mean of severity-scores → ✓ ((4+3+3+2+2)/5 = 2.8)
+--   ⊨ if overall-score > 1.5 or max(severity-scores) ≥ 4 then is-clean = false
+--     → ✓ (2.8 > 1.5, max = 4 ≥ 4, is-clean = false)
+
+-- state after frame 6: critique frozen.
+-- ⊢∘ CHECK: is-clean = false → CONTINUE.
+-- Guard evaluation: redesign has `given critique→is-clean where is-clean = false`
+--   is-clean = false → guard TRUE → redesign enters ready set.
+-- Ready set: { redesign }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 7: evaluate redesign (soft cell, LLM) — ⊢∘ ITERATION 1
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { redesign }
+-- Guard: critique→is-clean = false → PASS (redesign fires)
+
+⊢ redesign
+  given draft-dsl→grammar ≡ "<recipe> ::= RECIPE <name> SERVES <n> TIME <duration>..."
+  given draft-dsl→explanation ≡ "RecipeCell grammar walkthrough:..."
+  given critique→awkward-parts ≡ ["A1: THEN+WHILE ambiguity...", "A2: multiple timing ops...",
+    "A3: IF-SUB no timing...", "A4: mixed-unit ratio...", "A5: THEN reads backwards..."]
+  given critique→is-clean ≡ false
+  given domain→requirements ≡ [...]
+  yield grammar', explanation'
+
+  ∴ Redesign the grammar to fix every awkward part...
+
+-- LLM evaluation:
+
+  yield grammar' ≡ "
+    <recipe>       ::= RECIPE <name> SERVES <n> TIME <duration>
+                         <ingredients> <steps>
+    <ingredients>  ::= INGREDIENTS: <ingredient>+
+    <ingredient>   ::= <name> <amount> <unit> [OR <name> <amount> <unit>]
+    <steps>        ::= STEPS: <step>+
+    <step>         ::= <label>: <action> FOR <duration> [<timing>]
+                      | IF-SUB <ingredient-name> : <action> FOR <duration> [<timing>]
+    <timing>       ::= AFTER <label>
+                      | ALONGSIDE <label>
+                      | STARTS-WHEN <label> HAS <duration> LEFT
+    <duration>     ::= <n> min | <n> hr
+    <amount>       ::= <number> [<fraction>]
+    <unit>         ::= cups | tbsp | tsp | oz | g | lb | cloves | whole
+  "
+
+  yield explanation' ≡ "RecipeCell v2 grammar walkthrough:
+
+    Changes from v1:
+    - REMOVED RATIO: substitutions are now always same-unit. If you write
+      'butter 2 tbsp OR olive-oil 2 tbsp', the amounts are explicit per
+      ingredient. No ambiguous cross-unit ratios. (fixes A4)
+    - RENAMED THEN → AFTER: 'scramble FOR 4 min AFTER heat' reads
+      naturally as 'scramble happens after heat finishes.' (fixes A5)
+    - RENAMED WHILE → ALONGSIDE: 'prep-veg FOR 8 min ALONGSIDE rice'
+      reads as 'prep vegetables at the same time as rice.' (fixes A1)
+    - ONE TIMING PER STEP: each step may carry at most one timing clause.
+      No chaining AFTER+ALONGSIDE. The old 'THEN saute WHILE cook-pasta'
+      becomes two steps: 'simmer-sauce AFTER saute' and a separate note
+      that simmer-sauce and cook-pasta overlap via ALONGSIDE. (fixes A1, A2)
+    - STARTS-WHEN: replaces WAIT-UNTIL...REMAINING. 'heat-wok STARTS-WHEN
+      rice HAS 5 min LEFT' is clearer. (fixes A2)
+    - IF-SUB GETS TIMING: conditional steps can now carry a timing clause
+      just like regular steps. 'IF-SUB tofu: press tofu FOR 15 min AFTER rice'
+      is valid. Conditional steps without timing run before the first
+      timed step (prep phase). (fixes A3)
+
+    Preserved from v1:
+    - RECIPE header (name, servings, total-time) unchanged.
+    - INGREDIENTS block with OR for substitutions.
+    - STEPS block with labels and durations.
+    - Readable to a home cook — all keywords are English words."
+
+-- oracle checks:
+--   ⊨ grammar' addresses every awkward part with severity ≥ 3
+--     → ✓ (A1: AFTER/ALONGSIDE split; A2: one-timing-per-step + STARTS-WHEN;
+--           A3: IF-SUB with timing)
+--   ⊨ grammar' still satisfies all domain→requirements → ✓
+--     (recipes ✓, timing ✓, substitutions ✓, conditionals ✓, readability ✓)
+--   ⊨ §redesign has same given/yield signature as «§draft-dsl» → ✓
+--     (both yield grammar, explanation)
+
+-- state after frame 7: redesign frozen.
+-- ⊢∘ refine: iteration 1 complete. Rewrites draft-dsl with redesign output.
+--   draft-dsl→grammar ← grammar'
+--   draft-dsl→explanation ← explanation'
+-- Unfreezes spawn-examples (depends on draft-dsl). Unfreezes critique.
+-- ⊢∘ iteration 2 begins.
+-- Ready set: { spawn-examples }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 8: evaluate spawn-examples (⊢⊢ spawner, LLM) — ⊢∘ ITER 2
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { spawn-examples }
+-- ⊢⊢ accumulate: previous example-0/1/2 from iteration 1 are discarded
+--   because ⊢∘ re-fires the through chain. New example cells spawned
+--   against the revised grammar.
+
+⊢⊢ spawn-examples accumulate
+  given §draft-dsl
+  given draft-dsl→grammar ≡ "<recipe> ::= RECIPE <name> SERVES <n> TIME <duration>... [v2]"
+  given draft-dsl→explanation ≡ "RecipeCell v2 grammar walkthrough:..."
+  given domain→requirements ≡ [...]
+  yield §example-0, §example-1, §example-2
+
+-- LLM evaluation: spawner creates fresh example cells using revised grammar.
+
+-- SPAWNED CELL: example-0 (v2)
+⊢ example-0
+  yield code, label
+
+  ⊢= label ← "simple"
+  ⊢= code ← "RECIPE Scrambled Eggs with Toast SERVES 2 TIME 15 min
+
+    INGREDIENTS:
+      eggs 4 whole
+      butter 1 tbsp OR olive-oil 1 tbsp
+      bread 2 whole
+      salt 1/4 tsp
+      pepper 1/4 tsp
+
+    STEPS:
+      toast: toast bread FOR 3 min
+      heat: melt butter in pan FOR 2 min AFTER toast
+      scramble: stir eggs gently in pan FOR 4 min AFTER heat
+      season: add salt and pepper FOR 1 min AFTER scramble
+  "
+
+-- SPAWNED CELL: example-1 (v2)
+⊢ example-1
+  yield code, label
+
+  ⊢= label ← "medium"
+  ⊢= code ← "RECIPE Pasta with Tomato Sauce SERVES 4 TIME 35 min
+
+    INGREDIENTS:
+      pasta 400 g
+      fresh-tomatoes 800 g OR canned-tomatoes 800 g
+      garlic 3 cloves
+      olive-oil 2 tbsp
+      parmesan 50 g OR nutritional-yeast 30 g
+      basil 10 g
+      salt 1 tsp
+
+    STEPS:
+      boil-water: bring water to boil FOR 10 min
+      cook-pasta: add pasta to boiling water FOR 12 min AFTER boil-water
+      saute: heat olive-oil and garlic FOR 3 min
+      simmer-sauce: add tomatoes and simmer FOR 20 min AFTER saute
+      drain: drain pasta FOR 1 min AFTER cook-pasta
+      combine: toss pasta with sauce FOR 2 min AFTER drain
+      garnish: add parmesan and basil FOR 1 min AFTER combine
+  "
+
+-- NOTE: simmer-sauce and cook-pasta no longer chained with ambiguous
+-- THEN+WHILE. simmer-sauce AFTER saute runs independently. cook-pasta
+-- AFTER boil-water runs independently. The two tracks naturally overlap
+-- because neither has a timing dep on the other. Parallelism is implicit
+-- when steps don't reference each other — cleaner than explicit WHILE.
+
+-- SPAWNED CELL: example-2 (v2)
+⊢ example-2
+  yield code, label
+
+  ⊢= label ← "complex"
+  ⊢= code ← "RECIPE Stir-Fry with Rice SERVES 4 TIME 40 min
+
+    INGREDIENTS:
+      rice 2 cups
+      chicken 500 g OR tofu 400 g
+      broccoli 200 g
+      bell-pepper 2 whole
+      soy-sauce 3 tbsp
+      ginger 1 tbsp
+      garlic 2 cloves
+      sesame-oil 1 tbsp
+      vegetable-oil 2 tbsp
+
+    STEPS:
+      rice: cook rice in rice cooker FOR 30 min
+      IF-SUB tofu: press tofu between towels FOR 15 min ALONGSIDE rice
+      prep-veg: chop broccoli and bell pepper FOR 8 min ALONGSIDE rice
+      heat-wok: heat wok with vegetable-oil FOR 2 min STARTS-WHEN rice HAS 5 min LEFT
+      cook-protein: stir-fry chicken or tofu FOR 5 min AFTER heat-wok
+      stir-fry-veg: add vegetables and stir-fry FOR 4 min AFTER cook-protein
+      sauce: add soy-sauce ginger garlic FOR 2 min AFTER stir-fry-veg
+      finish: drizzle sesame-oil and serve with rice FOR 1 min AFTER sauce
+  "
+
+-- oracle checks on spawn-examples:
+--   ⊨ spawns exactly 3 cells → ✓
+--   ⊨ each yields code, label → ✓
+
+-- state after frame 8: spawn-examples frozen (v2).
+-- Ready set: { example-0, example-1, example-2 }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 9: evaluate example-0 v2 (deterministic, ⊢= body)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { example-0, example-1, example-2 }
+
+⊢ example-0
+  yield code, label
+
+  yield label ≡ "simple"
+  yield code ≡ "RECIPE Scrambled Eggs with Toast SERVES 2 TIME 15 min..."
+
+-- state after frame 9: example-0 (v2) frozen.
+-- Ready set: { example-1, example-2 }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 10: evaluate example-1 v2 (deterministic, ⊢= body)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { example-1, example-2 }
+
+⊢ example-1
+  yield code, label
+
+  yield label ≡ "medium"
+  yield code ≡ "RECIPE Pasta with Tomato Sauce SERVES 4 TIME 35 min..."
+
+-- state after frame 10: example-1 (v2) frozen.
+-- Ready set: { example-2 }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 11: evaluate example-2 v2 (deterministic, ⊢= body)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { example-2 }
+
+⊢ example-2
+  yield code, label
+
+  yield label ≡ "complex"
+  yield code ≡ "RECIPE Stir-Fry with Rice SERVES 4 TIME 40 min..."
+
+-- state after frame 11: example-2 (v2) frozen.
+-- Wildcard re-resolution: example-*→code → [example-0, example-1, example-2] (v2).
+-- Ready set: { critique }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 12: evaluate critique (soft cell, LLM) — ⊢∘ ITERATION 2
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { critique }
+-- v0.2: wildcard re-resolved with v2 example cells.
+
+⊢ critique
+  given example-*→code ≡ [
+    "RECIPE Scrambled Eggs with Toast SERVES 2 TIME 15 min... [v2]",
+    "RECIPE Pasta with Tomato Sauce SERVES 4 TIME 35 min... [v2]",
+    "RECIPE Stir-Fry with Rice SERVES 4 TIME 40 min... [v2]"
+  ]
+  given example-*→label ≡ ["simple", "medium", "complex"]
+  given draft-dsl→grammar ≡ "<recipe> ::= ... [v2]"
+  given domain→requirements ≡ [...]
+  yield awkward-parts[], severity-scores[], overall-score, is-clean
+
+  ∴ Evaluate each example for DSL usability...
+
+-- LLM evaluation:
+
+  yield awkward-parts ≡ [
+    "B1 (medium): Parallelism between simmer-sauce and cook-pasta is now implicit — neither references the other, so they run independently. But this isn't stated anywhere in the recipe. A cook reading linearly might think steps run sequentially by default. Severity: 2. Fix: minor — add a comment syntax or 'NOTE:' line, or accept that unlabeled independence is the convention.",
+    "B2 (medium): 'parmesan 50 g OR nutritional-yeast 30 g' — amounts differ (50g vs 30g) but without RATIO the cook must just trust the recipe author. This is actually correct — the recipe author picked appropriate amounts for each. But losing explicit ratios means you can't scale proportionally. Severity: 1. Fix: acceptable trade-off — RATIO was more confusing than helpful.",
+    "B3 (complex): IF-SUB tofu line works well now with ALONGSIDE rice. But 'IF-SUB tofu' checks for the ingredient name 'tofu', while the ingredients line says 'chicken 500 g OR tofu 400 g'. Is 'tofu' matched by name? What if the ingredient was 'firm-tofu'? Grammar doesn't define how IF-SUB matches ingredient names. Severity: 2. Fix: specify that IF-SUB matches the substitution ingredient name exactly as written in the OR clause."
+  ]
+
+  yield severity-scores ≡ [2, 1, 2]
+
+  yield overall-score ≡ 1.67
+
+  yield is-clean ≡ false
+
+-- oracle checks:
+--   ⊨ each severity-score ∈ {1, 2, 3, 4, 5} → ✓ (2, 1, 2)
+--   ⊨ overall-score = mean of severity-scores → ✓ ((2+1+2)/3 = 1.67)
+--   ⊨ if overall-score > 1.5 or max(severity-scores) ≥ 4 then is-clean = false
+--     → ✓ (1.67 > 1.5, but max = 2 < 4; first condition triggers, is-clean = false)
+
+-- state after frame 12: critique frozen (v2).
+-- ⊢∘ CHECK: is-clean = false → CONTINUE.
+-- Guard evaluation: redesign guard `is-clean = false` → TRUE.
+-- Ready set: { redesign }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 13: evaluate redesign (soft cell, LLM) — ⊢∘ ITERATION 2
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { redesign }
+-- Issues are all severity ≤ 2 (none ≥ 3). The grammar is nearly clean.
+-- Redesign will make minor polish passes.
+
+⊢ redesign
+  given draft-dsl→grammar ≡ "<recipe> ::= ... [v2]"
+  given draft-dsl→explanation ≡ "RecipeCell v2 grammar walkthrough:..."
+  given critique→awkward-parts ≡ ["B1: implicit parallelism unclear...",
+    "B2: no RATIO acceptable...", "B3: IF-SUB name matching undefined..."]
+  given critique→is-clean ≡ false
+  given domain→requirements ≡ [...]
+  yield grammar', explanation'
+
+  ∴ Redesign the grammar to fix every awkward part...
+
+-- LLM evaluation:
+
+  yield grammar' ≡ "
+    <recipe>       ::= RECIPE <name> SERVES <n> TIME <duration>
+                         <ingredients> <steps>
+    <ingredients>  ::= INGREDIENTS: <ingredient>+
+    <ingredient>   ::= <name> <amount> <unit> [OR <name> <amount> <unit>]
+    <steps>        ::= STEPS: <step>+
+    <step>         ::= <label>: <action> FOR <duration> [<timing>]
+                      | IF-SUB <ingredient-name> : <action> FOR <duration> [<timing>]
+                      | NOTE: <text>
+    <timing>       ::= AFTER <label>
+                      | ALONGSIDE <label>
+                      | STARTS-WHEN <label> HAS <duration> LEFT
+    <duration>     ::= <n> min | <n> hr
+    <amount>       ::= <number> [<fraction>]
+    <unit>         ::= cups | tbsp | tsp | oz | g | lb | cloves | whole
+    <ingredient-name> ::= -- matches exactly the <name> in an OR clause
+  "
+
+  yield explanation' ≡ "RecipeCell v3 grammar walkthrough:
+
+    Changes from v2:
+    - ADDED NOTE: A free-text annotation line in the steps block. Used to
+      document implicit parallelism: 'NOTE: simmer-sauce and cook-pasta
+      run in parallel (no dependency between them).' (fixes B1)
+    - CLARIFIED IF-SUB matching: <ingredient-name> in IF-SUB must match
+      exactly the <name> token from an OR clause in the ingredients block.
+      'IF-SUB tofu' matches 'chicken 500 g OR tofu 400 g' because 'tofu'
+      appears as the substitution name. 'IF-SUB firm-tofu' would NOT match
+      unless the ingredient is listed as 'firm-tofu'. (fixes B3)
+    - B2 (RATIO removal) accepted as a good trade-off. No change needed.
+
+    All v2 constructs preserved:
+    - AFTER, ALONGSIDE, STARTS-WHEN timing operators
+    - One timing operator per step
+    - IF-SUB with optional timing clause
+    - RECIPE header, INGREDIENTS block, STEPS block"
+
+-- oracle checks:
+--   ⊨ grammar' addresses every awkward part with severity ≥ 3 → ✓ (vacuous —
+--     no severity ≥ 3 issues in this round; all were ≤ 2)
+--   ⊨ grammar' still satisfies all domain→requirements → ✓
+--   ⊨ §redesign has same given/yield signature as «§draft-dsl» → ✓
+
+-- state after frame 13: redesign frozen (v2).
+-- ⊢∘ refine: iteration 2 complete. Rewrites draft-dsl with redesign output.
+--   draft-dsl→grammar ← grammar' (v3)
+--   draft-dsl→explanation ← explanation' (v3)
+-- ⊢∘ iteration 3 begins.
+-- Ready set: { spawn-examples }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 14: evaluate spawn-examples (⊢⊢ spawner, LLM) — ⊢∘ ITER 3
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { spawn-examples }
+
+⊢⊢ spawn-examples accumulate
+  given §draft-dsl
+  given draft-dsl→grammar ≡ "<recipe> ::= ... [v3]"
+  given draft-dsl→explanation ≡ "RecipeCell v3 grammar walkthrough:..."
+  given domain→requirements ≡ [...]
+  yield §example-0, §example-1, §example-2
+
+-- LLM evaluation: spawner creates fresh example cells using v3 grammar.
+
+-- SPAWNED CELL: example-0 (v3)
+⊢ example-0
+  yield code, label
+
+  ⊢= label ← "simple"
+  ⊢= code ← "RECIPE Scrambled Eggs with Toast SERVES 2 TIME 15 min
+
+    INGREDIENTS:
+      eggs 4 whole
+      butter 1 tbsp OR olive-oil 1 tbsp
+      bread 2 whole
+      salt 1/4 tsp
+      pepper 1/4 tsp
+
+    STEPS:
+      toast: toast bread FOR 3 min
+      heat: melt butter in pan FOR 2 min AFTER toast
+      scramble: stir eggs gently in pan FOR 4 min AFTER heat
+      season: add salt and pepper FOR 1 min AFTER scramble
+  "
+
+-- SPAWNED CELL: example-1 (v3)
+⊢ example-1
+  yield code, label
+
+  ⊢= label ← "medium"
+  ⊢= code ← "RECIPE Pasta with Tomato Sauce SERVES 4 TIME 35 min
+
+    INGREDIENTS:
+      pasta 400 g
+      fresh-tomatoes 800 g OR canned-tomatoes 800 g
+      garlic 3 cloves
+      olive-oil 2 tbsp
+      parmesan 50 g OR nutritional-yeast 30 g
+      basil 10 g
+      salt 1 tsp
+
+    STEPS:
+      boil-water: bring water to boil FOR 10 min
+      cook-pasta: add pasta to boiling water FOR 12 min AFTER boil-water
+      saute: heat olive-oil and garlic FOR 3 min
+      simmer-sauce: add tomatoes and simmer FOR 20 min AFTER saute
+      NOTE: cook-pasta and simmer-sauce run in parallel — no dependency between them
+      drain: drain pasta FOR 1 min AFTER cook-pasta
+      combine: toss pasta with sauce FOR 2 min AFTER drain
+      garnish: add parmesan and basil FOR 1 min AFTER combine
+  "
+
+-- SPAWNED CELL: example-2 (v3)
+⊢ example-2
+  yield code, label
+
+  ⊢= label ← "complex"
+  ⊢= code ← "RECIPE Stir-Fry with Rice SERVES 4 TIME 40 min
+
+    INGREDIENTS:
+      rice 2 cups
+      chicken 500 g OR tofu 400 g
+      broccoli 200 g
+      bell-pepper 2 whole
+      soy-sauce 3 tbsp
+      ginger 1 tbsp
+      garlic 2 cloves
+      sesame-oil 1 tbsp
+      vegetable-oil 2 tbsp
+
+    STEPS:
+      rice: cook rice in rice cooker FOR 30 min
+      IF-SUB tofu: press tofu between towels FOR 15 min ALONGSIDE rice
+      prep-veg: chop broccoli and bell pepper FOR 8 min ALONGSIDE rice
+      NOTE: rice, tofu-press, and prep-veg all run in parallel
+      heat-wok: heat wok with vegetable-oil FOR 2 min STARTS-WHEN rice HAS 5 min LEFT
+      cook-protein: stir-fry chicken or tofu FOR 5 min AFTER heat-wok
+      stir-fry-veg: add vegetables and stir-fry FOR 4 min AFTER cook-protein
+      sauce: add soy-sauce ginger garlic FOR 2 min AFTER stir-fry-veg
+      finish: drizzle sesame-oil and serve with rice FOR 1 min AFTER sauce
+  "
+
+-- oracle checks:
+--   ⊨ spawns exactly 3 cells → ✓
+--   ⊨ each yields code, label → ✓
+
+-- state after frame 14: spawn-examples frozen (v3).
+-- Ready set: { example-0, example-1, example-2 }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 15: evaluate example-0 v3 (deterministic)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ example-0
+  yield label ≡ "simple"
+  yield code ≡ "RECIPE Scrambled Eggs with Toast..."
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 16: evaluate example-1 v3 (deterministic)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ example-1
+  yield label ≡ "medium"
+  yield code ≡ "RECIPE Pasta with Tomato Sauce..."
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 17: evaluate example-2 v3 (deterministic)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ example-2
+  yield label ≡ "complex"
+  yield code ≡ "RECIPE Stir-Fry with Rice..."
+
+-- state after frame 17: all v3 examples frozen.
+-- Wildcard re-resolution: example-*→code → 3 v3 entries.
+-- Ready set: { critique }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 18: evaluate critique (soft cell, LLM) — ⊢∘ ITERATION 3
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { critique }
+
+⊢ critique
+  given example-*→code ≡ [
+    "RECIPE Scrambled Eggs with Toast... [v3]",
+    "RECIPE Pasta with Tomato Sauce... [v3]",
+    "RECIPE Stir-Fry with Rice... [v3]"
+  ]
+  given example-*→label ≡ ["simple", "medium", "complex"]
+  given draft-dsl→grammar ≡ "<recipe> ::= ... [v3]"
+  given domain→requirements ≡ [...]
+  yield awkward-parts[], severity-scores[], overall-score, is-clean
+
+  ∴ Evaluate each example for DSL usability...
+
+-- LLM evaluation:
+
+  yield awkward-parts ≡ [
+    "C1 (medium): NOTE line documents implicit parallelism, which is good. But NOTE is free-text — it has no semantic effect. A runtime would ignore it. This is fine for human readers but means the parallelism isn't machine-checkable. Severity: 1. Accepted as a documentation convention, not a semantic construct."
+  ]
+
+  yield severity-scores ≡ [1]
+
+  yield overall-score ≡ 1.0
+
+  yield is-clean ≡ true
+
+-- oracle checks:
+--   ⊨ each severity-score ∈ {1, 2, 3, 4, 5} → ✓ (1)
+--   ⊨ overall-score = mean of severity-scores → ✓ (1/1 = 1.0)
+--   ⊨ if overall-score ≤ 1.5 and max(severity-scores) < 4 then is-clean = true
+--     → ✓ (1.0 ≤ 1.5, max = 1 < 4, is-clean = true)
+
+-- state after frame 18: critique frozen (v3).
+-- ⊢∘ CHECK: is-clean = true → CONVERGED. Exit ⊢∘ refine loop.
+-- ⊢∘ refine completed in 3 iterations.
+--
+-- Guard evaluation: redesign has `given critique→is-clean where is-clean = false`
+--   is-clean = true → guard FALSE → redesign SKIPPED.
+--   redesign yields become ⊥ (guard-induced bottom, v0.2 propagation rule 3).
+--   No downstream cells depend on redesign's output outside the ⊢∘ loop,
+--   so ⊥ propagation has no further effect.
+--
+-- Ready set: { } — empty. All cells frozen or skipped.
+-- Program quiescent.
+
+-- ═══════════════════════════════════════════════════════════════
+-- EXECUTION SUMMARY
+-- ═══════════════════════════════════════════════════════════════
+--
+-- Total frames: 19 (0-18)
+-- ⊢∘ iterations: 3 (converged when critique→is-clean = true)
+-- ⊢∘ max was 4, used 3 — converged within budget
+-- File-scope ⊨? active but never triggered (no oracle failures)
+-- Guard clause on redesign: fired twice (iterations 1, 2), skipped once (iteration 3)
+-- Wildcard resolution: example-*→code resolved 3 times (once per ⊢∘ iteration)
+--
+-- Cells evaluated:
+--   domain (1x), draft-dsl (1x, rewritten 2x by ⊢∘),
+--   spawn-examples (3x — once per ⊢∘ iteration),
+--   example-0/1/2 (3x each — 9 total data cell evals),
+--   critique (3x — once per iteration),
+--   redesign (2x — skipped on iteration 3 by guard)
+--
+-- Grammar evolution:
+--   v1: THEN/WHILE/WAIT-UNTIL, RATIO, IF-SUB without timing
+--   v2: AFTER/ALONGSIDE/STARTS-WHEN, dropped RATIO, IF-SUB with timing, one-timing-per-step
+--   v3: Added NOTE for documentation, clarified IF-SUB name matching
+--
+-- Convergence trajectory:
+--   Iteration 1: overall-score 2.8, 5 issues (max severity 4) → not clean
+--   Iteration 2: overall-score 1.67, 3 issues (max severity 2) → not clean (barely)
+--   Iteration 3: overall-score 1.0, 1 issue (severity 1) → CLEAN
+
+-- ═══════════════════════════════════════════════════════════════
+-- OBSERVATIONS (v0.2 ⊢= cells)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= Observation 1: awkwardness minimization converges monotonically
+  The overall-score dropped from 2.8 → 1.67 → 1.0 across three iterations.
+  Max severity dropped from 4 → 2 → 1. Each redesign pass fixed the worst
+  issues first (severity ≥ 3 in iteration 1), then polished minor issues
+  (severity ≤ 2 in iteration 2). This is the expected behavior: the ⊢∘ loop
+  acts as gradient descent on awkwardness, with critique as the loss function
+  and redesign as the optimization step.
+
+⊢= Observation 2: guard clauses prevent wasted LLM calls on convergence
+  In iteration 3, critique→is-clean = true. The guard on redesign
+  (`where is-clean = false`) evaluates to false, so redesign is SKIPPED.
+  Its yields become ⊥ via guard-induced bottom (v0.2 propagation rule 3).
+  Without the guard clause (R16 version), redesign would have fired and
+  produced a no-op pass-through, wasting an LLM call. The guard clause
+  saves one soft-cell evaluation per convergence event. This is the exact
+  pattern v0.2 guard clauses were designed for.
+
+⊢= Observation 3: wildcard deps + ⊢⊢ spawner compose naturally
+  The spawn-examples spawner creates example-0/1/2, and critique consumes
+  them via `given example-*→code`. The wildcard re-resolves on each ⊢∘
+  iteration because the spawner re-fires with the revised grammar. This
+  demonstrates the v0.2 design: wildcards are not static — they participate
+  in the ⊢∘ evolution loop. The wildcard resolution set changes between
+  iterations (old example cells are replaced, new ones spawned). This is
+  the interaction between ⊢⊢ and wildcard deps that v0.2 explicitly
+  specifies under "Interaction with ⊢⊢ spawners."
+
+⊢= Observation 4: ⊢∘ oracles as aspirational feedback work correctly
+  draft-dsl has four oracles (grammar defines X, includes Y, etc.). Under
+  v0.2, these are aspirational — they serve as quality signals but do not
+  block freezing. In this trace, all four passed on iteration 1, so the
+  distinction was not exercised. A trace where draft-dsl's oracles FAIL
+  on iteration 1 but the ⊢∘ loop continues anyway would be more
+  interesting — the failure context would feed into critique and redesign
+  as additional signal. The aspirational semantics matter most when the
+  initial draft is poor.
+
+⊢= Observation 5: DSL design is a natural fit for the ⊢∘ pattern
+  The program structure — design grammar, write examples, critique,
+  redesign, repeat — is exactly the human process for designing a DSL,
+  made explicit as a cell graph. The ⊢∘ loop captures the iteration
+  discipline (max 4, convergence criterion). The critique cell captures
+  the evaluation framework (5 categories, severity scale, clean threshold).
+  The spawner captures the instantiation step (3 graded examples). This
+  is Cell operating as intended: making the soft process of language
+  design into a reproducible, inspectable, convergent computation.
+
+⊢= Observation 6: naming changes dominate the first redesign
+  The v1→v2 transition was primarily renaming: THEN→AFTER, WHILE→ALONGSIDE,
+  WAIT-UNTIL→STARTS-WHEN. These are the severity 4-5 issues — ambiguity
+  and readability failures that a home cook would hit. The v2→v3 transition
+  was structural polish: adding NOTE syntax and tightening IF-SUB matching.
+  This pattern — rename first, restructure second — mirrors how human
+  language designers iterate: get the vocabulary right before refining
+  the grammar.
+
+⊢= Observation 7: file-scope ⊨? provides a safety net that was never needed
+  The file-scope recovery policy (retry 3, then error-value(⊥)) was active
+  for all 19 frames but never triggered. No oracle failed. This is typical
+  for well-constructed programs — the recovery machinery is insurance, not
+  the main control flow. The interesting case would be a deliberately
+  adversarial domain (e.g., designing a DSL for ambiguous legal contracts)
+  where the critique cell's oracles themselves fail because awkwardness
+  assessment requires judgment that the LLM struggles with. In that case,
+  file-scope ⊨? would produce ⊥ for critique→is-clean, which would
+  permanently block redesign (since given? is not used for critique deps).

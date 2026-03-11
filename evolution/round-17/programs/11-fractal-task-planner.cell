@@ -1,0 +1,249 @@
+-- 11-fractal-task-planner.cell
+-- Tests: recursive decomposition, ⊢⊢ spawner at multiple levels, oracle gates per level,
+--        wildcard dependencies across spawned cells, depth-bounded recursion, ⊥ on exhaustion
+--
+-- v0.2 improvements over R16:
+-- - File-scope ⊨? recovery policy (retry max 2, exhaustion → error-value(⊥))
+-- - Wildcard deps (task-decomposer-*→tasks etc.) now v0.2 spec-compliant:
+--   resolves to ordered array by spawn order, ready when ALL matching cells frozen
+-- - ⊢⊢ spawners: explicit accumulate mode (default per spec, stated for clarity)
+-- - validate-level-* oracles are aspirational under ⊨? retry — provide feedback
+--   for retry, not hard gates on first attempt
+-- - Guard clauses on assemble-plan ensure it only fires when all validations pass
+-- - given? on cross-level validators allows partial-pipeline inspection
+--
+-- Takes a goal. Decomposes into 3-5 sub-goals. Each sub-goal decomposes into
+-- tasks. Each task into steps. Each step into atomic actions. Oracle at each
+-- level: "is this decomposition complete and non-overlapping?" Retry if not.
+--
+-- This is FRACTAL: the same decompose-then-validate pattern repeats at every
+-- level of the hierarchy. Cell's ⊢⊢ spawner makes this structural — each
+-- level spawns the next level's cells.
+--
+-- Goal: "Launch a SaaS product for small business invoicing in 3 months"
+
+⊢ goal
+  given statement ≡ "Launch a SaaS product for small business invoicing in 3 months"
+  given max-depth ≡ 4
+  yield statement, max-depth
+
+  ⊨ statement is a concrete, achievable goal with a timeline
+  ⊨ max-depth ≥ 3
+
+-- ═══════════════════════════════════════════════════════════════
+-- LEVEL 1: Goal → Sub-goals
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ decompose-goal
+  given goal→statement
+  yield sub-goals[], rationale
+
+  ∴ Decompose «goal→statement» into 3-5 sub-goals. Each sub-goal should be:
+    - Independently achievable
+    - Necessary for the parent goal
+    - Roughly equal in scope
+    - Non-overlapping with other sub-goals (MECE: mutually exclusive, collectively exhaustive)
+
+  ⊨ 3 ≤ len(sub-goals) ≤ 5
+  ⊨ each sub-goal is necessary for the parent goal
+  ⊨ sub-goals are non-overlapping (MECE)
+  ⊨ sub-goals collectively cover the full scope of the goal
+
+⊢ validate-level-1
+  given decompose-goal→sub-goals
+  given goal→statement
+  yield valid, issues[]
+
+  ∴ Validate the decomposition «decompose-goal→sub-goals» against «goal→statement»:
+    1. COMPLETENESS: do the sub-goals cover everything needed?
+    2. NON-OVERLAP: do any sub-goals duplicate work?
+    3. GRANULARITY: are sub-goals at the right level (not too broad, not too narrow)?
+    4. FEASIBILITY: can each sub-goal be completed within the timeline?
+
+    If any check fails, valid = false with specific issues.
+
+  ⊨ valid ∈ { true, false }
+  ⊨ if not valid then issues is non-empty
+  ⊨ issues identify specific MECE violations or gaps
+
+  ⊨? on failure:
+    retry with «oracle.failures» max 2
+
+-- ═══════════════════════════════════════════════════════════════
+-- LEVEL 2: Sub-goals → Tasks
+-- ═══════════════════════════════════════════════════════════════
+
+⊢⊢ spawn-task-decomposers
+  given decompose-goal→sub-goals
+  given §task-decomposer-template
+  yield §task-decomposer-cells[]
+  until len(task-decomposer-cells) = len(decompose-goal→sub-goals)
+  max 5
+  mode accumulate
+
+  ∴ For each sub-goal in «decompose-goal→sub-goals», spawn a cell that
+    decomposes it into 3-5 concrete tasks. Name cells task-decomposer-0,
+    task-decomposer-1, ... in sub-goal order.
+
+  ⊨ one task-decomposer cell per sub-goal
+
+⊢ task-decomposer-template
+  given sub-goal
+  yield tasks[], rationale
+
+  ∴ Decompose «sub-goal» into 3-5 concrete tasks. Each task should be:
+    - A specific work item assignable to one person/team
+    - Completable in days to weeks (not months)
+    - Non-overlapping with other tasks under this sub-goal
+    - Ordered by dependency where applicable
+
+  ⊨ 3 ≤ len(tasks) ≤ 5
+  ⊨ tasks are non-overlapping
+  ⊨ each task is achievable within the sub-goal's timeline
+
+⊢ validate-level-2
+  given task-decomposer-*→tasks
+  given decompose-goal→sub-goals
+  yield valid, cross-cutting-issues[]
+
+  ∴ Validate ALL task decompositions together:
+    1. CROSS-CUTTING: do tasks under different sub-goals overlap?
+    2. COMPLETENESS: does every sub-goal have sufficient tasks?
+    3. DEPENDENCY: are there hidden dependencies between tasks in different sub-goals?
+    4. RESOURCE: are the total tasks feasible within the overall timeline?
+
+  ⊨ valid ∈ { true, false }
+  ⊨ cross-cutting-issues identifies inter-subgoal conflicts
+
+  ⊨? on failure:
+    retry with «oracle.failures» max 2
+
+-- ═══════════════════════════════════════════════════════════════
+-- LEVEL 3: Tasks → Steps
+-- ═══════════════════════════════════════════════════════════════
+
+⊢⊢ spawn-step-decomposers
+  given task-decomposer-*→tasks
+  given §step-decomposer-template
+  yield §step-decomposer-cells[]
+  until len(step-decomposer-cells) = sum(map(task-decomposer-*→tasks, t -> len(t)))
+  max 20
+  mode accumulate
+
+  ∴ For each task across ALL task-decomposer cells, spawn a cell that
+    decomposes it into 3-5 sequential steps. Name cells step-decomposer-0,
+    step-decomposer-1, ... in task order.
+
+  ⊨ one step-decomposer cell per task
+
+⊢ step-decomposer-template
+  given task
+  yield steps[], estimated-hours
+
+  ∴ Decompose «task» into 3-5 sequential steps. Each step should be:
+    - A half-day to two-day work unit
+    - Sequentially ordered (step N depends on step N-1)
+    - Concrete enough to estimate hours
+
+  ⊨ 3 ≤ len(steps) ≤ 5
+  ⊨ steps are in dependency order
+  ⊨ estimated-hours is a number
+
+⊢ validate-level-3
+  given step-decomposer-*→steps
+  given step-decomposer-*→estimated-hours
+  given goal→statement
+  yield valid, total-hours, timeline-feasible
+
+  ∴ Validate ALL step decompositions:
+    1. Sum estimated-hours across all steps
+    2. Does total fit within the 3-month timeline (approximately 480 work hours per person)?
+    3. Are any steps still too vague to be actionable?
+    4. Are there hidden dependencies between steps in different tasks?
+
+  ⊨ valid ∈ { true, false }
+  ⊨ total-hours is a number
+  ⊨ timeline-feasible ∈ { true, false }
+
+  ⊨? on failure:
+    retry with «oracle.failures» max 2
+
+-- ═══════════════════════════════════════════════════════════════
+-- LEVEL 4: Steps → Atomic Actions
+-- ═══════════════════════════════════════════════════════════════
+
+⊢⊢ spawn-action-decomposers
+  given step-decomposer-*→steps
+  given §action-decomposer-template
+  yield §action-decomposer-cells[]
+  until len(action-decomposer-cells) = sum(map(step-decomposer-*→steps, s -> len(s)))
+  max 60
+  mode accumulate
+
+  ∴ For each step across ALL step-decomposer cells, spawn a cell that
+    decomposes it into 2-4 atomic actions. Name cells action-decomposer-0,
+    action-decomposer-1, ... in step order.
+
+  ⊨ one action-decomposer cell per step
+
+⊢ action-decomposer-template
+  given step
+  yield actions[], definition-of-done
+
+  ∴ Decompose «step» into 2-4 atomic actions. Each action should be:
+    - Completable in under 4 hours
+    - Verifiable with a clear done criterion
+    - Small enough that "I don't know how to do this" is impossible
+
+  ⊨ 2 ≤ len(actions) ≤ 4
+  ⊨ definition-of-done is a checkable criterion per action
+  ⊨ no action requires further decomposition
+
+⊢ validate-level-4
+  given action-decomposer-*→actions
+  given action-decomposer-*→definition-of-done
+  yield valid, vague-actions[], total-actions
+
+  ∴ Final validation — are ALL actions truly atomic?
+    For each action: could a competent person sit down and DO this
+    without asking "but how?" If not, it's still too vague.
+
+  ⊨ valid ∈ { true, false }
+  ⊨ vague-actions lists any non-atomic actions remaining
+  ⊨ total-actions is the count across all levels
+
+-- ═══════════════════════════════════════════════════════════════
+-- ASSEMBLY
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ assemble-plan
+  given goal→statement
+  given decompose-goal→sub-goals
+  given validate-level-1→valid where valid = true
+  given task-decomposer-*→tasks
+  given validate-level-2→valid where valid = true
+  given step-decomposer-*→steps
+  given validate-level-3→total-hours
+  given validate-level-3→timeline-feasible where timeline-feasible = true
+  given action-decomposer-*→actions
+  given validate-level-4→total-actions
+  given validate-level-4→valid where valid = true
+  yield plan-tree, summary
+
+  ∴ Assemble the full fractal plan:
+    Goal → Sub-goals → Tasks → Steps → Actions
+    Present as a hierarchical tree with counts at each level.
+
+  ⊨ plan-tree has exactly 4 levels below the root
+  ⊨ summary includes total counts at each level and estimated hours
+
+-- ═══════════════════════════════════════════════════════════════
+-- FILE-SCOPE RECOVERY POLICY
+-- ═══════════════════════════════════════════════════════════════
+
+⊨? on failure:
+  retry with «oracle.failures» appended to prompt
+  max 2 attempts
+
+⊨? on exhaustion:
+  error-value(⊥)

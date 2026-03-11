@@ -1,0 +1,758 @@
+-- 10-socratic-teacher-frames.cell — full execution trace (R17, v0.2)
+--
+-- Ready set analysis (initial):
+--   concept: ⊢= with no given → READY
+--   ask: given concept→topic, concept→student-level, concept→prerequisite-knowledge → BLOCKED
+--   simulate-student: given ask→question → BLOCKED
+--   evaluate: given ask→question, simulate-student→answer → BLOCKED
+--   design-followup: given §ask (static), evaluate→misconceptions, evaluate→understanding-level → BLOCKED
+--     NOTE: guard clause (understanding-level != "solid") evaluated only after evaluate freezes
+--   ⊢∘ teach: coordinates iteration over {ask, simulate-student, evaluate, design-followup}
+--   ⊢⊢ spawn-remedials: given evaluate→misconceptions → BLOCKED (fires each ⊢∘ iteration)
+--   collect-remedials: given remedial-*→corrected-understanding → BLOCKED (wildcard, no matches yet)
+--
+-- Ready set: { concept }
+--
+-- v0.2 execution notes:
+--   - File-scope ⊨? applies as default recovery for all cells
+--   - Oracles on ask are aspirational under ⊢∘ management
+--   - ⊢⊢ spawn-remedials uses `accumulate`: remedial cells persist across iterations
+--   - design-followup has guard clause: skipped when understanding-level = "solid"
+--   - design-followup uses given? for evaluate→misconceptions (tolerates empty/⊥)
+--   - Wildcard dep remedial-*→corrected-understanding re-resolves each ready-set computation
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 0: concept (hard cell, deterministic — three ⊢= expressions)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ concept
+  yield topic, student-level, prerequisite-knowledge
+
+  ⊢= topic ← "Git rebase vs merge — when to use which"
+  ⊢= student-level ← "Junior developer who knows git add/commit/push but not branching strategies"
+  ⊢= prerequisite-knowledge ← "Knows: git add, git commit, git push, basic file staging. Does NOT know: branches, HEAD, commit graph topology, fast-forward, three-way merge, rebase rewriting."
+
+  yield topic ≡ "Git rebase vs merge — when to use which"
+  yield student-level ≡ "Junior developer who knows git add/commit/push but not branching strategies"
+  yield prerequisite-knowledge ≡ "Knows: git add, git commit, git push, basic file staging. Does NOT know: branches, HEAD, commit graph topology, fast-forward, three-way merge, rebase rewriting."
+
+-- No oracles on hard cells. Deterministic evaluation.
+-- Ready set after: { ask }
+-- (concept→topic, concept→student-level, concept→prerequisite-knowledge all bound)
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ ITERATION 0 — initial question
+-- ═══════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 1: ask v0 (soft cell, LLM evaluation)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ ask
+  given concept→topic ≡ "Git rebase vs merge — when to use which"
+  given concept→student-level ≡ "Junior developer who knows git add/commit/push but not branching strategies"
+  given concept→prerequisite-knowledge ≡ "Knows: git add, git commit, git push, basic file staging. Does NOT know: branches, HEAD, commit graph topology, fast-forward, three-way merge, rebase rewriting."
+  yield question, target-understanding
+
+  ∴ You are a Socratic teacher. Design ONE question about «concept→topic»
+    appropriate for «concept→student-level» with «concept→prerequisite-knowledge».
+    The question should REVEAL whether the student understands the concept, not
+    just test recall. Prefer scenario-based questions ("You're working on a
+    feature branch and...") over definition questions ("What is rebase?").
+    State what understanding you expect the question to test.
+
+-- LLM evaluation:
+-- The student doesn't know branching yet, so the teacher needs to start
+-- by probing whether the student understands what happens when two people
+-- edit the same project. This is the prerequisite for understanding merge vs rebase.
+
+  yield question ≡ "Imagine you and a colleague are both working on the same project. You've each been making commits on your own computers for the past two days. Now you both want to combine your work into one shared version. What do you think happens to the commit history — the record of who changed what and when — when you combine your work? Do the commits get interleaved by time, stacked one person's work on top of the other's, or something else?"
+  yield target-understanding ≡ "Whether the student has an intuition about commit graph topology — specifically, that combining two lines of work must reconcile divergent histories. This is the prerequisite concept: before understanding rebase vs merge, the student must understand that parallel development creates a fork in history that needs to be resolved."
+
+-- v0.2: oracle checks on ⊢∘-managed cells are aspirational (feedback signals):
+--   ⊨ question is scenario-based, not a definition request → ✓
+--     (scenario: "you and a colleague both working... for the past two days")
+--   ⊨ target-understanding names a specific concept being tested → ✓
+--     (names: "commit graph topology", "divergent histories", "fork in history")
+
+-- Ready set after: { simulate-student }
+-- (ask→question and ask→target-understanding now bound)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 2: simulate-student v0 (soft cell, LLM evaluation)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ simulate-student
+  given ask→question ≡ "Imagine you and a colleague are both working on the same project. You've each been making commits on your own computers for the past two days. Now you both want to combine your work into one shared version. What do you think happens to the commit history — the record of who changed what and when — when you combine your work? Do the commits get interleaved by time, stacked one person's work on top of the other's, or something else?"
+  given concept→student-level ≡ "Junior developer who knows git add/commit/push but not branching strategies"
+  given concept→prerequisite-knowledge ≡ "Knows: git add, git commit, git push, basic file staging. Does NOT know: branches, HEAD, commit graph topology, fast-forward, three-way merge, rebase rewriting."
+  yield answer, confidence
+
+  ∴ You are simulating a student at level «concept→student-level» with
+    knowledge «concept→prerequisite-knowledge». Answer «ask→question»
+    as this student would — with partial knowledge, common misconceptions,
+    and honest confusion. Do NOT give the correct answer unless the student
+    at this level would actually know it. Express confidence: "confident",
+    "unsure", or "guessing".
+
+-- LLM evaluation:
+-- A junior dev who only knows add/commit/push thinks of git as a single
+-- linear timeline. They've probably experienced "git push" failing because
+-- the remote is ahead, but they think of it as an error, not as divergent history.
+
+  yield answer ≡ "I think the commits would just get interleaved by time? Like, if I made a commit Monday morning and my colleague made one Monday afternoon, they'd show up in that order. It's like a shared timeline. But actually, I've run into problems before where git wouldn't let me push because my colleague already pushed something. I had to do a 'git pull' first and then push again. So maybe it's not automatic? I'm not really sure what happens when you pull — I think it just downloads their stuff and then my commits go on top?"
+  yield confidence ≡ "unsure"
+
+-- oracle checks:
+--   ⊨ answer reflects the stated student level, not expert knowledge → ✓
+--     (thinks of linear timeline, confused about pull, doesn't know about branches)
+--   ⊨ confidence ∈ {"confident", "unsure", "guessing"} → ✓ ("unsure")
+
+-- Ready set after: { evaluate }
+-- (simulate-student→answer and simulate-student→confidence now bound)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 3: evaluate v0 (soft cell, LLM evaluation)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ evaluate
+  given ask→question ≡ "Imagine you and a colleague... What do you think happens to the commit history..."
+  given ask→target-understanding ≡ "Whether the student has an intuition about commit graph topology — specifically, that combining two lines of work must reconcile divergent histories."
+  given simulate-student→answer ≡ "I think the commits would just get interleaved by time?... I had to do a 'git pull' first... I think it just downloads their stuff and then my commits go on top?"
+  given simulate-student→confidence ≡ "unsure"
+  yield correct, misconceptions[], understanding-level
+
+  ∴ Evaluate «simulate-student→answer» against «ask→target-understanding».
+    Is the answer correct? If not, identify SPECIFIC misconceptions —
+    not "doesn't understand rebase" but "thinks rebase creates a new branch"
+    or "confuses rebase with cherry-pick." Rate understanding:
+    "none" (no grasp), "partial" (some correct intuition, wrong details),
+    "solid" (demonstrates understanding).
+
+-- LLM evaluation:
+-- The student shows partial intuition — they noticed that push failed and
+-- pull was needed, which suggests they've encountered divergence. But they
+-- have two specific misconceptions.
+
+  yield correct ≡ false
+  yield misconceptions ≡ [
+    "Believes commit history is a single shared timeline ordered by wall-clock time — does not understand that each developer has an independent local history that diverges.",
+    "Thinks 'git pull' simply downloads and stacks commits linearly — unaware that pull performs a merge (or rebase) to reconcile two divergent histories."
+  ]
+  yield understanding-level ≡ "partial"
+
+-- oracle checks:
+--   ⊨ correct ∈ {true, false} → ✓ (false)
+--   ⊨ each misconception is specific and falsifiable → ✓
+--     (#1: falsifiable — show two users' commit graphs diverging)
+--     (#2: falsifiable — demonstrate that pull creates a merge commit)
+--   ⊨ understanding-level ∈ {"none", "partial", "solid"} → ✓ ("partial")
+--   ⊨ if correct then misconceptions is empty → ✓ (correct=false, so vacuously satisfied)
+--   ⊨ if understanding-level = "solid" then correct = true → ✓ (vacuous, level="partial")
+
+-- Ready set after: { design-followup, spawn-remedials }
+--   design-followup: §ask (static) ✓, evaluate→misconceptions ✓,
+--     evaluate→understanding-level ✓, guard (understanding-level != "solid") → ✓ ("partial" != "solid")
+--   spawn-remedials: evaluate→misconceptions ✓
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 4: spawn-remedials fires (⊢⊢ spawner, accumulate mode, iteration 0)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { design-followup, spawn-remedials }
+-- Pick: spawn-remedials (arbitrary — confluence guarantees same result)
+
+⊢⊢ spawn-remedials
+  given evaluate→misconceptions ≡ [
+    "Believes commit history is a single shared timeline ordered by wall-clock time — does not understand that each developer has an independent local history that diverges.",
+    "Thinks 'git pull' simply downloads and stacks commits linearly — unaware that pull performs a merge (or rebase) to reconcile two divergent histories."
+  ]
+  yield §remedial-cells[]
+  accumulate
+
+  ∴ For each misconception in «evaluate→misconceptions», create a targeted
+    remedial cell definition...
+
+-- LLM evaluation:
+-- Spawner creates 2 remedial cells, one per misconception.
+
+  yield §remedial-cells ≡ [§remedial-0, §remedial-1]
+
+-- oracle checks:
+--   ⊨ length(remedial-cells) = length(evaluate→misconceptions) → ✓ (2 = 2)
+--   ⊨ each §remedial-cell addresses exactly one misconception → ✓
+
+-- SPAWNER EFFECT: 2 new cells enter the frontier:
+
+⊢ remedial-0
+  given misconception ≡ "Believes commit history is a single shared timeline ordered by wall-clock time — does not understand that each developer has an independent local history that diverges."
+  yield corrected-understanding
+
+  ∴ The student thinks all commits live on one shared timeline. Disprove this
+    with a concrete counter-example: show two developers making commits at the
+    same times but on different machines, producing two separate commit logs
+    that only meet when they explicitly combine their work. Explain that each
+    git clone has its OWN history — there is no shared clock.
+
+  ⊨ corrected-understanding directly addresses the timeline misconception
+
+⊢ remedial-1
+  given misconception ≡ "Thinks 'git pull' simply downloads and stacks commits linearly — unaware that pull performs a merge (or rebase) to reconcile two divergent histories."
+  yield corrected-understanding
+
+  ∴ The student thinks pull just downloads and appends. Show what actually
+    happens: pull = fetch + merge (by default). When histories diverge,
+    merge creates a NEW commit that has TWO parents — one from each history.
+    This is NOT stacking. Draw the before/after commit graph.
+
+  ⊨ corrected-understanding directly addresses the pull misconception
+
+-- state after frame 4: spawn-remedials frozen, 2 new cells in frontier.
+-- Ready set: { design-followup, remedial-0, remedial-1 }
+-- Blocked: collect-remedials — wildcard remedial-*→corrected-understanding
+--   now matches {remedial-0, remedial-1} but neither has frozen corrected-understanding yet.
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 5: design-followup v0 (soft cell, LLM evaluation)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { design-followup, remedial-0, remedial-1 }
+-- Pick: design-followup (drives ⊢∘ iteration, prioritize loop progression)
+
+⊢ design-followup
+  given §ask ≡ "⊢ ask\n  given concept→topic\n  given concept→student-level\n  given concept→prerequisite-knowledge\n  yield question, target-understanding\n\n  ∴ You are a Socratic teacher. Design ONE question about «concept→topic»\n    appropriate for «concept→student-level» with «concept→prerequisite-knowledge».\n    The question should REVEAL whether the student understands the concept...\n    Prefer scenario-based questions... State what understanding you expect the question to test.\n\n  ⊨ question is scenario-based, not a definition request\n  ⊨ target-understanding names a specific concept being tested"
+  given? evaluate→misconceptions ≡ ["Believes commit history is a single shared timeline...", "Thinks 'git pull' simply downloads and stacks commits linearly..."]
+  given evaluate→understanding-level ≡ "partial" where understanding-level != "solid"
+  yield §ask'
+
+  ∴ Based on the misconceptions «evaluate→misconceptions» and understanding
+    level «evaluate→understanding-level», redesign the question in «§ask».
+    If understanding = "none": ask a SIMPLER question that builds toward the concept.
+    If understanding = "partial": ask a question that TARGETS the specific misconception.
+    Rewrite ONLY the ∴ block. Keep given/yield/⊨ the same.
+
+-- LLM evaluation:
+-- Understanding is "partial" — student has the right instinct (noticed push fails)
+-- but misconceives history as linear. Target misconception #1 directly:
+-- the idea that there's one shared timeline.
+
+  yield §ask' ≡ "⊢ ask\n  given concept→topic\n  given concept→student-level\n  given concept→prerequisite-knowledge\n  yield question, target-understanding\n\n  ∴ You are a Socratic teacher. The student thinks git history is one shared\n    timeline. Design a scenario that FORCES them to confront the existence\n    of two independent histories. For example: two developers clone the\n    same repo at 9am, both make commits, neither pushes until 5pm.\n    Ask what the commit log looks like on EACH machine BEFORE they push.\n    The scenario should make the student realize there are two separate\n    histories, not one. State what understanding you expect to test.\n\n  ⊨ question is scenario-based, not a definition request\n  ⊨ target-understanding names a specific concept being tested"
+
+-- oracle checks:
+--   ⊨ §ask' has same given/yield signature as §ask → ✓
+--     (both: given concept→topic, concept→student-level, concept→prerequisite-knowledge;
+--      yield question, target-understanding)
+--   ⊨ §ask' ∴ block differs from §ask ∴ block → ✓
+--     (old: generic "Design ONE question..." / new: specifically targets timeline misconception)
+--   ⊨ if understanding-level = "partial" then §ask' targets the specific misconception → ✓
+--     (targets: "thinks git history is one shared timeline")
+
+-- ⊢∘ applies the rewrite: ask is replaced by ask' for next iteration.
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 6: remedial-0 (soft cell, LLM evaluation)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { remedial-0, remedial-1 }
+-- Pick: remedial-0
+
+⊢ remedial-0
+  given misconception ≡ "Believes commit history is a single shared timeline ordered by wall-clock time — does not understand that each developer has an independent local history that diverges."
+  yield corrected-understanding
+
+  ∴ The student thinks all commits live on one shared timeline. Disprove this
+    with a concrete counter-example: show two developers making commits at the
+    same times but on different machines, producing two separate commit logs
+    that only meet when they explicitly combine their work...
+
+-- LLM evaluation:
+
+  yield corrected-understanding ≡ "Counter-example: Alice and Bob both clone repo X at 9:00 AM. Alice commits A1 at 10am, A2 at 11am. Bob commits B1 at 10:30am, B2 at 11:30am. Before either pushes, Alice's log shows: X→A1→A2. Bob's log shows: X→B1→B2. There is NO single timeline — there are two independent chains. Wall-clock time is irrelevant to the commit graph; what matters is the parent pointer. A1's parent is X, not B1 (even though B1 happened between A1 and A2 in real time). The histories only merge when one of them explicitly pulls from the other."
+
+-- oracle check:
+--   ⊨ corrected-understanding directly addresses the timeline misconception → ✓
+
+-- Ready set after: { remedial-1 }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 7: remedial-1 (soft cell, LLM evaluation)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { remedial-1 }
+-- Pick: remedial-1
+
+⊢ remedial-1
+  given misconception ≡ "Thinks 'git pull' simply downloads and stacks commits linearly — unaware that pull performs a merge (or rebase) to reconcile two divergent histories."
+  yield corrected-understanding
+
+  ∴ The student thinks pull just downloads and appends. Show what actually
+    happens: pull = fetch + merge...
+
+-- LLM evaluation:
+
+  yield corrected-understanding ≡ "git pull is NOT 'download and stack.' It's fetch (download) + merge (reconcile). When Alice pulls Bob's commits: fetch copies B1→B2 into Alice's repo as a remote branch. Then merge creates a NEW commit M whose parents are BOTH A2 and B2. The graph is now: X→A1→A2→M and X→B1→B2→M (a diamond shape). M is the merge commit — it didn't exist before, and it has two parents. This is fundamentally different from stacking. Alternatively, with rebase: Alice's A1→A2 are REWRITTEN as A1'→A2' that come AFTER B2, creating a linear history X→B1→B2→A1'→A2'. The original A1→A2 are discarded. Neither operation is 'just downloading' — both actively reconcile divergent histories."
+
+-- oracle check:
+--   ⊨ corrected-understanding directly addresses the pull misconception → ✓
+
+-- state after frame 7: both remedial cells frozen.
+-- Ready set: { collect-remedials }
+--   Wildcard remedial-*→corrected-understanding matches {remedial-0, remedial-1}.
+--   Both have frozen corrected-understanding. Wildcard is fully resolved.
+-- BUT: ⊢∘ iteration 1 is about to begin (design-followup produced §ask').
+--   collect-remedials depends on ALL remedial-* being frozen. With accumulate
+--   mode, more remedials may appear. collect-remedials must wait until
+--   quiescence or ⊢∘ termination to know no more will spawn.
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ ITERATION 1 — question targets timeline misconception
+-- ═══════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 8: ask v1 (soft cell, LLM evaluation with rewritten ∴)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ ask
+  given concept→topic ≡ "Git rebase vs merge — when to use which"
+  given concept→student-level ≡ "Junior developer who knows git add/commit/push but not branching strategies"
+  given concept→prerequisite-knowledge ≡ "Knows: git add, git commit, git push, basic file staging. Does NOT know: branches, HEAD, commit graph topology, fast-forward, three-way merge, rebase rewriting."
+  yield question, target-understanding
+
+  ∴ You are a Socratic teacher. The student thinks git history is one shared
+    timeline. Design a scenario that FORCES them to confront the existence
+    of two independent histories. For example: two developers clone the
+    same repo at 9am, both make commits, neither pushes until 5pm.
+    Ask what the commit log looks like on EACH machine BEFORE they push.
+    The scenario should make the student realize there are two separate
+    histories, not one. State what understanding you expect to test.
+
+-- LLM evaluation:
+-- The rewritten ∴ targets the timeline misconception directly.
+
+  yield question ≡ "Scenario: You and your colleague both clone the same repo at 9:00 AM on Monday. You make three commits during the day (fixing a bug in login.py). Your colleague makes two commits (adding a new feature in dashboard.py). Neither of you pushes until 5:00 PM. Here's my question: at 4:59 PM, before either of you pushes — what does 'git log' show on YOUR machine? And what does 'git log' show on your COLLEAGUE'S machine? Are they the same log or different logs?"
+  yield target-understanding ≡ "That each git clone maintains its own independent commit history. Before push/pull, the two developers have genuinely different commit logs — not a shared timeline missing some entries, but two separate chains of commits that diverged from the same starting point."
+
+-- v0.2: aspirational oracle checks:
+--   ⊨ question is scenario-based, not a definition request → ✓
+--     (concrete scenario with two developers, specific files, specific times)
+--   ⊨ target-understanding names a specific concept being tested → ✓
+--     ("independent commit history", "separate chains that diverged")
+
+-- Ready set after: { simulate-student }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 9: simulate-student v1 (soft cell, LLM evaluation)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ simulate-student
+  given ask→question ≡ "Scenario: You and your colleague both clone the same repo at 9:00 AM... what does 'git log' show on YOUR machine? And what does 'git log' show on your COLLEAGUE'S machine? Are they the same log or different logs?"
+  given concept→student-level ≡ "Junior developer who knows git add/commit/push but not branching strategies"
+  given concept→prerequisite-knowledge ≡ "Knows: git add, git commit, git push, basic file staging. Does NOT know: branches, HEAD, commit graph topology, fast-forward, three-way merge, rebase rewriting."
+  yield answer, confidence
+
+  ∴ You are simulating a student at level «concept→student-level»...
+
+-- LLM evaluation:
+-- The targeted question forces the student to confront the scenario directly.
+-- A junior dev who has used git log knows it shows local commits. The specific
+-- "before you push" framing should trigger partial recognition.
+
+  yield answer ≡ "Oh wait... I think they'd be different logs actually? Because I've only committed to my own machine, and she's only committed to hers. So my git log would show my three bug fix commits and her log would show her two feature commits. Neither of us has the other person's commits yet because we haven't pushed or pulled. So they're totally different logs from the same starting point. Is that right? But then... how does git know how to put them together later? Does it just go by the timestamps?"
+  yield confidence ≡ "unsure"
+
+-- oracle checks:
+--   ⊨ answer reflects the stated student level → ✓
+--     (correctly identifies divergent logs but still confused about reconciliation,
+--      falls back on timestamp misconception for the merge question)
+--   ⊨ confidence ∈ {"confident", "unsure", "guessing"} → ✓ ("unsure")
+
+-- Ready set after: { evaluate }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 10: evaluate v1 (soft cell, LLM evaluation)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ evaluate
+  given ask→question ≡ "...what does 'git log' show on YOUR machine? And on your COLLEAGUE'S machine?"
+  given ask→target-understanding ≡ "That each git clone maintains its own independent commit history..."
+  given simulate-student→answer ≡ "Oh wait... I think they'd be different logs actually?... my git log would show my three bug fix commits and her log would show her two feature commits... But then... how does git know how to put them together later? Does it just go by the timestamps?"
+  given simulate-student→confidence ≡ "unsure"
+  yield correct, misconceptions[], understanding-level
+
+  ∴ Evaluate «simulate-student→answer» against «ask→target-understanding»...
+
+-- LLM evaluation:
+-- The student now correctly identifies that the logs are different — a major
+-- advance from iteration 0. But they still assume timestamps drive reconciliation.
+
+  yield correct ≡ false
+  yield misconceptions ≡ [
+    "Thinks git reconciles divergent histories by timestamps ('Does it just go by the timestamps?') — does not understand that merge uses common ancestor and diff-based three-way merge, and rebase uses parent-pointer rewriting."
+  ]
+  yield understanding-level ≡ "partial"
+
+-- oracle checks:
+--   ⊨ correct ∈ {true, false} → ✓ (false)
+--   ⊨ each misconception is specific and falsifiable → ✓
+--     (falsifiable: show that merge uses common ancestor, not timestamps)
+--   ⊨ understanding-level ∈ {"none", "partial", "solid"} → ✓ ("partial")
+--   ⊨ if correct then misconceptions is empty → ✓ (vacuous, correct=false)
+--   ⊨ if understanding-level = "solid" then correct = true → ✓ (vacuous, level="partial")
+
+-- NOTE: The first misconception (shared timeline) is RESOLVED. Student now
+-- understands independent histories. New misconception: timestamp-based reconciliation.
+-- Progress: misconception count went from 2 → 1, and the remaining one is more specific.
+
+-- Ready set after: { design-followup, spawn-remedials }
+--   design-followup: guard (understanding-level != "solid") → ✓ ("partial" != "solid")
+--   spawn-remedials: evaluate→misconceptions bound (1 new misconception)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 11: spawn-remedials fires again (⊢⊢ spawner, accumulate mode, iteration 1)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { design-followup, spawn-remedials }
+-- Pick: spawn-remedials
+
+⊢⊢ spawn-remedials
+  given evaluate→misconceptions ≡ [
+    "Thinks git reconciles divergent histories by timestamps — does not understand that merge uses common ancestor and diff-based three-way merge, and rebase uses parent-pointer rewriting."
+  ]
+  yield §remedial-cells[]
+  accumulate
+
+-- LLM evaluation:
+-- Spawner creates 1 remedial cell for the new misconception.
+-- ACCUMULATE MODE: remedial-0 and remedial-1 from iteration 0 persist.
+
+  yield §remedial-cells ≡ [§remedial-2]
+
+-- oracle checks:
+--   ⊨ length(remedial-cells) = length(evaluate→misconceptions) → ✓ (1 = 1)
+--   ⊨ each §remedial-cell addresses exactly one misconception → ✓
+
+-- SPAWNER EFFECT: 1 new cell enters the frontier (total remedials: 3):
+
+⊢ remedial-2
+  given misconception ≡ "Thinks git reconciles divergent histories by timestamps — does not understand that merge uses common ancestor and diff-based three-way merge, and rebase uses parent-pointer rewriting."
+  yield corrected-understanding
+
+  ∴ The student thinks git uses timestamps to decide how to combine work.
+    Show that git merge finds the COMMON ANCESTOR commit (where histories
+    diverged) and does a THREE-WAY COMPARISON: ancestor vs yours vs theirs.
+    Timestamps are irrelevant — what matters is the graph structure. Then
+    contrast with rebase: instead of a three-way merge, rebase REPLAYS your
+    commits one-by-one on top of the other branch, creating new commits
+    with different parents. Show both approaches produce the same final
+    code but different history shapes.
+
+  ⊨ corrected-understanding directly addresses the timestamp misconception
+
+-- state after frame 11: spawn-remedials frozen (iteration 1), 1 new cell.
+-- Ready set: { design-followup, remedial-2 }
+-- collect-remedials: wildcard now matches {remedial-0, remedial-1, remedial-2}
+--   but remedial-2 not yet frozen. Still blocked.
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 12: design-followup v1 (soft cell, LLM evaluation)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { design-followup, remedial-2 }
+-- Pick: design-followup
+
+⊢ design-followup
+  given §ask ≡ "⊢ ask\n  ...\n  ∴ You are a Socratic teacher. The student thinks git history is one shared\n    timeline. Design a scenario that FORCES them to confront the existence\n    of two independent histories...\n  ⊨ ..."
+  given? evaluate→misconceptions ≡ ["Thinks git reconciles divergent histories by timestamps..."]
+  given evaluate→understanding-level ≡ "partial" where understanding-level != "solid"
+  yield §ask'
+
+  ∴ Based on the misconceptions... redesign the question in «§ask».
+    If understanding = "partial": ask a question that TARGETS the specific misconception.
+
+-- LLM evaluation:
+-- Understanding still "partial" — student grasps independent histories now but
+-- thinks timestamps drive reconciliation. Target the timestamp misconception.
+
+  yield §ask' ≡ "⊢ ask\n  given concept→topic\n  given concept→student-level\n  given concept→prerequisite-knowledge\n  yield question, target-understanding\n\n  ∴ You are a Socratic teacher. The student now understands that two developers\n    have separate commit histories. But they think git uses TIMESTAMPS to\n    combine work. Design a scenario with a TRICK: two developers make commits\n    at identical timestamps (or make one set backdated). Ask how git would\n    combine them. The scenario should make the student realize that timestamps\n    are irrelevant — git uses the commit GRAPH (parent pointers) to figure\n    out where histories diverged, then has TWO strategies: merge (create a\n    new commit with two parents) or rebase (replay commits onto the other\n    branch). Ask which approach they'd prefer and why.\n\n  ⊨ question is scenario-based, not a definition request\n  ⊨ target-understanding names a specific concept being tested"
+
+-- oracle checks:
+--   ⊨ §ask' has same given/yield signature as §ask → ✓
+--   ⊨ §ask' ∴ block differs from §ask ∴ block → ✓
+--   ⊨ if understanding-level = "partial" then §ask' targets the specific misconception → ✓
+--     (targets: "thinks git uses TIMESTAMPS to combine work")
+
+-- ⊢∘ applies the rewrite: ask replaced by ask' for iteration 2.
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 13: remedial-2 (soft cell, LLM evaluation)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { remedial-2 }
+-- Pick: remedial-2
+
+⊢ remedial-2
+  given misconception ≡ "Thinks git reconciles divergent histories by timestamps..."
+  yield corrected-understanding
+
+  ∴ ...Show that git merge finds the COMMON ANCESTOR commit... contrast with
+    rebase: rebase REPLAYS your commits one-by-one...
+
+-- LLM evaluation:
+
+  yield corrected-understanding ≡ "Git does NOT use timestamps to combine work. It uses the commit graph — specifically, parent pointers. Merge strategy: git finds the common ancestor (the last commit both developers share), then performs a three-way diff (ancestor vs your changes vs their changes). Conflicts arise when both modified the same lines, regardless of when. The result is a merge commit with two parents. Rebase strategy: instead of creating a merge commit, rebase takes your commits and replays them one-by-one on top of the other developer's latest commit, creating new commits with new parent pointers. The code changes are the same, but the history shape differs: merge preserves the fork-and-join topology, rebase creates a linear sequence. Neither cares about timestamps."
+
+-- oracle check:
+--   ⊨ corrected-understanding directly addresses the timestamp misconception → ✓
+
+-- state after frame 13: all remedials frozen so far {remedial-0, remedial-1, remedial-2}.
+-- But ⊢∘ iteration 2 is beginning — more remedials may be spawned.
+-- collect-remedials still waits for quiescence.
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ ITERATION 2 — question targets timestamp misconception, introduces merge vs rebase
+-- ═══════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 14: ask v2 (soft cell, LLM evaluation with twice-rewritten ∴)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ ask
+  given concept→topic ≡ "Git rebase vs merge — when to use which"
+  given concept→student-level ≡ "Junior developer who knows git add/commit/push but not branching strategies"
+  given concept→prerequisite-knowledge ≡ "Knows: git add, git commit, git push, basic file staging. Does NOT know: branches, HEAD, commit graph topology, fast-forward, three-way merge, rebase rewriting."
+  yield question, target-understanding
+
+  ∴ You are a Socratic teacher. The student now understands that two developers
+    have separate commit histories. But they think git uses TIMESTAMPS to
+    combine work. Design a scenario with a TRICK: two developers make commits
+    at identical timestamps (or make one set backdated). Ask how git would
+    combine them. The scenario should make the student realize that timestamps
+    are irrelevant — git uses the commit GRAPH (parent pointers) to figure
+    out where histories diverged, then has TWO strategies: merge (create a
+    new commit with two parents) or rebase (replay commits onto the other
+    branch). Ask which approach they'd prefer and why.
+
+-- LLM evaluation:
+-- The prompt now explicitly asks to introduce the merge vs rebase distinction.
+
+  yield question ≡ "Here's a tricky scenario: You clone a repo at 9am and make two commits at 10:00 AM and 11:00 AM. Your colleague clones the same repo, but she deliberately sets her computer's clock back to yesterday and makes two commits timestamped 3:00 PM and 4:00 PM YESTERDAY. Now you both want to combine your work. Question 1: Does git get confused by the timestamps? Does it try to put her 'yesterday' commits before your 'today' commits? Question 2: Git actually offers you TWO ways to combine the work. Way A creates a new 'combination commit' that ties both histories together. Way B takes your commits and re-does them as if you'd started from her latest commit. Can you guess what the history would look like in each case — and which one would you prefer for a team project?"
+  yield target-understanding ≡ "Two concepts: (1) Git ignores timestamps for history reconciliation — it uses parent pointers (graph structure) to find the common ancestor. (2) The fundamental distinction between merge (preserves fork-and-join topology, creates merge commit) and rebase (rewrites your commits to create linear history). The student should begin to articulate a preference and reasoning."
+
+-- v0.2: aspirational oracle checks:
+--   ⊨ question is scenario-based → ✓ (backdated-clock trick scenario)
+--   ⊨ target-understanding names specific concepts → ✓ ("parent pointers", "merge", "rebase")
+
+-- Ready set after: { simulate-student }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 15: simulate-student v2 (soft cell, LLM evaluation)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ simulate-student
+  given ask→question ≡ "...deliberately sets her computer's clock back to yesterday... Does git get confused by the timestamps?... Git offers TWO ways to combine... Way A creates a new 'combination commit'... Way B takes your commits and re-does them..."
+  given concept→student-level ≡ "Junior developer who knows git add/commit/push but not branching strategies"
+  given concept→prerequisite-knowledge ≡ "Knows: git add, git commit, git push, basic file staging. Does NOT know: branches, HEAD, commit graph topology, fast-forward, three-way merge, rebase rewriting."
+  yield answer, confidence
+
+  ∴ You are simulating a student at level «concept→student-level»...
+
+-- LLM evaluation:
+-- After two rounds, the student has had key insights. The backdated-clock
+-- trick should help them reason through timestamps. The two-way framing
+-- gives them scaffolding to reason about merge vs rebase.
+
+  yield answer ≡ "OK so for question 1 — I'm guessing git does NOT get confused by the timestamps? Because you said earlier that git tracks which commit came from which, like parent pointers. So even if her timestamps say yesterday, git knows her commits came AFTER the original clone point, same as mine. The timestamps are just metadata, not how git organizes things.
+
+For question 2 — Way A sounds like it creates a snapshot of 'here's what the code looks like when we put both sets of changes together,' and it keeps both branches of history visible. Way B sounds like it pretends I started my work after she finished hers, so the history looks like one straight line.
+
+I think for a team project I'd prefer Way A? Because Way B kind of lies about when I did my work. If something breaks, it would be harder to figure out what happened if the history was rewritten. But Way A might make the log messy with all those combination commits... I can see why teams might disagree about this."
+  yield confidence ≡ "unsure"
+
+-- oracle checks:
+--   ⊨ answer reflects the stated student level → ✓
+--     (reasoning through the scenario with growing understanding, not expert knowledge;
+--      still uses imprecise language like "combination commits" and "lies about when")
+--   ⊨ confidence ∈ {"confident", "unsure", "guessing"} → ✓ ("unsure")
+
+-- Ready set after: { evaluate }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 16: evaluate v2 (soft cell, LLM evaluation)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ evaluate
+  given ask→question ≡ "...backdated timestamps... TWO ways to combine..."
+  given ask→target-understanding ≡ "Two concepts: (1) Git ignores timestamps for history reconciliation — it uses parent pointers. (2) The fundamental distinction between merge and rebase."
+  given simulate-student→answer ≡ "...git does NOT get confused by the timestamps... parent pointers... Way A sounds like it creates a snapshot... Way B sounds like it pretends I started my work after she finished... I'd prefer Way A... Way B kind of lies about when I did my work..."
+  given simulate-student→confidence ≡ "unsure"
+  yield correct, misconceptions[], understanding-level
+
+  ∴ Evaluate «simulate-student→answer» against «ask→target-understanding»...
+
+-- LLM evaluation:
+-- The student correctly identifies: (1) timestamps don't drive reconciliation,
+-- (2) merge preserves parallel history while rebase linearizes, (3) a reasonable
+-- trade-off analysis (merge for auditability vs rebase for clean history).
+-- The language is informal but conceptually correct.
+
+  yield correct ≡ true
+  yield misconceptions ≡ []
+  yield understanding-level ≡ "solid"
+
+-- oracle checks:
+--   ⊨ correct ∈ {true, false} → ✓ (true)
+--   ⊨ each misconception is specific and falsifiable → ✓ (vacuously — list is empty)
+--   ⊨ understanding-level ∈ {"none", "partial", "solid"} → ✓ ("solid")
+--   ⊨ if correct then misconceptions is empty → ✓ (correct=true, misconceptions=[])
+--   ⊨ if understanding-level = "solid" then correct = true → ✓ (solid ∧ true)
+
+-- evaluate→understanding-level ≡ "solid" → ⊢∘ TERMINATES. Teaching complete.
+
+-- Ready set after: { design-followup, spawn-remedials }
+-- BUT: design-followup has guard (understanding-level != "solid").
+--   Guard evaluates: "solid" != "solid" → FALSE.
+--   design-followup is SKIPPED. Its yields are ⊥. (v0.2 guard-induced bottom)
+--   Since ⊢∘ until condition is met, no further iteration anyway.
+-- spawn-remedials: evaluate→misconceptions ≡ [] (empty).
+--   Spawner fires but produces no cells.
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 17: spawn-remedials fires (⊢⊢ spawner, iteration 2 — empty input)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { spawn-remedials }
+-- (design-followup was skipped by guard clause)
+
+⊢⊢ spawn-remedials
+  given evaluate→misconceptions ≡ []
+  yield §remedial-cells[]
+  accumulate
+
+-- LLM evaluation:
+-- No misconceptions to address. Spawner yields empty list.
+
+  yield §remedial-cells ≡ []
+
+-- oracle checks:
+--   ⊨ length(remedial-cells) = length(evaluate→misconceptions) → ✓ (0 = 0)
+
+-- SPAWNER EFFECT: No new cells. Total remedials remain: {remedial-0, remedial-1, remedial-2}
+
+-- ⊢∘ teach has terminated (evaluate→understanding-level = "solid").
+-- No more iterations will fire. No more remedials will be spawned.
+-- collect-remedials can now safely resolve its wildcard.
+
+-- Ready set after: { collect-remedials }
+-- Wildcard remedial-*→corrected-understanding matches {remedial-0, remedial-1, remedial-2}.
+-- All three have frozen corrected-understanding. Wildcard fully resolved.
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 18: collect-remedials (soft cell, LLM evaluation)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { collect-remedials }
+-- This is the last cell.
+
+⊢ collect-remedials
+  given remedial-*→corrected-understanding ≡ [
+    "Counter-example: Alice and Bob both clone repo X at 9:00 AM. Alice's log shows: X→A1→A2. Bob's log shows: X→B1→B2. There is NO single timeline — there are two independent chains...",
+    "git pull is NOT 'download and stack.' It's fetch + merge. Merge creates a NEW commit M whose parents are BOTH A2 and B2. The graph is a diamond shape. Alternatively, rebase REWRITES A1→A2 as A1'→A2' after B2...",
+    "Git does NOT use timestamps to combine work. It uses parent pointers. Merge: find common ancestor, three-way diff, create merge commit with two parents. Rebase: replay your commits one-by-one on top, creating new commits. Neither cares about timestamps."
+  ]
+  yield remedial-summary
+
+  ∴ Collect all corrected understandings from «remedial-*→corrected-understanding».
+    Produce a summary of misconceptions identified and their corrections,
+    ordered by when they were discovered in the teaching loop.
+
+-- LLM evaluation:
+
+  yield remedial-summary ≡ "MISCONCEPTION LOG — Teaching session on 'Git rebase vs merge'
+
+Misconception 1 (iteration 0): SHARED TIMELINE FALLACY
+Student believed all commits exist on one universal timeline ordered by wall-clock time. CORRECTION: Each git clone has its own independent commit history. Two developers working in parallel have two separate commit chains that diverge from their common starting point. Wall-clock time is irrelevant — what matters is the parent pointer in each commit.
+
+Misconception 2 (iteration 0): PULL = DOWNLOAD + STACK
+Student believed 'git pull' simply downloads remote commits and places them linearly atop local ones. CORRECTION: pull = fetch + merge. Fetch downloads; merge reconciles divergent histories either by creating a merge commit (two parents) or by rebasing (replaying commits to create linear history). Neither is 'stacking.'
+
+Misconception 3 (iteration 1): TIMESTAMP-BASED RECONCILIATION
+Student believed git uses commit timestamps to determine ordering when combining work. CORRECTION: Git uses the commit graph (parent pointers) to find the common ancestor and reconcile changes. Timestamps are metadata only — a backdated commit is handled identically to a correctly-dated one. Merge uses three-way diff from the common ancestor; rebase replays commits based on graph position, not time.
+
+RESOLUTION: After 3 iterations, student demonstrated solid understanding of both merge (preserves fork-and-join topology) and rebase (creates linear history by replaying commits), including the trade-off between auditability and clean history."
+
+-- oracle checks:
+--   ⊨ remedial-summary covers every spawned remedial cell → ✓
+--     (all 3 misconceptions documented with corrections)
+
+-- ═══════════════════════════════════════════════════════════════
+-- QUIESCENCE: All cells frozen, no cells in ready set
+-- ═══════════════════════════════════════════════════════════════
+--
+-- Frozen cells:
+--   concept           → topic, student-level, prerequisite-knowledge (hard)
+--   ask v2            → question, target-understanding (soft, twice-rewritten)
+--   simulate-student v2 → answer ≡ (solid understanding), confidence ≡ "unsure"
+--   evaluate v2       → correct ≡ true, misconceptions ≡ [], understanding-level ≡ "solid"
+--   design-followup   → SKIPPED (guard: "solid" != "solid" → false, yields are ⊥)
+--   spawn-remedials   → §remedial-cells ≡ [] (final iteration, no new misconceptions)
+--   remedial-0        → corrected-understanding (timeline misconception)
+--   remedial-1        → corrected-understanding (pull misconception)
+--   remedial-2        → corrected-understanding (timestamp misconception)
+--   collect-remedials → remedial-summary (complete log)
+--
+-- Skipped cells:
+--   design-followup (iteration 2): guard clause (understanding-level != "solid")
+--     evaluated to false. All yields are ⊥. No downstream cells depend on
+--     design-followup outputs (⊢∘ already terminated), so ⊥ doesn't propagate.
+--
+-- No cells have unsatisfied given dependencies.
+-- No ⊢∘ iterations pending (until condition met at iteration 2).
+-- No ⊢⊢ spawners to fire (already fired for final evaluation).
+-- Program has reached quiescence. All cells frozen. ■
+
+-- ═══════════════════════════════════════════════════════════════
+-- EXECUTION SUMMARY
+-- ═══════════════════════════════════════════════════════════════
+--
+-- Total eval-one steps: 19 (frames 0-18)
+-- ⊢∘ iterations: 3 (0, 1, 2) out of max 5
+-- Convergence: understanding-level progressed "partial" → "partial" → "solid"
+-- Misconceptions resolved: 3 total (2 in iteration 0, 1 in iteration 1, 0 in iteration 2)
+-- Remedial cells spawned: 3 total (accumulate mode preserved all across iterations)
+--
+-- Question evolution across iterations:
+--   v0: Generic Socratic question about combining work — tested commit graph intuition.
+--       Result: student had partial understanding, 2 misconceptions found.
+--   v1: Targeted the "shared timeline" misconception — forced student to compare
+--       separate git logs on two machines before push.
+--       Result: timeline misconception resolved, timestamp misconception surfaced.
+--   v2: Targeted the "timestamp" misconception — backdated-clock trick + introduced
+--       merge vs rebase distinction.
+--       Result: student demonstrated solid understanding of both strategies.
+--
+-- Teaching arc: prerequisite (divergent histories) → mechanism (timestamps are
+-- irrelevant, parent pointers matter) → core topic (merge vs rebase trade-off).
+-- The ⊢∘ loop naturally discovered this pedagogical progression.
+
+-- ═══════════════════════════════════════════════════════════════
+-- OBSERVATIONS (v0.2-aware)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= obs-guard-clause-skipping
+  yield observation
+  ⊢= observation ← "v0.2 GUARD CLAUSE VALIDATED: design-followup's guard (understanding-level != 'solid') correctly skipped the cell in iteration 2 when the student demonstrated solid understanding. Without the guard, design-followup would have fired uselessly — attempting to redesign a question for a student who already understands. The guard clause saved one LLM call and prevented the ⊢∘ loop from receiving a confusing §ask' rewrite it would never use. Guard-induced ⊥ propagated cleanly because no downstream cell depended on design-followup's outputs at that point."
+
+⊢= obs-accumulate-mode
+  yield observation
+  ⊢= observation ← "⊢⊢ ACCUMULATE MODE PRODUCES COMPLETE MISCONCEPTION LOG: spawn-remedials fired 3 times across iterations, producing remedial-0 (timeline), remedial-1 (pull), remedial-2 (timestamps). Because accumulate mode preserves cells across iterations, collect-remedials received ALL misconceptions ever discovered, not just the latest. This is pedagogically correct — a teaching record should capture the entire learning journey, including misconceptions that were already resolved. Replace mode would have discarded earlier remedials, losing the learning history."
+
+⊢= obs-aspirational-oracles-teaching
+  yield observation
+  ⊢= observation ← "v0.2 ASPIRATIONAL ORACLES IN PEDAGOGICAL CONTEXT: ask's oracles (scenario-based, names specific concept) passed in all iterations — but if they had failed in iteration 0, the ⊢∘ loop would have continued anyway. The oracles describe good teaching practice (the ASPIRATION), while the ⊢∘ until condition (understanding-level = 'solid') is the OPERATIONAL gate. This is exactly right for teaching: a question can be imperfect (fail oracle) but still advance understanding. The ⊢∘ loop tolerates pedagogical missteps and corrects through iteration."
+
+⊢= obs-misconception-convergence
+  yield observation
+  ⊢= observation ← "MISCONCEPTION COUNT AS CONVERGENCE SIGNAL: iteration 0 found 2 misconceptions, iteration 1 found 1, iteration 2 found 0. The monotonically decreasing misconception count is a natural convergence metric that emerges from the teaching loop without being explicitly tracked. The ⊢∘ loop's until condition (understanding-level = 'solid') captures the endpoint, but the misconception trajectory reveals the SHAPE of convergence. This suggests misconceptions[] length could serve as an auxiliary until condition in teaching programs."
+
+⊢= obs-given-optional-dep
+  yield observation
+  ⊢= observation ← "v0.2 given? TOLERATES EDGE CASE: design-followup uses given? for evaluate→misconceptions because when understanding-level is 'solid', the misconceptions list is empty (not ⊥, but [])). In this program the given? is defensive rather than necessary — misconceptions is always bound (even if empty). But if evaluate had been modified to yield ⊥ for misconceptions when correct=true (a valid alternative design), given? would prevent design-followup from blocking. The given? annotation communicates INTENT: misconceptions are supplementary input, not a hard requirement."
+
+⊢= obs-wildcard-quiescence
+  yield observation
+  ⊢= observation ← "WILDCARD + ACCUMULATE REQUIRES QUIESCENCE AWARENESS: collect-remedials uses wildcard remedial-*→corrected-understanding. With accumulate mode, the match set grows across ⊢∘ iterations. collect-remedials cannot safely fire until the ⊢∘ loop terminates AND all matched cells freeze — otherwise it would collect a partial set. The runtime must track ⊢∘ termination to know when the wildcard match set is final. This is a subtle interaction between three v0.2 features (wildcard deps, accumulate mode, ⊢∘ lifecycle) that the spec should document explicitly."
+
+⊢= obs-file-scope-recovery
+  yield observation
+  ⊢= observation ← "v0.2 FILE-SCOPE ⊨? WITH partial-accept(best): the file-scope recovery policy was never triggered because all oracles passed and ⊢∘ converged within max 5. But the partial-accept(best) exhaustion handler is well-suited to teaching: if the student never reached 'solid' understanding after 5 iterations, accepting the best version of ask (the most targeted question) is a reasonable degradation. For teaching, partial success IS success — even an imperfect teaching session advances understanding."

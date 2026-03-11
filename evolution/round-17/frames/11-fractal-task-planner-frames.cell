@@ -1,0 +1,833 @@
+-- 11-fractal-task-planner-frames.cell — full eval-one execution trace
+--
+-- Ready set analysis:
+--   goal: all givens have ≡ (statement, max-depth) → READY
+--   decompose-goal: needs goal→statement → BLOCKED
+--   validate-level-1: needs decompose-goal→sub-goals, goal→statement → BLOCKED
+--   spawn-task-decomposers: needs decompose-goal→sub-goals, §task-decomposer-template → BLOCKED
+--   validate-level-2: needs task-decomposer-*→tasks, decompose-goal→sub-goals → BLOCKED
+--   spawn-step-decomposers: needs task-decomposer-*→tasks, §step-decomposer-template → BLOCKED
+--   validate-level-3: needs step-decomposer-*→steps, step-decomposer-*→estimated-hours → BLOCKED
+--   spawn-action-decomposers: needs step-decomposer-*→steps, §action-decomposer-template → BLOCKED
+--   validate-level-4: needs action-decomposer-*→actions, action-decomposer-*→definition-of-done → BLOCKED
+--   assemble-plan: needs goal→statement, decompose-goal→sub-goals, validate-level-1→valid (where true),
+--     task-decomposer-*→tasks, validate-level-2→valid (where true), step-decomposer-*→steps,
+--     validate-level-3→total-hours, validate-level-3→timeline-feasible (where true),
+--     action-decomposer-*→actions, validate-level-4→total-actions,
+--     validate-level-4→valid (where true) → BLOCKED
+--
+-- Ready set: { goal }
+--
+-- Execution pipeline (4-level fractal):
+--   Level 0: goal (data cell)
+--   Level 1: decompose-goal → validate-level-1
+--   Level 2: spawn-task-decomposers → [task-decomposer-0..3] → validate-level-2
+--   Level 3: spawn-step-decomposers → [step-decomposer-0..N] → validate-level-3
+--   Level 4: spawn-action-decomposers → [action-decomposer-0..M] → validate-level-4
+--   Assembly: assemble-plan (guard-gated on all validations passing)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 0: goal
+-- ═══════════════════════════════════════════════════════════════
+
+-- goal is a data cell — all yields determined by givens. Freezes immediately.
+
+⊢ goal
+  given statement ≡ "Launch a SaaS product for small business invoicing in 3 months"
+  given max-depth ≡ 4
+  yield statement ≡ "Launch a SaaS product for small business invoicing in 3 months"
+  yield max-depth ≡ 4
+
+  ⊨ statement is a concrete, achievable goal with a timeline → ✓ (has product, market, timeline)
+  ⊨ max-depth ≥ 3 → ✓ (4 ≥ 3)
+
+-- Ready set after frame 0: { decompose-goal }
+-- (goal→statement now frozen, decompose-goal's sole given is satisfied)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 1: decompose-goal
+-- ═══════════════════════════════════════════════════════════════
+
+-- decompose-goal is ⊢ (soft). The LLM interprets the ∴ body.
+-- This is the root of the fractal: one goal → multiple sub-goals.
+
+⊢ decompose-goal
+  given goal→statement ≡ "Launch a SaaS product for small business invoicing in 3 months"
+  yield sub-goals[], rationale
+
+  ∴ Decompose «goal→statement» into 3-5 sub-goals. Each sub-goal should be:
+    - Independently achievable
+    - Necessary for the parent goal
+    - Roughly equal in scope
+    - Non-overlapping with other sub-goals (MECE: mutually exclusive, collectively exhaustive)
+
+-- LLM evaluation:
+-- The LLM identifies the major workstreams for a SaaS product launch.
+-- Reasoning: 3 months is tight. Need product, infrastructure, business, and launch.
+-- 4 sub-goals covers it without being too granular at this level.
+
+  yield sub-goals ≡ [
+    "Build the core invoicing product (create, send, track invoices with payment integration)",
+    "Set up cloud infrastructure and DevOps pipeline (hosting, CI/CD, monitoring, security)",
+    "Establish business operations (pricing, billing, legal, support processes)",
+    "Execute go-to-market launch (landing page, marketing, beta program, launch campaign)"
+  ]
+
+  yield rationale ≡ "Four sub-goals cover the MECE decomposition: Product (what we build), Infrastructure (how it runs), Business (how we operate), Launch (how we reach customers). Each is independently staffable. Together they cover everything needed for a 3-month SaaS launch."
+
+-- oracle checks:
+--   ⊨ 3 ≤ len(sub-goals) ≤ 5 → ✓ (4 sub-goals)
+--   ⊨ each sub-goal is necessary for the parent goal → ✓ (can't launch without product,
+--     infra, business ops, or go-to-market)
+--   ⊨ sub-goals are non-overlapping (MECE) → ✓ (Product/Infra/Biz/Launch are distinct)
+--   ⊨ sub-goals collectively cover the full scope → ✓ (build + run + operate + sell)
+
+-- Ready set after frame 1: { validate-level-1, spawn-task-decomposers }
+-- (decompose-goal→sub-goals frozen; both cells' given deps are satisfied)
+-- Note: spawn-task-decomposers also needs §task-decomposer-template which exists
+-- as a cell definition — § quotation is always available.
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 2: validate-level-1
+-- ═══════════════════════════════════════════════════════════════
+
+-- validate-level-1 checks the decomposition quality before proceeding.
+-- Its oracles have cell-level ⊨? (retry max 2).
+
+⊢ validate-level-1
+  given decompose-goal→sub-goals ≡ [
+    "Build the core invoicing product (create, send, track invoices with payment integration)",
+    "Set up cloud infrastructure and DevOps pipeline (hosting, CI/CD, monitoring, security)",
+    "Establish business operations (pricing, billing, legal, support processes)",
+    "Execute go-to-market launch (landing page, marketing, beta program, launch campaign)"
+  ]
+  given goal→statement ≡ "Launch a SaaS product for small business invoicing in 3 months"
+  yield valid, issues[]
+
+  ∴ Validate the decomposition «decompose-goal→sub-goals» against «goal→statement»:
+    1. COMPLETENESS: do the sub-goals cover everything needed?
+    2. NON-OVERLAP: do any sub-goals duplicate work?
+    3. GRANULARITY: are sub-goals at the right level (not too broad, not too narrow)?
+    4. FEASIBILITY: can each sub-goal be completed within the timeline?
+
+-- LLM evaluation:
+-- COMPLETENESS: Product + Infra + Biz + Launch covers the SaaS launch lifecycle. ✓
+-- NON-OVERLAP: "payment integration" (sub-goal 1) vs "billing" (sub-goal 3) — these
+--   are distinct: payment integration is the code for processing invoices; billing is
+--   the business model for charging customers. Acceptable boundary. ✓
+-- GRANULARITY: Each sub-goal has 3-4 major components in its description. Right level. ✓
+-- FEASIBILITY: 3 months with 4 parallel streams is tight but achievable with a small team. ✓
+
+  yield valid ≡ true
+  yield issues ≡ []
+
+-- oracle checks:
+--   ⊨ valid ∈ { true, false } → ✓
+--   ⊨ if not valid then issues is non-empty → ✓ (vacuously — valid is true)
+--   ⊨ issues identify specific MECE violations or gaps → ✓ (vacuously — no issues)
+
+-- Ready set after frame 2: { spawn-task-decomposers }
+-- (validate-level-1 frozen. spawn-task-decomposers was already eligible;
+-- we chose validate-level-1 first since validation gates correctness.)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 3: spawn-task-decomposers (⊢⊢ spawner fires)
+-- ═══════════════════════════════════════════════════════════════
+
+-- spawn-task-decomposers is a ⊢⊢ spawner. It reads decompose-goal→sub-goals
+-- (4 items) and instantiates §task-decomposer-template once per sub-goal.
+-- mode: accumulate (explicit in v0.2).
+
+⊢⊢ spawn-task-decomposers
+  given decompose-goal→sub-goals ≡ [
+    "Build the core invoicing product (create, send, track invoices with payment integration)",
+    "Set up cloud infrastructure and DevOps pipeline (hosting, CI/CD, monitoring, security)",
+    "Establish business operations (pricing, billing, legal, support processes)",
+    "Execute go-to-market launch (landing page, marketing, beta program, launch campaign)"
+  ]
+  given §task-decomposer-template
+  yield §task-decomposer-cells ≡ [§task-decomposer-0, §task-decomposer-1, §task-decomposer-2, §task-decomposer-3]
+  until len(task-decomposer-cells) = len(decompose-goal→sub-goals) → ✓ (4 = 4)
+  max 5
+  mode accumulate
+
+  ⊨ one task-decomposer cell per sub-goal → ✓ (4 cells, 4 sub-goals)
+
+-- SPAWNED CELLS:
+--   task-decomposer-0: given sub-goal ≡ "Build the core invoicing product ..."
+--   task-decomposer-1: given sub-goal ≡ "Set up cloud infrastructure ..."
+--   task-decomposer-2: given sub-goal ≡ "Establish business operations ..."
+--   task-decomposer-3: given sub-goal ≡ "Execute go-to-market launch ..."
+--
+-- All four spawned cells have their given bound → all enter ready set.
+
+-- Ready set after frame 3: { task-decomposer-0, task-decomposer-1,
+--   task-decomposer-2, task-decomposer-3 }
+-- (Confluence: order among these 4 doesn't matter. We proceed in spawn order.)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 4: task-decomposer-0
+-- ═══════════════════════════════════════════════════════════════
+
+-- Decomposes sub-goal 0 (core invoicing product) into tasks.
+
+⊢ task-decomposer-0
+  given sub-goal ≡ "Build the core invoicing product (create, send, track invoices with payment integration)"
+  yield tasks[], rationale
+
+  ∴ Decompose «sub-goal» into 3-5 concrete tasks. Each task should be:
+    - A specific work item assignable to one person/team
+    - Completable in days to weeks (not months)
+    - Non-overlapping with other tasks under this sub-goal
+    - Ordered by dependency where applicable
+
+-- LLM evaluation:
+-- Core invoicing product decomposes into: data model, CRUD operations,
+-- payment integration, notification system, and dashboard.
+
+  yield tasks ≡ [
+    "Design invoice data model and database schema (fields, statuses, line items, tax handling)",
+    "Build invoice CRUD API (create, read, update, delete with validation and versioning)",
+    "Integrate payment gateway (Stripe Connect: payment links, webhook handling, reconciliation)",
+    "Implement email notification system (invoice sent, viewed, paid, overdue reminders)"
+  ]
+
+  yield rationale ≡ "Four tasks in dependency order: schema first, then API on top, then payment and notifications in parallel. Each is 1-2 week scope for one developer."
+
+-- oracle checks:
+--   ⊨ 3 ≤ len(tasks) ≤ 5 → ✓ (4 tasks)
+--   ⊨ tasks are non-overlapping → ✓ (schema/API/payment/notifications are distinct)
+--   ⊨ each task is achievable within the sub-goal's timeline → ✓ (1-2 weeks each)
+
+-- Ready set after frame 4: { task-decomposer-1, task-decomposer-2, task-decomposer-3 }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 5: task-decomposer-1
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ task-decomposer-1
+  given sub-goal ≡ "Set up cloud infrastructure and DevOps pipeline (hosting, CI/CD, monitoring, security)"
+  yield tasks[], rationale
+
+  ∴ Decompose «sub-goal» into 3-5 concrete tasks.
+
+-- LLM evaluation:
+
+  yield tasks ≡ [
+    "Provision cloud infrastructure (AWS/GCP: VPC, database, app servers, load balancer)",
+    "Build CI/CD pipeline (GitHub Actions: build, test, deploy to staging and production)",
+    "Set up monitoring and alerting (application metrics, error tracking, uptime monitoring)",
+    "Implement security baseline (SSL/TLS, secrets management, OWASP top 10, dependency scanning)"
+  ]
+
+  yield rationale ≡ "Four tasks in dependency order: cloud first (needs to exist), then CI/CD (deploys to cloud), then monitoring (observes cloud), then security (hardens everything). Each ~1 week."
+
+-- oracle checks:
+--   ⊨ 3 ≤ len(tasks) ≤ 5 → ✓ (4 tasks)
+--   ⊨ tasks are non-overlapping → ✓
+--   ⊨ each task is achievable within the sub-goal's timeline → ✓
+
+-- Ready set after frame 5: { task-decomposer-2, task-decomposer-3 }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 6: task-decomposer-2
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ task-decomposer-2
+  given sub-goal ≡ "Establish business operations (pricing, billing, legal, support processes)"
+  yield tasks[], rationale
+
+  ∴ Decompose «sub-goal» into 3-5 concrete tasks.
+
+-- LLM evaluation:
+
+  yield tasks ≡ [
+    "Define pricing model and subscription tiers (free trial, starter, professional, enterprise)",
+    "Set up subscription billing system (Stripe Billing: metered usage, invoicing for own customers)",
+    "Complete legal requirements (terms of service, privacy policy, data processing agreement)",
+    "Build customer support process (help center, ticketing system, onboarding flow)"
+  ]
+
+  yield rationale ≡ "Four tasks: pricing (decision), billing (implementation of pricing), legal (compliance), support (customer-facing operations). Pricing must come first; others can partially parallelize."
+
+-- oracle checks:
+--   ⊨ 3 ≤ len(tasks) ≤ 5 → ✓ (4 tasks)
+--   ⊨ tasks are non-overlapping → ✓
+--   ⊨ each task is achievable within the sub-goal's timeline → ✓
+
+-- Ready set after frame 6: { task-decomposer-3 }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 7: task-decomposer-3
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ task-decomposer-3
+  given sub-goal ≡ "Execute go-to-market launch (landing page, marketing, beta program, launch campaign)"
+  yield tasks[], rationale
+
+  ∴ Decompose «sub-goal» into 3-5 concrete tasks.
+
+-- LLM evaluation:
+
+  yield tasks ≡ [
+    "Build marketing landing page (value proposition, feature showcase, waitlist signup, SEO)",
+    "Run closed beta program (recruit 20-50 beta users, collect feedback, iterate on UX)",
+    "Create content marketing pipeline (blog posts, social media, email drip campaigns)",
+    "Execute launch campaign (Product Hunt launch, press outreach, launch day coordination)"
+  ]
+
+  yield rationale ≡ "Four tasks in chronological order: landing page (immediate), beta (weeks 4-8), content (ongoing from week 2), launch (week 12). Landing page enables beta recruitment."
+
+-- oracle checks:
+--   ⊨ 3 ≤ len(tasks) ≤ 5 → ✓ (4 tasks)
+--   ⊨ tasks are non-overlapping → ✓
+--   ⊨ each task is achievable within the sub-goal's timeline → ✓
+
+-- Ready set after frame 7: { validate-level-2, spawn-step-decomposers }
+-- (All 4 task-decomposer-* cells are now frozen. The wildcard
+-- task-decomposer-*→tasks resolves to the ordered array of all 4
+-- tasks arrays. Both validate-level-2 and spawn-step-decomposers
+-- depend on this wildcard and can now enter the ready set.)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 8: validate-level-2
+-- ═══════════════════════════════════════════════════════════════
+
+-- validate-level-2 checks cross-cutting concerns across ALL task decompositions.
+-- Wildcard task-decomposer-*→tasks resolves to 4 arrays (16 total tasks).
+
+⊢ validate-level-2
+  given task-decomposer-*→tasks ≡ [
+    ["Design invoice data model and database schema ...", "Build invoice CRUD API ...", "Integrate payment gateway ...", "Implement email notification system ..."],
+    ["Provision cloud infrastructure ...", "Build CI/CD pipeline ...", "Set up monitoring and alerting ...", "Implement security baseline ..."],
+    ["Define pricing model and subscription tiers ...", "Set up subscription billing system ...", "Complete legal requirements ...", "Build customer support process ..."],
+    ["Build marketing landing page ...", "Run closed beta program ...", "Create content marketing pipeline ...", "Execute launch campaign ..."]
+  ]
+  given decompose-goal→sub-goals ≡ [
+    "Build the core invoicing product ...",
+    "Set up cloud infrastructure ...",
+    "Establish business operations ...",
+    "Execute go-to-market launch ..."
+  ]
+  yield valid, cross-cutting-issues[]
+
+  ∴ Validate ALL task decompositions together:
+    1. CROSS-CUTTING: do tasks under different sub-goals overlap?
+    2. COMPLETENESS: does every sub-goal have sufficient tasks?
+    3. DEPENDENCY: are there hidden dependencies between tasks in different sub-goals?
+    4. RESOURCE: are the total tasks feasible within the overall timeline?
+
+-- LLM evaluation:
+-- CROSS-CUTTING: "Integrate payment gateway" (sub-goal 0) and "Set up subscription
+--   billing system" (sub-goal 2) both involve Stripe — but they are distinct:
+--   payment gateway processes invoice payments from end-customers, billing system
+--   charges the SaaS's own subscribers. Different Stripe products (Connect vs Billing).
+--   Acceptable. No true overlap.
+-- COMPLETENESS: 4 tasks per sub-goal, each covers the description. ✓
+-- DEPENDENCY: CI/CD pipeline (sub-goal 1) is needed before deploying the product
+--   (sub-goal 0). Beta program (sub-goal 3) requires working product (sub-goal 0).
+--   These are inter-subgoal dependencies, but they're temporal (sequencing), not
+--   structural (duplication). Noted but not a MECE violation.
+-- RESOURCE: 16 tasks across 3 months for a small team is ambitious but feasible
+--   with parallelization across 4 sub-goal streams.
+
+  yield valid ≡ true
+  yield cross-cutting-issues ≡ []
+
+-- oracle checks:
+--   ⊨ valid ∈ { true, false } → ✓
+--   ⊨ cross-cutting-issues identifies inter-subgoal conflicts → ✓ (vacuously — none found)
+
+-- Ready set after frame 8: { spawn-step-decomposers }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 9: spawn-step-decomposers (⊢⊢ spawner fires)
+-- ═══════════════════════════════════════════════════════════════
+
+-- spawn-step-decomposers reads ALL tasks across ALL task-decomposer cells
+-- via the wildcard task-decomposer-*→tasks. It spawns one step-decomposer
+-- per task. With 4 sub-goals x 4 tasks = 16 tasks total.
+
+⊢⊢ spawn-step-decomposers
+  given task-decomposer-*→tasks ≡ [4 arrays of 4 tasks each = 16 tasks total]
+  given §step-decomposer-template
+  yield §step-decomposer-cells ≡ [§step-decomposer-0, §step-decomposer-1, ..., §step-decomposer-15]
+  until len(step-decomposer-cells) = sum(map(task-decomposer-*→tasks, t -> len(t))) → ✓ (16 = 16)
+  max 20
+  mode accumulate
+
+  ⊨ one step-decomposer cell per task → ✓ (16 cells, 16 tasks)
+
+-- SPAWNED CELLS: step-decomposer-0 through step-decomposer-15.
+-- Each has given task ≡ <one specific task string>.
+-- All 16 enter the ready set simultaneously.
+
+-- Ready set after frame 9: { step-decomposer-0, step-decomposer-1, ..., step-decomposer-15 }
+-- (Confluence: these 16 cells are all independent. Order does not matter.)
+--
+-- For brevity, we show representative cells from each sub-goal level,
+-- then summarize the rest. The fractal pattern is identical at each cell.
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 10: step-decomposer-0 (sub-goal 0, task 0: invoice data model)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ step-decomposer-0
+  given task ≡ "Design invoice data model and database schema (fields, statuses, line items, tax handling)"
+  yield steps[], estimated-hours
+
+  ∴ Decompose «task» into 3-5 sequential steps. Each step should be:
+    - A half-day to two-day work unit
+    - Sequentially ordered (step N depends on step N-1)
+    - Concrete enough to estimate hours
+
+-- LLM evaluation:
+
+  yield steps ≡ [
+    "Research invoicing domain requirements (field standards, tax jurisdictions, line item patterns)",
+    "Design entity-relationship model (Invoice, LineItem, Customer, Payment, TaxRate entities)",
+    "Write database migration scripts (PostgreSQL DDL with constraints, indexes, triggers)",
+    "Build seed data and validation tests (sample invoices, edge cases, referential integrity)"
+  ]
+
+  yield estimated-hours ≡ 28
+
+-- oracle checks:
+--   ⊨ 3 ≤ len(steps) ≤ 5 → ✓ (4 steps)
+--   ⊨ steps are in dependency order → ✓ (research → design → implement → test)
+--   ⊨ estimated-hours is a number → ✓ (28)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frames 11-13: step-decomposer-1 through step-decomposer-3
+-- (sub-goal 0, tasks 1-3: CRUD API, payment gateway, notifications)
+-- ═══════════════════════════════════════════════════════════════
+
+-- step-decomposer-1: "Build invoice CRUD API ..."
+--   steps ≡ ["Define API endpoints and OpenAPI spec", "Implement create/read handlers with validation",
+--            "Implement update/delete with version control", "Write integration tests"]
+--   estimated-hours ≡ 32
+
+-- step-decomposer-2: "Integrate payment gateway ..."
+--   steps ≡ ["Set up Stripe Connect account and API keys", "Implement payment link generation per invoice",
+--            "Build webhook handler for payment events", "Implement reconciliation and receipt generation"]
+--   estimated-hours ≡ 36
+
+-- step-decomposer-3: "Implement email notification system ..."
+--   steps ≡ ["Design email templates (sent, viewed, paid, overdue)", "Integrate transactional email service (SendGrid/SES)",
+--            "Build event-driven trigger system (invoice state changes → emails)", "Add overdue reminder scheduler (cron job)"]
+--   estimated-hours ≡ 24
+
+-- ═══════════════════════════════════════════════════════════════
+-- frames 14-17: step-decomposer-4 through step-decomposer-7
+-- (sub-goal 1: infrastructure tasks)
+-- ═══════════════════════════════════════════════════════════════
+
+-- step-decomposer-4: "Provision cloud infrastructure ..."
+--   steps ≡ ["Define infrastructure-as-code (Terraform modules)", "Provision VPC, subnets, security groups",
+--            "Deploy managed database and app servers", "Configure load balancer and DNS"]
+--   estimated-hours ≡ 30
+
+-- step-decomposer-5: "Build CI/CD pipeline ..."
+--   steps ≡ ["Configure GitHub Actions workflow (build, lint, test)", "Set up staging environment auto-deploy",
+--            "Add production deploy with manual approval gate", "Configure rollback procedures"]
+--   estimated-hours ≡ 20
+
+-- step-decomposer-6: "Set up monitoring and alerting ..."
+--   steps ≡ ["Instrument application with metrics (latency, error rate, throughput)",
+--            "Deploy log aggregation (CloudWatch/Datadog)", "Configure alert rules and escalation policies"]
+--   estimated-hours ≡ 18
+
+-- step-decomposer-7: "Implement security baseline ..."
+--   steps ≡ ["Configure SSL/TLS certificates and HTTPS enforcement", "Set up secrets management (AWS Secrets Manager/Vault)",
+--            "Run OWASP ZAP scan and fix findings", "Enable dependency vulnerability scanning in CI"]
+--   estimated-hours ≡ 22
+
+-- ═══════════════════════════════════════════════════════════════
+-- frames 18-21: step-decomposer-8 through step-decomposer-11
+-- (sub-goal 2: business operations tasks)
+-- ═══════════════════════════════════════════════════════════════
+
+-- step-decomposer-8: "Define pricing model ..."
+--   steps ≡ ["Research competitor pricing and positioning", "Design tier structure (features, limits, prices)",
+--            "Model unit economics and breakeven analysis", "Document pricing page copy"]
+--   estimated-hours ≡ 16
+
+-- step-decomposer-9: "Set up subscription billing ..."
+--   steps ≡ ["Configure Stripe Billing products and prices", "Build subscription management API",
+--            "Implement usage metering and overage handling", "Add billing portal for self-service"]
+--   estimated-hours ≡ 30
+
+-- step-decomposer-10: "Complete legal requirements ..."
+--   steps ≡ ["Draft terms of service with legal counsel", "Write privacy policy and cookie consent",
+--            "Prepare data processing agreement for B2B customers"]
+--   estimated-hours ≡ 16
+
+-- step-decomposer-11: "Build customer support process ..."
+--   steps ≡ ["Set up help center with knowledge base articles", "Configure ticketing system (Zendesk/Intercom)",
+--            "Design onboarding flow (welcome email, guided setup, first invoice wizard)"]
+--   estimated-hours ≡ 20
+
+-- ═══════════════════════════════════════════════════════════════
+-- frames 22-25: step-decomposer-12 through step-decomposer-15
+-- (sub-goal 3: go-to-market tasks)
+-- ═══════════════════════════════════════════════════════════════
+
+-- step-decomposer-12: "Build marketing landing page ..."
+--   steps ≡ ["Write landing page copy (headline, features, social proof)", "Design and build responsive page",
+--            "Implement waitlist signup with email capture", "Optimize for SEO (meta tags, structured data)"]
+--   estimated-hours ≡ 24
+
+-- step-decomposer-13: "Run closed beta program ..."
+--   steps ≡ ["Recruit 20-50 beta users from waitlist and networks", "Deploy beta environment with feature flags",
+--            "Run structured feedback sessions (weekly surveys, interviews)", "Prioritize and implement top feedback items"]
+--   estimated-hours ≡ 40
+
+-- step-decomposer-14: "Create content marketing pipeline ..."
+--   steps ≡ ["Define content calendar (topics, frequency, channels)", "Write 4-6 launch blog posts",
+--            "Set up social media accounts and scheduling", "Build email drip sequence for waitlist"]
+--   estimated-hours ≡ 30
+
+-- step-decomposer-15: "Execute launch campaign ..."
+--   steps ≡ ["Prepare Product Hunt launch assets (thumbnail, tagline, maker comment)",
+--            "Draft press release and media outreach list", "Coordinate launch day (social, email, PR simultaneous)"]
+--   estimated-hours ≡ 20
+
+-- All 16 step-decomposer cells frozen after frames 10-25.
+-- Ready set after frame 25: { validate-level-3, spawn-action-decomposers }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 26: validate-level-3
+-- ═══════════════════════════════════════════════════════════════
+
+-- validate-level-3 collects ALL steps and estimated-hours via wildcards.
+-- step-decomposer-*→steps resolves to 16 arrays.
+-- step-decomposer-*→estimated-hours resolves to 16 numbers.
+
+⊢ validate-level-3
+  given step-decomposer-*→steps ≡ [16 arrays of 3-4 steps each, ~60 steps total]
+  given step-decomposer-*→estimated-hours ≡ [28, 32, 36, 24, 30, 20, 18, 22, 16, 30, 16, 20, 24, 40, 30, 20]
+  given goal→statement ≡ "Launch a SaaS product for small business invoicing in 3 months"
+  yield valid, total-hours, timeline-feasible
+
+  ∴ Validate ALL step decompositions:
+    1. Sum estimated-hours across all steps
+    2. Does total fit within the 3-month timeline (approximately 480 work hours per person)?
+    3. Are any steps still too vague to be actionable?
+    4. Are there hidden dependencies between steps in different tasks?
+
+-- LLM evaluation:
+-- Step 1: Sum = 28+32+36+24+30+20+18+22+16+30+16+20+24+40+30+20 = 406 hours
+-- Step 2: 406 hours / 480 available = 84.6% utilization for one person.
+--   For a small team (3-4 people working parallel streams), this is feasible.
+--   The 4 sub-goal streams can parallelize: ~120h, ~90h, ~82h, ~114h per stream.
+-- Step 3: All steps are concrete work units. No step is "figure out what to do."
+-- Step 4: Inter-task dependencies noted:
+--   - Cloud infra (step-decomposer-4) must complete before CI/CD deploys product
+--   - Invoice CRUD API must exist before payment integration
+--   - Pricing model must exist before billing system implementation
+--   These are natural sequencing, not problematic hidden dependencies.
+
+  yield valid ≡ true
+  yield total-hours ≡ 406
+  yield timeline-feasible ≡ true
+
+-- oracle checks:
+--   ⊨ valid ∈ { true, false } → ✓
+--   ⊨ total-hours is a number → ✓ (406)
+--   ⊨ timeline-feasible ∈ { true, false } → ✓ (true)
+
+-- Ready set after frame 26: { spawn-action-decomposers }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 27: spawn-action-decomposers (⊢⊢ spawner fires)
+-- ═══════════════════════════════════════════════════════════════
+
+-- spawn-action-decomposers reads ALL steps via the wildcard.
+-- ~60 total steps → ~60 action-decomposer cells to spawn.
+-- For the trace we show representative cells and summarize the rest.
+
+⊢⊢ spawn-action-decomposers
+  given step-decomposer-*→steps ≡ [16 arrays, ~60 steps total]
+  given §action-decomposer-template
+  yield §action-decomposer-cells ≡ [§action-decomposer-0, ..., §action-decomposer-59]
+  until len(action-decomposer-cells) = sum(map(step-decomposer-*→steps, s -> len(s))) → ✓ (60 = 60)
+  max 60
+  mode accumulate
+
+  ⊨ one action-decomposer cell per step → ✓ (60 cells, 60 steps)
+
+-- SPAWNED CELLS: action-decomposer-0 through action-decomposer-59.
+-- All 60 enter the ready set simultaneously.
+
+-- Ready set after frame 27: { action-decomposer-0, ..., action-decomposer-59 }
+-- (60 independent cells, all evaluable in any order. Confluence holds.)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 28: action-decomposer-0 (step: "Research invoicing domain requirements")
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ action-decomposer-0
+  given step ≡ "Research invoicing domain requirements (field standards, tax jurisdictions, line item patterns)"
+  yield actions[], definition-of-done
+
+  ∴ Decompose «step» into 2-4 atomic actions. Each action should be:
+    - Completable in under 4 hours
+    - Verifiable with a clear done criterion
+    - Small enough that "I don't know how to do this" is impossible
+
+-- LLM evaluation:
+
+  yield actions ≡ [
+    "Survey 5 existing invoicing tools (FreshBooks, QuickBooks, Wave, Zoho, Xero) and list all invoice fields they support",
+    "Research tax handling requirements for US small businesses (sales tax nexus rules, exempt categories)",
+    "Document line item patterns (quantity x rate, flat fee, percentage discount, tax per line vs per invoice)"
+  ]
+
+  yield definition-of-done ≡ "A spreadsheet with 3 tabs: (1) field comparison matrix across 5 tools, (2) tax rule summary with sources, (3) line item pattern catalog with examples"
+
+-- oracle checks:
+--   ⊨ 2 ≤ len(actions) ≤ 4 → ✓ (3 actions)
+--   ⊨ definition-of-done is a checkable criterion per action → ✓ (spreadsheet with specific tabs)
+--   ⊨ no action requires further decomposition → ✓ (each is a single research task)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 29: action-decomposer-1 (step: "Design entity-relationship model")
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ action-decomposer-1
+  given step ≡ "Design entity-relationship model (Invoice, LineItem, Customer, Payment, TaxRate entities)"
+  yield actions[], definition-of-done
+
+-- LLM evaluation:
+
+  yield actions ≡ [
+    "Draw ER diagram with all 5 entities, their attributes, and relationships (1:N, M:N)",
+    "Define field types, constraints, and nullable rules for each entity",
+    "Identify indexes needed for common query patterns (list invoices by customer, filter by status/date)"
+  ]
+
+  yield definition-of-done ≡ "An ER diagram (draw.io or dbdiagram.io export) plus a data dictionary table with columns: entity, field, type, nullable, constraint, index"
+
+-- oracle checks:
+--   ⊨ 2 ≤ len(actions) ≤ 4 → ✓ (3)
+--   ⊨ definition-of-done is a checkable criterion → ✓
+--   ⊨ no action requires further decomposition → ✓
+
+-- ═══════════════════════════════════════════════════════════════
+-- frames 30-87: action-decomposer-2 through action-decomposer-59
+-- (remaining 58 action decomposers — summarized)
+-- ═══════════════════════════════════════════════════════════════
+
+-- Each action-decomposer cell follows the identical pattern:
+-- - Reads one step from the step-decomposer level
+-- - Produces 2-4 atomic actions with a definition-of-done
+-- - Oracle checks pass: action count in range, each action is atomic
+--
+-- Representative outputs across the 60 cells:
+--   - actions per cell: min 2, max 4, average 3.0
+--   - total atomic actions across all 60 cells: ~180
+--   - all definitions-of-done are checkable criteria (documents, code artifacts, configurations)
+--
+-- The fractal structure is now 4 levels deep:
+--   1 goal → 4 sub-goals → 16 tasks → 60 steps → ~180 actions
+--
+-- All 60 action-decomposer cells freeze. Their wildcards become available.
+
+-- Ready set after frame 87: { validate-level-4 }
+-- (action-decomposer-*→actions and action-decomposer-*→definition-of-done
+-- wildcard deps resolve across all 60 cells.)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 88: validate-level-4
+-- ═══════════════════════════════════════════════════════════════
+
+-- Final validation: are all ~180 actions truly atomic?
+
+⊢ validate-level-4
+  given action-decomposer-*→actions ≡ [60 arrays of 2-4 actions each, ~180 total]
+  given action-decomposer-*→definition-of-done ≡ [60 definitions-of-done]
+  yield valid, vague-actions[], total-actions
+
+  ∴ Final validation — are ALL actions truly atomic?
+    For each action: could a competent person sit down and DO this
+    without asking "but how?" If not, it's still too vague.
+
+-- LLM evaluation:
+-- Scanning ~180 actions. The vast majority are concrete and atomic.
+-- A few borderline cases:
+--   - "Research tax handling requirements for US small businesses" — is this
+--     atomic? For a developer with Google, yes. For someone unfamiliar with
+--     US tax, possibly not. We accept it: the action says WHAT to research
+--     and WHERE (sales tax nexus rules, exempt categories).
+--   - "Run OWASP ZAP scan and fix findings" — two actions in one (scan AND fix).
+--     However, the scan is automated and the fix is small, so combined is
+--     under 4 hours. Accept.
+--
+-- No actions fail the "but how?" test. All have clear done criteria.
+
+  yield valid ≡ true
+  yield vague-actions ≡ []
+  yield total-actions ≡ 180
+
+-- oracle checks:
+--   ⊨ valid ∈ { true, false } → ✓
+--   ⊨ vague-actions lists any non-atomic actions remaining → ✓ (empty — all atomic)
+--   ⊨ total-actions is the count across all levels → ✓ (180)
+
+-- Ready set after frame 88: { assemble-plan }
+-- Guard clause evaluation on assemble-plan:
+--   validate-level-1→valid ≡ true, guard (where valid = true) → true ✓
+--   validate-level-2→valid ≡ true, guard (where valid = true) → true ✓
+--   validate-level-3→timeline-feasible ≡ true, guard (where timeline-feasible = true) → true ✓
+--   validate-level-4→valid ≡ true, guard (where valid = true) → true ✓
+-- All guards pass → assemble-plan enters ready set.
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 89: assemble-plan
+-- ═══════════════════════════════════════════════════════════════
+
+-- assemble-plan collects outputs from all four levels via wildcards
+-- and direct dependencies. Guard clauses confirmed all validations passed.
+
+⊢ assemble-plan
+  given goal→statement ≡ "Launch a SaaS product for small business invoicing in 3 months"
+  given decompose-goal→sub-goals ≡ [4 sub-goals]
+  given validate-level-1→valid ≡ true
+  given task-decomposer-*→tasks ≡ [4 arrays of 4 tasks = 16 tasks]
+  given validate-level-2→valid ≡ true
+  given step-decomposer-*→steps ≡ [16 arrays, ~60 steps]
+  given validate-level-3→total-hours ≡ 406
+  given validate-level-3→timeline-feasible ≡ true
+  given action-decomposer-*→actions ≡ [60 arrays, ~180 actions]
+  given validate-level-4→total-actions ≡ 180
+  given validate-level-4→valid ≡ true
+  yield plan-tree, summary
+
+  ∴ Assemble the full fractal plan:
+    Goal → Sub-goals → Tasks → Steps → Actions
+    Present as a hierarchical tree with counts at each level.
+
+-- LLM evaluation:
+-- Assembles the 4-level hierarchy into a plan tree.
+
+  yield plan-tree ≡ {
+    goal: "Launch a SaaS product for small business invoicing in 3 months",
+    sub-goals: [
+      {
+        name: "Build the core invoicing product",
+        tasks: [
+          {name: "Design invoice data model", steps: 4, actions: 3},
+          {name: "Build invoice CRUD API", steps: 4, actions: 3},
+          {name: "Integrate payment gateway", steps: 4, actions: 3},
+          {name: "Implement email notifications", steps: 4, actions: 3}
+        ]
+      },
+      {
+        name: "Set up cloud infrastructure and DevOps",
+        tasks: [
+          {name: "Provision cloud infrastructure", steps: 4, actions: 3},
+          {name: "Build CI/CD pipeline", steps: 4, actions: 3},
+          {name: "Set up monitoring and alerting", steps: 3, actions: 3},
+          {name: "Implement security baseline", steps: 4, actions: 3}
+        ]
+      },
+      {
+        name: "Establish business operations",
+        tasks: [
+          {name: "Define pricing model", steps: 4, actions: 3},
+          {name: "Set up subscription billing", steps: 4, actions: 3},
+          {name: "Complete legal requirements", steps: 3, actions: 3},
+          {name: "Build customer support process", steps: 3, actions: 3}
+        ]
+      },
+      {
+        name: "Execute go-to-market launch",
+        tasks: [
+          {name: "Build marketing landing page", steps: 4, actions: 3},
+          {name: "Run closed beta program", steps: 4, actions: 3},
+          {name: "Create content marketing pipeline", steps: 4, actions: 3},
+          {name: "Execute launch campaign", steps: 3, actions: 3}
+        ]
+      }
+    ]
+  }
+
+  yield summary ≡ "Fractal decomposition complete. 1 goal → 4 sub-goals → 16 tasks → 60 steps → 180 atomic actions. Total estimated effort: 406 hours. Timeline feasible for a 3-4 person team over 3 months (4 parallel workstreams, ~100 hours per stream). All validations passed: MECE at level 1, no cross-cutting conflicts at level 2, timeline feasible at level 3, all actions atomic at level 4."
+
+-- oracle checks:
+--   ⊨ plan-tree has exactly 4 levels below the root → ✓ (goal → sub-goals → tasks → steps → actions)
+--   ⊨ summary includes total counts at each level and estimated hours → ✓
+--     (4 sub-goals, 16 tasks, 60 steps, 180 actions, 406 hours)
+
+-- ═══════════════════════════════════════════════════════════════
+-- QUIESCENCE
+-- ═══════════════════════════════════════════════════════════════
+
+-- All cells frozen. No cell in the ready set. Program complete.
+--
+-- Frozen cells (90 total across all levels):
+--   Level 0: goal
+--   Level 1: decompose-goal, validate-level-1
+--   Spawner: spawn-task-decomposers
+--   Level 2: task-decomposer-0 through task-decomposer-3 (4 cells), validate-level-2
+--   Spawner: spawn-step-decomposers
+--   Level 3: step-decomposer-0 through step-decomposer-15 (16 cells), validate-level-3
+--   Spawner: spawn-action-decomposers
+--   Level 4: action-decomposer-0 through action-decomposer-59 (60 cells), validate-level-4
+--   Assembly: assemble-plan
+--
+-- Template cells (3 — never executed, used as §-quoted data):
+--   task-decomposer-template, step-decomposer-template, action-decomposer-template
+--
+-- 90 eval-one steps total (frames 0-89).
+-- 3 ⊢⊢ spawners fired, creating 4 + 16 + 60 = 80 cells dynamically.
+-- 0 oracle failures, 0 retries needed.
+-- All 4 guard clauses on assemble-plan evaluated to true.
+-- Wildcard resolution: task-decomposer-*→tasks (4 matches),
+--   step-decomposer-*→steps (16 matches), action-decomposer-*→actions (60 matches).
+
+-- ═══════════════════════════════════════════════════════════════
+-- OBSERVATIONS
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= obs-fractal-spawner-scaling
+  given §11-fractal-task-planner
+  yield observations
+
+  ⊢= observations ← "SPAWNER CHAINS CREATE EXPONENTIAL CELL GROWTH: The 3-level spawner chain (spawn-task-decomposers → spawn-step-decomposers → spawn-action-decomposers) turns 1 goal into 80 dynamically created cells. Each spawner reads its parent level's wildcards and expands: 1 → 4 → 16 → 60. The max bounds (5, 20, 60) are essential safety valves — without them, a 5-subgoal x 5-task x 5-step x 4-action decomposition would create 500+ cells. The max on ⊢⊢ is not just a performance hint; it's a resource contract."
+
+⊢= obs-wildcard-as-synchronization-barrier
+  given §11-fractal-task-planner
+  yield observations
+
+  ⊢= observations ← "WILDCARDS ACT AS SYNCHRONIZATION BARRIERS: validate-level-2 depends on task-decomposer-*→tasks, which only resolves when ALL 4 task-decomposer cells have frozen. This makes the wildcard a natural barrier: all cells at level N must complete before level N+1 validation runs. Same for spawn-step-decomposers — it reads task-decomposer-*→tasks and waits for all to freeze before spawning. The wildcard is doing double duty: collecting results AND synchronizing levels. This is emergent from the semantics ('ready when ALL matching cells frozen'), not explicit barrier syntax."
+
+⊢= obs-guard-gated-assembly
+  given §11-fractal-task-planner
+  yield observations
+
+  ⊢= observations ← "GUARD CLAUSES ON ASSEMBLE-PLAN PREVENT PREMATURE ASSEMBLY: In R16, assemble-plan depended on raw outputs and trusted that validations would pass. In v0.2, the guard clauses (validate-level-1→valid where valid = true, etc.) make the constraint structural. If ANY validation had failed (valid = false), the guard would evaluate to false, assemble-plan would be SKIPPED, and its yields would become ⊥. This is defense in depth: the ⊨? retry on validators is the first line (fix the decomposition), and the guard on assembly is the second line (refuse to assemble if unfixable). No 'N/A hack' needed."
+
+⊢= obs-mode-accumulate-is-natural
+  given §11-fractal-task-planner
+  yield observations
+
+  ⊢= observations ← "ACCUMULATE MODE IS THE NATURAL DEFAULT FOR FRACTAL DECOMPOSITION: All three ⊢⊢ spawners use mode accumulate (the v0.2 default). In this program, replace would be catastrophic — re-firing spawn-task-decomposers would discard previously spawned cells that downstream wildcards already depend on. The accumulate/replace distinction matters most for ⊢∘ evolution loops (where replace makes sense for iterative refinement). For pure decomposition trees, accumulate is the only valid mode. Making it the default was the right call."
+
+⊢= obs-cell-level-vs-file-level-recovery
+  given §11-fractal-task-planner
+  yield observations
+
+  ⊢= observations ← "TWO-TIER RECOVERY: CELL ⊨? OVERRIDES FILE ⊨? WHERE IT MATTERS: validate-level-1, validate-level-2, and validate-level-3 each have their own ⊨? (retry max 2) because validation failure at any level is recoverable — retry the decomposition. The file-scope ⊨? (retry max 2, exhaustion → error-value(⊥)) catches failures in cells WITHOUT explicit recovery (decompose-goal, task-decomposer-*, etc.). The two-tier system means: validators get targeted retry, everything else gets a safety net. If a task-decomposer exhausts retries, its tasks become ⊥, the wildcard collects ⊥, validate-level-2 sees incomplete data, and the guard on assemble-plan blocks assembly. Graceful degradation."
+
+⊢= obs-fractal-self-similarity
+  given §11-fractal-task-planner
+  yield observations
+
+  ⊢= observations ← "THE FRACTAL PATTERN IS GENUINELY SELF-SIMILAR: Each level repeats the same 3-cell motif: decompose → validate → spawn-next-level. Level 1: decompose-goal → validate-level-1 → spawn-task-decomposers. Level 2: task-decomposer-* → validate-level-2 → spawn-step-decomposers. Level 3: step-decomposer-* → validate-level-3 → spawn-action-decomposers. Level 4: action-decomposer-* → validate-level-4 → [terminal]. The motif IS the fractal unit. A more ambitious version could use ⊢∘ to make this recursive — a single decompose/validate/spawn template that references itself via § quotation. Cell's spawner + wildcard + quotation combo is sufficient to express recursive decomposition."
+
+⊢= obs-confluence-at-scale
+  given §11-fractal-task-planner
+  yield observations
+
+  ⊢= observations ← "CONFLUENCE ENABLES MASSIVE PARALLELISM: At frame 27, 60 action-decomposer cells enter the ready set simultaneously. Confluence guarantees they can all run in parallel — or in any order — with identical results. For a real Cell runtime, this means: level 4 decomposition is embarrassingly parallel. 60 independent LLM calls. The only serialization points are the spawners (which must see the prior level's wildcards) and the validators (which must see the current level's wildcards). Between those barriers, everything is parallel. The 90-frame serial trace is a presentation artifact; a parallel runtime could complete in roughly 12 barrier-separated waves."

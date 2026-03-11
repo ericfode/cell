@@ -1,0 +1,195 @@
+-- 05-meta-cell-designer.cell (v0.2)
+-- A Cell program that designs Cell programs. Programs that write programs.
+--
+-- Tests: § quotation as data, ⊢∘ evolution loop, oracle-gated design iteration,
+--        proof-carrying computation (design + verify), ⊢⊢ spawner (accumulate),
+--        wildcard deps, file-scope ⊨?, guard clauses, ⊢∘-managed aspirational oracles
+--
+-- v0.2 changes from R16:
+--   - Added file-scope ⊨? recovery policy
+--   - Wildcard deps (vuln-scan-*→field) now formally spec-compliant
+--   - ⊢⊢ spawn-scanners: added explicit `accumulate` mode
+--   - Added guard clause on critique (only runs if problems exist)
+--   - given? on redesign for optional critique output (tolerates ⊥)
+--   - Oracles on design-cells are ⊢∘-managed (aspirational, not hard gates)
+--   - cell-spec yields expressed as ⊢= with valid expression language
+--
+-- Domain: "An automated code review system that checks for security
+-- vulnerabilities, suggests fixes, and verifies the fixes don't break
+-- existing tests."
+
+⊨? on failure:
+  retry with «oracle.failures» appended to prompt
+  max 3 attempts
+⊨? on exhaustion:
+  error-value(⊥)
+
+⊢ domain
+  given description ≡ "An automated code review system that checks for security vulnerabilities, suggests fixes, and verifies the fixes don't break existing tests."
+  yield description
+
+  ⊨ description is a clear problem domain
+
+⊢ cell-spec
+  given spec-path ≡ "docs/design/cell-v0.2-spec.md"
+  yield symbols, execution-model, patterns
+
+  ⊢= symbols ← "⊢ (declare cell), ∴ (soft body), ⊢= (hard body), ⊨ (oracle), ⊨? (recovery), § (quotation), «» (interpolation), ≡ (binding), → (output access), ▸ (refinement), ⊢∘ (evolution), ⊢⊢ (spawner), ⊥ (bottom), given? (optional dep), where (guard clause)"
+
+  ⊢= execution-model ← "eval-one via Kahn's algorithm: find cells with all givens bound and guards true, evaluate one, check oracles, freeze yields. Monotonic — yields only get bound. Document IS the state. Guards skip cells cleanly (yields → ⊥). given? tolerates ⊥."
+
+  ⊢= patterns ← "proof-carrying computation (LLM finds, code verifies), self-crystallization (∴ → ⊢=), evolution loops (⊢∘ rewrites soft cells), spawners (⊢⊢ grows frontier, accumulate or replace), cell-as-agent (inbox → dispatch → act), guard-based dispatch (given x where cond)"
+
+⊢ decompose
+  given domain→description
+  yield components[], dataflow[]
+
+  ∴ Analyze «domain→description» and decompose it into logical components
+    for a Cell program. Identify:
+    - What inputs the system needs (code diffs, test suites)
+    - What processing stages are required (parse, scan, analyze, fix, verify)
+    - What outputs the system produces (vulnerability reports, fix suggestions, test results)
+    - How data flows between stages (which stage needs which outputs)
+
+    Produce a components list (named processing stages) and a dataflow list
+    (pairs of component→output connections).
+
+  ⊨ length(components) ≥ 4
+  ⊨ each component has a clear single responsibility
+  ⊨ dataflow forms a DAG (no cycles)
+  ⊨ dataflow covers every component (no orphans)
+
+⊢ design-cells
+  given decompose→components
+  given decompose→dataflow
+  given cell-spec→symbols
+  given cell-spec→execution-model
+  yield §program
+
+  ∴ Using the Cell language symbols («cell-spec→symbols») and execution model
+    («cell-spec→execution-model»), translate the components
+    «decompose→components» and dataflow «decompose→dataflow» into a valid
+    Cell program. For each component, write a ⊢ cell declaration with:
+    - given: inputs from upstream cells (using → notation per dataflow)
+    - yield: named outputs
+    - ∴: natural language instruction for what the cell does
+    - ⊨: oracle assertions that verify correctness
+
+    Use ⊢= for any cell that can be deterministic (e.g., parsing, formatting).
+    Use § quotation for cells that inspect other cells' definitions.
+    Include at least one ⊢⊢ spawner if the domain requires parallel work
+    (e.g., scanning multiple vulnerability categories independently).
+    Use guard clauses (given x where condition) for conditional dispatch.
+
+  ⊨ §program contains only valid Cell syntax
+  ⊨ every component from decompose→components has a corresponding ⊢ cell
+  ⊨ every dataflow edge from decompose→dataflow is expressed via given/→
+  ⊨ at least one cell uses ⊢= (crystallized)
+  ⊨ at least one cell has ⊨ oracles
+
+⊢ trace-readiness
+  given §program
+  yield ready-order[], blocking-map
+
+  ∴ Simulate eval-one scheduling on «§program». Walk the cell graph:
+    1. Find cells with all givens already bound (≡ present) and guards true — these are ready
+    2. Record which cells are blocked and what they wait for
+    3. Determine the evaluation order (topological sort via Kahn's)
+    4. Verify no cell is permanently blocked (all paths eventually resolve)
+    5. For cells with guard clauses, note which guards could yield ⊥
+
+    Output the ready-order (sequence of cell names in execution order) and
+    a blocking-map (for each blocked cell, what it waits on).
+
+  ⊨ ready-order is a valid topological sort of the cell graph
+  ⊨ every cell in §program appears exactly once in ready-order
+  ⊨ no cell is permanently blocked (all givens are eventually satisfiable)
+
+⊢ simulate-oracles
+  given §program
+  given trace-readiness→ready-order
+  yield oracle-results[], awkward-spots[]
+
+  ∴ For each cell in «§program», evaluate its ⊨ oracle assertions:
+    - Can the oracle be checked deterministically? (structural/value check)
+    - Does it require LLM judgment? (semantic check)
+    - Is the oracle too vague to be useful? (ambiguous)
+    - Is the oracle redundant with the ∴ body? (tautological)
+
+    Mark each oracle as: deterministic, semantic, ambiguous, or tautological.
+    Collect awkward-spots: cells with ambiguous/tautological oracles, cells
+    with no oracles, cells whose ∴ body is unclear or underspecified.
+
+  ⊨ oracle-results covers every ⊨ in §program
+  ⊨ each oracle-result classifies the oracle type
+  ⊨ awkward-spots identifies genuine design weaknesses
+
+⊢ critique
+  given §program
+  given simulate-oracles→awkward-spots where len(awkward-spots) > 0
+  given trace-readiness→blocking-map
+  yield problems[], suggestions[]
+
+  ∴ Review «§program» for design problems:
+    1. Awkward oracle spots: «simulate-oracles→awkward-spots»
+    2. Missing edges: are there components that should connect but don't?
+    3. Crystallization opportunities: which ∴ cells could be ⊢= instead?
+    4. Missing spawners: does the domain need parallel processing not captured?
+    5. Over-specification: are any ∴ blocks so detailed they're pseudocode?
+    6. Under-specification: are any ∴ blocks too vague to execute?
+    7. Missing guards: are there conditional branches without where clauses?
+
+    For each problem, suggest a specific fix.
+
+  ⊨ length(problems) ≥ 1
+  ⊨ each problem has a corresponding suggestion
+  ⊨ suggestions are actionable Cell syntax changes
+
+⊢ redesign
+  given §program
+  given? critique→problems
+  given? critique→suggestions
+  yield §program'
+
+  ∴ If «critique→problems» is ⊥ (no critique because no awkward spots were
+    found), return «§program» unchanged.
+    Otherwise, apply the suggestions «critique→suggestions» to fix the
+    problems «critique→problems» in «§program». Rewrite affected cells.
+    Preserve the overall structure — only change what needs fixing. Ensure
+    the redesigned program still covers the full domain.
+
+  ⊨ §program' has same top-level cell names as «§program» (unless cells were split/merged per suggestions)
+  ⊨ if critique→problems is not ⊥ then every problem is addressed in §program'
+  ⊨ §program' contains only valid Cell syntax
+
+⊢∘ evolve(design-cells, decompose→components, decompose→dataflow, cell-spec→symbols, cell-spec→execution-model)
+  through critique, redesign
+  until len(critique→problems) = 0 or critique→problems = ⊥
+  max 3
+
+  -- Each iteration: design-cells produces §program → trace-readiness
+  -- checks scheduling → simulate-oracles checks oracle quality →
+  -- critique finds problems (guard: only if awkward-spots exist) →
+  -- redesign fixes them → redesigned §program' replaces design-cells output.
+  -- Interface frozen, implementation evolves.
+  --
+  -- design-cells oracles are aspirational under ⊢∘ management: they describe
+  -- ideal program quality but don't independently block freezing. The ⊢∘
+  -- until condition (no remaining problems) is the actual convergence gate.
+
+⊢ emit-program
+  given redesign→§program'
+  given domain→description
+  yield final-cell-file
+
+  ∴ Format «redesign→§program'» as a complete .cell file with:
+    - Header comment describing the domain: «domain→description»
+    - All cell declarations from the program
+    - Clean formatting following Cell conventions
+    - File-scope ⊨? recovery policy
+
+    This is the ready-to-run output.
+
+  ⊨ final-cell-file is valid Cell syntax
+  ⊨ final-cell-file has a descriptive header comment
+  ⊨ final-cell-file addresses the complete domain description

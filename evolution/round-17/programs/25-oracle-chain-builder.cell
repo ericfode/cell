@@ -1,0 +1,249 @@
+-- 25-oracle-chain-builder.cell (R17, v0.2)
+-- Tests: recursive oracle decomposition, ⊢⊢ spawner for sub-oracle refiners,
+--        soft→hard classification, ⊢∘ refinement loop until convergence,
+--        ⊢= crystallized leaf checks, hierarchy assembly, wildcard deps
+--
+-- v0.2 changes from R16:
+--   - File-scope ⊨? recovery policy (v0.2 blesses file-scope ⊨?)
+--   - Wildcard deps (refiner-*→field, check-*→field) now v0.2-compliant:
+--     resolves to ordered array by spawn order, ready when ALL matching frozen
+--   - ⊢⊢ spawners: explicit accumulate mode for spawn-sub-decomposers
+--     (refiners accumulate across ⊢∘ iterations); replace mode for
+--     spawn-crystallizers (leaf checks rebuilt each time hierarchy changes)
+--   - Oracles on decompose are aspirational under ⊢∘ management — feedback
+--     signals for the refinement loop, not hard gates
+--   - Guard clause on assemble-hierarchy ensures all leaf checks are frozen
+--   - ⊢= expression language validated: verify-coverage uses only v0.2
+--     primitives (len, and, if/then/else, comparisons)
+--   - ⊢∘ label is "refine-loop" (v0.2: arbitrary label, not function name)
+--   - ⊢∘ parameter bindings pass api-artifact fields as stable context
+--   - v0.2 observation ⊢= cells in trace for spec-level findings
+--
+-- Starts with soft oracle: "the API design is good."
+-- Decomposes into specific sub-oracles. Recurses until all leaves
+-- are deterministically checkable (⊢=). Outputs an oracle hierarchy
+-- from vague root to precise, crystallized leaves.
+
+⊨? on failure:
+  retry with «oracle.failures» appended to prompt
+  max 2 attempts
+
+⊨? on exhaustion:
+  partial-accept(best)
+
+⊢ api-artifact
+  given endpoints ≡ "GET /users/{id} → User, POST /users → User, PUT /users/{id} → User, DELETE /users/{id} → 204, GET /users?page=N&limit=M → User[], POST /users/{id}/roles → Role"
+  given naming ≡ "kebab-case paths, camelCase JSON fields, plural resource nouns"
+  given errors ≡ "400 {error, message, details[]}, 401 Unauthorized, 403 Forbidden, 404 Not Found, 409 Conflict, 422 Unprocessable Entity, 500 Internal Server Error"
+  given auth ≡ "Bearer JWT in Authorization header, POST /auth/refresh, scopes: read:users write:users admin:users"
+  yield endpoints, naming, errors, auth
+
+  ⊨ endpoints lists HTTP methods with paths and return types
+  ⊨ naming specifies conventions for paths, fields, and resources
+  ⊨ errors specifies status codes with response structures
+  ⊨ auth specifies the authentication scheme and scopes
+
+⊢ root-oracle
+  given text ≡ "the API design is good"
+  given level ≡ 0
+  yield text, level
+
+⊢ decompose
+  given root-oracle→text
+  given api-artifact→endpoints
+  given api-artifact→naming
+  given api-artifact→errors
+  given api-artifact→auth
+  yield sub-oracles[], classifications[], soft-count
+
+  ∴ Decompose the vague oracle «root-oracle→text» into 4-6 specific
+    sub-oracles by examining the API artifact across these dimensions:
+
+    - Endpoint design (REST conventions, resource modeling)
+    - Naming consistency (paths, fields, resources)
+    - Error handling (coverage, structure, semantics)
+    - Authentication & authorization (scheme, scopes, flows)
+
+    For each sub-oracle, classify it as:
+    - "soft" — still vague, needs further decomposition
+      (e.g., "endpoints follow REST conventions")
+    - "structural" — checkable by pattern matching
+      (e.g., "all paths use kebab-case")
+    - "deterministic" — checkable by exact value match
+      (e.g., "error 400 response includes details[]")
+
+    Output sub-oracles[] as oracle text strings, classifications[]
+    aligned by index, and soft-count = number of "soft" entries.
+
+  -- v0.2: These oracles are aspirational under ⊢∘ management.
+  -- They serve as feedback signals for the refinement loop, not hard gates.
+  ⊨ len(sub-oracles) ≥ 4
+  ⊨ len(sub-oracles) ≤ 6
+  ⊨ len(classifications) = len(sub-oracles)
+  ⊨ each classification ∈ {"soft", "structural", "deterministic"}
+  ⊨ soft-count = count(classifications, c -> c = "soft")
+
+⊢⊢ spawn-sub-decomposers
+  given decompose→sub-oracles
+  given decompose→classifications
+  given api-artifact→endpoints
+  given api-artifact→naming
+  given api-artifact→errors
+  given api-artifact→auth
+  given §refiner-template
+  yield §refiner-cells[]
+  until len(refiner-cells) = decompose→soft-count
+  max 6
+  accumulate
+
+  ∴ For each sub-oracle in «decompose→sub-oracles» where the
+    corresponding classification is "soft", spawn a refiner cell
+    from «§refiner-template». Each spawned cell receives the
+    sub-oracle text and the full API artifact as context.
+
+    Do NOT spawn refiners for sub-oracles already classified as
+    "structural" or "deterministic" — those are already leaves.
+
+  ⊨ len(refiner-cells) = decompose→soft-count
+  ⊨ each refiner targets exactly one soft sub-oracle
+
+⊢ refiner-template
+  given oracle-text
+  given endpoints
+  given naming
+  given errors
+  given auth
+  yield refined-oracles[], refined-classes[]
+
+  ∴ Decompose «oracle-text» into 2-4 more specific sub-oracles.
+    Each should be closer to deterministically checkable.
+    Classify each as "soft", "structural", or "deterministic".
+    Prefer "deterministic" and "structural" — only mark as "soft"
+    if the assertion truly cannot be made more specific.
+
+    Use the artifact fields «endpoints», «naming», «errors», «auth»
+    to ground each sub-oracle in a concrete, checkable property.
+
+  ⊨ len(refined-oracles) ≥ 2
+  ⊨ len(refined-classes) = len(refined-oracles)
+  ⊨ each class ∈ {"soft", "structural", "deterministic"}
+
+⊢ collect-results
+  given refiner-*→refined-oracles
+  given refiner-*→refined-classes
+  given decompose→sub-oracles
+  given decompose→classifications
+  yield sub-oracles'[], classifications'[], soft-count'
+
+  ∴ Merge refined results back into the oracle list:
+
+    1. Keep non-soft oracles from «decompose→sub-oracles» (those
+       classified "structural" or "deterministic") — already leaves.
+    2. For each refiner in the refiner-* cells, replace
+       the original soft sub-oracle with its refined-oracles[] and
+       refined-classes[].
+    3. Output the combined list as sub-oracles'[], classifications'[],
+       and soft-count' (count of entries still classified "soft").
+
+  ⊨ len(sub-oracles') = len(classifications')
+  ⊨ len(sub-oracles') ≥ len(decompose→sub-oracles)
+  ⊨ soft-count' = count(classifications', c -> c = "soft")
+  ⊨ soft-count' ≤ decompose→soft-count
+
+⊢∘ refine-loop(decompose, api-artifact→endpoints, api-artifact→naming, api-artifact→errors, api-artifact→auth)
+  through spawn-sub-decomposers, collect-results
+  until collect-results→soft-count' = 0
+  max 3
+
+  -- Each iteration: take soft sub-oracles → spawn per-oracle refiners →
+  -- collect refined replacements. The updated oracle list replaces
+  -- decompose's output for the next iteration.
+  --
+  -- v0.2: api-artifact fields are fixed parameter bindings that persist
+  -- across all iterations, providing stable context for decomposition.
+  --
+  -- Interface frozen: decompose always yields sub-oracles[],
+  -- classifications[], soft-count. Only granularity evolves.
+  --
+  -- Convergence: each iteration replaces soft oracles with more
+  -- specific ones, driving soft-count toward 0. Max 3 as safety.
+
+⊢⊢ spawn-crystallizers
+  given collect-results→sub-oracles'
+  given collect-results→classifications'
+  given api-artifact→endpoints
+  given api-artifact→naming
+  given api-artifact→errors
+  given api-artifact→auth
+  given §check-template
+  yield §check-cells[]
+  until len(check-cells) = len(collect-results→sub-oracles')
+  max 20
+  replace
+
+  ∴ For each oracle in «collect-results→sub-oracles'», spawn a
+    crystallizer cell from «§check-template» that converts the oracle
+    text into a concrete deterministic check against the API artifact.
+
+    For "deterministic" oracles: exact value match or containment.
+    For "structural" oracles: pattern match or property check.
+    Each check must reference a specific field from api-artifact.
+
+  ⊨ len(check-cells) = len(collect-results→sub-oracles')
+  ⊨ each check-cell targets exactly one oracle
+
+⊢ check-template ▸ crystallized
+  given oracle-text
+  given endpoints
+  given naming
+  given errors
+  given auth
+  yield holds, evidence
+
+  ⊢= holds ← <deterministic check of oracle-text against artifact field>
+  ⊢= evidence ← <the specific artifact value that was checked>
+
+  ⊨ holds ∈ {true, false}
+  ⊨ evidence != ""
+
+⊢ assemble-hierarchy
+  given root-oracle→text
+  given collect-results→sub-oracles'
+  given collect-results→classifications'
+  given check-*→holds
+  given check-*→evidence
+  yield hierarchy-tree, depth, leaf-count, all-pass
+
+  ∴ Build the oracle hierarchy tree:
+
+    Root: «root-oracle→text» (level 0, soft)
+    └─ Level 1+: sub-oracles with their classifications
+       └─ Leaves: crystallized checks with holds/evidence
+
+    Format as indented text showing each oracle, its classification,
+    its crystallized check result (pass/fail), and the evidence used.
+
+    Compute:
+    - depth: maximum nesting level in the tree
+    - leaf-count: total crystallized leaf checks
+    - all-pass: true only if every leaf holds = true
+
+  ⊨ depth ≥ 2
+  ⊨ leaf-count = len(collect-results→sub-oracles')
+  ⊨ contains(hierarchy-tree, root-oracle→text)
+  ⊨ if all-pass then all(check-*→holds, h -> h = true)
+
+⊢ verify-coverage ▸ crystallized
+  given assemble-hierarchy→leaf-count
+  given assemble-hierarchy→depth
+  given assemble-hierarchy→all-pass
+  yield valid, verdict
+
+  ⊢= valid ← (assemble-hierarchy→leaf-count ≥ 8 and assemble-hierarchy→depth ≥ 2)
+  ⊢= verdict ← if valid and assemble-hierarchy→all-pass then "oracle chain complete: all leaves pass"
+               else if valid and not assemble-hierarchy→all-pass then "oracle chain complete: some leaves fail"
+               else if assemble-hierarchy→leaf-count < 8 then "insufficient decomposition depth"
+               else "hierarchy too shallow"
+
+  ⊨ verdict ∈ {"oracle chain complete: all leaves pass", "oracle chain complete: some leaves fail", "insufficient decomposition depth", "hierarchy too shallow"}
+  ⊨ if valid then assemble-hierarchy→leaf-count ≥ 8

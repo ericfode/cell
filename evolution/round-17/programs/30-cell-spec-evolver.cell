@@ -1,0 +1,286 @@
+-- 30-cell-spec-evolver.cell (R17, v0.2)
+-- Tests: meta-level spec evolution via ⊢∘, §-quotation for code-as-data,
+--        awkwardness detection, spec change proposals, rewrite & evaluation,
+--        guard clauses for conditional dispatch, file-scope ⊨?,
+--        ⊢∘-managed aspirational oracles, ⊢= expression language validation
+--
+-- v0.2 changes from R16:
+--   - Added file-scope ⊨? recovery policy (v0.2 blesses file-scope ⊨?)
+--   - Guard clauses on compile-changes dispatch (is-clean = true / false)
+--   - ⊢∘-managed cell oracles on identify-awkwardness are aspirational
+--   - Awkward-program fragment rewritten with guard clauses (v0.2 showcase)
+--   - ⊢= expression language: all hard cells validated against v0.2 primitives
+--   - given? on compile-changes for iterate-further→remaining (may be ⊥)
+--   - Observations use ⊢= expression language (v0.2 defined primitives)
+--
+-- Domain: Cell evolves its own specification. Writes a program that's awkward
+-- in v0.1. Identifies WHY. Proposes spec change. Rewrites with change.
+-- Evaluates: better? ⊢∘ loop until no more awkwardness.
+-- Output: proposed v0.2 spec changes.
+
+⊨? on failure:
+  retry with «oracle.failures» appended to prompt
+  max 3 attempts
+⊨? on exhaustion:
+  error-value(⊥)
+
+⊢ spec-excerpt
+  yield text
+
+  ⊢= text ← "## Cell v0.1 Spec — Key Constraints
+
+Cells declare inputs with `given` and outputs with `yield`.
+All inputs must be fully bound before evaluation.
+There is no conditional `given` — every declared input is required.
+There is no branching construct — cells execute linearly by data dependency.
+There is no `try/fallback` pattern — oracle failure (⊨?) is the only recovery.
+There is no way to express 'evaluate A, then choose B or C based on result.'
+There is no guard clause on cells — a cell cannot say 'only run me if X.'
+Versioning of evolved cells uses prime marks: cell, cell', cell''.
+
+Open Questions from v0.1:
+1. Error handling — what when ⊢= throws or ∴ produces wrong type?
+2. Versioning beyond prime marks — §cell''' doesn't scale.
+3. Streaming — need ~ annotation for incremental input.
+4. Oracle distinction — assert vs rule, soft vs hard preconditions."
+
+⊢ awkward-program
+  yield code, intent
+
+  ⊢= intent ← "A content moderation pipeline: classify text, then route to
+different handlers based on classification. If toxic → rewrite. If borderline →
+human-review. If clean → pass through. This requires conditional dispatch
+which Cell v0.1 has no syntax for."
+
+  ⊢= code ← "-- Awkward: conditional dispatch in Cell v0.1
+-- We WANT: classify → route to ONE of three handlers based on result.
+-- We GET: all three handlers run, but two produce wasted work.
+
+⊢ classify
+  given text ≡ 'This product is terrible and whoever made it should feel bad.'
+  yield label, confidence
+
+  ∴ Classify «text» as toxic, borderline, or clean.
+     Output the label and your confidence (0-1).
+
+  ⊨ label ∈ {toxic, borderline, clean}
+  ⊨ confidence ∈ [0, 1]
+
+⊢ handle-toxic
+  given classify→label where label = 'toxic'
+  given classify→confidence
+  given text ≡ 'This product is terrible and whoever made it should feel bad.'
+  yield rewritten
+
+  ∴ Rewrite «text» to remove toxicity while preserving the core feedback.
+
+  ⊨ rewritten is a non-toxic version of text
+
+⊢ handle-borderline
+  given classify→label where label = 'borderline'
+  given classify→confidence
+  yield action
+
+  ∴ Flag for human review. Include «classify→confidence» as context.
+
+  ⊨ action contains 'NEEDS_HUMAN_REVIEW'
+
+⊢ handle-clean
+  given classify→label where label = 'clean'
+  given text ≡ 'This product is terrible and whoever made it should feel bad.'
+  yield output
+
+  ∴ Pass «text» through unchanged.
+
+  ⊨ output = text
+
+⊢ merge-result
+  given? handle-toxic→rewritten
+  given? handle-borderline→action
+  given? handle-clean→output
+  given classify→label
+  yield final-output
+
+  ∴ Select the result from whichever handler ran (non-⊥ output).
+     Exactly one of the three should be non-⊥.
+
+  ⊨ final-output ≠ ⊥"
+
+⊢ identify-awkwardness
+  given §awkward-program
+  given awkward-program→code
+  given awkward-program→intent
+  given spec-excerpt→text
+  yield problems[], root-causes[], awkwardness-score
+
+  ∴ Analyze «awkward-program→code» against the intent «awkward-program→intent».
+
+    For each awkward pattern found, identify:
+    1. WHAT is awkward (quote the code)
+    2. WHY it's awkward (which spec constraint forces it)
+    3. ROOT CAUSE in the spec (the missing construct or wrong assumption)
+    4. SEVERITY: 1 (minor) to 5 (fundamental limitation)
+
+    Categories to check:
+    - WASTED COMPUTATION: Do cells run when they shouldn't?
+    - BOILERPLATE: Do cells need manual 'if not my case' guards?
+    - FRAGILITY: Does adding a 4th route require touching every cell?
+    - READABILITY: Can a reader see the routing logic at a glance?
+    - COMPOSABILITY: Can this pattern be reused without copy-paste?
+
+    Set awkwardness-score = mean of severities.
+
+  ⊨ each problem has: quote, why, root-cause, severity
+  ⊨ each severity ∈ {1, 2, 3, 4, 5}
+  ⊨ awkwardness-score = mean of all severities
+  ⊨ problems is non-empty (the program is intentionally awkward)
+
+⊢ propose-spec-change
+  given identify-awkwardness→problems
+  given identify-awkwardness→root-causes
+  given spec-excerpt→text
+  yield proposed-syntax, rationale, compatibility-analysis
+
+  ∴ For each root cause in «identify-awkwardness→root-causes», propose a
+    concrete syntax addition or change to Cell v0.1 that would eliminate
+    the awkwardness.
+
+    Requirements for proposals:
+    - Must be MINIMAL — smallest syntax change that fixes the problem
+    - Must be COMPOSABLE — works with existing ⊢, ⊨, §, ⊢∘ mechanics
+    - Must not break any existing valid Cell program
+    - Must specify the new symbol/keyword and its semantics
+
+    Consider these design options:
+    - Guard clause: `given x where condition` (cell only evaluates if true)
+    - Pattern match: `⊢ handle | classify→label = "toxic"` (variant cells)
+    - Dispatch cell: `⊢⊸ route(classify→label) { toxic: ..., clean: ... }`
+    - Conditional given: `given? x if condition` (optional dependency)
+    - Bottom propagation: skipped cells yield ⊥, downstream uses given?
+
+    Output the proposed syntax, rationale for choosing it, and analysis
+    of backward compatibility with v0.1.
+
+  ⊨ proposed-syntax defines at least one new construct
+  ⊨ rationale addresses every root cause
+  ⊨ compatibility-analysis confirms no breakage of existing programs
+
+⊢ rewrite-program
+  given §awkward-program
+  given awkward-program→code
+  given awkward-program→intent
+  given propose-spec-change→proposed-syntax
+  yield code', awkward-parts-remaining[]
+
+  ∴ Rewrite «awkward-program→code» using the proposed syntax from
+    «propose-spec-change→proposed-syntax».
+
+    The rewritten program must:
+    - Achieve the same intent as «awkward-program→intent»
+    - Use the proposed syntax wherever it eliminates awkwardness
+    - NOT introduce new awkwardness
+    - Be shorter or equal in length to the original
+
+    List any remaining awkward parts that the proposed syntax didn't fix.
+
+  ⊨ code' achieves the same intent as awkward-program→intent
+  ⊨ code' uses at least one construct from proposed-syntax
+  ⊨ code' does not contain 'N/A' hack patterns
+
+⊢ evaluate-improvement
+  given awkward-program→code
+  given rewrite-program→code'
+  given rewrite-program→awkward-parts-remaining
+  given identify-awkwardness→awkwardness-score
+  yield new-score, improvement-delta, is-clean, verdict
+
+  ∴ Compare the original code «awkward-program→code» with the rewrite
+    «rewrite-program→code'».
+
+    Score the rewrite on the same 5 categories (wasted computation,
+    boilerplate, fragility, readability, composability). Each 1-5.
+    Calculate new-score as the mean.
+    improvement-delta = original awkwardness-score − new-score.
+    is-clean = true if new-score ≤ 1.5 AND no remaining awkward parts
+    have severity ≥ 4.
+
+    Verdict: summarize whether the spec change is worth adopting.
+
+  ⊨ new-score ≤ identify-awkwardness→awkwardness-score
+  ⊨ improvement-delta ≥ 0
+  ⊨ if new-score ≤ 1.5 and awkward-parts-remaining all have severity < 4 then is-clean = true
+  ⊨ if new-score > 1.5 then is-clean = false
+
+⊢∘ evolve-spec(awkward-program)
+  through identify-awkwardness, propose-spec-change, rewrite-program, evaluate-improvement
+  until evaluate-improvement→is-clean = true
+  max 3
+
+⊢ compile-changes
+  given propose-spec-change→proposed-syntax
+  given propose-spec-change→rationale
+  given propose-spec-change→compatibility-analysis
+  given evaluate-improvement→verdict
+  given evaluate-improvement→is-clean where is-clean = true
+  given rewrite-program→code'
+  yield v02-changes
+
+  ∴ Compile the proposed v0.2 spec changes into a structured document:
+
+    ## Proposed Cell v0.2 Changes
+
+    For each accepted syntax change:
+    - Symbol/keyword and its meaning
+    - Formal syntax (BNF-like)
+    - Semantics (how eval-one handles it)
+    - Example (before/after)
+    - Backward compatibility note
+
+  ⊨ v02-changes includes at least one concrete syntax proposal
+  ⊨ v02-changes includes before/after examples
+  ⊨ v02-changes includes backward compatibility analysis
+
+⊢ iterate-further
+  given propose-spec-change→proposed-syntax
+  given evaluate-improvement→verdict
+  given evaluate-improvement→is-clean where is-clean = false
+  given rewrite-program→awkward-parts-remaining
+  yield remaining[], next-focus
+
+  ∴ The rewrite is not clean yet. List the remaining awkwardnesses from
+    «rewrite-program→awkward-parts-remaining» that the proposed syntax
+    didn't fix, and identify which one to focus on next.
+
+  ⊨ len(remaining) > 0
+  ⊨ next-focus names a specific remaining awkwardness
+
+-- Observations
+
+⊢= obs-1 ← "The ⊢∘ loop here evolves the PROGRAM, not the spec. Each iteration
+  rewrites awkward-program→code with progressively better spec proposals. The
+  spec changes accumulate in compile-changes, which reads the final iteration's
+  proposals. Under v0.2, the oracles on identify-awkwardness are aspirational —
+  the ⊢∘ loop's `until` condition (is-clean = true) is the true convergence gate."
+
+⊢= obs-2 ← "The awkward-program fragment has been rewritten with v0.2 guard
+  clauses and given?/⊥ propagation. The R16 version used the N/A hack (all
+  branches run, irrelevant ones output 'N/A'). The R17 version uses
+  `given classify→label where label = 'toxic'` so only the relevant handler
+  executes. Skipped handlers yield ⊥. merge-result uses given? to accept ⊥
+  and select the non-⊥ result. This IS the spec change the program discovers."
+
+⊢= obs-3 ← "Self-referential irony: program 30 was the motivating example for
+  guard clauses in the v0.2 spec. The R17 version embeds the v0.2 solution
+  (guard clauses) inside its own awkward-program fragment, then re-discovers
+  why it works. The evolver validates the spec change it already contains."
+
+⊢= obs-4 ← "Guard-gated dispatch on compile-changes vs iterate-further replaces
+  the R16 pattern where a single compile-changes cell handled both clean and
+  not-clean cases. Under v0.2, `given ... where is-clean = true` sends the
+  program to compile-changes; `given ... where is-clean = false` sends it to
+  iterate-further. Exactly one fires. No wasted evaluation."
+
+⊢= obs-5 ← "The ⊢= expression language validation is subtle here: obs cells
+  use string literals (valid), evaluate-improvement uses arithmetic comparison
+  (new-score ≤ 1.5, valid), and guard clauses use equality checks (is-clean =
+  true, valid). All conform to v0.2 defined primitives. No false crystallization."

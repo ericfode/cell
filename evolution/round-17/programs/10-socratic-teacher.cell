@@ -1,0 +1,137 @@
+-- 10-socratic-teacher.cell (R17, v0.2)
+-- Tests: adaptive branching, ⊢∘ evolution, ⊢⊢ spawner (accumulate mode),
+--        diagnostic evaluation, guard clauses, given?, ⊢∘-managed aspirational oracles
+--
+-- A Socratic teaching loop: teacher asks questions, simulated student answers,
+-- evaluator identifies misconceptions, question designer targets the misconception.
+-- ⊢∘ loops until student demonstrates understanding. Spawns remedial cells for
+-- each misconception discovered. Accumulated across iterations so the full
+-- misconception history is preserved.
+--
+-- Concept: "Git rebase vs merge — when to use which"
+-- Student level: Junior dev who knows git add/commit/push but not branching strategies
+--
+-- v0.2 changes from R16:
+--   - Added file-scope ⊨? recovery policy (v0.2 spec: applies to all cells
+--     without local ⊨?)
+--   - ⊢⊢ spawn-remedials: added explicit `accumulate` mode (v0.2 clarification —
+--     misconception cells persist across ⊢∘ iterations)
+--   - Oracles on ask are aspirational under ⊢∘ management (v0.2: feedback
+--     signals, not hard gates)
+--   - Added guard clauses on design-followup branching by understanding-level
+--   - Added given? on design-followup for evaluate→misconceptions (tolerates
+--     empty misconceptions when understanding is solid)
+--   - Wildcard deps (remedial-*→field) now formally v0.2-compliant
+
+⊨? on failure:
+  retry with «oracle.failures» appended to prompt
+  max 3 attempts
+⊨? on exhaustion:
+  partial-accept(best)
+
+⊢ concept
+  yield topic, student-level, prerequisite-knowledge
+
+  ⊢= topic ← "Git rebase vs merge — when to use which"
+  ⊢= student-level ← "Junior developer who knows git add/commit/push but not branching strategies"
+  ⊢= prerequisite-knowledge ← "Knows: git add, git commit, git push, basic file staging. Does NOT know: branches, HEAD, commit graph topology, fast-forward, three-way merge, rebase rewriting."
+
+⊢ ask
+  given concept→topic
+  given concept→student-level
+  given concept→prerequisite-knowledge
+  yield question, target-understanding
+
+  ∴ You are a Socratic teacher. Design ONE question about «concept→topic»
+    appropriate for «concept→student-level» with «concept→prerequisite-knowledge».
+    The question should REVEAL whether the student understands the concept, not
+    just test recall. Prefer scenario-based questions ("You're working on a
+    feature branch and...") over definition questions ("What is rebase?").
+    State what understanding you expect the question to test.
+
+  -- v0.2: These oracles are aspirational under ⊢∘ management.
+  -- They serve as feedback signals for the teaching loop, not hard gates.
+  ⊨ question is scenario-based, not a definition request
+  ⊨ target-understanding names a specific concept being tested
+
+⊢ simulate-student
+  given ask→question
+  given concept→student-level
+  given concept→prerequisite-knowledge
+  yield answer, confidence
+
+  ∴ You are simulating a student at level «concept→student-level» with
+    knowledge «concept→prerequisite-knowledge». Answer «ask→question»
+    as this student would — with partial knowledge, common misconceptions,
+    and honest confusion. Do NOT give the correct answer unless the student
+    at this level would actually know it. Express confidence: "confident",
+    "unsure", or "guessing".
+
+  ⊨ answer reflects the stated student level, not expert knowledge
+  ⊨ confidence ∈ {"confident", "unsure", "guessing"}
+
+⊢ evaluate
+  given ask→question
+  given ask→target-understanding
+  given simulate-student→answer
+  given simulate-student→confidence
+  yield correct, misconceptions[], understanding-level
+
+  ∴ Evaluate «simulate-student→answer» against «ask→target-understanding».
+    Is the answer correct? If not, identify SPECIFIC misconceptions —
+    not "doesn't understand rebase" but "thinks rebase creates a new branch"
+    or "confuses rebase with cherry-pick." Rate understanding:
+    "none" (no grasp), "partial" (some correct intuition, wrong details),
+    "solid" (demonstrates understanding).
+
+  ⊨ correct ∈ {true, false}
+  ⊨ each misconception is specific and falsifiable
+  ⊨ understanding-level ∈ {"none", "partial", "solid"}
+  ⊨ if correct then misconceptions is empty
+  ⊨ if understanding-level = "solid" then correct = true
+
+⊢ design-followup
+  given §ask
+  given? evaluate→misconceptions
+  given evaluate→understanding-level where understanding-level != "solid"
+  yield §ask'
+
+  ∴ Based on the misconceptions «evaluate→misconceptions» and understanding
+    level «evaluate→understanding-level», redesign the question in «§ask».
+    If understanding = "none": ask a SIMPLER question that builds toward the concept.
+    If understanding = "partial": ask a question that TARGETS the specific misconception.
+    Rewrite ONLY the ∴ block. Keep given/yield/⊨ the same.
+
+  ⊨ §ask' has same given/yield signature as «§ask»
+  ⊨ §ask' ∴ block differs from «§ask» ∴ block
+  ⊨ if understanding-level = "none" then §ask' targets a simpler prerequisite
+  ⊨ if understanding-level = "partial" then §ask' targets the specific misconception
+
+⊢∘ teach(ask)
+  through simulate-student, evaluate, design-followup
+  until evaluate→understanding-level = "solid"
+  max 5
+
+⊢⊢ spawn-remedials
+  given evaluate→misconceptions
+  yield §remedial-cells[]
+  accumulate
+
+  ∴ For each misconception in «evaluate→misconceptions», create a targeted
+    remedial cell definition. Each remedial cell should:
+    - Take the student's stated misconception as given
+    - Provide a concrete counter-example that disproves the misconception
+    - Yield a corrected-understanding
+
+  ⊨ length(remedial-cells) = length(evaluate→misconceptions)
+  ⊨ each §remedial-cell addresses exactly one misconception
+
+⊢ collect-remedials
+  given remedial-*→corrected-understanding
+  yield remedial-summary
+
+  ∴ Collect all corrected understandings from «remedial-*→corrected-understanding».
+    Produce a summary of misconceptions identified and their corrections,
+    ordered by when they were discovered in the teaching loop.
+
+  ⊨ remedial-summary covers every spawned remedial cell

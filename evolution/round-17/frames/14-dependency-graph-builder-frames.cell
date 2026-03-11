@@ -1,0 +1,1097 @@
+-- 14-dependency-graph-builder-frames.cell (v0.2)
+-- Execution trace of 14-dependency-graph-builder.cell via eval-one
+--
+-- v0.2 execution notes:
+--   - File-scope ⊨? active: retry max 2 with failure context, then error-value(⊥)
+--   - ⊢⊢ spawn-dependency-analyzers uses `accumulate` (explicit default)
+--   - ⊢⊢ spawn-sub-module-analyzers uses `accumulate` (explicit default)
+--   - Wildcard deps (analyzer-*→field, sub-analyzer-*→field) re-resolve per ready-set
+--   - Guard clauses on handle-acyclic / handle-cycle: conditional dispatch [v0.2]
+--   - given? on assemble-full-graph tolerates ⊥ from skipped guard branch
+--   - ⊢∘ refine-graph iterates sub-module decompositions through consistency check
+--
+-- Codebase: Gas Town — a multi-agent workspace manager
+
+-- ═══════════════════════════════════════════════════════════════
+-- READY-SET ANALYSIS (initial state)
+-- ═══════════════════════════════════════════════════════════════
+--
+-- Cells with all givens bound:
+--   { codebase } — given description ≡ "..." (literal binding)
+--
+-- Blocked cells:
+--   identify-modules — needs codebase→description
+--   spawn-dependency-analyzers — needs identify-modules→modules, module-descriptions
+--   dependency-analyzer-template — §-referenced, never enters ready set directly
+--   build-adjacency — needs analyzer-*→depends-on (wildcard, no matches yet)
+--   validate-acyclicity — needs build-adjacency→internal-edges
+--   handle-acyclic — needs validate-acyclicity→is-acyclic (+ guard: is-acyclic = true)
+--   handle-cycle — needs validate-acyclicity→is-acyclic (+ guard: is-acyclic = false)
+--   spawn-sub-module-analyzers — needs build-adjacency→internal-edges
+--   sub-module-analyzer-template — §-referenced, never enters ready set directly
+--   check-sub-consistency — needs sub-analyzer-*→sub-modules (wildcard, no matches yet)
+--   assemble-full-graph — needs many inputs, all unbound
+--
+-- File-scope ⊨? in effect: retry max 2 with «oracle.failures», then error-value(⊥)
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 0: evaluate codebase (trivial pass-through)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { codebase }
+-- Blocked: { identify-modules } — needs codebase→description
+
+⊢ codebase
+  given description ≡ "Gas Town — a multi-agent workspace manager with: mayor (coordinator that dispatches work and handles escalations), witness (monitors polecat lifecycle, health checks, nudges stuck agents), refinery (bisecting merge queue that merges polecat branches), beads (Dolt-backed issue tracking with dependency DAG), gt CLI (orchestration commands: prime, hook, done, mail, escalate), dolt (SQL data layer providing versioned database for beads and agent state)"
+  yield description
+
+-- eval-one: codebase is a pass-through. description is already bound via given ≡.
+-- No ∴ body, no ⊢= body. Yield inherits from given.
+
+  yield description ≡ "Gas Town — a multi-agent workspace manager with: mayor (coordinator that dispatches work and handles escalations), witness (monitors polecat lifecycle, health checks, nudges stuck agents), refinery (bisecting merge queue that merges polecat branches), beads (Dolt-backed issue tracking with dependency DAG), gt CLI (orchestration commands: prime, hook, done, mail, escalate), dolt (SQL data layer providing versioned database for beads and agent state)"
+
+-- oracle check:
+--   ⊨ description names at least 4 distinct modules → ✓
+--     (mayor, witness, refinery, beads, gt CLI, dolt — 6 modules named)
+
+-- state after frame 0: codebase frozen.
+-- Ready set: { identify-modules }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 1: evaluate identify-modules (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { identify-modules }
+-- Blocked: { spawn-dependency-analyzers } — needs modules, module-descriptions
+
+⊢ identify-modules
+  given codebase→description ≡ "Gas Town — a multi-agent workspace manager with: mayor..."
+  yield modules[], module-descriptions[]
+
+  ∴ Read «codebase→description» and identify all top-level modules...
+
+-- LLM evaluation:
+
+  yield modules ≡ [
+    "mayor",
+    "witness",
+    "refinery",
+    "beads",
+    "gt",
+    "dolt"
+  ]
+
+  yield module-descriptions ≡ [
+    "mayor: Coordinator agent that dispatches work to polecats and handles escalations from other agents",
+    "witness: Monitors polecat lifecycle — health checks, detects stuck agents, sends nudges to resume work",
+    "refinery: Bisecting merge queue that takes completed polecat branches and merges them into the main branch",
+    "beads: Dolt-backed issue tracking system with dependency DAG, priorities, and agent claiming",
+    "gt: CLI orchestration layer providing commands (prime, hook, done, mail, escalate) that agents and humans use",
+    "dolt: SQL data layer providing versioned database storage for beads, agent state, and mail"
+  ]
+
+-- oracle checks:
+--   ⊨ length(modules) ≥ 4 → ✓ (6 modules)
+--   ⊨ each module has a clear single responsibility → ✓
+--     mayor: coordination/dispatch; witness: lifecycle monitoring;
+--     refinery: merge queue; beads: issue tracking;
+--     gt: CLI orchestration; dolt: data storage
+--   ⊨ modules are non-overlapping → ✓
+--     (dispatch vs monitoring vs merging vs tracking vs CLI vs storage — distinct)
+
+-- state after frame 1: identify-modules frozen.
+-- Ready set: { spawn-dependency-analyzers }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 2: evaluate spawn-dependency-analyzers (⊢⊢ spawner fires)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { spawn-dependency-analyzers }
+-- spawn-dependency-analyzers is ⊢⊢ with `accumulate` — spawned cells persist.
+
+⊢⊢ spawn-dependency-analyzers
+  given identify-modules→modules ≡ ["mayor", "witness", "refinery", "beads", "gt", "dolt"]
+  given identify-modules→module-descriptions ≡ ["mayor: Coordinator...", "witness: Monitors...", "refinery: Bisecting...", "beads: Dolt-backed...", "gt: CLI orchestration...", "dolt: SQL data layer..."]
+  given §dependency-analyzer-template
+  yield §analyzer-cells[]
+  until length(analyzer-cells) = 6
+  max 10
+  accumulate
+
+-- LLM evaluation:
+-- Spawner instantiates dependency-analyzer-template 6 times, one per module.
+
+  yield analyzer-cells ≡ [§analyzer-mayor, §analyzer-witness, §analyzer-refinery, §analyzer-beads, §analyzer-gt, §analyzer-dolt]
+
+-- oracle check:
+--   ⊨ one analyzer cell per module → ✓ (6 = 6)
+
+-- SPAWNER EFFECT: 6 new cells enter the frontier:
+
+⊢ analyzer-mayor
+  given module-name ≡ "mayor"
+  given module-desc ≡ "mayor: Coordinator agent that dispatches work to polecats and handles escalations from other agents"
+  given all-modules ≡ ["mayor", "witness", "refinery", "beads", "gt", "dolt"]
+  yield depends-on[], dependency-types[], rationale
+
+  ∴ For module «module-name» («module-desc»), identify all modules it
+    depends on...
+
+  ⊨ each dependency is classified as "internal" or "external"
+  ⊨ no self-dependencies (module cannot depend on itself)
+  ⊨ rationale explains each dependency's purpose
+
+⊢ analyzer-witness
+  given module-name ≡ "witness"
+  given module-desc ≡ "witness: Monitors polecat lifecycle — health checks, detects stuck agents, sends nudges to resume work"
+  given all-modules ≡ ["mayor", "witness", "refinery", "beads", "gt", "dolt"]
+  yield depends-on[], dependency-types[], rationale
+
+  ∴ For module «module-name» («module-desc»), identify all modules it
+    depends on...
+
+  ⊨ each dependency is classified as "internal" or "external"
+  ⊨ no self-dependencies
+  ⊨ rationale explains each dependency's purpose
+
+⊢ analyzer-refinery
+  given module-name ≡ "refinery"
+  given module-desc ≡ "refinery: Bisecting merge queue that takes completed polecat branches and merges them into the main branch"
+  given all-modules ≡ ["mayor", "witness", "refinery", "beads", "gt", "dolt"]
+  yield depends-on[], dependency-types[], rationale
+
+  ∴ For module «module-name» («module-desc»), identify all modules it
+    depends on...
+
+  ⊨ each dependency is classified as "internal" or "external"
+  ⊨ no self-dependencies
+  ⊨ rationale explains each dependency's purpose
+
+⊢ analyzer-beads
+  given module-name ≡ "beads"
+  given module-desc ≡ "beads: Dolt-backed issue tracking system with dependency DAG, priorities, and agent claiming"
+  given all-modules ≡ ["mayor", "witness", "refinery", "beads", "gt", "dolt"]
+  yield depends-on[], dependency-types[], rationale
+
+  ∴ For module «module-name» («module-desc»), identify all modules it
+    depends on...
+
+  ⊨ each dependency is classified as "internal" or "external"
+  ⊨ no self-dependencies
+  ⊨ rationale explains each dependency's purpose
+
+⊢ analyzer-gt
+  given module-name ≡ "gt"
+  given module-desc ≡ "gt: CLI orchestration layer providing commands (prime, hook, done, mail, escalate) that agents and humans use"
+  given all-modules ≡ ["mayor", "witness", "refinery", "beads", "gt", "dolt"]
+  yield depends-on[], dependency-types[], rationale
+
+  ∴ For module «module-name» («module-desc»), identify all modules it
+    depends on...
+
+  ⊨ each dependency is classified as "internal" or "external"
+  ⊨ no self-dependencies
+  ⊨ rationale explains each dependency's purpose
+
+⊢ analyzer-dolt
+  given module-name ≡ "dolt"
+  given module-desc ≡ "dolt: SQL data layer providing versioned database storage for beads, agent state, and mail"
+  given all-modules ≡ ["mayor", "witness", "refinery", "beads", "gt", "dolt"]
+  yield depends-on[], dependency-types[], rationale
+
+  ∴ For module «module-name» («module-desc»), identify all modules it
+    depends on...
+
+  ⊨ each dependency is classified as "internal" or "external"
+  ⊨ no self-dependencies
+  ⊨ rationale explains each dependency's purpose
+
+-- state after frame 2: spawn-dependency-analyzers frozen, 6 new cells in frontier.
+-- Ready set: { analyzer-mayor, analyzer-witness, analyzer-refinery,
+--              analyzer-beads, analyzer-gt, analyzer-dolt } — all ready
+-- Blocked: { build-adjacency } — needs analyzer-*→depends-on (wildcard waits for ALL matches)
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 3: evaluate analyzer-mayor (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { analyzer-mayor, analyzer-witness, analyzer-refinery,
+--              analyzer-beads, analyzer-gt, analyzer-dolt }
+-- Pick: analyzer-mayor (arbitrary — confluence guarantees same final result)
+
+⊢ analyzer-mayor
+  given module-name ≡ "mayor"
+  given module-desc ≡ "mayor: Coordinator agent that dispatches work..."
+  given all-modules ≡ ["mayor", "witness", "refinery", "beads", "gt", "dolt"]
+  yield depends-on[], dependency-types[], rationale
+
+-- LLM evaluation:
+
+  yield depends-on ≡ ["beads", "gt", "dolt"]
+
+  yield dependency-types ≡ ["internal", "internal", "internal"]
+
+  yield rationale ≡ "mayor → beads: reads issue queue (bd ready) to find work to dispatch to polecats. mayor → gt: uses gt commands (gt mail, gt escalate, gt nudge) to communicate with agents. mayor → dolt: queries Dolt directly for agent state and work history when making dispatch decisions."
+
+-- oracle checks:
+--   ⊨ each dependency classified as "internal" or "external" → ✓ (all internal)
+--   ⊨ no self-dependencies → ✓ (mayor not in depends-on)
+--   ⊨ rationale explains each dependency's purpose → ✓
+--     beads: issue queue access; gt: communication commands; dolt: state queries
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 4: evaluate analyzer-witness (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { analyzer-witness, analyzer-refinery, analyzer-beads,
+--              analyzer-gt, analyzer-dolt }
+-- Pick: analyzer-witness
+
+⊢ analyzer-witness
+  given module-name ≡ "witness"
+  given module-desc ≡ "witness: Monitors polecat lifecycle..."
+  given all-modules ≡ ["mayor", "witness", "refinery", "beads", "gt", "dolt"]
+  yield depends-on[], dependency-types[], rationale
+
+-- LLM evaluation:
+
+  yield depends-on ≡ ["mayor", "gt", "dolt"]
+
+  yield dependency-types ≡ ["internal", "internal", "internal"]
+
+  yield rationale ≡ "witness → mayor: escalates to mayor when a polecat is unresponsive or stuck (gt escalate routes through mayor). witness → gt: uses gt nudge to send wake-up signals to stuck polecats. witness → dolt: queries Dolt for polecat session state, last-seen timestamps, and health metrics."
+
+-- oracle checks:
+--   ⊨ each dependency classified → ✓ (all internal)
+--   ⊨ no self-dependencies → ✓
+--   ⊨ rationale explains purpose → ✓
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 5: evaluate analyzer-refinery (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { analyzer-refinery, analyzer-beads, analyzer-gt, analyzer-dolt }
+-- Pick: analyzer-refinery
+
+⊢ analyzer-refinery
+  given module-name ≡ "refinery"
+  given module-desc ≡ "refinery: Bisecting merge queue..."
+  given all-modules ≡ ["mayor", "witness", "refinery", "beads", "gt", "dolt"]
+  yield depends-on[], dependency-types[], rationale
+
+-- LLM evaluation:
+
+  yield depends-on ≡ ["gt", "dolt"]
+
+  yield dependency-types ≡ ["internal", "internal"]
+
+  yield rationale ≡ "refinery → gt: invoked via gt hook and gt done lifecycle commands; uses gt to signal merge completion. refinery → dolt: queries Dolt for branch metadata and merge state; records merge results."
+
+-- oracle checks:
+--   ⊨ each dependency classified → ✓
+--   ⊨ no self-dependencies → ✓
+--   ⊨ rationale explains purpose → ✓
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 6: evaluate analyzer-beads (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { analyzer-beads, analyzer-gt, analyzer-dolt }
+-- Pick: analyzer-beads
+
+⊢ analyzer-beads
+  given module-name ≡ "beads"
+  given module-desc ≡ "beads: Dolt-backed issue tracking..."
+  given all-modules ≡ ["mayor", "witness", "refinery", "beads", "gt", "dolt"]
+  yield depends-on[], dependency-types[], rationale
+
+-- LLM evaluation:
+
+  yield depends-on ≡ ["dolt"]
+
+  yield dependency-types ≡ ["internal"]
+
+  yield rationale ≡ "beads → dolt: beads stores ALL its data (issues, dependencies, priorities, claim state) in Dolt tables. Dolt is the sole persistence layer. beads has no other internal dependencies — it is a pure data service accessed BY other modules."
+
+-- oracle checks:
+--   ⊨ each dependency classified → ✓ (internal)
+--   ⊨ no self-dependencies → ✓
+--   ⊨ rationale explains purpose → ✓
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 7: evaluate analyzer-gt (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { analyzer-gt, analyzer-dolt }
+-- Pick: analyzer-gt
+
+⊢ analyzer-gt
+  given module-name ≡ "gt"
+  given module-desc ≡ "gt: CLI orchestration layer..."
+  given all-modules ≡ ["mayor", "witness", "refinery", "beads", "gt", "dolt"]
+  yield depends-on[], dependency-types[], rationale
+
+-- LLM evaluation:
+
+  yield depends-on ≡ ["beads", "dolt", "refinery", "mayor", "witness"]
+
+  yield dependency-types ≡ ["internal", "internal", "internal", "internal", "internal"]
+
+  yield rationale ≡ "gt → beads: gt wraps bd commands (gt prime runs bd ready, gt done closes issues). gt → dolt: gt dolt start/stop/status/cleanup manage the Dolt server lifecycle directly. gt → refinery: gt hook triggers merge queue operations. gt → mayor: gt escalate routes escalations to the mayor. gt → witness: gt nudge sends wake-up signals through the witness subsystem."
+
+-- oracle checks:
+--   ⊨ each dependency classified → ✓ (all internal)
+--   ⊨ no self-dependencies → ✓
+--   ⊨ rationale explains purpose → ✓
+--     (gt is the highest-connectivity node — it orchestrates all others)
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 8: evaluate analyzer-dolt (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { analyzer-dolt }
+-- Pick: analyzer-dolt
+
+⊢ analyzer-dolt
+  given module-name ≡ "dolt"
+  given module-desc ≡ "dolt: SQL data layer..."
+  given all-modules ≡ ["mayor", "witness", "refinery", "beads", "gt", "dolt"]
+  yield depends-on[], dependency-types[], rationale
+
+-- LLM evaluation:
+
+  yield depends-on ≡ []
+
+  yield dependency-types ≡ []
+
+  yield rationale ≡ "dolt has NO internal dependencies. It is the foundational data layer — a pure infrastructure service. All other modules depend ON dolt; dolt depends on nothing within Gas Town. Its only dependencies are external: the Dolt binary itself (Go-based), the MySQL wire protocol, and the filesystem."
+
+-- oracle checks:
+--   ⊨ each dependency classified → ✓ (vacuously — empty list)
+--   ⊨ no self-dependencies → ✓
+--   ⊨ rationale explains purpose → ✓ (explains WHY there are no deps)
+
+-- state after frames 3-8: all analyzer-* cells frozen.
+-- Ready set: { build-adjacency }
+-- Wildcard resolution: analyzer-*→depends-on matches
+--   { analyzer-mayor, analyzer-witness, analyzer-refinery,
+--     analyzer-beads, analyzer-gt, analyzer-dolt }
+-- All 6 matches have frozen depends-on → wildcard satisfied.
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 9: evaluate build-adjacency (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { build-adjacency }
+-- Blocked: { validate-acyclicity, spawn-sub-module-analyzers }
+
+⊢ build-adjacency
+  given analyzer-mayor→depends-on ≡ ["beads", "gt", "dolt"]
+  given analyzer-mayor→dependency-types ≡ ["internal", "internal", "internal"]
+  given analyzer-witness→depends-on ≡ ["mayor", "gt", "dolt"]
+  given analyzer-witness→dependency-types ≡ ["internal", "internal", "internal"]
+  given analyzer-refinery→depends-on ≡ ["gt", "dolt"]
+  given analyzer-refinery→dependency-types ≡ ["internal", "internal"]
+  given analyzer-beads→depends-on ≡ ["dolt"]
+  given analyzer-beads→dependency-types ≡ ["internal"]
+  given analyzer-gt→depends-on ≡ ["beads", "dolt", "refinery", "mayor", "witness"]
+  given analyzer-gt→dependency-types ≡ ["internal", "internal", "internal", "internal", "internal"]
+  given analyzer-dolt→depends-on ≡ []
+  given analyzer-dolt→dependency-types ≡ []
+  given identify-modules→modules ≡ ["mayor", "witness", "refinery", "beads", "gt", "dolt"]
+  yield edges[], internal-edges[], external-deps[]
+
+-- LLM evaluation:
+
+  yield edges ≡ [
+    ("mayor", "beads"),
+    ("mayor", "gt"),
+    ("mayor", "dolt"),
+    ("witness", "mayor"),
+    ("witness", "gt"),
+    ("witness", "dolt"),
+    ("refinery", "gt"),
+    ("refinery", "dolt"),
+    ("beads", "dolt"),
+    ("gt", "beads"),
+    ("gt", "dolt"),
+    ("gt", "refinery"),
+    ("gt", "mayor"),
+    ("gt", "witness")
+  ]
+
+  yield internal-edges ≡ [
+    ("mayor", "beads"),
+    ("mayor", "gt"),
+    ("mayor", "dolt"),
+    ("witness", "mayor"),
+    ("witness", "gt"),
+    ("witness", "dolt"),
+    ("refinery", "gt"),
+    ("refinery", "dolt"),
+    ("beads", "dolt"),
+    ("gt", "beads"),
+    ("gt", "dolt"),
+    ("gt", "refinery"),
+    ("gt", "mayor"),
+    ("gt", "witness")
+  ]
+
+  yield external-deps ≡ []
+
+-- oracle checks:
+--   ⊨ every edge has a valid source and target → ✓
+--     All source/target names are in modules list.
+--   ⊨ internal-edges is a subset of edges → ✓ (identical — all deps are internal)
+--   ⊨ no duplicate edges → ✓ (14 unique edges)
+
+-- NOTE: There is a potential cycle! mayor → gt and gt → mayor. Also witness → mayor
+-- and gt → witness. The graph may not be a DAG. validate-acyclicity will determine this.
+
+-- state after frame 9: build-adjacency frozen.
+-- Ready set: { validate-acyclicity, spawn-sub-module-analyzers }
+-- (Both have their givens satisfied. Confluence: order doesn't matter.)
+-- Pick: validate-acyclicity (its result gates the guard-clause dispatch)
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 10: evaluate validate-acyclicity (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { validate-acyclicity, spawn-sub-module-analyzers }
+-- Pick: validate-acyclicity
+
+⊢ validate-acyclicity
+  given build-adjacency→internal-edges ≡ [("mayor","beads"), ("mayor","gt"), ("mayor","dolt"), ("witness","mayor"), ("witness","gt"), ("witness","dolt"), ("refinery","gt"), ("refinery","dolt"), ("beads","dolt"), ("gt","beads"), ("gt","dolt"), ("gt","refinery"), ("gt","mayor"), ("gt","witness")]
+  given identify-modules→modules ≡ ["mayor", "witness", "refinery", "beads", "gt", "dolt"]
+  yield is-acyclic, topological-order[], cycle-description
+
+-- LLM evaluation:
+-- Attempting topological sort on the internal dependency graph:
+--   dolt: in-degree 0 (no deps) — candidate
+--   Remove dolt → beads in-degree drops to 0
+--   Remove beads → ...
+--   But: mayor → gt and gt → mayor form a cycle.
+--   Also: gt → witness and witness → mayor → gt forms a longer cycle.
+--
+-- Cycle detected: gt → mayor → gt (direct cycle of length 2)
+-- Additional cycle: gt → witness → mayor → gt (length 3)
+
+  yield is-acyclic ≡ false
+
+  yield topological-order ≡ []
+
+  yield cycle-description ≡ "Two overlapping cycles detected. Cycle 1 (length 2): gt → mayor → gt. The gt CLI dispatches escalations to mayor, and mayor uses gt commands to communicate — creating a mutual dependency. Cycle 2 (length 3): gt → witness → mayor → gt. The gt CLI triggers witness nudges, witness escalates to mayor, and mayor uses gt commands. Both cycles involve gt as the hub: gt orchestrates all modules, but several modules also invoke gt commands, creating circular dependencies."
+
+-- oracle checks:
+--   ⊨ is-acyclic ∈ { true, false } → ✓ (false)
+--   ⊨ if is-acyclic then topological-order contains all modules → N/A (is-acyclic = false)
+--   ⊨ if not is-acyclic then cycle-description names the cycle → ✓
+--     (gt → mayor → gt named explicitly; gt → witness → mayor → gt also named)
+
+-- cell-level ⊨? on validate-acyclicity: retry max 2. Not triggered — oracles passed.
+
+-- state after frame 10: validate-acyclicity frozen. is-acyclic = false.
+-- GUARD CLAUSE EVALUATION:
+--   handle-acyclic: given validate-acyclicity→is-acyclic where is-acyclic = true
+--     → guard evaluates: false = true → FALSE → cell SKIPPED
+--     → handle-acyclic yields all ⊥ (ordering-summary ≡ ⊥, dag-status ≡ ⊥)
+--   handle-cycle: given validate-acyclicity→is-acyclic where is-acyclic = false
+--     → guard evaluates: false = false → TRUE → cell enters ready set
+--
+-- Ready set: { spawn-sub-module-analyzers, handle-cycle }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 11: evaluate spawn-sub-module-analyzers (⊢⊢ spawner fires)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { spawn-sub-module-analyzers, handle-cycle }
+-- Pick: spawn-sub-module-analyzers (more cells to unblock downstream)
+
+⊢⊢ spawn-sub-module-analyzers
+  given build-adjacency→internal-edges ≡ [("mayor","beads"), ("mayor","gt"), ...]
+  given identify-modules→modules ≡ ["mayor", "witness", "refinery", "beads", "gt", "dolt"]
+  given §sub-module-analyzer-template
+  yield §sub-analyzer-cells[]
+  until length(sub-analyzer-cells) = 6
+  max 10
+  accumulate
+
+-- LLM evaluation:
+-- Spawner instantiates sub-module-analyzer-template 6 times, one per module.
+-- Each spawned cell receives the module name and its dependency list from build-adjacency.
+
+  yield sub-analyzer-cells ≡ [§sub-analyzer-mayor, §sub-analyzer-witness, §sub-analyzer-refinery, §sub-analyzer-beads, §sub-analyzer-gt, §sub-analyzer-dolt]
+
+-- oracle check:
+--   ⊨ one sub-analyzer cell per module → ✓ (6 = 6)
+
+-- SPAWNER EFFECT: 6 new cells enter the frontier:
+
+⊢ sub-analyzer-mayor
+  given module-name ≡ "mayor"
+  given module-deps ≡ ["beads", "gt", "dolt"]
+  yield sub-modules[], sub-edges[], sub-is-acyclic
+
+  ∴ Decompose «module-name» into its internal sub-modules (2-4 components)...
+
+  ⊨ 2 ≤ length(sub-modules) ≤ 4
+  ⊨ sub-is-acyclic ∈ { true, false }
+  ⊨ sub-edges only reference sub-modules within this module
+
+⊢ sub-analyzer-witness
+  given module-name ≡ "witness"
+  given module-deps ≡ ["mayor", "gt", "dolt"]
+  yield sub-modules[], sub-edges[], sub-is-acyclic
+
+  ∴ Decompose «module-name» into its internal sub-modules (2-4 components)...
+
+  ⊨ 2 ≤ length(sub-modules) ≤ 4
+  ⊨ sub-is-acyclic ∈ { true, false }
+  ⊨ sub-edges only reference sub-modules within this module
+
+⊢ sub-analyzer-refinery
+  given module-name ≡ "refinery"
+  given module-deps ≡ ["gt", "dolt"]
+  yield sub-modules[], sub-edges[], sub-is-acyclic
+
+  ∴ Decompose «module-name» into its internal sub-modules (2-4 components)...
+
+  ⊨ 2 ≤ length(sub-modules) ≤ 4
+  ⊨ sub-is-acyclic ∈ { true, false }
+  ⊨ sub-edges only reference sub-modules within this module
+
+⊢ sub-analyzer-beads
+  given module-name ≡ "beads"
+  given module-deps ≡ ["dolt"]
+  yield sub-modules[], sub-edges[], sub-is-acyclic
+
+  ∴ Decompose «module-name» into its internal sub-modules (2-4 components)...
+
+  ⊨ 2 ≤ length(sub-modules) ≤ 4
+  ⊨ sub-is-acyclic ∈ { true, false }
+  ⊨ sub-edges only reference sub-modules within this module
+
+⊢ sub-analyzer-gt
+  given module-name ≡ "gt"
+  given module-deps ≡ ["beads", "dolt", "refinery", "mayor", "witness"]
+  yield sub-modules[], sub-edges[], sub-is-acyclic
+
+  ∴ Decompose «module-name» into its internal sub-modules (2-4 components)...
+
+  ⊨ 2 ≤ length(sub-modules) ≤ 4
+  ⊨ sub-is-acyclic ∈ { true, false }
+  ⊨ sub-edges only reference sub-modules within this module
+
+⊢ sub-analyzer-dolt
+  given module-name ≡ "dolt"
+  given module-deps ≡ []
+  yield sub-modules[], sub-edges[], sub-is-acyclic
+
+  ∴ Decompose «module-name» into its internal sub-modules (2-4 components)...
+
+  ⊨ 2 ≤ length(sub-modules) ≤ 4
+  ⊨ sub-is-acyclic ∈ { true, false }
+  ⊨ sub-edges only reference sub-modules within this module
+
+-- state after frame 11: spawn-sub-module-analyzers frozen, 6 new cells in frontier.
+-- Ready set: { handle-cycle, sub-analyzer-mayor, sub-analyzer-witness,
+--              sub-analyzer-refinery, sub-analyzer-beads, sub-analyzer-gt,
+--              sub-analyzer-dolt }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 12: evaluate handle-cycle (soft cell, LLM) [v0.2 guard-dispatched]
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { handle-cycle, sub-analyzer-mayor, ... }
+-- Pick: handle-cycle
+
+⊢ handle-cycle
+  given validate-acyclicity→is-acyclic ≡ false   -- guard: is-acyclic = false → TRUE ✓
+  given validate-acyclicity→cycle-description ≡ "Two overlapping cycles detected. Cycle 1: gt → mayor → gt. Cycle 2: gt → witness → mayor → gt."
+  yield dag-status, cycle-analysis
+
+-- LLM evaluation:
+
+  yield dag-status ≡ "cyclic"
+
+  yield cycle-analysis ≡ "The cycles all involve gt as the hub. The fundamental issue: gt is BOTH an orchestration layer (invoked BY agents) AND a dependency of agents (agents call gt commands). This is an architectural smell — the CLI tool and the agent coordination logic are conflated. To break the cycle: separate gt into two layers. (1) gt-cli: the pure CLI tool that translates human/agent commands into API calls. This has NO internal dependencies — it's a thin wrapper. (2) gt-core: the coordination logic (dispatch, escalate, nudge) that depends on beads, dolt, and the individual agent modules. Agents would depend on gt-cli (for command invocation) but NOT on gt-core. gt-core would depend on agents (for dispatch). The one-way dependency: agents → gt-cli → nothing; gt-core → agents → gt-cli. This breaks both cycles. Alternative: treat gt as pure infrastructure (like dolt) and invert the dependency — agents don't 'depend on' gt, they are 'invoked by' gt. Under this framing, the graph becomes: gt → {mayor, witness, refinery} → beads → dolt, which is acyclic."
+
+-- oracle checks:
+--   ⊨ dag-status = "cyclic" → ✓
+--   ⊨ cycle-analysis proposes at least one way to break the cycle → ✓
+--     (Two proposals: split gt into gt-cli/gt-core; or invert to treat gt as infrastructure)
+
+-- NOTE: handle-acyclic remains skipped (yields ⊥). assemble-full-graph uses given?
+-- for handle-acyclic→ordering-summary, so it tolerates the ⊥.
+
+-- state after frame 12: handle-cycle frozen.
+-- Ready set: { sub-analyzer-mayor, sub-analyzer-witness, sub-analyzer-refinery,
+--              sub-analyzer-beads, sub-analyzer-gt, sub-analyzer-dolt }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 13: evaluate sub-analyzer-mayor (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { sub-analyzer-mayor, sub-analyzer-witness, sub-analyzer-refinery,
+--              sub-analyzer-beads, sub-analyzer-gt, sub-analyzer-dolt }
+-- Pick: sub-analyzer-mayor
+-- NOTE: These cells are managed by ⊢∘ refine-graph. Their oracles are ASPIRATIONAL —
+-- they provide feedback but do not independently block freezing.
+
+⊢ sub-analyzer-mayor
+  given module-name ≡ "mayor"
+  given module-deps ≡ ["beads", "gt", "dolt"]
+  yield sub-modules[], sub-edges[], sub-is-acyclic
+
+-- LLM evaluation:
+
+  yield sub-modules ≡ ["dispatcher", "escalation-handler", "work-planner"]
+
+  yield sub-edges ≡ [
+    ("work-planner", "dispatcher"),
+    ("escalation-handler", "dispatcher")
+  ]
+
+  yield sub-is-acyclic ≡ true
+
+-- oracle checks (aspirational under ⊢∘):
+--   ⊨ 2 ≤ length(sub-modules) ≤ 4 → ✓ (3)
+--   ⊨ sub-is-acyclic ∈ { true, false } → ✓ (true)
+--   ⊨ sub-edges only reference sub-modules within this module → ✓
+--     (dispatcher, escalation-handler, work-planner all in sub-modules)
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 14: evaluate sub-analyzer-witness (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { sub-analyzer-witness, sub-analyzer-refinery,
+--              sub-analyzer-beads, sub-analyzer-gt, sub-analyzer-dolt }
+-- Pick: sub-analyzer-witness
+
+⊢ sub-analyzer-witness
+  given module-name ≡ "witness"
+  given module-deps ≡ ["mayor", "gt", "dolt"]
+  yield sub-modules[], sub-edges[], sub-is-acyclic
+
+-- LLM evaluation:
+
+  yield sub-modules ≡ ["health-monitor", "nudge-engine", "lifecycle-tracker"]
+
+  yield sub-edges ≡ [
+    ("health-monitor", "lifecycle-tracker"),
+    ("nudge-engine", "health-monitor")
+  ]
+
+  yield sub-is-acyclic ≡ true
+
+-- oracle checks (aspirational under ⊢∘):
+--   ⊨ 2 ≤ length(sub-modules) ≤ 4 → ✓ (3)
+--   ⊨ sub-is-acyclic → ✓
+--   ⊨ sub-edges only reference within module → ✓
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 15: evaluate sub-analyzer-refinery (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { sub-analyzer-refinery, sub-analyzer-beads,
+--              sub-analyzer-gt, sub-analyzer-dolt }
+-- Pick: sub-analyzer-refinery
+
+⊢ sub-analyzer-refinery
+  given module-name ≡ "refinery"
+  given module-deps ≡ ["gt", "dolt"]
+  yield sub-modules[], sub-edges[], sub-is-acyclic
+
+-- LLM evaluation:
+
+  yield sub-modules ≡ ["merge-queue", "bisect-engine", "conflict-resolver"]
+
+  yield sub-edges ≡ [
+    ("merge-queue", "bisect-engine"),
+    ("bisect-engine", "conflict-resolver")
+  ]
+
+  yield sub-is-acyclic ≡ true
+
+-- oracle checks (aspirational under ⊢∘):
+--   ⊨ 2 ≤ length(sub-modules) ≤ 4 → ✓ (3)
+--   ⊨ sub-is-acyclic → ✓
+--   ⊨ sub-edges only reference within module → ✓
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 16: evaluate sub-analyzer-beads (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { sub-analyzer-beads, sub-analyzer-gt, sub-analyzer-dolt }
+-- Pick: sub-analyzer-beads
+
+⊢ sub-analyzer-beads
+  given module-name ≡ "beads"
+  given module-deps ≡ ["dolt"]
+  yield sub-modules[], sub-edges[], sub-is-acyclic
+
+-- LLM evaluation:
+
+  yield sub-modules ≡ ["issue-store", "dep-graph", "query-engine"]
+
+  yield sub-edges ≡ [
+    ("query-engine", "issue-store"),
+    ("dep-graph", "issue-store")
+  ]
+
+  yield sub-is-acyclic ≡ true
+
+-- oracle checks (aspirational under ⊢∘):
+--   ⊨ 2 ≤ length(sub-modules) ≤ 4 → ✓ (3)
+--   ⊨ sub-is-acyclic → ✓
+--   ⊨ sub-edges only reference within module → ✓
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 17: evaluate sub-analyzer-gt (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { sub-analyzer-gt, sub-analyzer-dolt }
+-- Pick: sub-analyzer-gt
+
+⊢ sub-analyzer-gt
+  given module-name ≡ "gt"
+  given module-deps ≡ ["beads", "dolt", "refinery", "mayor", "witness"]
+  yield sub-modules[], sub-edges[], sub-is-acyclic
+
+-- LLM evaluation:
+
+  yield sub-modules ≡ ["cli-parser", "command-router", "dolt-manager", "agent-comms"]
+
+  yield sub-edges ≡ [
+    ("cli-parser", "command-router"),
+    ("command-router", "dolt-manager"),
+    ("command-router", "agent-comms")
+  ]
+
+  yield sub-is-acyclic ≡ true
+
+-- oracle checks (aspirational under ⊢∘):
+--   ⊨ 2 ≤ length(sub-modules) ≤ 4 → ✓ (4)
+--   ⊨ sub-is-acyclic → ✓
+--   ⊨ sub-edges only reference within module → ✓
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 18: evaluate sub-analyzer-dolt (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { sub-analyzer-dolt }
+-- Pick: sub-analyzer-dolt
+
+⊢ sub-analyzer-dolt
+  given module-name ≡ "dolt"
+  given module-deps ≡ []
+  yield sub-modules[], sub-edges[], sub-is-acyclic
+
+-- LLM evaluation:
+
+  yield sub-modules ≡ ["sql-server", "version-store", "replication"]
+
+  yield sub-edges ≡ [
+    ("sql-server", "version-store"),
+    ("replication", "version-store")
+  ]
+
+  yield sub-is-acyclic ≡ true
+
+-- oracle checks (aspirational under ⊢∘):
+--   ⊨ 2 ≤ length(sub-modules) ≤ 4 → ✓ (3)
+--   ⊨ sub-is-acyclic → ✓
+--   ⊨ sub-edges only reference within module → ✓
+
+-- state after frames 13-18: all sub-analyzer-* cells frozen.
+-- Ready set: { check-sub-consistency }
+-- Wildcard resolution: sub-analyzer-*→sub-modules matches all 6 sub-analyzer cells.
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 19: evaluate check-sub-consistency (soft cell, LLM) — ⊢∘ iteration 1
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { check-sub-consistency }
+-- This cell is in the `through` chain of ⊢∘ refine-graph.
+
+⊢ check-sub-consistency
+  given sub-analyzer-mayor→sub-modules ≡ ["dispatcher", "escalation-handler", "work-planner"]
+  given sub-analyzer-mayor→sub-edges ≡ [("work-planner","dispatcher"), ("escalation-handler","dispatcher")]
+  given sub-analyzer-mayor→sub-is-acyclic ≡ true
+  given sub-analyzer-witness→sub-modules ≡ ["health-monitor", "nudge-engine", "lifecycle-tracker"]
+  given sub-analyzer-witness→sub-edges ≡ [("health-monitor","lifecycle-tracker"), ("nudge-engine","health-monitor")]
+  given sub-analyzer-witness→sub-is-acyclic ≡ true
+  given sub-analyzer-refinery→sub-modules ≡ ["merge-queue", "bisect-engine", "conflict-resolver"]
+  given sub-analyzer-refinery→sub-edges ≡ [("merge-queue","bisect-engine"), ("bisect-engine","conflict-resolver")]
+  given sub-analyzer-refinery→sub-is-acyclic ≡ true
+  given sub-analyzer-beads→sub-modules ≡ ["issue-store", "dep-graph", "query-engine"]
+  given sub-analyzer-beads→sub-edges ≡ [("query-engine","issue-store"), ("dep-graph","issue-store")]
+  given sub-analyzer-beads→sub-is-acyclic ≡ true
+  given sub-analyzer-gt→sub-modules ≡ ["cli-parser", "command-router", "dolt-manager", "agent-comms"]
+  given sub-analyzer-gt→sub-edges ≡ [("cli-parser","command-router"), ("command-router","dolt-manager"), ("command-router","agent-comms")]
+  given sub-analyzer-gt→sub-is-acyclic ≡ true
+  given sub-analyzer-dolt→sub-modules ≡ ["sql-server", "version-store", "replication"]
+  given sub-analyzer-dolt→sub-edges ≡ [("sql-server","version-store"), ("replication","version-store")]
+  given sub-analyzer-dolt→sub-is-acyclic ≡ true
+  given build-adjacency→internal-edges ≡ [("mayor","beads"), ("mayor","gt"), ("mayor","dolt"), ...]
+  yield all-sub-acyclic, cross-module-conflicts[], consistency-score
+
+-- LLM evaluation:
+
+  yield all-sub-acyclic ≡ true
+
+  yield cross-module-conflicts ≡ [
+    "CONFLICT: mayor→gt edge maps to mayor.dispatcher → gt.agent-comms at sub-module level, but gt→mayor edge maps to gt.command-router → mayor.escalation-handler. This cross-module pair is consistent — different sub-modules on each side, so it's a legitimate bidirectional relationship at the sub-module level even though it's a cycle at the module level.",
+    "CONFLICT: gt→witness edge maps to gt.agent-comms → witness.nudge-engine, and witness→mayor edge maps to witness.health-monitor → mayor.escalation-handler via gt.agent-comms. The sub-module decomposition reveals that gt.agent-comms is the bottleneck: it mediates ALL inter-agent communication. This reinforces the cycle analysis from handle-cycle — gt.agent-comms should be extracted as a standalone communication bus."
+  ]
+
+  yield consistency-score ≡ 7
+
+-- oracle checks:
+--   ⊨ all-sub-acyclic ∈ { true, false } → ✓ (true)
+--   ⊨ consistency-score ∈ [0, 10] → ✓ (7)
+
+-- ⊢∘ CHECK: consistency-score = 7 < 8. NOT CONVERGED.
+-- The evolution loop reruns: sub-module-analyzer-template is re-evaluated
+-- with feedback from check-sub-consistency about the gt.agent-comms bottleneck.
+-- Interface preserved; only sub-module assignments change.
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ ITERATION 2: EVOLUTION LOOP RESTARTS (refine-graph)
+-- ═══════════════════════════════════════════════════════════════
+-- sub-module-analyzer-template is rewritten: output values updated with
+-- consistency feedback. The ⊢∘ loop feeds cross-module-conflicts back
+-- into the sub-analyzer cells for refinement.
+-- Only sub-analyzer-gt needs material change (the gt.agent-comms finding).
+-- Other sub-analyzers may refine minor details.
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 20: evaluate sub-analyzer-gt (iteration 2, refinement)
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ re-evaluates sub-analyzer-gt with consistency feedback.
+-- Other sub-analyzers unchanged (their decompositions were consistent).
+
+⊢ sub-analyzer-gt
+  given module-name ≡ "gt"
+  given module-deps ≡ ["beads", "dolt", "refinery", "mayor", "witness"]
+  yield sub-modules[], sub-edges[], sub-is-acyclic
+
+-- LLM evaluation (with ⊢∘ feedback: "gt.agent-comms is a bottleneck mediating
+-- all inter-agent communication; consider extracting as standalone bus"):
+
+  yield sub-modules ≡ ["cli-parser", "command-router", "dolt-manager", "comms-bus"]
+
+  yield sub-edges ≡ [
+    ("cli-parser", "command-router"),
+    ("command-router", "dolt-manager"),
+    ("command-router", "comms-bus")
+  ]
+
+  yield sub-is-acyclic ≡ true
+
+-- oracle checks (aspirational under ⊢∘): ✓
+-- NOTE: Renamed "agent-comms" → "comms-bus" to reflect the architectural insight
+-- that this sub-module is a communication bus, not agent-specific logic.
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 21: evaluate check-sub-consistency (iteration 2)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ check-sub-consistency
+  given sub-analyzer-mayor→sub-modules ≡ ["dispatcher", "escalation-handler", "work-planner"]
+  given sub-analyzer-mayor→sub-edges ≡ [("work-planner","dispatcher"), ("escalation-handler","dispatcher")]
+  given sub-analyzer-mayor→sub-is-acyclic ≡ true
+  given sub-analyzer-witness→sub-modules ≡ ["health-monitor", "nudge-engine", "lifecycle-tracker"]
+  given sub-analyzer-witness→sub-edges ≡ [("health-monitor","lifecycle-tracker"), ("nudge-engine","health-monitor")]
+  given sub-analyzer-witness→sub-is-acyclic ≡ true
+  given sub-analyzer-refinery→sub-modules ≡ ["merge-queue", "bisect-engine", "conflict-resolver"]
+  given sub-analyzer-refinery→sub-edges ≡ [("merge-queue","bisect-engine"), ("bisect-engine","conflict-resolver")]
+  given sub-analyzer-refinery→sub-is-acyclic ≡ true
+  given sub-analyzer-beads→sub-modules ≡ ["issue-store", "dep-graph", "query-engine"]
+  given sub-analyzer-beads→sub-edges ≡ [("query-engine","issue-store"), ("dep-graph","issue-store")]
+  given sub-analyzer-beads→sub-is-acyclic ≡ true
+  given sub-analyzer-gt→sub-modules ≡ ["cli-parser", "command-router", "dolt-manager", "comms-bus"]
+  given sub-analyzer-gt→sub-edges ≡ [("cli-parser","command-router"), ("command-router","dolt-manager"), ("command-router","comms-bus")]
+  given sub-analyzer-gt→sub-is-acyclic ≡ true
+  given sub-analyzer-dolt→sub-modules ≡ ["sql-server", "version-store", "replication"]
+  given sub-analyzer-dolt→sub-edges ≡ [("sql-server","version-store"), ("replication","version-store")]
+  given sub-analyzer-dolt→sub-is-acyclic ≡ true
+  given build-adjacency→internal-edges ≡ [("mayor","beads"), ("mayor","gt"), ...]
+  yield all-sub-acyclic, cross-module-conflicts[], consistency-score
+
+-- LLM evaluation:
+
+  yield all-sub-acyclic ≡ true
+
+  yield cross-module-conflicts ≡ [
+    "RESOLVED: The gt.comms-bus extraction clarifies the module-level cycle. mayor→gt maps to mayor.dispatcher → gt.comms-bus (sending commands). gt→mayor maps to gt.command-router → mayor.escalation-handler (routing escalations). At the sub-module level, these are distinct communication paths through different components. The cycle is an artifact of module-level granularity, not a true architectural flaw."
+  ]
+
+  yield consistency-score ≡ 9
+
+-- oracle checks:
+--   ⊨ all-sub-acyclic → ✓
+--   ⊨ consistency-score ∈ [0, 10] → ✓ (9)
+
+-- ⊢∘ CHECK: consistency-score = 9 ≥ 8. CONVERGED.
+-- Evolution loop exits after 2 iterations.
+-- Sub-module decompositions are now consistent with cross-module edges.
+
+-- state after frame 21: check-sub-consistency frozen (iteration 2).
+-- Ready set: { assemble-full-graph }
+-- All inputs for assemble-full-graph are now available:
+--   - identify-modules→modules: frozen
+--   - build-adjacency→internal-edges, external-deps: frozen
+--   - validate-acyclicity→is-acyclic, topological-order: frozen
+--   - handle-acyclic→ordering-summary: ⊥ (guard-skipped) — accepted via given?
+--   - handle-cycle→cycle-analysis: frozen
+--   - sub-analyzer-*→sub-modules, sub-edges, sub-is-acyclic: all frozen
+--   - check-sub-consistency→consistency-score: frozen
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 22: evaluate assemble-full-graph (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { assemble-full-graph }
+-- This is the final data cell. After this, only observations remain.
+
+⊢ assemble-full-graph
+  given identify-modules→modules ≡ ["mayor", "witness", "refinery", "beads", "gt", "dolt"]
+  given build-adjacency→internal-edges ≡ [("mayor","beads"), ("mayor","gt"), ("mayor","dolt"), ("witness","mayor"), ("witness","gt"), ("witness","dolt"), ("refinery","gt"), ("refinery","dolt"), ("beads","dolt"), ("gt","beads"), ("gt","dolt"), ("gt","refinery"), ("gt","mayor"), ("gt","witness")]
+  given build-adjacency→external-deps ≡ []
+  given validate-acyclicity→is-acyclic ≡ false
+  given validate-acyclicity→topological-order ≡ []
+  given? handle-acyclic→ordering-summary ≡ ⊥
+  given? handle-cycle→cycle-analysis ≡ "The cycles all involve gt as the hub. To break: separate gt into gt-cli (thin wrapper, no deps) and gt-core (coordination logic). Alternative: treat gt as pure infrastructure and invert the dependency direction."
+  given sub-analyzer-mayor→sub-modules ≡ ["dispatcher", "escalation-handler", "work-planner"]
+  given sub-analyzer-mayor→sub-edges ≡ [("work-planner","dispatcher"), ("escalation-handler","dispatcher")]
+  given sub-analyzer-mayor→sub-is-acyclic ≡ true
+  given sub-analyzer-witness→sub-modules ≡ ["health-monitor", "nudge-engine", "lifecycle-tracker"]
+  given sub-analyzer-witness→sub-edges ≡ [("health-monitor","lifecycle-tracker"), ("nudge-engine","health-monitor")]
+  given sub-analyzer-witness→sub-is-acyclic ≡ true
+  given sub-analyzer-refinery→sub-modules ≡ ["merge-queue", "bisect-engine", "conflict-resolver"]
+  given sub-analyzer-refinery→sub-edges ≡ [("merge-queue","bisect-engine"), ("bisect-engine","conflict-resolver")]
+  given sub-analyzer-refinery→sub-is-acyclic ≡ true
+  given sub-analyzer-beads→sub-modules ≡ ["issue-store", "dep-graph", "query-engine"]
+  given sub-analyzer-beads→sub-edges ≡ [("query-engine","issue-store"), ("dep-graph","issue-store")]
+  given sub-analyzer-beads→sub-is-acyclic ≡ true
+  given sub-analyzer-gt→sub-modules ≡ ["cli-parser", "command-router", "dolt-manager", "comms-bus"]
+  given sub-analyzer-gt→sub-edges ≡ [("cli-parser","command-router"), ("command-router","dolt-manager"), ("command-router","comms-bus")]
+  given sub-analyzer-gt→sub-is-acyclic ≡ true
+  given sub-analyzer-dolt→sub-modules ≡ ["sql-server", "version-store", "replication"]
+  given sub-analyzer-dolt→sub-edges ≡ [("sql-server","version-store"), ("replication","version-store")]
+  given sub-analyzer-dolt→sub-is-acyclic ≡ true
+  given check-sub-consistency→consistency-score ≡ 9
+  yield full-dag, layer-count, total-nodes, total-edges, summary
+
+-- LLM evaluation:
+
+  yield full-dag ≡ "
+LEVEL 1: MODULE DEPENDENCY GRAPH (CYCLIC — not a valid DAG)
+  Nodes: mayor, witness, refinery, beads, gt, dolt
+  Edges (14):
+    dolt ← beads, mayor, witness, refinery, gt
+    beads ← mayor, gt
+    gt ← mayor, witness, refinery  (BUT gt → mayor, gt → witness creates cycles)
+    mayor ← witness, gt
+    witness ← gt
+    refinery ← gt
+  Cycles: gt ↔ mayor, gt → witness → mayor → gt
+  Partial topological order (ignoring cycles):
+    Layer 0: dolt (no dependencies)
+    Layer 1: beads (depends only on dolt)
+    Layer 2: refinery (depends on gt, dolt — but gt is in cycle)
+    Cycle group: {gt, mayor, witness} — mutually dependent, cannot be layered
+
+LEVEL 2: SUB-MODULE DEPENDENCY GRAPHS (all acyclic)
+  mayor (3 sub-modules, 2 edges):
+    Layer 0: dispatcher (sink — receives from work-planner, escalation-handler)
+    Layer 1: work-planner, escalation-handler (both depend on dispatcher)
+  witness (3 sub-modules, 2 edges):
+    Layer 0: lifecycle-tracker
+    Layer 1: health-monitor → lifecycle-tracker
+    Layer 2: nudge-engine → health-monitor
+  refinery (3 sub-modules, 2 edges):
+    Layer 0: conflict-resolver
+    Layer 1: bisect-engine → conflict-resolver
+    Layer 2: merge-queue → bisect-engine
+  beads (3 sub-modules, 2 edges):
+    Layer 0: issue-store (sink)
+    Layer 1: dep-graph, query-engine (both depend on issue-store)
+  gt (4 sub-modules, 3 edges):
+    Layer 0: dolt-manager, comms-bus (sinks)
+    Layer 1: command-router → {dolt-manager, comms-bus}
+    Layer 2: cli-parser → command-router
+  dolt (3 sub-modules, 2 edges):
+    Layer 0: version-store (sink)
+    Layer 1: sql-server, replication (both depend on version-store)
+"
+
+  yield layer-count ≡ 3
+
+  yield total-nodes ≡ 25
+
+  yield total-edges ≡ 27
+
+  yield summary ≡ "The Gas Town dependency graph is NOT a valid DAG at the module level due to cycles involving gt, mayor, and witness. The core issue: gt is an orchestration layer that both depends on and is depended upon by agent modules, creating mutual dependencies. At the sub-module level, all 6 modules have clean acyclic internal structures (19 sub-modules, 13 sub-edges, all DAGs). The consistency check (score 9/10) revealed that the module-level cycles dissolve at the sub-module level — gt.comms-bus and gt.command-router are distinct sub-modules that handle opposite directions of the cycle. The architecture has a clean foundational layer (dolt → beads) and a clean application layer (refinery, mayor, witness sub-modules), but the gt orchestration layer bridges both and creates the cycle. The proposed fix: split gt into gt-cli (pure command interface) and gt-core (coordination logic), which would yield an acyclic graph with 4 clean layers."
+
+-- oracle checks:
+--   ⊨ full-dag includes both levels → ✓ (Level 1 and Level 2 both present)
+--   ⊨ layer-count ≥ 2 → ✓ (3 layers in partial topological order)
+--   ⊨ summary describes the graph structure and any findings → ✓
+--     (cycle description, sub-module acyclicity, consistency score, proposed fix)
+
+-- ═══════════════════════════════════════════════════════════════
+-- QUIESCENCE: ALL CELLS FROZEN
+-- ═══════════════════════════════════════════════════════════════
+--
+-- Total cells: 22 (10 original + 6 analyzer-* + 6 sub-analyzer-*)
+--   Original: codebase, identify-modules, spawn-dependency-analyzers,
+--             dependency-analyzer-template (§-referenced), build-adjacency,
+--             validate-acyclicity, handle-acyclic (skipped → ⊥),
+--             handle-cycle, spawn-sub-module-analyzers,
+--             sub-module-analyzer-template (§-referenced),
+--             check-sub-consistency, assemble-full-graph
+--   Spawned: analyzer-{mayor,witness,refinery,beads,gt,dolt}
+--   Spawned: sub-analyzer-{mayor,witness,refinery,beads,gt,dolt}
+--
+-- Total eval-one steps: 22 (frames 0-21, not counting ⊢∘ re-evaluation of
+--   sub-analyzer-gt which is frame 20)
+-- Total frames: 23 (frames 0-22)
+-- ⊢⊢ spawner fires: 2 (6 analyzer cells + 6 sub-analyzer cells)
+-- ⊢∘ iterations: 2 (refine-graph converged at consistency-score 9)
+-- Guard-dispatched cells: 1 (handle-cycle executed; handle-acyclic skipped → ⊥)
+-- given? ⊥ tolerance: 1 (assemble-full-graph accepted handle-acyclic→ordering-summary ≡ ⊥)
+-- ⊨? file-scope recovery: never triggered (all oracles passed on first attempt)
+-- ⊥ produced: 1 instance (handle-acyclic guard-skipped)
+-- Wildcard resolutions: 3 (analyzer-*, sub-analyzer-* in build-adjacency and
+--   check-sub-consistency + assemble-full-graph)
+--
+-- Final graph at quiescence:
+--   FROZEN: codebase, identify-modules, spawn-dependency-analyzers,
+--           build-adjacency, validate-acyclicity, handle-cycle,
+--           spawn-sub-module-analyzers, check-sub-consistency,
+--           assemble-full-graph,
+--           analyzer-{mayor,witness,refinery,beads,gt,dolt},
+--           sub-analyzer-{mayor,witness,refinery,beads,gt,dolt}
+--   SKIPPED (guard → ⊥): handle-acyclic
+--   NEVER EVALUATED (§-referenced): dependency-analyzer-template,
+--                                    sub-module-analyzer-template
+--
+-- Ready set: {} (empty — no unfrozen cells with satisfied givens)
+-- Program reached quiescence. Natural completion.
+
+-- ═══════════════════════════════════════════════════════════════
+-- OBSERVATIONS
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= obs-guard-dispatch-validated
+  given §14-dependency-graph-builder
+  yield observations ≡ "GUARD CLAUSES VALIDATED [v0.2]: The handle-acyclic / handle-cycle guard dispatch worked exactly as specified. validate-acyclicity produced is-acyclic ≡ false, so handle-cycle's guard (where is-acyclic = false) evaluated TRUE and the cell executed, while handle-acyclic's guard (where is-acyclic = true) evaluated FALSE and the cell was skipped with all yields → ⊥. The given? on assemble-full-graph correctly tolerated the ⊥ from handle-acyclic→ordering-summary. This is the first R17 program to exercise guard-induced ⊥ propagation through given? — confirming that the two features compose cleanly. In R16, both branches would have executed with the irrelevant one producing a useless 'N/A' placeholder."
+
+⊢= obs-cycle-discovery-emergent
+  given §14-dependency-graph-builder
+  yield observations ≡ "EMERGENT CYCLE DETECTION: The program was designed to analyze a DAG, but the Gas Town codebase turned out to have cycles (gt ↔ mayor, gt → witness → mayor → gt). This is an honest result — the program didn't force acyclicity, it discovered the actual structure. The handle-cycle guard branch produced genuinely useful architectural analysis: the proposal to split gt into gt-cli and gt-core is a real insight about Gas Town's architecture. This demonstrates that dependency graph analysis programs should ALWAYS include both acyclic and cyclic branches, never assume the answer."
+
+⊢= obs-wildcard-accumulate-correctness
+  given §14-dependency-graph-builder
+  yield observations ≡ "WILDCARD + ACCUMULATE INTERACTION: Both spawners use `accumulate` mode (explicit default in v0.2). analyzer-*→depends-on resolved to all 6 analyzer cells and waited for all to freeze before build-adjacency could execute. Similarly, sub-analyzer-*→sub-modules waited for all 6 sub-analyzer cells. The accumulate semantics are correct for this program: we need ALL modules analyzed before building the adjacency list. Using `replace` would be wrong here because there's no iteration loop over the spawned analyzer cells — they're one-shot. The explicit `accumulate` keyword makes this intent clear versus R16's implicit default."
+
+⊢= obs-evolution-loop-sub-consistency
+  given §14-dependency-graph-builder
+  yield observations ≡ "⊢∘ ON SUB-MODULE ANALYSIS: The refine-graph evolution loop iterated twice. Iteration 1 produced sub-module decompositions that were individually clean (all acyclic) but had a cross-module consistency issue: gt.agent-comms was identified as a bottleneck mediating all inter-agent communication. Iteration 2 refined gt's decomposition to rename agent-comms → comms-bus, clarifying its architectural role. The consistency score jumped from 7 to 9. This demonstrates ⊢∘'s value even for structural analysis — the first pass identifies components, the second pass aligns them with cross-cutting concerns. The sub-analyzer oracles being aspirational under ⊢∘ was important: they guided feedback without blocking the first iteration."
+
+⊢= obs-two-level-graph-structure
+  given §14-dependency-graph-builder
+  yield observations ≡ "TWO-LEVEL DECOMPOSITION REVEALS HIDDEN STRUCTURE: The module-level graph has cycles, but the sub-module-level graphs are all acyclic. This is a genuine architectural insight: the cycles are an artifact of module-level granularity. At the sub-module level, the bidirectional mayor↔gt relationship is actually two distinct unidirectional paths through different sub-modules (mayor.dispatcher → gt.comms-bus for commands, gt.command-router → mayor.escalation-handler for routing). The two-level analysis is strictly more informative than single-level — it distinguishes 'real' architectural cycles from 'apparent' cycles caused by coarse-grained module boundaries. 25 total nodes across 6 modules, 27 total edges across both levels."
+
+⊢= obs-bottom-propagation-clean
+  given §14-dependency-graph-builder
+  yield observations ≡ "⊥ PROPAGATION VIA GUARD CLAUSES [v0.2]: handle-acyclic was skipped by its guard clause, producing ordering-summary ≡ ⊥ and dag-status ≡ ⊥. assemble-full-graph declared `given? handle-acyclic→ordering-summary` (optional given), accepting the ⊥ and proceeding with only handle-cycle→cycle-analysis. The ∴ body correctly handled this: 'If handle-acyclic→ordering-summary is available, incorporate it.' Since it was ⊥, the LLM used the cycle analysis instead. This is the v0.2 pattern for conditional data flow: guard → skip → ⊥ → given? → graceful degradation. No wasted LLM calls on the irrelevant acyclic branch."
+
+⊢= obs-spawner-template-interaction
+  given §14-dependency-graph-builder
+  yield observations ≡ "DOUBLE SPAWNER PATTERN: This program uses two ⊢⊢ spawners (spawn-dependency-analyzers and spawn-sub-module-analyzers) with two §-templates (dependency-analyzer-template and sub-module-analyzer-template). Each spawner produces exactly one cell per module (6 each). The templates are never directly evaluated — they serve as blueprints. This is the most spawner-intensive program in the R17 corpus: 12 cells spawned total (6+6). The wildcard deps (analyzer-*→field and sub-analyzer-*→field) correctly collected outputs from both sets independently. The naming convention (analyzer-{module-name} and sub-analyzer-{module-name}) made wildcard resolution unambiguous."
+
+⊢= obs-file-scope-recovery-unused
+  given §14-dependency-graph-builder
+  yield observations ≡ "FILE-SCOPE ⊨? NEVER TRIGGERED: The file-scope recovery policy (retry max 2, then error-value(⊥)) was never activated across all 23 frames. validate-acyclicity also has its own cell-level ⊨? (retry max 2), which takes precedence over the file-scope policy — but it too was never triggered. All oracles passed on first attempt. The most likely trigger in a real execution would be the structural oracles on sub-module analyzers (⊨ sub-edges only reference sub-modules within this module) — an LLM could easily hallucinate a cross-module edge. Under ⊢∘, those oracles are aspirational, so the failure would feed into check-sub-consistency as a conflict rather than blocking. The ⊨? safety net's value is in error containment, not error prevention."

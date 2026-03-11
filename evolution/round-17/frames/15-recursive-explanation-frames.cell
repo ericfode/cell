@@ -1,0 +1,418 @@
+-- 15-recursive-explanation-frames.cell (R17, v0.2)
+-- Execution trace of 15-recursive-explanation.cell via eval-one
+--
+-- v0.2 execution notes:
+--   - File-scope ⊨? active: all cells get retry-3 + error-value(⊥) policy
+--   - ⊢⊢ spawn-explainers uses `accumulate`: sub-explanation cells persist
+--     across ⊢∘ iterations (tree grows monotonically)
+--   - Oracles on `explain` (⊢∘-managed) are aspirational, not gates
+--   - Guard clause on `deepen`: skipped when remaining-hard is empty,
+--     yields ⊥ for deeper-explanations (downstream tolerates via structure)
+--   - Wildcard deps (explainer-*→field) re-resolve each iteration
+--   - ⊢∘ parameter binding: concept→text persists as fixed context
+--
+-- Concept: "How does Cell's confluence property work and why does it matter?"
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 0: evaluate concept (trivial pass-through)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { concept }
+-- Blocked: { explain } — needs concept→text
+
+⊢ concept
+  given text ≡ "How does Cell's confluence property work and why does it matter?"
+  yield text
+
+-- eval-one: pass-through. text already bound via given ≡.
+
+  yield text ≡ "How does Cell's confluence property work and why does it matter?"
+
+-- oracle check:
+--   ⊨ text names a concept that can be explained at multiple levels of depth → ✓
+--     (confluence involves graph theory, commutativity, scheduling — multiple layers)
+
+-- state after frame 0: concept frozen.
+-- Ready set: { explain }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 1: evaluate explain (soft cell, LLM) — ⊢∘ ITERATION 1
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { explain }
+-- Blocked: { assess-comprehension } — needs explain→explanation, explain→jargon-terms
+-- ⊢∘ binds concept→text as fixed context across iterations.
+-- Oracles on explain are aspirational (⊢∘-managed).
+
+⊢ explain
+  given concept→text ≡ "How does Cell's confluence property work and why does it matter?"
+  yield explanation, jargon-terms[]
+
+  ∴ Explain «concept→text» clearly and completely...
+
+-- LLM evaluation:
+
+  yield explanation ≡ "Confluence means that no matter what order you evaluate cells in a Cell program, you always get the same final result. This works because Cell uses a directed acyclic graph (DAG) where each cell declares its dependencies explicitly — a cell only runs when all its inputs are frozen (finalized and immutable). Since frozen values never change, two independent cells can be evaluated in either order without affecting each other. This is like a spreadsheet: if cell A1 uses B1 and C1, it doesn't matter whether B1 or C1 is calculated first — A1 will get the same answer either way. The formal proof uses a diamond property: if you can reach state S by evaluating cell X first then cell Y, or by evaluating Y first then X, both paths arrive at the same state S. This matters because it means Cell programs can be parallelized safely — multiple LLMs could evaluate different cells simultaneously and the result is guaranteed correct. It also means debugging is easier: you never have to worry about race conditions or ordering bugs."
+
+  yield jargon-terms ≡ [
+    "confluence",
+    "directed acyclic graph (DAG)",
+    "dependencies",
+    "frozen",
+    "immutable",
+    "diamond property",
+    "parallelized",
+    "race conditions"
+  ]
+
+-- oracle checks (aspirational under ⊢∘):
+--   ⊨ explanation addresses both "how it works" and "why it matters" → ✓
+--     (how: DAG + frozen values + diamond property; why: parallelism + debugging)
+--   ⊨ explanation is 3-8 sentences → ✓ (7 sentences)
+--   ⊨ length(jargon-terms) ≥ 1 → ✓ (8 terms)
+
+-- state after frame 1: explain frozen (iteration 1 output).
+-- Ready set: { assess-comprehension }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 2: evaluate assess-comprehension (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { assess-comprehension }
+-- Blocked: { spawn-explainers } — needs assess-comprehension→hard-terms
+
+⊢ assess-comprehension
+  given explain→explanation ≡ "Confluence means that no matter what order you evaluate cells in a Cell program, you always get the same final result. This works because Cell uses a directed acyclic graph (DAG) where each cell declares its dependencies explicitly..."
+  given explain→jargon-terms ≡ ["confluence", "directed acyclic graph (DAG)", "dependencies", "frozen", "immutable", "diamond property", "parallelized", "race conditions"]
+  yield clear-terms[], hard-terms[], comprehension-score
+
+  ∴ For each jargon term, judge: would a curious 10-year-old understand
+    this from context? Pick the 3 hardest. Score comprehension 0-10.
+
+-- LLM evaluation:
+
+  yield clear-terms ≡ [
+    "confluence — explained directly in the first sentence as 'same result regardless of order'",
+    "dependencies — 'a cell only runs when all its inputs are ready' makes this self-evident",
+    "frozen — explained as 'finalized and immutable', and the spreadsheet analogy grounds it",
+    "parallelized — 'multiple LLMs could evaluate different cells simultaneously' is clear enough",
+    "race conditions — paired with 'ordering bugs' which a 10-year-old intuits as 'stuff breaking because of wrong order'"
+  ]
+
+  yield hard-terms ≡ [
+    "directed acyclic graph (DAG)",
+    "diamond property",
+    "immutable"
+  ]
+
+  yield comprehension-score ≡ 5
+
+-- oracle checks:
+--   ⊨ length(clear-terms) + length(hard-terms) = 8 → ✓ (5 + 3 = 8)
+--   ⊨ length(hard-terms) ≤ 3 → ✓ (3)
+--   ⊨ comprehension-score ∈ [0, 10] → ✓ (5)
+--   ⊨ if comprehension-score ≥ 9 then hard-terms is empty → ✓ (vacuous — score is 5)
+
+-- state after frame 2: assess-comprehension frozen.
+-- Ready set: { spawn-explainers }
+-- NOTE: 3 hard terms identified. Spawner will create 3 sub-explainer cells.
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 3: evaluate spawn-explainers (⊢⊢ spawner fires, accumulate mode)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { spawn-explainers }
+-- spawn-explainers is ⊢⊢ with `accumulate` — spawned cells persist across iterations.
+-- This is iteration 1: no previous cells to accumulate with.
+
+⊢⊢ spawn-explainers
+  given assess-comprehension→hard-terms ≡ ["directed acyclic graph (DAG)", "diamond property", "immutable"]
+  given §sub-explain-template
+  yield §explainer-cells[]
+  until length(explainer-cells) = 3
+  max 5
+  accumulate
+
+-- LLM evaluation:
+-- Spawner instantiates sub-explain-template 3 times, one per hard term.
+
+  yield explainer-cells ≡ [§explainer-0, §explainer-1, §explainer-2]
+
+-- oracle check:
+--   ⊨ length(explainer-cells) = length(hard-terms) → ✓ (3 = 3)
+
+-- SPAWNER EFFECT: 3 new cells enter the frontier:
+
+⊢ explainer-0
+  given term ≡ "directed acyclic graph (DAG)"
+  given parent-context ≡ "Cell uses a directed acyclic graph (DAG) where each cell declares its dependencies explicitly — a cell only runs when all its inputs are frozen."
+  yield explanation, still-hard
+
+  ∴ Explain «term» so a curious 10-year-old could understand it...
+
+  ⊨ explanation uses no unexplained jargon
+  ⊨ explanation is 2-5 sentences
+  ⊨ explanation uses at least one analogy or concrete example
+  ⊨ still-hard ∈ {true, false}
+
+⊢ explainer-1
+  given term ≡ "diamond property"
+  given parent-context ≡ "The formal proof uses a diamond property: if you can reach state S by evaluating cell X first then cell Y, or by evaluating Y first then X, both paths arrive at the same state S."
+  yield explanation, still-hard
+
+  ∴ Explain «term» so a curious 10-year-old could understand it...
+
+  ⊨ explanation uses no unexplained jargon
+  ⊨ explanation is 2-5 sentences
+  ⊨ explanation uses at least one analogy or concrete example
+  ⊨ still-hard ∈ {true, false}
+
+⊢ explainer-2
+  given term ≡ "immutable"
+  given parent-context ≡ "Since frozen values never change, two independent cells can be evaluated in either order without affecting each other."
+  yield explanation, still-hard
+
+  ∴ Explain «term» so a curious 10-year-old could understand it...
+
+  ⊨ explanation uses no unexplained jargon
+  ⊨ explanation is 2-5 sentences
+  ⊨ explanation uses at least one analogy or concrete example
+  ⊨ still-hard ∈ {true, false}
+
+-- state after frame 3: spawn-explainers frozen, 3 new cells in frontier.
+-- Ready set: { explainer-0, explainer-1, explainer-2 } — all ready
+-- Blocked: { collect-explanations } — needs explainer-*→explanation (wildcard waits for ALL matches)
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 4: evaluate explainer-0 (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { explainer-0, explainer-1, explainer-2 }
+-- Pick: explainer-0 (arbitrary — confluence guarantees same final result)
+
+⊢ explainer-0
+  given term ≡ "directed acyclic graph (DAG)"
+  given parent-context ≡ "Cell uses a directed acyclic graph (DAG) where each cell declares its dependencies explicitly..."
+  yield explanation, still-hard
+
+  ∴ Explain «term» so a curious 10-year-old could understand it...
+
+-- LLM evaluation:
+
+  yield explanation ≡ "A directed acyclic graph is like a family tree where arrows only point forward in time — from grandparents to parents to children, never backwards. 'Directed' means the arrows have a direction (parent points to child, not the other way). 'Acyclic' means there are no loops — you can't follow the arrows and end up back where you started, just like you can't be your own grandparent. In Cell, each task points to the tasks it depends on, forming this kind of one-way tree — so the computer always knows what to do first."
+
+  yield still-hard ≡ false
+
+-- oracle checks:
+--   ⊨ explanation uses no unexplained jargon → ✓ (family tree, arrows, loops — all everyday)
+--   ⊨ explanation is 2-5 sentences → ✓ (4 sentences)
+--   ⊨ explanation uses at least one analogy or concrete example → ✓ (family tree analogy)
+--   ⊨ still-hard ∈ {true, false} → ✓ (false)
+
+-- state after frame 4: explainer-0 frozen.
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 5: evaluate explainer-1 (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { explainer-1, explainer-2 }
+-- Pick: explainer-1
+
+⊢ explainer-1
+  given term ≡ "diamond property"
+  given parent-context ≡ "The formal proof uses a diamond property: if you can reach state S by evaluating cell X first then cell Y, or by evaluating Y first then X, both paths arrive at the same state S."
+  yield explanation, still-hard
+
+  ∴ Explain «term» so a curious 10-year-old could understand it...
+
+-- LLM evaluation:
+
+  yield explanation ≡ "Imagine you're making a sandwich and you need to add both lettuce and tomato. The diamond property says it doesn't matter whether you put the lettuce on first and then the tomato, or the tomato first and then the lettuce — you end up with the same sandwich either way. It's called 'diamond' because if you draw the two possible orders on paper, the paths split apart and then meet back up, making a diamond shape. This is important because it proves that no matter which task a computer works on first, the final answer is always the same."
+
+  yield still-hard ≡ false
+
+-- oracle checks:
+--   ⊨ explanation uses no unexplained jargon → ✓ (sandwich, lettuce, tomato — everyday)
+--   ⊨ explanation is 2-5 sentences → ✓ (3 sentences)
+--   ⊨ explanation uses at least one analogy or concrete example → ✓ (sandwich analogy)
+--   ⊨ still-hard ∈ {true, false} → ✓ (false)
+
+-- state after frame 5: explainer-1 frozen.
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 6: evaluate explainer-2 (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { explainer-2 }
+
+⊢ explainer-2
+  given term ≡ "immutable"
+  given parent-context ≡ "Since frozen values never change, two independent cells can be evaluated in either order without affecting each other."
+  yield explanation, still-hard
+
+  ∴ Explain «term» so a curious 10-year-old could understand it...
+
+-- LLM evaluation:
+
+  yield explanation ≡ "Immutable means something that can never be changed once it's finished — like writing in permanent marker instead of pencil. Once you write an answer in permanent marker, nobody can erase it or change it. In Cell, once a calculation produces its answer, that answer is locked forever. This is what makes the whole system trustworthy: if an answer could change after other parts already used it, everything would fall apart like a house of cards."
+
+  yield still-hard ≡ false
+
+-- oracle checks:
+--   ⊨ explanation uses no unexplained jargon → ✓ (permanent marker, pencil — everyday)
+--   ⊨ explanation is 2-5 sentences → ✓ (4 sentences)
+--   ⊨ explanation uses at least one analogy or concrete example → ✓ (permanent marker analogy)
+--   ⊨ still-hard ∈ {true, false} → ✓ (false)
+
+-- state after frame 6: explainer-2 frozen.
+-- All explainer-* cells frozen.
+-- Wildcard explainer-*→explanation resolves to [explainer-0, explainer-1, explainer-2].
+-- Ready set: { collect-explanations }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 7: evaluate collect-explanations (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { collect-explanations }
+-- Blocked: { deepen } — needs collect-explanations→remaining-hard, →full-explanation
+
+⊢ collect-explanations
+  given explain→explanation ≡ "Confluence means that no matter what order you evaluate cells in a Cell program, you always get the same final result..."
+  given assess-comprehension→clear-terms ≡ ["confluence", "dependencies", "frozen", "parallelized", "race conditions"]
+  given explainer-*→explanation ≡ [
+    "A directed acyclic graph is like a family tree where arrows only point forward in time...",
+    "Imagine you're making a sandwich and you need to add both lettuce and tomato...",
+    "Immutable means something that can never be changed once it's finished..."
+  ]
+  given explainer-*→still-hard ≡ [false, false, false]
+  yield full-explanation, remaining-hard[], leaf-score
+
+  ∴ Assemble a complete explanation combining main explanation and sub-explanations...
+
+-- LLM evaluation:
+
+  yield full-explanation ≡ "Confluence means that no matter what order you evaluate cells in a Cell program, you always get the same final result. This works because Cell uses a directed acyclic graph (DAG) where each cell declares its dependencies explicitly — a cell only runs when all its inputs are frozen (finalized and immutable). Since frozen values never change, two independent cells can be evaluated in either order without affecting each other. This is like a spreadsheet: if cell A1 uses B1 and C1, it doesn't matter whether B1 or C1 is calculated first — A1 will get the same answer either way. The formal proof uses a diamond property: if you can reach state S by evaluating cell X first then cell Y, or by evaluating Y first then X, both paths arrive at the same state S. This matters because it means Cell programs can be parallelized safely — multiple LLMs could evaluate different cells simultaneously and the result is guaranteed correct. It also means debugging is easier: you never have to worry about race conditions or ordering bugs.\n\nWhat does 'directed acyclic graph (DAG)' mean?\nA directed acyclic graph is like a family tree where arrows only point forward in time — from grandparents to parents to children, never backwards. 'Directed' means the arrows have a direction (parent points to child, not the other way). 'Acyclic' means there are no loops — you can't follow the arrows and end up back where you started, just like you can't be your own grandparent. In Cell, each task points to the tasks it depends on, forming this kind of one-way tree.\n\nWhat does 'diamond property' mean?\nImagine you're making a sandwich and you need to add both lettuce and tomato. The diamond property says it doesn't matter whether you put the lettuce on first and then the tomato, or the tomato first and then the lettuce — you end up with the same sandwich either way. It's called 'diamond' because if you draw the two possible orders on paper, the paths split apart and then meet back up, making a diamond shape.\n\nWhat does 'immutable' mean?\nImmutable means something that can never be changed once it's finished — like writing in permanent marker instead of pencil. Once you write an answer in permanent marker, nobody can erase it or change it. In Cell, once a calculation produces its answer, that answer is locked forever."
+
+  yield remaining-hard ≡ []
+
+  yield leaf-score ≡ 10
+
+-- oracle checks:
+--   ⊨ full-explanation includes main explanation and all sub-explanations → ✓
+--     (main explanation present, plus 3 "What does X mean?" sections)
+--   ⊨ remaining-hard contains only terms where still-hard = true → ✓ (empty — none were still-hard)
+--   ⊨ leaf-score = 10 if remaining-hard is empty → ✓ (10, empty)
+
+-- state after frame 7: collect-explanations frozen.
+-- ⊢∘ CHECK: leaf-score = 10 ≥ 9 → CONVERGED. Exit evolution loop.
+-- ⊢∘ evolution completed in 1 iteration. All sub-explanations terminated (still-hard = false).
+
+-- GUARD CHECK on deepen:
+--   given collect-explanations→remaining-hard where len(remaining-hard) > 0
+--   remaining-hard ≡ [] → len([]) = 0, guard is FALSE
+--   deepen is SKIPPED. Its yields become ⊥.
+--   (This is correct behavior — no remaining hard terms means no deepening needed.)
+
+-- Ready set: { format-output }
+-- NOTE: deepen was skipped via guard clause. format-output does not depend
+--       on deepen, so it is unaffected.
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 8: evaluate format-output (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { format-output }
+-- This is the final output cell. All upstream cells frozen.
+
+⊢ format-output
+  given collect-explanations→full-explanation ≡ "Confluence means that no matter what order you evaluate cells in a Cell program, you always get the same final result..."
+  given concept→text ≡ "How does Cell's confluence property work and why does it matter?"
+  yield final-explanation
+
+  ∴ Format «collect-explanations→full-explanation» as a clean, readable document...
+
+-- LLM evaluation:
+
+  yield final-explanation ≡ "How does Cell's confluence property work and why does it matter?\n\nConfluence means that no matter what order you evaluate cells in a Cell program, you always get the same final result. This works because Cell uses a directed acyclic graph — a structure like a family tree where arrows only point forward, never backwards — and each cell declares exactly what inputs it needs. A cell only runs when all its inputs are frozen: finalized and permanently locked, like writing in permanent marker. Since frozen values can never change, two independent cells can be evaluated in either order without affecting each other. The formal proof uses what mathematicians call the diamond property — like making a sandwich where it doesn't matter whether you add the lettuce or tomato first, you get the same sandwich.\n\nThis matters because it means Cell programs can be safely parallelized: multiple LLMs can evaluate different cells at the same time, and the result is guaranteed correct. It also means debugging is simpler — you never need to worry about ordering bugs or things changing out from under you.\n\nDigging deeper: Directed Acyclic Graph (DAG)\nA DAG is like a family tree. 'Directed' means the arrows have a direction — parent points to child, not the reverse. 'Acyclic' means there are no loops — you can't follow the arrows and end up back where you started, just like you can't be your own grandparent. In Cell, each task points to the tasks it depends on, forming this kind of one-way tree so the computer always knows what to calculate first.\n\nDigging deeper: The Diamond Property\nImagine you need to put both lettuce and tomato on a sandwich. It doesn't matter which goes on first — you end up with the same sandwich. If you drew the two possible orders on paper, the paths would split apart and meet back up in a diamond shape. That's the diamond property: two different paths always reach the same destination.\n\nDigging deeper: Immutability\nImmutable means 'can never be changed.' Think of it like writing in permanent marker instead of pencil — once an answer is written, nobody can erase or alter it. In Cell, once a calculation produces its result, that result is locked forever. This is what makes the whole system trustworthy: every answer stays exactly as it was when other parts of the program relied on it.\n\nIn one sentence a 10-year-old could repeat: No matter what order a Cell program does its work, the answer is always the same — like how a sandwich tastes the same whether you add the lettuce or the tomato first."
+
+-- oracle checks:
+--   ⊨ final-explanation starts with the main explanation → ✓
+--     (opens with "Confluence means that no matter what order...")
+--   ⊨ final-explanation ends with a one-sentence 10-year-old summary → ✓
+--     ("In one sentence a 10-year-old could repeat: ...")
+--   ⊨ final-explanation contains no unexplained jargon at any level → ✓
+--     (DAG explained via family tree, diamond property via sandwich,
+--      immutable via permanent marker — all technical terms grounded)
+
+-- state after frame 8: format-output frozen.
+-- No more ready cells. Program quiescent.
+
+-- ═══════════════════════════════════════════════════════════════
+-- EXECUTION SUMMARY
+-- ═══════════════════════════════════════════════════════════════
+--
+-- Total frames: 9 (0-8)
+-- ⊢∘ iterations: 1 (converged immediately when leaf-score = 10 ≥ 9)
+-- ⊢∘ max was 3, used 1 — all sub-explanations terminated at depth 1
+-- ⊢⊢ spawned: 3 explainer cells (explainer-0, explainer-1, explainer-2)
+-- ⊢⊢ accumulate mode: would persist cells across iterations (only 1 iteration needed)
+-- Guard clause fired: deepen skipped (remaining-hard was empty)
+-- File-scope ⊨? active but never triggered (no oracle failures)
+-- Cells evaluated: concept, explain, assess-comprehension, spawn-explainers,
+--   explainer-0, explainer-1, explainer-2, collect-explanations, format-output
+-- Cells skipped: deepen (guard clause → ⊥)
+--
+-- Key observations:
+--
+-- ⊢= Observation 1: recursive termination via semantic judgment
+--   The still-hard flag is a semantic judgment: each sub-explainer cell
+--   decides whether its own explanation introduces new hard terms. All three
+--   explainers judged still-hard = false, so the tree terminated at depth 1.
+--   This is genuine recursive termination by semantic oracle — no structural
+--   depth limit was needed (max 3 was headroom, not the binding constraint).
+--   The comprehension oracle IS the halting condition.
+--
+-- ⊢= Observation 2: spawner accumulate mode is correct for explanation trees
+--   Explanation trees should grow monotonically: once you've explained "DAG"
+--   with a family tree analogy, that explanation should persist even if the
+--   main explanation is revised in a subsequent ⊢∘ iteration. Using `replace`
+--   would discard good sub-explanations. This is the inverse of the research
+--   program (01) which uses `replace` because old experiment results become
+--   stale when hypotheses change. The accumulate/replace distinction captures
+--   a real semantic difference in how spawned cells relate to their parent loop.
+--
+-- ⊢= Observation 3: guard clause prevents wasted LLM calls
+--   The deepen cell has a guard: `where len(remaining-hard) > 0`. When all
+--   sub-explanations terminate (still-hard = false), remaining-hard is empty
+--   and deepen is skipped entirely. Without the guard (v0.1 behavior), deepen
+--   would execute with an empty list and produce a vacuous "no terms to deepen"
+--   output — wasting an LLM call. The v0.2 guard clause saves one LLM
+--   invocation per successful iteration. At scale, this compounds.
+--
+-- ⊢= Observation 4: wildcard deps enable clean spawner-to-collector flow
+--   collect-explanations uses `given explainer-*→explanation` to gather all
+--   sub-explanations without knowing how many spawner fired. This is the
+--   canonical wildcard pattern: spawner creates N cells, collector gathers
+--   all N outputs. Under accumulate mode with multiple ⊢∘ iterations, the
+--   wildcard would re-resolve to include cells from ALL iterations — the
+--   explanation tree grows but old branches are never pruned.
+--
+-- ⊢= Observation 5: aspirational oracles provide meaningful feedback
+--   The oracles on explain ("explanation is 3-8 sentences", "addresses both
+--   how and why") are aspirational under ⊢∘ but still serve a purpose: if
+--   the first iteration's explanation were too short or one-sided, the oracle
+--   failure messages would feed into the next iteration's prompt context via
+--   the ⊨? retry mechanism. The oracles describe the TARGET quality — the
+--   ⊢∘ loop's `until` condition gates convergence, but the oracles shape
+--   the direction of improvement. In this trace, all aspirational oracles
+--   passed on the first iteration, so no retry was needed.
+--
+-- ⊢= Observation 6: single-iteration convergence reveals concept difficulty
+--   This concept ("confluence") converged in 1 iteration because all three
+--   hard terms (DAG, diamond property, immutable) have clean everyday
+--   analogies. A harder concept — say, "monadic composition" — would likely
+--   produce sub-explanations with still-hard = true (e.g., "functor" or
+--   "type constructor"), triggering iteration 2 with additional spawned
+--   explainer cells. The program's structure gracefully handles both cases:
+--   easy concepts converge fast, hard concepts recurse deeper, and the
+--   comprehension oracle adapts the depth to the actual difficulty.
+--
+-- ⊢= Observation 7: ⊥ propagation from guard-skipped cells is clean
+--   When deepen is skipped (guard false), its yields become ⊥. No downstream
+--   cell depends on deepen's output — format-output takes from
+--   collect-explanations, not deepen. This means the ⊥ is produced but never
+--   consumed, which is the ideal case: the guard prevents unnecessary work
+--   AND the dataflow graph routes around the skipped cell naturally. If a
+--   future version added a cell depending on deepen→deeper-explanations,
+--   it would need `given?` to tolerate the ⊥ case.

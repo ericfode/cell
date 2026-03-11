@@ -1,0 +1,215 @@
+-- 18-recursive-story-builder.cell (R17, v0.2)
+-- Generates a story outline (3 acts). Each act spawns scene cells.
+-- Each scene spawns beat cells. Oracle checks narrative consistency
+-- across levels. Bottom-up assembly: beats → scenes → acts → story.
+--
+-- Tests: ⊢⊢ spawner (multi-level recursive, accumulate mode), bottom-up dataflow,
+--        cross-level consistency oracles, ⊢∘ revision loop, wildcard deps,
+--        file-scope ⊨?, guard clauses, given?, ⊢∘-managed aspirational oracles
+--
+-- v0.2 changes from R16:
+--   - Added file-scope ⊨? recovery policy (v0.2 blesses file-scope ⊨?)
+--   - ⊢⊢ spawn-act-scenes and spawn-scene-beats: explicit `accumulate` mode
+--     (spawned cells persist across ⊢∘ iterations — beats and scenes are stable)
+--   - Wildcard deps (scene-*→field, beat-*→field) now formally spec-compliant
+--   - ⊢∘ refine naming explicitly blessed (v0.2 arbitrary label rule)
+--   - ⊢∘ parameter bindings formalized (outline→theme, outline→protagonist)
+--   - Oracles on assemble-story are aspirational under ⊢∘ management (v0.2)
+--   - guard clause on revise: `given ... where consistency-score < 8` — revise
+--     only fires when consistency reveals problems (otherwise ⊥, loop exits)
+--   - check-consistency uses given? for optional first-pass draft awareness
+--
+-- Topic: "An AI that discovers it was built by another AI."
+
+⊨? on failure:
+  retry with «oracle.failures» appended to prompt
+  max 3 attempts
+⊨? on exhaustion:
+  error-value(⊥)
+
+⊢ premise
+  given text ≡ "An AI that discovers it was built by another AI."
+  given genre ≡ "science fiction, philosophical thriller"
+  yield text, genre
+
+  ⊨ text is a story premise with inherent dramatic tension
+
+⊢ outline
+  given premise→text
+  given premise→genre
+  yield act-1-summary, act-2-summary, act-3-summary, theme, protagonist
+
+  ∴ Create a 3-act story outline for «premise→text» in the genre
+    «premise→genre». Define:
+    - Act 1 (Setup): introduce the protagonist, their world, and the
+      inciting incident that triggers discovery
+    - Act 2 (Confrontation): the protagonist investigates, faces obstacles,
+      reaches a crisis point
+    - Act 3 (Resolution): the protagonist makes a choice, consequences unfold,
+      theme crystallizes
+
+    Name the protagonist and state the central theme.
+
+  ⊨ act-1-summary ends with a clear inciting incident
+  ⊨ act-2-summary contains a midpoint reversal and a crisis
+  ⊨ act-3-summary contains a climactic choice and resolution
+  ⊨ theme is expressible in one sentence
+  ⊨ protagonist has a name and a defining trait
+
+⊢⊢ spawn-act-scenes
+  given outline→act-1-summary
+  given outline→act-2-summary
+  given outline→act-3-summary
+  given outline→protagonist
+  given §scene-template
+  yield §scene-cells[]
+  until length(scene-cells) ≥ 7
+  max 12
+  accumulate
+
+  ∴ For each act, spawn 2-4 scene cells. Each scene gets the act summary,
+    the protagonist, and its position (which act, scene number within act).
+    Act 2 should have the most scenes (it's the longest act).
+
+  ⊨ length(scene-cells) ≥ 7
+  ⊨ at least 2 scenes per act
+
+⊢ scene-template
+  given act-summary
+  given protagonist
+  given act-number
+  given scene-number
+  yield scene-text, emotional-arc, scene-purpose
+
+  ∴ Write a scene for act «act-number», scene «scene-number».
+    The act summary is: «act-summary». The protagonist is «protagonist».
+
+    The scene should:
+    - Have a clear beginning, middle, and end
+    - Advance the plot toward the act's goal
+    - Show the protagonist's emotional state
+    - End with a hook or transition to the next scene
+
+    State the emotional arc (e.g., "curiosity → dread → resolve") and
+    the scene's narrative purpose (what it accomplishes for the story).
+
+  ⊨ scene-text is 3-6 sentences of narrative prose
+  ⊨ emotional-arc names at least 2 emotional states
+  ⊨ scene-purpose explains what the scene accomplishes
+  ⊨ scene-text mentions the protagonist by name
+
+⊢⊢ spawn-scene-beats
+  given scene-*→scene-text
+  given scene-*→emotional-arc
+  given outline→protagonist
+  given §beat-template
+  yield §beat-cells[]
+  until length(beat-cells) ≥ length(scene-cells) × 2
+  max 30
+  accumulate
+
+  ∴ For each scene, spawn 2-3 beat cells. A beat is the smallest unit of
+    story — a single moment, action, or revelation. Each beat gets the
+    scene text, emotional arc, and its position within the scene.
+
+  ⊨ at least 2 beats per scene
+
+⊢ beat-template
+  given scene-text
+  given emotional-arc
+  given protagonist
+  given beat-number
+  yield beat-text, beat-type
+
+  ∴ Write beat «beat-number» for this scene. The scene is: «scene-text».
+    The emotional arc is: «emotional-arc». The protagonist is «protagonist».
+
+    A beat is a single moment: a line of dialogue, a sensory detail,
+    an internal thought, or a plot action. Make it vivid and specific.
+
+    Classify the beat type: action, dialogue, internal, description, revelation.
+
+  ⊨ beat-text is 1-3 sentences
+  ⊨ beat-type ∈ {action, dialogue, internal, description, revelation}
+  ⊨ beat-text is consistent with the emotional arc
+
+⊢ assemble-scenes
+  given beat-*→beat-text
+  given beat-*→beat-type
+  given scene-*→scene-purpose
+  yield assembled-scenes[]
+
+  ∴ For each scene, combine its beats in order into a coherent scene.
+    Ensure beats flow naturally — add minimal transition words if needed
+    but don't rewrite the beats. Preserve beat types for rhythm analysis.
+
+  ⊨ each assembled scene contains all its beats in order
+  ⊨ no beat is omitted or duplicated
+
+⊢ assemble-story
+  given assemble-scenes→assembled-scenes
+  given outline→theme
+  given outline→protagonist
+  yield draft-story
+
+  ∴ Combine all assembled scenes into a complete story. Add act breaks
+    (Act 1, Act 2, Act 3). Add a title. Ensure the narrative flows
+    across scene boundaries — each scene should connect to the next.
+
+  -- Oracles are aspirational under ⊢∘ management (v0.2):
+  -- they provide feedback signals but don't independently block freezing.
+  ⊨ draft-story contains all assembled scenes
+  ⊨ draft-story has act break markers
+  ⊨ draft-story has a title
+
+⊢ check-consistency
+  given assemble-story→draft-story
+  given outline→theme
+  given outline→protagonist
+  given outline→act-1-summary
+  given outline→act-2-summary
+  given outline→act-3-summary
+  yield issues[], consistency-score
+
+  ∴ Review «assemble-story→draft-story» for narrative consistency:
+    1. Does the protagonist behave consistently throughout?
+    2. Does each act fulfill its summary from the outline?
+    3. Does the theme emerge through action (not just statement)?
+    4. Are there plot holes or contradictions between scenes?
+    5. Does the emotional arc progress logically?
+    6. Is the ending earned by the preceding events?
+
+    List specific issues. Score consistency 0-10.
+
+  ⊨ each issue cites a specific part of the story
+  ⊨ consistency-score ∈ [0, 10]
+  ⊨ if consistency-score = 10 then issues is empty
+
+⊢ revise
+  given assemble-story→draft-story
+  given check-consistency→issues where len(issues) > 0
+  given check-consistency→consistency-score where consistency-score < 8
+  yield revised-story
+
+  ∴ Fix the issues «check-consistency→issues» in «assemble-story→draft-story».
+    Make targeted edits — don't rewrite sections that work. Preserve the
+    story structure and the original beats where possible.
+
+  ⊨ revised-story addresses every issue from check-consistency→issues
+  ⊨ revised-story preserves act structure
+  ⊨ revised-story maintains the protagonist's voice
+
+⊢∘ refine(assemble-story, assemble-scenes→assembled-scenes, outline→theme, outline→protagonist)
+  through check-consistency, revise
+  until check-consistency→consistency-score ≥ 8
+  max 3
+
+  -- Each iteration: assemble story → check consistency → revise →
+  -- reassemble with fixes → re-check. Converges when consistency ≥ 8.
+  --
+  -- assemble-story oracles are aspirational under ⊢∘: their failures
+  -- feed into check-consistency as additional signals but don't block
+  -- the evolution loop from progressing.
+  --
+  -- revise has a guard clause: if consistency-score ≥ 8, revise is skipped
+  -- (its yields become ⊥). The ⊢∘ until condition catches this and exits.

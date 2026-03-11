@@ -1,0 +1,843 @@
+-- 19-code-generator-proof-frames.cell — full execution trace (R17, v0.2)
+--
+-- Ready set analysis (initial):
+--   spec: given description/signature/preconditions all ≡-bound → READY
+--   generate-code: given spec→* → BLOCKED (needs spec)
+--   generate-property-tests: given spec→* → BLOCKED (needs spec)
+--   run-tests: given generate-code→code-text, tests→test-cases → BLOCKED
+--   analyze-failures: given run-tests→fail-count where >0 → BLOCKED
+--   skip-analysis: given run-tests→fail-count where =0 → BLOCKED
+--   rewrite-code: given analyze-failures→fix-strategy where !="none" → BLOCKED
+--   skip-rewrite: given skip-analysis→fix-strategy where ="none" → BLOCKED
+--   ⊢∘ evolve: coordinates iteration over {generate-code, run-tests, analyze-failures, rewrite-code}
+--   generate-proof-sketch: given rewrite-code→code-text' → BLOCKED
+--   verify-proof-structural: given generate-proof-sketch→* → BLOCKED
+--   verify-proof-semantic: given generate-proof-sketch→* → BLOCKED
+--   proof-certificate-high: given verify-proof-semantic→verdict where ="proof complete" → BLOCKED
+--   proof-certificate-medium: given verify-proof-semantic→verdict where ="proof valid with minor gaps" → BLOCKED
+--   proof-certificate-low: given verify-proof-semantic→verdict where ="proof incomplete" → BLOCKED
+--
+-- Ready set: { spec }
+--
+-- v0.2 execution notes:
+--   - ⊨? at file scope applies as default recovery for all cells
+--   - Oracles on generate-code are aspirational under ⊢∘ management
+--   - Guard clauses on analyze-failures/skip-analysis dispatch on fail-count
+--   - Guard clauses on rewrite-code/skip-rewrite dispatch on fix-strategy
+--   - Guard clauses on proof-certificate-{high,medium,low} dispatch on verdict
+--   - verify-proof split: structural (⊢=, crystallized) + semantic (∴, honest)
+--   - R16's verify-proof ⊢= used undefined functions (proof-covers, missing-from,
+--     has-loop-invariant) — semantic judgments. v0.2 moves these to ∴ cell.
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 0: spec (soft cell with ≡-bound inputs, trivial evaluation)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ spec
+  given description ≡ "binary search on sorted array, returns index or -1"
+  given signature ≡ "binary_search(arr: int[], target: int) -> int"
+  given preconditions ≡ "arr is sorted in ascending order, no duplicates"
+  yield description, signature, preconditions
+
+  yield description ≡ "binary search on sorted array, returns index or -1"
+  yield signature ≡ "binary_search(arr: int[], target: int) -> int"
+  yield preconditions ≡ "arr is sorted in ascending order, no duplicates"
+
+-- oracle checks:
+--   ⊨ description specifies the algorithm, input, and output → ✓
+--     ("binary search" = algorithm, "sorted array" = input, "index or -1" = output)
+--   ⊨ signature has typed parameters and return type → ✓
+--     (arr: int[], target: int → int)
+--   ⊨ preconditions constrain the input space → ✓
+--     ("sorted in ascending order, no duplicates")
+--
+-- All oracles pass. Cell frozen.
+
+-- Ready set after: { generate-code, generate-property-tests }
+-- (spec→description, spec→signature, spec→preconditions now bound)
+-- Both cells have all given deps satisfied. They are independent — eval
+-- either first. We pick generate-property-tests (order doesn't matter
+-- by confluence, but tests before code lets us see what we're testing).
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 1: generate-property-tests (soft cell, LLM evaluation)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ generate-property-tests
+  given spec→signature ≡ "binary_search(arr: int[], target: int) -> int"
+  given spec→preconditions ≡ "arr is sorted in ascending order, no duplicates"
+  given spec→description ≡ "binary search on sorted array, returns index or -1"
+  yield test-cases[], properties[]
+
+  ∴ Generate property-based test cases for «spec→signature».
+
+    Properties to test:
+    1. Found element: if target in arr, result is its index
+    2. Not found: if target not in arr, result is -1
+    3. Boundary: target at first position, last position
+    4. Single element: array of size 1
+    5. Empty array: result must be -1
+    6. Midpoint correctness: target at exact midpoint
+
+    For each property, generate 2-3 concrete test cases with
+    { input-arr, input-target, expected-output }.
+
+-- LLM evaluation:
+-- The prompt is straightforward: enumerate properties and generate concrete
+-- test cases. The LLM produces a structured list covering all 6 properties.
+
+  yield test-cases ≡ [
+    { input-arr: [1, 3, 5, 7, 9], input-target: 5, expected-output: 2 },
+    { input-arr: [2, 4, 6, 8, 10], input-target: 8, expected-output: 3 },
+    { input-arr: [1, 3, 5, 7, 9], input-target: 4, expected-output: -1 },
+    { input-arr: [1, 3, 5, 7, 9], input-target: 0, expected-output: -1 },
+    { input-arr: [10, 20, 30, 40, 50], input-target: 10, expected-output: 0 },
+    { input-arr: [10, 20, 30, 40, 50], input-target: 50, expected-output: 4 },
+    { input-arr: [1, 2, 3, 4, 5, 6, 7], input-target: 1, expected-output: 0 },
+    { input-arr: [42], input-target: 42, expected-output: 0 },
+    { input-arr: [42], input-target: 99, expected-output: -1 },
+    { input-arr: [], input-target: 5, expected-output: -1 },
+    { input-arr: [1, 2, 3, 4, 5, 6, 7], input-target: 4, expected-output: 3 },
+    { input-arr: [1, 3, 5, 7, 9, 11, 13], input-target: 7, expected-output: 3 }
+  ]
+  yield properties ≡ [
+    "found-element: if target in arr, binary_search returns its 0-based index",
+    "not-found: if target not in arr, binary_search returns -1",
+    "boundary-first: target at index 0 returns 0",
+    "boundary-last: target at last index returns len(arr)-1",
+    "single-element-found: array of size 1, target present, returns 0",
+    "single-element-not-found: array of size 1, target absent, returns -1",
+    "empty-array: array of size 0, returns -1",
+    "midpoint: target at exact center of odd-length array"
+  ]
+
+-- oracle checks:
+--   ⊨ len(test-cases) >= 10 → ✓ (12 test cases)
+--   ⊨ properties covers found, not-found, boundary, and edge cases → ✓
+--     (found-element, not-found, boundary-first, boundary-last, single-*,
+--      empty-array, midpoint — all categories covered)
+--   ⊨ each test-case has input-arr (sorted), input-target, expected-output → ✓
+--     (all 12 have the required fields; all input-arr are sorted ascending)
+--
+-- All oracles pass. Cell frozen.
+
+-- Ready set after: { generate-code }
+-- (generate-property-tests frozen, but run-tests still needs generate-code→code-text)
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ ITERATION 0 — initial code generation
+-- ═══════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 2: generate-code v0 (soft cell, LLM evaluation)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ generate-code
+  given spec→description ≡ "binary search on sorted array, returns index or -1"
+  given spec→signature ≡ "binary_search(arr: int[], target: int) -> int"
+  given spec→preconditions ≡ "arr is sorted in ascending order, no duplicates"
+  yield §implementation, code-text
+
+  ∴ Write a correct implementation of «spec→signature» that satisfies:
+    «spec→description»
+    Preconditions: «spec→preconditions»
+
+    Use a standard binary search algorithm. Return the 0-based index of
+    «target» in «arr», or -1 if not found. The implementation must:
+    - Use integer midpoint calculation that avoids overflow
+    - Maintain loop invariant: target is in arr[lo..hi] if present
+    - Terminate when lo > hi (not found) or arr[mid] == target (found)
+
+    Output the code as a Cell ⊢= expression.
+
+-- LLM evaluation:
+-- The LLM generates a binary search. We simulate a subtle bug: the initial
+-- implementation uses `lo + (hi - lo) / 2` for midpoint (correct), but has
+-- an off-by-one in the not-found termination: `while lo < hi` instead of
+-- `while lo <= hi`. This causes single-element arrays and boundary cases
+-- to fail — a realistic LLM coding mistake.
+
+  yield §implementation ≡ "⊢= binary_search(arr, target) ←
+    lo ← 0
+    hi ← len(arr) - 1
+    while lo < hi:
+      mid ← lo + (hi - lo) / 2
+      if arr[mid] = target then return mid
+      else if arr[mid] < target then lo ← mid + 1
+      else hi ← mid - 1
+    return -1"
+
+  yield code-text ≡ "lo ← 0; hi ← len(arr) - 1; while lo < hi: mid ← lo + (hi - lo) / 2; if arr[mid] = target then return mid; else if arr[mid] < target then lo ← mid + 1; else hi ← mid - 1; return -1"
+
+-- v0.2: aspirational oracle checks (generate-code is ⊢∘-managed):
+--   ⊨ code-text contains a loop or recursive structure → ✓ ("while lo < hi")
+--   ⊨ code-text returns -1 for not-found case → ✓ ("return -1" at end)
+--   ⊨ code-text uses integer division for midpoint → ✓ ("lo + (hi - lo) / 2")
+--
+-- Aspirational oracles all pass. But the code has a bug: `while lo < hi`
+-- should be `while lo <= hi`. The bug will surface in run-tests.
+-- Under v0.2 ⊢∘ semantics, these oracles don't independently block freezing.
+
+-- Ready set after: { run-tests }
+-- (generate-code→code-text and generate-property-tests→test-cases both bound)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 3: run-tests v0 (soft cell, LLM simulates execution)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ run-tests
+  given generate-code→code-text ≡ "lo ← 0; hi ← len(arr) - 1; while lo < hi: mid ← lo + (hi - lo) / 2; if arr[mid] = target then return mid; else if arr[mid] < target then lo ← mid + 1; else hi ← mid - 1; return -1"
+  given generate-property-tests→test-cases ≡ "(12 test cases as above)"
+  yield results[], pass-count, fail-count, failure-details[]
+
+  ∴ Simulate executing «generate-code→code-text» on each test case
+    in «generate-property-tests→test-cases». For each test:
+    - Trace through the code with the given inputs
+    - Record the actual output
+    - Compare to expected-output
+    - If mismatch: record the failure with step-by-step trace showing
+      where the code diverged from expected behavior
+
+-- LLM evaluation:
+-- The LLM traces the code on all 12 test cases. The bug `while lo < hi`
+-- (should be `while lo <= hi`) causes failures when lo = hi and the target
+-- is at that position. Specifically:
+--
+-- Test 8: [42], target=42 → lo=0, hi=0, lo < hi is FALSE → returns -1
+--   Expected: 0. FAIL.
+-- Test 5: [10,20,30,40,50], target=10 → lo=0, hi=4, mid=2, arr[2]=30>10,
+--   hi=1, mid=0, arr[0]=10 → return 0. PASS. (lucky: found before lo=hi)
+-- Test 6: [10,20,30,40,50], target=50 → lo=0, hi=4, mid=2, arr[2]=30<50,
+--   lo=3, mid=3, arr[3]=40<50, lo=4, lo < hi is FALSE → returns -1.
+--   Expected: 4. FAIL.
+-- Test 7: [1,2,3,4,5,6,7], target=1 → lo=0, hi=6, mid=3, arr[3]=4>1,
+--   hi=2, mid=1, arr[1]=2>1, hi=0, lo < hi is FALSE → returns -1.
+--   Expected: 0. FAIL.
+
+  yield results ≡ [
+    { test: 1, input: "[1,3,5,7,9], 5", actual: 2, expected: 2, verdict: "pass" },
+    { test: 2, input: "[2,4,6,8,10], 8", actual: 3, expected: 3, verdict: "pass" },
+    { test: 3, input: "[1,3,5,7,9], 4", actual: -1, expected: -1, verdict: "pass" },
+    { test: 4, input: "[1,3,5,7,9], 0", actual: -1, expected: -1, verdict: "pass" },
+    { test: 5, input: "[10,20,30,40,50], 10", actual: 0, expected: 0, verdict: "pass" },
+    { test: 6, input: "[10,20,30,40,50], 50", actual: -1, expected: 4, verdict: "FAIL" },
+    { test: 7, input: "[1,2,3,4,5,6,7], 1", actual: -1, expected: 0, verdict: "FAIL" },
+    { test: 8, input: "[42], 42", actual: -1, expected: 0, verdict: "FAIL" },
+    { test: 9, input: "[42], 99", actual: -1, expected: -1, verdict: "pass" },
+    { test: 10, input: "[], 5", actual: -1, expected: -1, verdict: "pass" },
+    { test: 11, input: "[1,2,3,4,5,6,7], 4", actual: 3, expected: 3, verdict: "pass" },
+    { test: 12, input: "[1,3,5,7,9,11,13], 7", actual: 3, expected: 3, verdict: "pass" }
+  ]
+  yield pass-count ≡ 9
+  yield fail-count ≡ 3
+  yield failure-details ≡ [
+    { test: 6, trace: "arr=[10,20,30,40,50], target=50: lo=0 hi=4 → mid=2 arr[2]=30<50 lo=3 → mid=3 arr[3]=40<50 lo=4 → lo(4) < hi(4) is FALSE → return -1. Bug: loop exits when lo=hi=4, never checks arr[4]=50.", expected: 4, actual: -1 },
+    { test: 7, trace: "arr=[1,2,3,4,5,6,7], target=1: lo=0 hi=6 → mid=3 arr[3]=4>1 hi=2 → mid=1 arr[1]=2>1 hi=0 → lo(0) < hi(0) is FALSE → return -1. Bug: loop exits when lo=hi=0, never checks arr[0]=1.", expected: 0, actual: -1 },
+    { test: 8, trace: "arr=[42], target=42: lo=0 hi=0 → lo(0) < hi(0) is FALSE → return -1. Bug: single element, loop body never entered.", expected: 0, actual: -1 }
+  ]
+
+-- oracle checks:
+--   ⊨ len(results) = len(test-cases) → ✓ (12 = 12)
+--   ⊨ pass-count + fail-count = len(results) → ✓ (9 + 3 = 12)
+--   ⊨ if fail-count > 0 then len(failure-details) = fail-count → ✓ (3 > 0, 3 = 3)
+--
+-- All oracles pass. Cell frozen.
+
+-- Ready set after: { analyze-failures, skip-analysis }
+-- Guard evaluation:
+--   analyze-failures: given run-tests→fail-count where fail-count > 0 → 3 > 0 → TRUE → READY
+--   skip-analysis: given run-tests→fail-count where fail-count = 0 → 3 = 0 → FALSE → SKIPPED
+--
+-- skip-analysis is SKIPPED. Its yields become ⊥.
+-- Ready set: { analyze-failures }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 4: analyze-failures (soft cell, LLM evaluation)
+--   guard: run-tests→fail-count(3) > 0 → TRUE
+--   skip-analysis: SKIPPED (guard false), all yields ≡ ⊥
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ analyze-failures
+  given run-tests→fail-count ≡ 3
+  given run-tests→failure-details ≡ "(3 failure traces as above)"
+  given generate-code→code-text ≡ "(binary search with while lo < hi)"
+  yield diagnosis, bug-category, fix-strategy
+
+  ∴ Analyze «run-tests→failure-details» against
+    «generate-code→code-text». For each failure:
+    - Identify the root cause (off-by-one, wrong comparison, overflow, etc.)
+    - Categorize the bug
+    - Propose a specific fix (which line, what change)
+
+-- LLM evaluation:
+-- All three failures share the same root cause: the loop condition `while lo < hi`
+-- exits before checking the case where lo = hi. The fix is `while lo <= hi`.
+
+  yield diagnosis ≡ "All 3 failures share one root cause: the loop condition 'while lo < hi' terminates the loop when lo = hi without checking arr[lo]. When the target is at the position where lo converges to hi (last element, first element via hi-reduction, single-element array), it is never compared. The loop should continue while lo <= hi to check the final remaining position."
+  yield bug-category ≡ "off-by-one"
+  yield fix-strategy ≡ "Change 'while lo < hi' to 'while lo <= hi'. This is a single-character fix (< to <=) on the loop condition line. No other lines need to change. The midpoint calculation, comparisons, and return logic are all correct."
+
+-- oracle checks:
+--   ⊨ fix-strategy describes a concrete code change → ✓
+--     ("Change 'while lo < hi' to 'while lo <= hi'" — names the exact change)
+--   ⊨ bug-category ∈ {"off-by-one", ...} → ✓ ("off-by-one")
+--
+-- All oracles pass. Cell frozen.
+
+-- Ready set after: { rewrite-code, skip-rewrite }
+-- Guard evaluation:
+--   rewrite-code: given analyze-failures→fix-strategy where !="none"
+--     → "Change while..." != "none" → TRUE → READY
+--   skip-rewrite: given skip-analysis→fix-strategy where ="none"
+--     → skip-analysis yields are all ⊥ (cell was skipped) → BLOCKED permanently
+--
+-- Ready set: { rewrite-code }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 5: rewrite-code v0 (soft cell, LLM evaluation)
+--   guard: analyze-failures→fix-strategy("Change...") != "none" → TRUE
+--   skip-rewrite: BLOCKED (depends on skip-analysis which yielded ⊥)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ rewrite-code
+  given analyze-failures→fix-strategy ≡ "Change 'while lo < hi' to 'while lo <= hi'. Single-character fix on the loop condition line."
+  given analyze-failures→diagnosis ≡ "Loop condition 'while lo < hi' terminates when lo = hi without checking arr[lo]..."
+  given generate-code→code-text ≡ "lo ← 0; hi ← len(arr) - 1; while lo < hi: mid ← lo + (hi - lo) / 2; if arr[mid] = target then return mid; else if arr[mid] < target then lo ← mid + 1; else hi ← mid - 1; return -1"
+  given run-tests→failure-details ≡ "(3 failure traces)"
+  yield §implementation', code-text', changed-lines[]
+
+  ∴ Apply «analyze-failures→fix-strategy» to
+    «generate-code→code-text». Rewrite only the lines that need fixing.
+    Record which lines changed and why.
+
+    The rewritten code must preserve the function signature and
+    overall structure. Only fix what's broken.
+
+-- LLM evaluation:
+-- The fix is surgical: change `while lo < hi` to `while lo <= hi`.
+-- Everything else stays the same.
+
+  yield §implementation' ≡ "⊢= binary_search(arr, target) ←
+    lo ← 0
+    hi ← len(arr) - 1
+    while lo <= hi:
+      mid ← lo + (hi - lo) / 2
+      if arr[mid] = target then return mid
+      else if arr[mid] < target then lo ← mid + 1
+      else hi ← mid - 1
+    return -1"
+
+  yield code-text' ≡ "lo ← 0; hi ← len(arr) - 1; while lo <= hi: mid ← lo + (hi - lo) / 2; if arr[mid] = target then return mid; else if arr[mid] < target then lo ← mid + 1; else hi ← mid - 1; return -1"
+
+  yield changed-lines ≡ [
+    { line: 3, old: "while lo < hi:", new: "while lo <= hi:", reason: "Off-by-one: loop must check the final position where lo = hi" }
+  ]
+
+-- oracle checks:
+--   ⊨ §implementation' has same given/yield signature as §generate-code → ✓
+--     (both take arr, target, return int; same interface)
+--   ⊨ len(changed-lines) >= 1 → ✓ (1 line changed)
+--
+-- All oracles pass. Cell frozen.
+
+-- ⊢∘ applies the rewrite: generate-code is replaced by the fixed version.
+-- ⊢∘ checks: run-tests→fail-count = 0? No, it was 3. Re-run with new code.
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ ITERATION 1 — re-run with fixed code
+-- ═══════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 6: generate-code v1 (⊢∘ replaced — rewritten code)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ generate-code
+  given spec→description ≡ "binary search on sorted array, returns index or -1"
+  given spec→signature ≡ "binary_search(arr: int[], target: int) -> int"
+  given spec→preconditions ≡ "arr is sorted in ascending order, no duplicates"
+  yield §implementation, code-text
+
+  -- ⊢∘ replaced the ∴ body. The implementation is now the rewritten version.
+
+  yield code-text ≡ "lo ← 0; hi ← len(arr) - 1; while lo <= hi: mid ← lo + (hi - lo) / 2; if arr[mid] = target then return mid; else if arr[mid] < target then lo ← mid + 1; else hi ← mid - 1; return -1"
+
+-- v0.2: aspirational oracle checks:
+--   ⊨ code-text contains a loop or recursive structure → ✓ ("while lo <= hi")
+--   ⊨ code-text returns -1 for not-found case → ✓ ("return -1")
+--   ⊨ code-text uses integer division for midpoint → ✓ ("lo + (hi - lo) / 2")
+
+-- Ready set after: { run-tests } (re-run with new code-text)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 7: run-tests v1 (soft cell, re-run with fixed code)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ run-tests
+  given generate-code→code-text ≡ "lo ← 0; hi ← len(arr) - 1; while lo <= hi: mid ← lo + (hi - lo) / 2; if arr[mid] = target then return mid; else if arr[mid] < target then lo ← mid + 1; else hi ← mid - 1; return -1"
+  given generate-property-tests→test-cases ≡ "(12 test cases)"
+  yield results[], pass-count, fail-count, failure-details[]
+
+  ∴ Simulate executing «generate-code→code-text» on each test case...
+
+-- LLM evaluation:
+-- With `while lo <= hi`, all previously failing tests now pass:
+-- Test 6: [10,20,30,40,50], target=50 → lo=4 hi=4 → lo<=hi TRUE → mid=4
+--   arr[4]=50=target → return 4. ✓
+-- Test 7: [1,2,3,4,5,6,7], target=1 → lo=0 hi=0 → lo<=hi TRUE → mid=0
+--   arr[0]=1=target → return 0. ✓
+-- Test 8: [42], target=42 → lo=0 hi=0 → lo<=hi TRUE → mid=0
+--   arr[0]=42=target → return 0. ✓
+
+  yield results ≡ [
+    { test: 1, input: "[1,3,5,7,9], 5", actual: 2, expected: 2, verdict: "pass" },
+    { test: 2, input: "[2,4,6,8,10], 8", actual: 3, expected: 3, verdict: "pass" },
+    { test: 3, input: "[1,3,5,7,9], 4", actual: -1, expected: -1, verdict: "pass" },
+    { test: 4, input: "[1,3,5,7,9], 0", actual: -1, expected: -1, verdict: "pass" },
+    { test: 5, input: "[10,20,30,40,50], 10", actual: 0, expected: 0, verdict: "pass" },
+    { test: 6, input: "[10,20,30,40,50], 50", actual: 4, expected: 4, verdict: "pass" },
+    { test: 7, input: "[1,2,3,4,5,6,7], 1", actual: 0, expected: 0, verdict: "pass" },
+    { test: 8, input: "[42], 42", actual: 0, expected: 0, verdict: "pass" },
+    { test: 9, input: "[42], 99", actual: -1, expected: -1, verdict: "pass" },
+    { test: 10, input: "[], 5", actual: -1, expected: -1, verdict: "pass" },
+    { test: 11, input: "[1,2,3,4,5,6,7], 4", actual: 3, expected: 3, verdict: "pass" },
+    { test: 12, input: "[1,3,5,7,9,11,13], 7", actual: 3, expected: 3, verdict: "pass" }
+  ]
+  yield pass-count ≡ 12
+  yield fail-count ≡ 0
+  yield failure-details ≡ []
+
+-- oracle checks:
+--   ⊨ len(results) = len(test-cases) → ✓ (12 = 12)
+--   ⊨ pass-count + fail-count = len(results) → ✓ (12 + 0 = 12)
+--   ⊨ if fail-count > 0 then len(failure-details) = fail-count → VACUOUS (fail-count = 0)
+--
+-- All oracles pass. Cell frozen.
+
+-- ⊢∘ checks: run-tests→fail-count = 0? YES. ⊢∘ TERMINATES.
+-- Evolution complete after 2 iterations (0 and 1) out of max 3.
+
+-- Ready set after: { analyze-failures, skip-analysis }
+-- Guard evaluation (on the iteration-1 run-tests):
+--   analyze-failures: given run-tests→fail-count where >0 → 0 > 0 → FALSE → SKIPPED
+--   skip-analysis: given run-tests→fail-count where =0 → 0 = 0 → TRUE → READY
+--
+-- analyze-failures is SKIPPED. Its yields become ⊥.
+-- Ready set: { skip-analysis }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 8: skip-analysis (hard cell, deterministic — all tests pass)
+--   guard: run-tests→fail-count(0) = 0 → TRUE
+--   analyze-failures: SKIPPED (guard false), all yields ≡ ⊥
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ skip-analysis
+  given run-tests→fail-count ≡ 0
+  yield diagnosis, bug-category, fix-strategy
+
+  ⊢= diagnosis ← "all tests pass"
+  ⊢= bug-category ← "none"
+  ⊢= fix-strategy ← "none"
+
+  yield diagnosis ≡ "all tests pass"
+  yield bug-category ≡ "none"
+  yield fix-strategy ≡ "none"
+
+-- No oracles. Deterministic evaluation. Cell frozen.
+
+-- Ready set after: { skip-rewrite, rewrite-code }
+-- Guard evaluation:
+--   skip-rewrite: given skip-analysis→fix-strategy where ="none"
+--     → "none" = "none" → TRUE → READY
+--   rewrite-code: given analyze-failures→fix-strategy where !="none"
+--     → analyze-failures yields are ⊥ (cell was skipped) → BLOCKED permanently
+--
+-- Ready set: { skip-rewrite }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 9: skip-rewrite (hard cell, deterministic — passes code through)
+--   guard: skip-analysis→fix-strategy("none") = "none" → TRUE
+--   rewrite-code: BLOCKED (analyze-failures yielded ⊥)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ skip-rewrite
+  given skip-analysis→fix-strategy ≡ "none"
+  given generate-code→code-text ≡ "lo ← 0; hi ← len(arr) - 1; while lo <= hi: mid ← lo + (hi - lo) / 2; if arr[mid] = target then return mid; else if arr[mid] < target then lo ← mid + 1; else hi ← mid - 1; return -1"
+  yield §implementation', code-text', changed-lines[]
+
+  ⊢= code-text' ← generate-code→code-text
+  ⊢= changed-lines ← []
+
+  yield code-text' ≡ "lo ← 0; hi ← len(arr) - 1; while lo <= hi: mid ← lo + (hi - lo) / 2; if arr[mid] = target then return mid; else if arr[mid] < target then lo ← mid + 1; else hi ← mid - 1; return -1"
+  yield changed-lines ≡ []
+
+-- oracle checks:
+--   ⊨ code-text' = generate-code→code-text → ✓ (identical)
+--
+-- Cell frozen.
+
+-- WAIT: which rewrite-code→code-text' does generate-proof-sketch consume?
+--
+-- The program has TWO cells that yield code-text': rewrite-code and skip-rewrite.
+-- In the ⊢∘ iteration-0 path, rewrite-code fired (frame 5) and yielded the
+-- fixed code. In the post-⊢∘ path, skip-rewrite fires (this frame) and yields
+-- the same fixed code passed through. Both yield the same value.
+--
+-- generate-proof-sketch depends on rewrite-code→code-text'. Since the ⊢∘ loop
+-- produced a frozen rewrite-code with the fixed code, that dependency is
+-- satisfied. skip-rewrite provides an alternative path for the case where
+-- no rewriting was needed at all (if generate-code's first attempt passed).
+--
+-- In THIS execution: rewrite-code→code-text' was frozen in frame 5 with the
+-- fixed code. generate-proof-sketch can proceed.
+
+-- Ready set after: { generate-proof-sketch }
+-- (rewrite-code→code-text' bound from frame 5, generate-property-tests→properties
+--  bound from frame 1, spec→preconditions bound from frame 0)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 10: generate-proof-sketch (soft cell, LLM evaluation)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ generate-proof-sketch
+  given rewrite-code→code-text' ≡ "lo ← 0; hi ← len(arr) - 1; while lo <= hi: mid ← lo + (hi - lo) / 2; if arr[mid] = target then return mid; else if arr[mid] < target then lo ← mid + 1; else hi ← mid - 1; return -1"
+  given generate-property-tests→properties ≡ "(8 properties: found-element, not-found, boundary-first, boundary-last, single-element-found, single-element-not-found, empty-array, midpoint)"
+  given spec→preconditions ≡ "arr is sorted in ascending order, no duplicates"
+  yield proof-sketch, invariants[], termination-argument
+
+  ∴ Given the verified code «rewrite-code→code-text'» that passes all tests,
+    generate a formal proof sketch establishing correctness.
+
+    The proof must address:
+    1. **Loop invariant**: State the invariant maintained at each iteration.
+    2. **Termination**: Prove the loop terminates.
+    3. **Postcondition (found)**: If arr[mid] = target, then result = mid is correct.
+    4. **Postcondition (not found)**: If lo > hi, then target is not in arr[lo0..hi0].
+    5. **Precondition usage**: Where does the proof rely on arr being sorted?
+
+    Express each step as a logical proposition with justification.
+
+-- LLM evaluation:
+-- The LLM constructs a formal proof sketch with 5 propositions.
+
+  yield proof-sketch ≡ "Proposition 1 (Loop Invariant): At the start of each iteration, if target exists in arr[0..n-1], then target is in arr[lo..hi]. Base case: lo=0, hi=n-1, so arr[lo..hi] = arr[0..n-1] — trivially true. Inductive step: if arr[mid] < target, then by sorted order, target cannot be in arr[lo..mid], so target is in arr[mid+1..hi]. Setting lo=mid+1 preserves the invariant. Symmetrically for arr[mid] > target, setting hi=mid-1 preserves the invariant. PRECONDITION USAGE: the inductive step relies on arr being sorted — without sorted order, arr[mid] < target does NOT imply target is absent from arr[lo..mid].
+
+Proposition 2 (Termination): Define the variant function V = hi - lo + 1. Initially V = n. Each iteration: if arr[mid] != target, then either lo increases by at least 1 (lo = mid+1 > lo since mid >= lo) or hi decreases by at least 1 (hi = mid-1 < hi since mid <= hi). Either way, V decreases by at least 1. V is bounded below by 0 (when lo > hi, the loop exits). Since V is a natural number that strictly decreases each iteration, the loop terminates.
+
+Proposition 3 (Postcondition — Found): If arr[mid] = target during any iteration, we return mid immediately. By definition, arr[mid] = target means mid is a valid index where the target appears. Since arr has no duplicates (precondition), this is the unique index.
+
+Proposition 4 (Postcondition — Not Found): When lo > hi, the loop exits and returns -1. By the loop invariant, if target were in arr[0..n-1], it would be in arr[lo..hi]. But lo > hi means arr[lo..hi] is empty — no elements remain to check. Therefore target is not in arr[0..n-1], and -1 is correct.
+
+Proposition 5 (Empty Array): When arr is empty, n=0, so lo=0, hi=-1. The condition lo <= hi is immediately false (0 <= -1 is false). The loop body never executes. We return -1, which is correct since an empty array cannot contain any target."
+
+  yield invariants ≡ [
+    "If target exists in arr[0..n-1], then target is in arr[lo..hi] at the start of each iteration"
+  ]
+
+  yield termination-argument ≡ "The variant V = hi - lo + 1 is a natural number that strictly decreases by at least 1 on each iteration (either lo increases via mid+1 or hi decreases via mid-1). V is bounded below by 0. By well-ordering of natural numbers, the loop terminates in at most n iterations."
+
+-- oracle checks:
+--   ⊨ proof-sketch contains at least 4 logical steps → ✓
+--     (5 propositions: invariant, termination, found, not-found, empty-array)
+--   ⊨ invariants includes a loop invariant referencing lo, hi, and target → ✓
+--     ("target is in arr[lo..hi]" — references all three)
+--   ⊨ termination-argument identifies a decreasing quantity bounded below → ✓
+--     ("V = hi - lo + 1", "decreases by at least 1", "bounded below by 0")
+--
+-- All oracles pass. Cell frozen.
+
+-- Ready set after: { verify-proof-structural, verify-proof-semantic }
+-- (both depend on generate-proof-sketch outputs, which are now bound)
+-- They are independent — can eval either first. We pick structural (hard cell, fast).
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 11: verify-proof-structural (crystallized cell, deterministic)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ verify-proof-structural ▸ crystallized
+  given generate-proof-sketch→proof-sketch ≡ "Proposition 1 (Loop Invariant): At the start of each iteration, if target exists in arr[0..n-1], then target is in arr[lo..hi]... Proposition 2 (Termination)... Proposition 3 (Postcondition — Found)... Proposition 4 (Postcondition — Not Found)... Proposition 5 (Empty Array)..."
+  given generate-proof-sketch→invariants ≡ ["If target exists in arr[0..n-1], then target is in arr[lo..hi] at the start of each iteration"]
+  given generate-proof-sketch→termination-argument ≡ "The variant V = hi - lo + 1 is a natural number that strictly decreases by at least 1 on each iteration... bounded below by 0..."
+  yield has-invariant, has-termination, invariant-refs-vars, step-count
+
+  -- v0.2: ⊢= uses only defined primitives
+  ⊢= has-invariant ← len(invariants) >= 1
+  -- len(["If target..."]) = 1 >= 1 → true
+
+  ⊢= invariant-refs-vars ← all(invariants, fn(inv) ->
+    contains(inv, "lo") and contains(inv, "hi") and contains(inv, "target"))
+  -- inv = "If target exists in arr[0..n-1], then target is in arr[lo..hi]..."
+  --   contains(inv, "lo") → true ("arr[lo..hi]")
+  --   contains(inv, "hi") → true ("arr[lo..hi]")
+  --   contains(inv, "target") → true ("If target exists")
+  -- all([true]) → true
+
+  ⊢= has-termination ← contains(termination-argument, "decrease") or
+    contains(termination-argument, "decreasing") or
+    contains(termination-argument, "bounded")
+  -- contains("...strictly decreases by at least 1...", "decrease") → true (substring "decrease" in "decreases")
+  -- true or ... → true
+
+  ⊢= step-count ← len(split(proof-sketch, "Proposition"))
+  -- split on "Proposition" produces: ["", " 1 ...", " 2 ...", " 3 ...", " 4 ...", " 5 ..."]
+  -- len = 6 (one empty + five propositions)
+
+  yield has-invariant ≡ true
+  yield has-termination ≡ true
+  yield invariant-refs-vars ≡ true
+  yield step-count ≡ 6
+
+-- oracle checks:
+--   ⊨ has-invariant = true → ✓
+--   ⊨ invariant-refs-vars = true → ✓
+--   ⊨ step-count >= 4 → ✓ (6 >= 4)
+--
+-- All oracles pass. Cell frozen.
+-- This is the crystallized verifier operating in P-space: string checks,
+-- list operations, comparisons. No LLM needed. No semantic judgment.
+
+-- Ready set after: { verify-proof-semantic }
+-- (already had its deps satisfied, but we evaluated structural first)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 12: verify-proof-semantic (soft cell, LLM evaluation)
+--   R16 used ⊢= with undefined functions (proof-covers, missing-from,
+--   has-loop-invariant). v0.2 honestly marks this as ∴ — it requires
+--   semantic judgment to evaluate whether a proof "covers" a property.
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ verify-proof-semantic
+  given generate-proof-sketch→proof-sketch ≡ "Proposition 1 (Loop Invariant)... Proposition 2 (Termination)... Proposition 3 (Postcondition — Found)... Proposition 4 (Postcondition — Not Found)... Proposition 5 (Empty Array)..."
+  given generate-proof-sketch→invariants ≡ ["If target exists in arr[0..n-1], then target is in arr[lo..hi] at the start of each iteration"]
+  given generate-proof-sketch→termination-argument ≡ "The variant V = hi - lo + 1... decreases by at least 1... bounded below by 0..."
+  given rewrite-code→code-text' ≡ "lo ← 0; hi ← len(arr) - 1; while lo <= hi: mid ← lo + (hi - lo) / 2; if arr[mid] = target then return mid; else if arr[mid] < target then lo ← mid + 1; else hi ← mid - 1; return -1"
+  yield proof-valid, gaps[], verdict
+
+  ∴ Evaluate the proof sketch «generate-proof-sketch→proof-sketch» for
+    logical completeness and correctness against the code...
+
+    Check whether the proof covers:
+    1. Loop invariant (references lo, hi, target; preserved by each iteration)
+    2. Termination (decreasing quantity with lower bound)
+    3. Found-case postcondition (arr[mid] = target implies result = mid)
+    4. Not-found-case postcondition (lo > hi implies target not in arr)
+    5. Precondition usage (proof relies on arr being sorted)
+
+-- LLM evaluation:
+-- The LLM reads the proof sketch and checks each of the 5 points:
+--
+-- 1. Loop invariant: Proposition 1 states "target is in arr[lo..hi]", proves
+--    base case and inductive step. References lo, hi, target. COVERED.
+-- 2. Termination: Proposition 2 defines V = hi - lo + 1, shows strict decrease,
+--    shows lower bound of 0. COVERED.
+-- 3. Found postcondition: Proposition 3 shows arr[mid] = target → return mid
+--    is correct, uses no-duplicates precondition. COVERED.
+-- 4. Not-found postcondition: Proposition 4 shows lo > hi → empty search range
+--    → target absent → -1 correct. COVERED.
+-- 5. Precondition usage: Proposition 1's inductive step explicitly states
+--    "relies on arr being sorted." COVERED.
+--
+-- All 5 points addressed with sound reasoning. No gaps.
+
+  yield proof-valid ≡ true
+  yield gaps ≡ []
+  yield verdict ≡ "proof complete"
+
+-- oracle checks:
+--   ⊨ verdict ∈ {"proof complete", "proof valid with minor gaps", "proof incomplete"} → ✓
+--   ⊨ if proof-valid then len(gaps) <= 1 → ✓ (true, 0 <= 1)
+--   ⊨ if not proof-valid then len(gaps) >= 2 → VACUOUS (proof-valid is true)
+--
+-- All oracles pass. Cell frozen.
+
+-- Ready set after: { proof-certificate-high, proof-certificate-medium, proof-certificate-low }
+-- Guard evaluation:
+--   proof-certificate-high: verdict where ="proof complete"
+--     → "proof complete" = "proof complete" → TRUE → READY
+--   proof-certificate-medium: verdict where ="proof valid with minor gaps"
+--     → "proof complete" = "proof valid with minor gaps" → FALSE → SKIPPED
+--   proof-certificate-low: verdict where ="proof incomplete"
+--     → "proof complete" = "proof incomplete" → FALSE → SKIPPED
+--
+-- proof-certificate-medium: SKIPPED, all yields ≡ ⊥
+-- proof-certificate-low: SKIPPED, all yields ≡ ⊥
+-- Ready set: { proof-certificate-high }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 13: proof-certificate-high (soft cell + ⊢= confidence, LLM evaluation)
+--   guard: verify-proof-semantic→verdict("proof complete") = "proof complete" → TRUE
+--   proof-certificate-medium: SKIPPED (guard false)
+--   proof-certificate-low: SKIPPED (guard false)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ proof-certificate-high
+  given verify-proof-semantic→verdict ≡ "proof complete"
+  given verify-proof-semantic→proof-valid ≡ true
+  given verify-proof-semantic→gaps ≡ []
+  given verify-proof-structural→has-invariant ≡ true
+  given verify-proof-structural→has-termination ≡ true
+  given generate-proof-sketch→proof-sketch ≡ "(5 propositions covering invariant, termination, found, not-found, empty-array)"
+  given rewrite-code→code-text' ≡ "lo ← 0; hi ← len(arr) - 1; while lo <= hi: mid ← lo + (hi - lo) / 2; if arr[mid] = target then return mid; else if arr[mid] < target then lo ← mid + 1; else hi ← mid - 1; return -1"
+  given run-tests→pass-count ≡ 12
+  yield certificate, confidence-level
+
+  ∴ Assemble a proof-carrying certificate for «rewrite-code→code-text'»:
+
+    Certificate contains:
+    1. The verified code
+    2. The proof sketch
+    3. Test results summary (all «run-tests→pass-count» tests passing)
+    4. Proof verification verdict: «verify-proof-semantic→verdict»
+    5. Structural checks: invariant present, termination argument present
+
+    Confidence level: "high" — verdict is "proof complete" and all tests pass.
+
+-- LLM evaluation:
+-- The LLM assembles all evidence into a structured certificate.
+
+  yield certificate ≡ "PROOF-CARRYING CERTIFICATE — binary_search
+
+    CODE (verified):
+      lo ← 0; hi ← len(arr) - 1
+      while lo <= hi:
+        mid ← lo + (hi - lo) / 2
+        if arr[mid] = target then return mid
+        else if arr[mid] < target then lo ← mid + 1
+        else hi ← mid - 1
+      return -1
+
+    PROOF (5 propositions):
+      1. Loop invariant: target in arr[lo..hi] if present (base + inductive)
+      2. Termination: V = hi - lo + 1, strictly decreasing, bounded by 0
+      3. Found: arr[mid] = target → return mid (unique by no-duplicates)
+      4. Not found: lo > hi → empty range → target absent → return -1
+      5. Empty array: hi < lo initially → immediate -1
+
+    TESTS: 12/12 passing (found, not-found, boundary, single-element, empty, midpoint)
+
+    STRUCTURAL VERIFICATION (crystallized):
+      has-invariant: true
+      has-termination: true
+      invariant-refs-vars: true (lo, hi, target)
+      step-count: 6 (5 propositions + intro)
+
+    SEMANTIC VERIFICATION (LLM):
+      proof-valid: true
+      gaps: []
+      verdict: proof complete
+
+    EVOLUTION HISTORY:
+      Iteration 0: generated code with 'while lo < hi' bug
+      Iteration 1: fixed to 'while lo <= hi' — all 12 tests pass
+
+    CONFIDENCE: HIGH
+      - Proof verdict: proof complete
+      - All 12 property tests passing
+      - Structural checks all pass
+      - Bug found and fixed through ⊢∘ evolution loop"
+
+  ⊢= confidence-level ← "high"
+
+  yield confidence-level ≡ "high"
+
+-- oracle checks:
+--   ⊨ certificate includes code, proof, test-count, and verdict → ✓
+--     (CODE section, PROOF section, "12/12 passing", "verdict: proof complete")
+--   ⊨ confidence-level = "high" → ✓
+--
+-- All oracles pass. Cell frozen.
+
+-- ═══════════════════════════════════════════════════════════════
+-- QUIESCENCE: All cells frozen, no cells in ready set
+-- ═══════════════════════════════════════════════════════════════
+--
+-- Frozen cells:
+--   spec                     → description, signature, preconditions
+--   generate-property-tests  → test-cases (12), properties (8)
+--   generate-code v1         → code-text (fixed binary search, while lo <= hi)
+--   run-tests v0 (iter 0)    → pass-count=9, fail-count=3, failure-details (3)
+--   run-tests v1 (iter 1)    → pass-count=12, fail-count=0, failure-details=[]
+--   analyze-failures         → diagnosis, bug-category="off-by-one", fix-strategy
+--   skip-analysis            → diagnosis="all tests pass", bug-category="none"
+--   rewrite-code             → code-text' (fixed), changed-lines (1)
+--   skip-rewrite             → code-text' (pass-through)
+--   generate-proof-sketch    → proof-sketch (5 props), invariants, termination-argument
+--   verify-proof-structural  → has-invariant=true, has-termination=true, step-count=6
+--   verify-proof-semantic    → proof-valid=true, gaps=[], verdict="proof complete"
+--   proof-certificate-high   → certificate (full), confidence-level="high"
+--
+-- Skipped cells (yields ≡ ⊥ via guard clauses):
+--   skip-analysis (iter 0)         — guard fail-count=0 was false (was 3)
+--   analyze-failures (iter 1)      — guard fail-count>0 was false (was 0)
+--   skip-rewrite (functionally)    — depended on skip-analysis which was ⊥ in iter 0
+--   proof-certificate-medium       — guard verdict="proof valid with minor gaps" false
+--   proof-certificate-low          — guard verdict="proof incomplete" false
+--
+-- No cells have unsatisfied given dependencies.
+-- No ⊢∘ iterations pending (until condition met: fail-count = 0).
+-- No ⊢⊢ spawners in this program.
+-- Program has reached quiescence. All cells frozen. ■
+
+-- ═══════════════════════════════════════════════════════════════
+-- EXECUTION SUMMARY
+-- ═══════════════════════════════════════════════════════════════
+--
+-- Total eval-one steps: 14 (frames 0-13)
+-- ⊢∘ iterations: 2 (0, 1) out of max 3
+-- Convergence: fail-count progressed 3 → 0 (met target of 0)
+-- Bug found: off-by-one (while lo < hi → while lo <= hi)
+-- Proof verdict: "proof complete" with 0 gaps
+-- Certificate confidence: "high"
+--
+-- Code evolution across iterations:
+--   v0: while lo < hi   → 3 failures (off-by-one at boundary)
+--   v1: while lo <= hi  → 0 failures (all 12 tests pass)
+--
+-- Guard clause dispatch paths:
+--   Iteration 0: fail-count=3 → analyze-failures FIRES, skip-analysis SKIPPED
+--                fix-strategy="Change..." → rewrite-code FIRES, skip-rewrite BLOCKED
+--   Post-⊢∘:    fail-count=0 → skip-analysis FIRES, analyze-failures SKIPPED
+--                fix-strategy="none" → skip-rewrite FIRES, rewrite-code BLOCKED
+--   Proof:      verdict="proof complete" → proof-certificate-high FIRES
+--                proof-certificate-medium SKIPPED, proof-certificate-low SKIPPED
+--
+-- The proof-carrying computation pattern:
+--   GENERATE (NP): LLM writes binary search → code-text
+--   TEST (P):      LLM simulates execution → 3 failures found
+--   FIX (NP):      LLM diagnoses + rewrites → single-line fix
+--   VERIFY (P):    LLM re-runs tests → all 12 pass
+--   PROVE (NP):    LLM writes proof sketch → 5 propositions
+--   CHECK (P):     ⊢= crystallized verifier checks structure
+--   JUDGE (∴):     LLM evaluates proof soundness → "proof complete"
+--   CERTIFY:       Assembles code + proof + tests + verdict
+
+-- ═══════════════════════════════════════════════════════════════
+-- OBSERVATIONS (v0.2-aware)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= obs-guard-dispatch
+  yield observation
+  ⊢= observation ← "v0.2 GUARD CLAUSES ELIMINATE CONDITIONAL WASTE: R16's analyze-failures had an internal 'if fail-count = 0 then trivial-output else analyze' pattern — the LLM was invoked even when there was nothing to analyze. v0.2 guard clauses split this into two cells (analyze-failures with guard >0, skip-analysis with guard =0). Only the relevant cell enters the ready set. The skipped cell's yields become ⊥, which cleanly blocks downstream cells that depend on it. Three dispatch points in this program (fail-count, fix-strategy, verdict) each use guard clauses to route execution without wasting LLM calls."
+
+⊢= obs-crystallization-honesty
+  yield observation
+  ⊢= observation ← "v0.2 CRYSTALLIZATION BOUNDARY ENFORCED: R16's verify-proof used ⊢= with undefined functions like proof-covers(), missing-from(), has-loop-invariant(). These are SEMANTIC JUDGMENTS — determining whether a proof 'covers' a property requires understanding mathematical reasoning, not string matching. v0.2 splits verify-proof into structural (⊢= using contains(), len(), split() — genuine deterministic primitives) and semantic (∴ — honest about needing LLM judgment). The crystallized cell checks SYNTAX (does the invariant mention lo, hi, target?). The soft cell checks SEMANTICS (does the proof logically establish correctness?). This is the v0.2 expression language at work: if you can't write it with the defined primitives, it belongs in ∴."
+
+⊢= obs-evolution-surgical
+  yield observation
+  ⊢= observation ← "⊢∘ EVOLUTION IS SURGICAL: the code evolved from v0 (while lo < hi, 3 failures) to v1 (while lo <= hi, 0 failures) in ONE iteration. The fix was a single character: < to <=. The ⊢∘ loop didn't blindly regenerate — it traced through the failure details, identified the root cause (off-by-one), and applied a minimal fix. This is the NP/P pattern at work: the LLM operates in NP-space (find the bug), the test suite operates in P-space (verify the fix). Targeted evolution beats blind retry."
+
+⊢= obs-proof-carrying-pipeline
+  yield observation
+  ⊢= observation ← "PROOF-CARRYING COMPUTATION PIPELINE VALIDATED: this program exercises the full generate→test→fix→prove→verify→certify pipeline. The key insight: verification crystallizes BEFORE computation. verify-proof-structural is a ⊢= cell — it checks syntactic properties of the proof using string operations. It will ALWAYS produce the same result for the same input, regardless of which LLM runs it. The structural verifier is the P-space checkpoint. The semantic verifier (verify-proof-semantic) remains ∴ because proof soundness genuinely requires judgment. Cell separates what CAN crystallize from what CANNOT, and the v0.2 expression language makes that boundary explicit."
+
+⊢= obs-aspirational-oracle-clean
+  yield observation
+  ⊢= observation ← "v0.2 ASPIRATIONAL ORACLES ON ⊢∘-MANAGED CELLS: generate-code's oracles (contains loop, returns -1, uses integer division) were aspirational under ⊢∘ management. In iteration 0, the code passed all three aspirational oracles despite having a bug — the oracles checked surface properties (syntax), not deep correctness (semantics). The ⊢∘ loop's until condition (fail-count = 0) was the real convergence gate. This validates the v0.2 design: oracles on ⊢∘-managed cells are FEEDBACK SIGNALS, not gates. The loop drives quality. The oracles describe the target."
+
+⊢= obs-file-scope-recovery
+  yield observation
+  ⊢= observation ← "v0.2 FILE-SCOPE ⊨? SERVED AS SAFETY NET: the file-scope '⊨? on exhaustion: partial-accept(best)' was never triggered — all cells' oracles passed, and the ⊢∘ loop converged in 2 iterations. But it provides a clean fallback: if the proof sketch had failed verification after 3 retries, partial-accept would have accepted the best attempt, and the certificate would have gotten 'low' confidence via the guard-dispatched proof-certificate-low cell. The guard clause dispatch and file-scope recovery interlock: guards route to the right certificate cell, recovery prevents total failure."
+
+⊢= obs-bottom-propagation
+  yield observation
+  ⊢= observation ← "⊥ PROPAGATION VIA GUARD CLAUSES IS CLEAN: when skip-analysis was skipped in iteration 0 (guard fail-count=0 was false because fail-count=3), its yields became ⊥. skip-rewrite depends on skip-analysis→fix-strategy, so it was blocked permanently — ⊥ propagated through the dependency chain. Symmetrically, when analyze-failures was skipped post-⊢∘ (guard fail-count>0 was false because fail-count=0), rewrite-code was blocked. The guard clause + ⊥ propagation mechanism replaces the R16 pattern of internal if/else branching within a single cell. Cleaner, more explicit, wastes no LLM calls on dead branches."

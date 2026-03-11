@@ -1,0 +1,375 @@
+-- 28-program-algebra-prover.cell (R17, v0.2)
+-- Takes two Cell programs that SHOULD be equivalent (same logic, different
+-- execution orders). Traces both via eval-one. Compares final frozen yields.
+-- Determines: equivalent or not, with a proof trace showing correspondence.
+--
+-- Tests: parallel execution, confluence/commutativity, ⊢= crystallized
+--        comparators, semantic equivalence checking, § quotation for
+--        program-as-data, oracle-gated equivalence verdict
+--
+-- Demonstrates Cell's confluence property in practice: independent cells
+-- can execute in any order and produce the same final state. The prover
+-- makes this explicit by running both orderings and comparing.
+--
+-- v0.2 changes from R16:
+--   - ⊨? at file scope (now explicitly blessed by v0.2 spec)
+--   - ⊢= expression language: audit all hard cells against v0.2 primitives;
+--     R16 used undefined functions (missing-from, proof-covers); replaced with
+--     valid ⊢= primitives or moved to soft cells where semantic judgment needed
+--   - ⊢∘ oracles on managed cells are aspirational (v0.2 clarification)
+--   - Explicit ⊢⊢ accumulate semantics noted
+--   - Guard clauses: none needed (no conditional dispatch in this program)
+--   - given? not needed (no ⊥-tolerant dependencies)
+--   - Wildcard deps compliant (no wildcard patterns used in this program)
+
+-- ═══════════════════════════════════════════════════════════════
+-- The two programs under test: compute weighted average two ways.
+-- Program A: compute sum first, then count, then divide.
+-- Program B: compute count first, then sum, then divide.
+-- Both SHOULD produce the same final result despite different
+-- scheduling of independent cells.
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ input-data
+  given values ≡ [10, 20, 30, 40]
+  given weights ≡ [1, 2, 3, 4]
+  yield values, weights
+
+  ⊨ len(values) = len(weights)
+  ⊨ len(values) >= 1
+  ⊨ all elements of weights are positive
+
+-- ═══════════════════════════════════════════════════════════════
+-- Program A: sum-first ordering
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ program-A
+  given §weighted-sum-A
+  given §total-weight-A
+  given §weighted-average-A
+  yield §program-A-cells[], execution-order-A
+
+  ∴ Assemble program A as a list of cell definitions.
+    Execution order: input-data, weighted-sum-A, total-weight-A, weighted-average-A.
+    The key: weighted-sum-A is scheduled BEFORE total-weight-A.
+    Both depend only on input-data, so either could go first -- this ordering
+    is one valid topological sort.
+
+    Output execution-order-A ≡ ["input-data", "weighted-sum-A", "total-weight-A", "weighted-average-A"]
+
+  ⊨ execution-order-A is a valid topological sort of the dependency graph
+  ⊨ weighted-sum-A appears before total-weight-A in execution-order-A
+
+⊢ weighted-sum-A ▸ crystallized
+  given input-data→values
+  given input-data→weights
+  yield weighted-sum
+
+  ⊢= weighted-sum ← sum(map(zip(values, weights), pair -> pair[0] * pair[1]))
+
+  ⊨ weighted-sum = 10*1 + 20*2 + 30*3 + 40*4 = 300
+
+⊢ total-weight-A ▸ crystallized
+  given input-data→weights
+  yield total-weight
+
+  ⊢= total-weight ← sum(weights)
+
+  ⊨ total-weight = 1 + 2 + 3 + 4 = 10
+
+⊢ weighted-average-A ▸ crystallized
+  given weighted-sum-A→weighted-sum
+  given total-weight-A→total-weight
+  yield average
+
+  ⊢= average ← weighted-sum / total-weight
+
+  ⊨ average = 300 / 10 = 30
+
+-- ═══════════════════════════════════════════════════════════════
+-- Program B: count-first ordering (same cells, different schedule)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ program-B
+  given §total-weight-B
+  given §weighted-sum-B
+  given §weighted-average-B
+  yield §program-B-cells[], execution-order-B
+
+  ∴ Assemble program B as a list of cell definitions.
+    Execution order: input-data, total-weight-B, weighted-sum-B, weighted-average-B.
+    The key: total-weight-B is scheduled BEFORE weighted-sum-B.
+    This is the OTHER valid topological sort -- proving order doesn't matter.
+
+    Output execution-order-B ≡ ["input-data", "total-weight-B", "weighted-sum-B", "weighted-average-B"]
+
+  ⊨ execution-order-B is a valid topological sort of the dependency graph
+  ⊨ total-weight-B appears before weighted-sum-B in execution-order-B
+
+⊢ total-weight-B ▸ crystallized
+  given input-data→weights
+  yield total-weight
+
+  ⊢= total-weight ← sum(weights)
+
+  ⊨ total-weight = 1 + 2 + 3 + 4 = 10
+
+⊢ weighted-sum-B ▸ crystallized
+  given input-data→values
+  given input-data→weights
+  yield weighted-sum
+
+  ⊢= weighted-sum ← sum(map(zip(values, weights), pair -> pair[0] * pair[1]))
+
+  ⊨ weighted-sum = 10*1 + 20*2 + 30*3 + 40*4 = 300
+
+⊢ weighted-average-B ▸ crystallized
+  given weighted-sum-B→weighted-sum
+  given total-weight-B→total-weight
+  yield average
+
+  ⊢= average ← weighted-sum / total-weight
+
+  ⊨ average = 300 / 10 = 30
+
+-- ═══════════════════════════════════════════════════════════════
+-- Trace both programs via eval-one
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ trace-A
+  given program-A→execution-order-A
+  given input-data→values
+  given input-data→weights
+  yield frames-A[], final-state-A
+
+  ∴ Execute program A step by step following «program-A→execution-order-A».
+    For each step, record:
+    - Which cell was evaluated
+    - What its inputs resolved to
+    - What its yields were bound to
+    - Which oracle checks passed
+
+    Frame format per step:
+    { step: N, cell: "name", inputs: {...}, yields: {...}, oracles: [pass/fail] }
+
+    After all steps, record the final-state-A as the complete set of
+    frozen yield bindings across all cells.
+
+  ⊨ len(frames-A) = len(program-A→execution-order-A)
+  ⊨ final-state-A includes weighted-average-A→average
+
+⊢ trace-B
+  given program-B→execution-order-B
+  given input-data→values
+  given input-data→weights
+  yield frames-B[], final-state-B
+
+  ∴ Execute program B step by step following «program-B→execution-order-B».
+    Same frame format as trace-A. Different execution order, same cells.
+
+    After all steps, record the final-state-B as the complete set of
+    frozen yield bindings across all cells.
+
+  ⊨ len(frames-B) = len(program-B→execution-order-B)
+  ⊨ final-state-B includes weighted-average-B→average
+
+-- ═══════════════════════════════════════════════════════════════
+-- Compare the two traces: structural equivalence check
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ build-correspondence ▸ crystallized
+  given trace-A→final-state-A
+  given trace-B→final-state-B
+  yield correspondence[], matched-count, unmatched[]
+
+  -- v0.2: all ⊢= expressions use only valid primitives
+  -- (field access →, comparison =, array literal, count with predicate)
+  ⊢= correspondence ← [
+    { cell-A: "weighted-sum-A",     cell-B: "weighted-sum-B",     field: "weighted-sum", match: final-state-A→weighted-sum-A→weighted-sum = final-state-B→weighted-sum-B→weighted-sum },
+    { cell-A: "total-weight-A",     cell-B: "total-weight-B",     field: "total-weight", match: final-state-A→total-weight-A→total-weight = final-state-B→total-weight-B→total-weight },
+    { cell-A: "weighted-average-A", cell-B: "weighted-average-B", field: "average",      match: final-state-A→weighted-average-A→average = final-state-B→weighted-average-B→average }
+  ]
+
+  ⊢= matched-count ← count(correspondence, c -> c→match = true)
+  ⊢= unmatched ← filter(correspondence, c -> c→match = false)
+
+  ⊨ len(correspondence) = 3
+  ⊨ matched-count + len(unmatched) = len(correspondence)
+
+⊢ compare-execution-order
+  given trace-A→frames-A
+  given trace-B→frames-B
+  yield order-differs, shared-steps[], divergence-point
+
+  ∴ Compare the step-by-step execution order of «trace-A→frames-A» and
+    «trace-B→frames-B».
+
+    Identify:
+    - shared-steps: cells that appear in the same position in both traces
+      (e.g., input-data is step 0 in both)
+    - divergence-point: the first step where the two traces evaluate
+      different cells (step 1: sum-A vs weight-B)
+    - order-differs: true if any steps evaluate different cells
+
+    This establishes that the programs really DID execute in different orders,
+    which is the precondition for the confluence proof to be meaningful.
+
+  ⊨ order-differs = true
+  ⊨ divergence-point <= len(trace-A→frames-A)
+  ⊨ len(shared-steps) < len(trace-A→frames-A)
+
+-- ═══════════════════════════════════════════════════════════════
+-- Generate the equivalence proof
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ generate-proof
+  given build-correspondence→correspondence
+  given build-correspondence→matched-count
+  given build-correspondence→unmatched
+  given compare-execution-order→order-differs
+  given compare-execution-order→divergence-point
+  yield proof-argument, proof-steps[], proof-technique
+
+  ∴ Generate a formal equivalence proof for programs A and B.
+
+    The proof has three parts:
+
+    1. **Dependency isomorphism**: Show the dependency graphs of A and B are
+       isomorphic. Both have the same shape: input-data feeds two independent
+       cells (weighted-sum and total-weight), which feed into one final cell
+       (weighted-average). The cell names differ but the graph structure is
+       identical.
+
+    2. **Cell-wise equivalence**: For each pair in «build-correspondence→correspondence»,
+       show that the cell bodies compute the same function. Since all paired cells
+       are crystallized (⊢=) with identical expressions, this is syntactic equality
+       of the ⊢= bodies modulo renaming.
+
+    3. **Confluence application**: By Cell's confluence theorem (eval_diamond),
+       if two execution orders are both valid topological sorts of the same
+       dependency graph, and all cells compute the same function, then the
+       final states are identical. The divergence at step «compare-execution-order→divergence-point»
+       involves two independent cells -- exactly the diamond scenario.
+
+    proof-technique ≡ "structural induction on dependency graph + confluence theorem"
+
+  ⊨ len(proof-steps) >= 3
+  ⊨ proof-technique references confluence
+  ⊨ proof-argument addresses dependency structure, cell equivalence, and execution order
+
+-- v0.2: verify-proof was falsely crystallized in R16. The R16 version used
+-- missing-from() which is not a valid ⊢= primitive, and the conjunction
+-- contained semantic predicates like "proof-technique contains 'confluence'"
+-- which require string interpretation. Split into hard (structural checks)
+-- and soft (semantic gap analysis) parts.
+
+⊢ verify-proof-structure ▸ crystallized
+  given generate-proof→proof-steps
+  given build-correspondence→matched-count
+  given build-correspondence→unmatched
+  given compare-execution-order→order-differs
+  yield structural-valid, structural-summary
+
+  -- v0.2: only valid ⊢= primitives (len, comparison, boolean, contains)
+  ⊢= structural-valid ← (
+    len(proof-steps) >= 3 and
+    matched-count = 3 and
+    len(unmatched) = 0 and
+    order-differs = true
+  )
+
+  ⊢= structural-summary ← if structural-valid
+    then "all structural checks pass: 3+ proof steps, 3/3 matched, 0 unmatched, orders differ"
+    else "structural check failed"
+
+  ⊨ structural-valid = true
+
+⊢ verify-proof-semantics
+  given generate-proof→proof-steps
+  given generate-proof→proof-technique
+  given verify-proof-structure→structural-valid
+  yield gaps[], semantics-valid
+
+  -- v0.2: this was falsely crystallized in R16 — missing-from() is not a valid
+  -- ⊢= primitive, and checking whether proof-steps "cover" certain concepts
+  -- requires semantic judgment. Moved to soft cell.
+  ∴ Examine «generate-proof→proof-steps» and determine whether all three
+    required proof components are present:
+    1. dependency-isomorphism (graph structure comparison)
+    2. cell-equivalence (pairwise function equality)
+    3. confluence-application (eval_diamond invocation)
+
+    For each missing component, add it to gaps[].
+
+    Also verify that «generate-proof→proof-technique» references the
+    confluence theorem.
+
+    semantics-valid ≡ true if gaps is empty and proof-technique references confluence.
+
+  ⊨ if structural-valid = true and len(gaps) = 0 then semantics-valid = true
+
+⊢ assemble-verdict ▸ crystallized
+  given verify-proof-structure→structural-valid
+  given verify-proof-semantics→semantics-valid
+  given verify-proof-semantics→gaps
+  yield verdict
+
+  ⊢= verdict ← if structural-valid and semantics-valid and len(gaps) = 0
+    then "equivalence proved"
+    else if structural-valid
+    then "equivalence likely, minor gaps"
+    else "equivalence not established"
+
+  ⊨ verdict != "equivalence not established"
+
+-- ═══════════════════════════════════════════════════════════════
+-- Final certificate: programs are equivalent (or not)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ equivalence-certificate
+  given assemble-verdict→verdict
+  given verify-proof-structure→structural-valid
+  given verify-proof-semantics→gaps
+  given generate-proof→proof-argument
+  given build-correspondence→correspondence
+  given compare-execution-order→order-differs
+  given weighted-average-A→average
+  given weighted-average-B→average
+  yield certificate, equivalence-status, confidence
+
+  ∴ Assemble the final equivalence certificate.
+
+    Certificate contains:
+    1. The two programs compared (A: sum-first, B: count-first)
+    2. The correspondence table: «build-correspondence→correspondence»
+    3. Execution order difference confirmed: «compare-execution-order→order-differs»
+    4. Both programs produced average:
+       A = «weighted-average-A→average», B = «weighted-average-B→average»
+    5. Proof verdict: «assemble-verdict→verdict»
+    6. Any remaining gaps: «verify-proof-semantics→gaps»
+
+    equivalence-status:
+    - "equivalent" if verdict = "equivalence proved" and A→average = B→average
+    - "likely-equivalent" if verdict contains "likely" and A→average = B→average
+    - "not-equivalent" if A→average != B→average or verdict = "not established"
+
+    confidence:
+    - "high" if equivalence-status = "equivalent" and structural-valid
+    - "medium" if equivalence-status = "likely-equivalent"
+    - "low" otherwise
+
+    This certificate is the DELIVERABLE: two programs + proof they compute
+    the same thing despite different execution schedules. Cell's confluence
+    theorem made concrete.
+
+  ⊨ certificate includes both programs, correspondence, and proof
+  ⊨ equivalence-status ∈ {"equivalent", "likely-equivalent", "not-equivalent"}
+  ⊨ confidence ∈ {"high", "medium", "low"}
+  ⊨ if weighted-average-A→average = weighted-average-B→average and verify-proof-structure→structural-valid then equivalence-status = "equivalent"
+
+-- v0.2: ⊨? at file scope — default recovery for all cells without local ⊨?
+⊨? on failure:
+  retry with «oracle.failures» appended to prompt
+  max 3
+⊨? on exhaustion:
+  partial-accept(best)

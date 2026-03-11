@@ -1,0 +1,655 @@
+-- 12-recursive-requirement-extractor-frames.cell — full execution trace (R17, v0.2)
+--
+-- Ready set analysis (initial):
+--   request: given text ≡ "Build me a chat app" → READY (literal binding)
+--   extract-explicit: given request→text → BLOCKED (needs request)
+--   extract-implicit: given request→text, extract-explicit→requirements → BLOCKED
+--   assess-concreteness: given extract-explicit→requirements, extract-implicit→requirements → BLOCKED
+--   spawn-decomposers: given assess-concreteness→vague → BLOCKED
+--   decompose-template: given requirement → BLOCKED (template, not directly invoked)
+--   collect-requirements: given assess-concreteness→concrete, decomposer-*→... → BLOCKED
+--   refine-vague: given collect-requirements→remaining-vague where length > 0 → BLOCKED
+--   format-spec: given collect-requirements→all-requirements, request→text → BLOCKED
+--   ⊢∘ evolve: coordinates iteration over {extract-implicit, ..., refine-vague}
+--
+-- Ready set: { request }
+--
+-- v0.2 execution notes:
+--   - ⊨? at file scope applies as default recovery for all cells
+--   - Oracles on extract-implicit are aspirational under ⊢∘ management
+--   - Wildcard deps decomposer-*→field are v0.2-compliant
+--   - ⊢⊢ spawn-decomposers uses accumulate mode (v0.2 default)
+--   - Guard clause on refine-vague: skips when remaining-vague is empty
+--   - Guard-induced ⊥: if refine-vague skips, its yields are ⊥ (no downstream depends)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 0: request (soft cell, literal binding)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ request
+  given text ≡ "Build me a chat app"
+  yield text
+
+  ∴ (no ∴ body — text is directly bound via ≡)
+
+  yield text ≡ "Build me a chat app"
+
+-- oracle checks:
+--   ⊨ text is a vague software request with unstated assumptions → ✓
+--     "Build me a chat app" — no specifics about platform, scale, features,
+--     users, storage, security, or deployment. Semantically vague.
+
+-- Ready set after: { extract-explicit }
+-- (request→text now bound, satisfying extract-explicit's given)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 1: extract-explicit (soft cell, LLM evaluation)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ extract-explicit
+  given request→text ≡ "Build me a chat app"
+  yield requirements[]
+
+  ∴ Read «request→text» and extract every explicitly stated requirement.
+    An explicit requirement is something the request directly says or
+    unambiguously implies from the literal words. For "Build me a chat app":
+    - "chat" = messaging between parties
+    - "app" = software application
+    - "build" = create from scratch (not configure existing)
+    - "me" = for the requester's use/ownership
+
+    List each as a concrete, testable statement.
+
+-- LLM evaluation:
+-- The prompt asks for explicit requirements from the literal words.
+-- "Build me a chat app" has four semantic tokens to unpack.
+
+  yield requirements ≡ [
+    "The system must support sending and receiving text messages between two or more parties (from 'chat')",
+    "The deliverable is a software application with a user interface (from 'app')",
+    "The application must be built from scratch, not configured from an existing platform (from 'build')",
+    "The application is for the requester's use or ownership (from 'me')"
+  ]
+
+-- oracle checks:
+--   ⊨ each requirement is directly traceable to words in the request → ✓
+--     Each requirement cites its source word in parentheses.
+--   ⊨ each requirement is a testable statement (can verify pass/fail) → ✓
+--     "supports sending and receiving" — testable via message exchange test.
+--     "software application with UI" — testable via existence check.
+--     "built from scratch" — testable via provenance audit.
+--     "for the requester" — testable via access/ownership check.
+--   ⊨ length(requirements) ≥ 1 → ✓ (4 requirements)
+
+-- Ready set after: { extract-implicit }
+-- (request→text and extract-explicit→requirements both now bound)
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ ITERATION 0 — initial extraction
+-- ═══════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 2: extract-implicit v0 (soft cell, LLM evaluation, ⊢∘-managed)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ extract-implicit
+  given request→text ≡ "Build me a chat app"
+  given extract-explicit→requirements ≡ [
+    "The system must support sending and receiving text messages between two or more parties",
+    "The deliverable is a software application with a user interface",
+    "The application must be built from scratch",
+    "The application is for the requester's use or ownership"
+  ]
+  yield requirements[], confidence[]
+
+  ∴ Identify requirements NOT stated in «request→text» but implied by
+    convention, domain knowledge, or reasonable user expectations.
+    ...
+    Do NOT include requirements already in «extract-explicit→requirements».
+
+-- LLM evaluation:
+-- The LLM draws on domain knowledge of chat applications to identify
+-- unstated expectations. A "chat app" implies at minimum: user identity,
+-- persistence, real-time delivery, and basic security.
+
+  yield requirements ≡ [
+    "Users must be able to create accounts or authenticate to identify themselves",
+    "Messages must be persisted so users can view conversation history",
+    "Messages should be delivered in real-time (sub-second latency perceived by user)",
+    "Message content must be private between conversation participants",
+    "The app must support at least 1-on-1 conversations",
+    "Users must receive notifications for new messages when not actively viewing the conversation",
+    "The app should handle network disconnection gracefully and sync on reconnection"
+  ]
+  yield confidence ≡ [
+    "certain",
+    "certain",
+    "certain",
+    "likely",
+    "certain",
+    "likely",
+    "likely"
+  ]
+
+-- v0.2: oracle checks on ⊢∘-managed cells are aspirational (feedback signals):
+--   ⊨ no requirement in implicit duplicates one in extract-explicit → ✓
+--     Cross-checked: none of the 7 implicit requirements repeat the 4 explicit ones.
+--   ⊨ length(requirements) ≥ 3 → ✓ (7 requirements)
+--   ⊨ each requirement has a corresponding confidence level → ✓ (7 requirements, 7 confidences)
+--   ⊨ each confidence ∈ {certain, likely, possible} → ✓ (all values in set)
+--
+-- Under v0.2 ⊢∘ semantics: these oracles are aspirational. All pass in this case,
+-- but even if they failed, the cell would freeze and ⊢∘ would drive improvement.
+
+-- Ready set after: { assess-concreteness }
+-- (extract-explicit→requirements and extract-implicit→requirements both bound)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 3: assess-concreteness (soft cell, LLM evaluation)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ assess-concreteness
+  given extract-explicit→requirements ≡ [
+    "The system must support sending and receiving text messages between two or more parties",
+    "The deliverable is a software application with a user interface",
+    "The application must be built from scratch",
+    "The application is for the requester's use or ownership"
+  ]
+  given extract-implicit→requirements ≡ [
+    "Users must be able to create accounts or authenticate to identify themselves",
+    "Messages must be persisted so users can view conversation history",
+    "Messages should be delivered in real-time (sub-second latency perceived by user)",
+    "Message content must be private between conversation participants",
+    "The app must support at least 1-on-1 conversations",
+    "Users must receive notifications for new messages when not actively viewing the conversation",
+    "The app should handle network disconnection gracefully and sync on reconnection"
+  ]
+  yield concrete[], vague[], concreteness-score
+
+  ∴ For each requirement from both explicit and implicit lists, judge:
+    Is this requirement concrete and testable as stated?
+    ...
+
+-- LLM evaluation:
+-- The LLM evaluates each of the 11 requirements (4 explicit + 7 implicit)
+-- for concreteness. Several are directionally correct but lack measurable
+-- criteria — "real-time" means what latency? "Gracefully" means what behavior?
+
+  yield concrete ≡ [
+    "The system must support sending and receiving text messages between two or more parties",
+    "The deliverable is a software application with a user interface",
+    "The application must be built from scratch",
+    "The application is for the requester's use or ownership",
+    "Users must be able to create accounts or authenticate to identify themselves",
+    "The app must support at least 1-on-1 conversations"
+  ]
+  yield vague ≡ [
+    "Messages must be persisted so users can view conversation history — VAGUE: how far back? All history forever? What storage guarantees?",
+    "Messages should be delivered in real-time — VAGUE: 'sub-second' is imprecise. What percentile? Under what load? What network conditions?",
+    "Message content must be private between conversation participants — VAGUE: private how? End-to-end encryption? At-rest encryption? Access control only?",
+    "Users must receive notifications for new messages — VAGUE: what channels? Push, email, in-app? What latency for notifications?",
+    "The app should handle network disconnection gracefully and sync on reconnection — VAGUE: 'gracefully' is undefined. Queue messages? Show offline indicator? How long before timeout?"
+  ]
+  yield concreteness-score ≡ 5.5
+
+-- oracle checks:
+--   ⊨ length(concrete) + length(vague) = length(explicit) + length(implicit) → ✓
+--     6 + 5 = 4 + 7 = 11
+--   ⊨ concreteness-score = 10 × 6 / (6 + 5) → ✓
+--     10 × 6 / 11 = 5.45 ≈ 5.5 (rounded to one decimal)
+--   ⊨ each vague requirement explains why it's vague → ✓
+--     Each vague entry includes "VAGUE: ..." explanation.
+
+-- Ready set after: { spawn-decomposers }
+-- (assess-concreteness→vague now bound, §decompose-template is static)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 4: spawn-decomposers (⊢⊢ spawner, creates 5 decomposer cells)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢⊢ spawn-decomposers
+  given assess-concreteness→vague ≡ [5 vague requirements]
+  given §decompose-template
+  yield §decomposer-cells[]
+  until length(decomposer-cells) = length(assess-concreteness→vague)
+  max 10
+  accumulate
+
+  ∴ For each vague requirement in «assess-concreteness→vague», spawn
+    a decomposer cell that breaks it into concrete sub-requirements.
+    ...
+
+-- Spawner fires: creates 5 cells from §decompose-template:
+--   decomposer-0: requirement ≡ "Messages must be persisted... VAGUE: how far back?"
+--   decomposer-1: requirement ≡ "Messages should be delivered in real-time... VAGUE: sub-second imprecise"
+--   decomposer-2: requirement ≡ "Message content must be private... VAGUE: private how?"
+--   decomposer-3: requirement ≡ "Users must receive notifications... VAGUE: what channels?"
+--   decomposer-4: requirement ≡ "The app should handle network disconnection... VAGUE: gracefully undefined"
+
+  yield §decomposer-cells ≡ [decomposer-0, decomposer-1, decomposer-2, decomposer-3, decomposer-4]
+
+-- oracle checks:
+--   ⊨ length(decomposer-cells) = length(assess-concreteness→vague) → ✓ (5 = 5)
+
+-- Ready set after: { decomposer-0, decomposer-1, decomposer-2, decomposer-3, decomposer-4 }
+-- (all 5 spawned cells have their requirement binding satisfied)
+-- Under confluence, any order is valid. We evaluate them sequentially for clarity.
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 5: decomposer-0 (spawned soft cell — message persistence)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ decomposer-0
+  given requirement ≡ "Messages must be persisted so users can view conversation history — VAGUE: how far back? All history forever? What storage guarantees?"
+  yield sub-requirements[], all-concrete
+
+  ∴ The requirement «requirement» is vague. Break it into specific,
+    testable sub-requirements. Each sub-requirement should be concrete
+    enough to verify pass/fail in a test. If a sub-requirement is still
+    vague, mark all-concrete as false — the ⊢∘ loop will recurse.
+
+-- LLM evaluation:
+-- "Message persistence" decomposes into retention period, storage guarantees,
+-- and retrieval capabilities.
+
+  yield sub-requirements ≡ [
+    "All messages must be stored for a minimum of 365 days from creation",
+    "Users can retrieve any message within the retention period in under 2 seconds",
+    "Messages survive server restarts without data loss (durability guarantee)",
+    "Conversation history is paginated with at least 50 messages per page load"
+  ]
+  yield all-concrete ≡ true
+
+-- oracle checks:
+--   ⊨ each sub-requirement is more specific than the original → ✓
+--     Original: "persisted... how far back?" → now: "365 days", "under 2 seconds", etc.
+--   ⊨ sub-requirements collectively cover the intent → ✓
+--     Retention + retrieval + durability + pagination covers persistence.
+--   ⊨ all-concrete ∈ {true, false} → ✓
+--   ⊨ if all-concrete = true then every sub-requirement has a measurable criterion → ✓
+--     "365 days", "under 2 seconds", "survive restarts", "50 messages per page"
+
+-- Ready set after: { decomposer-1, decomposer-2, decomposer-3, decomposer-4 }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 6: decomposer-1 (spawned soft cell — real-time delivery)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ decomposer-1
+  given requirement ≡ "Messages should be delivered in real-time — VAGUE: 'sub-second' is imprecise. What percentile? Under what load? What network conditions?"
+  yield sub-requirements[], all-concrete
+
+  ∴ The requirement «requirement» is vague. Break it into specific,
+    testable sub-requirements. ...
+
+-- LLM evaluation:
+-- "Real-time" decomposes into latency targets at specific percentiles and
+-- load conditions.
+
+  yield sub-requirements ≡ [
+    "Message delivery latency p50 < 200ms on broadband (>10Mbps) connections",
+    "Message delivery latency p99 < 1000ms on broadband connections",
+    "Message delivery latency p50 < 500ms on mobile 4G connections",
+    "System sustains delivery latency targets under 10,000 concurrent users"
+  ]
+  yield all-concrete ≡ true
+
+-- oracle checks:
+--   ⊨ each sub-requirement is more specific → ✓ (quantified latency, percentiles, conditions)
+--   ⊨ collectively cover the intent → ✓ (broadband + mobile, p50 + p99, load target)
+--   ⊨ all-concrete = true, all measurable → ✓
+
+-- Ready set after: { decomposer-2, decomposer-3, decomposer-4 }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 7: decomposer-2 (spawned soft cell — message privacy)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ decomposer-2
+  given requirement ≡ "Message content must be private between conversation participants — VAGUE: private how? End-to-end encryption? At-rest encryption? Access control only?"
+  yield sub-requirements[], all-concrete
+
+  ∴ The requirement «requirement» is vague. Break it into specific,
+    testable sub-requirements. ...
+
+-- LLM evaluation:
+-- "Private" decomposes into access control, transport security, storage
+-- security. End-to-end encryption is aspirational for a first version.
+
+  yield sub-requirements ≡ [
+    "Only participants in a conversation can read messages in that conversation (access control)",
+    "Messages are encrypted in transit using TLS 1.2 or higher",
+    "Messages are encrypted at rest in the database using AES-256 or equivalent",
+    "Server administrators cannot read message plaintext without explicit user consent"
+  ]
+  yield all-concrete ≡ false
+
+-- oracle checks:
+--   ⊨ each sub-requirement is more specific → ✓
+--   ⊨ collectively cover the intent → ✓ (access + transit + rest + admin access)
+--   ⊨ all-concrete ∈ {true, false} → ✓ (false)
+--   ⊨ if all-concrete = true then... → vacuously satisfied (all-concrete = false)
+--
+-- NOTE: all-concrete = false because "Server administrators cannot read message
+-- plaintext without explicit user consent" is testable but implicitly requires
+-- a consent mechanism whose design is unspecified. The ⊢∘ loop will refine.
+
+-- Ready set after: { decomposer-3, decomposer-4 }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 8: decomposer-3 (spawned soft cell — notifications)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ decomposer-3
+  given requirement ≡ "Users must receive notifications for new messages — VAGUE: what channels? Push, email, in-app? What latency for notifications?"
+  yield sub-requirements[], all-concrete
+
+  ∴ The requirement «requirement» is vague. Break it into specific,
+    testable sub-requirements. ...
+
+-- LLM evaluation:
+-- "Notifications" decomposes into channels, delivery timing, and user control.
+
+  yield sub-requirements ≡ [
+    "Users receive in-app notifications for new messages within 1 second of delivery",
+    "Users receive push notifications on mobile devices within 5 seconds of delivery",
+    "Users can disable push notifications per conversation",
+    "Notification text previews the first 100 characters of the message"
+  ]
+  yield all-concrete ≡ true
+
+-- oracle checks:
+--   ⊨ each sub-requirement is more specific → ✓ (channels, latency, control, format)
+--   ⊨ collectively cover the intent → ✓
+--   ⊨ all-concrete = true, all measurable → ✓ ("within 1 second", "within 5 seconds", etc.)
+
+-- Ready set after: { decomposer-4 }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 9: decomposer-4 (spawned soft cell — network resilience)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ decomposer-4
+  given requirement ≡ "The app should handle network disconnection gracefully and sync on reconnection — VAGUE: 'gracefully' is undefined. Queue messages? Show offline indicator? How long before timeout?"
+  yield sub-requirements[], all-concrete
+
+  ∴ The requirement «requirement» is vague. Break it into specific,
+    testable sub-requirements. ...
+
+-- LLM evaluation:
+-- "Gracefully" decomposes into offline queuing, sync behavior, and user feedback.
+
+  yield sub-requirements ≡ [
+    "When offline, the app queues outgoing messages locally and sends them on reconnection",
+    "The app displays a visible offline indicator within 3 seconds of losing connectivity",
+    "On reconnection, the app syncs all missed messages within 5 seconds",
+    "Queued messages are sent in the order they were composed (FIFO)",
+    "The app retains queued messages for up to 24 hours of continuous offline state"
+  ]
+  yield all-concrete ≡ true
+
+-- oracle checks:
+--   ⊨ each sub-requirement is more specific → ✓
+--   ⊨ collectively cover the intent → ✓ (queuing + indicator + sync + ordering + retention)
+--   ⊨ all-concrete = true, all measurable → ✓
+
+-- Ready set after: { collect-requirements }
+-- (assess-concreteness→concrete is bound, all decomposer-*→sub-requirements bound,
+--  all decomposer-*→all-concrete bound — wildcard dependencies resolved)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 10: collect-requirements (soft cell, LLM evaluation)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ collect-requirements
+  given assess-concreteness→concrete ≡ [6 concrete requirements]
+  given decomposer-*→sub-requirements ≡ [
+    decomposer-0: [4 sub-reqs (persistence)],
+    decomposer-1: [4 sub-reqs (real-time)],
+    decomposer-2: [4 sub-reqs (privacy)],
+    decomposer-3: [4 sub-reqs (notifications)],
+    decomposer-4: [5 sub-reqs (network resilience)]
+  ]
+  given decomposer-*→all-concrete ≡ [true, true, false, true, true]
+  yield all-requirements[], remaining-vague[], completeness-score
+
+  ∴ Merge the already-concrete requirements from «assess-concreteness→concrete»
+    with all sub-requirements from the decomposer cells.
+    Check if any sub-requirements are still vague (all-concrete = false).
+    Compute completeness-score:
+    - 10 if all requirements are concrete
+    - Lower proportional to remaining vague requirements
+
+-- LLM evaluation:
+-- Merges 6 concrete + 21 sub-requirements = 27 total requirements.
+-- decomposer-2 (privacy) has all-concrete = false, so its sub-requirements
+-- that are still vague go to remaining-vague.
+
+  yield all-requirements ≡ [
+    -- Original concrete (6):
+    "The system must support sending and receiving text messages between two or more parties",
+    "The deliverable is a software application with a user interface",
+    "The application must be built from scratch",
+    "The application is for the requester's use or ownership",
+    "Users must be able to create accounts or authenticate to identify themselves",
+    "The app must support at least 1-on-1 conversations",
+    -- From decomposer-0 (persistence, 4):
+    "All messages stored for minimum 365 days",
+    "Message retrieval in under 2 seconds within retention period",
+    "Messages survive server restarts (durability guarantee)",
+    "Conversation history paginated at 50 messages per page",
+    -- From decomposer-1 (real-time, 4):
+    "Delivery latency p50 < 200ms broadband",
+    "Delivery latency p99 < 1000ms broadband",
+    "Delivery latency p50 < 500ms mobile 4G",
+    "Sustain latency targets under 10,000 concurrent users",
+    -- From decomposer-2 (privacy, 3 concrete):
+    "Only conversation participants can read messages (access control)",
+    "Messages encrypted in transit via TLS 1.2+",
+    "Messages encrypted at rest via AES-256",
+    -- From decomposer-3 (notifications, 4):
+    "In-app notifications within 1 second",
+    "Push notifications within 5 seconds",
+    "Users can disable push per conversation",
+    "Notification preview shows first 100 characters",
+    -- From decomposer-4 (network resilience, 5):
+    "Queue outgoing messages locally when offline",
+    "Offline indicator within 3 seconds of connectivity loss",
+    "Sync missed messages within 5 seconds of reconnection",
+    "Queued messages sent in FIFO order",
+    "Retain queued messages for up to 24 hours offline"
+  ]
+  yield remaining-vague ≡ [
+    "Server administrators cannot read message plaintext without explicit user consent — still vague: what consent mechanism? UI prompt? Legal agreement? Per-message or blanket?"
+  ]
+  yield completeness-score ≡ 9.6
+
+-- oracle checks:
+--   ⊨ all-requirements contains every concrete requirement and sub-requirement → ✓
+--     26 concrete entries (6 original + 4+4+3+4+5 from decomposers)
+--   ⊨ remaining-vague contains only requirements where all-concrete = false → ✓
+--     Only the 1 vague sub-requirement from decomposer-2 (privacy)
+--   ⊨ completeness-score = 10 if remaining-vague is empty → partial
+--     remaining-vague has 1 entry, so score < 10. 26/27 ≈ 9.6. Valid.
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ CHECK: collect-requirements→completeness-score = 9.6 ≥ 9 → TRUE
+-- ⊢∘ TERMINATES. Evolution complete after iteration 0.
+-- ═══════════════════════════════════════════════════════════════
+
+-- refine-vague: guard clause evaluation
+-- given collect-requirements→remaining-vague where length(remaining-vague) > 0
+-- length(remaining-vague) = 1 > 0 → guard is TRUE → cell ENTERS ready set
+--
+-- However, ⊢∘ has already met its until condition (completeness ≥ 9).
+-- The through chain (collect-requirements, refine-vague) is part of the ⊢∘
+-- loop. Since ⊢∘ terminates, refine-vague does not fire in this iteration.
+-- The 1 remaining vague requirement is accepted as-is because
+-- completeness-score exceeds the threshold.
+
+-- Ready set after: { format-spec }
+-- (collect-requirements→all-requirements and request→text both bound)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 11: format-spec (soft cell, LLM evaluation)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ format-spec
+  given collect-requirements→all-requirements ≡ [26 concrete requirements]
+  given request→text ≡ "Build me a chat app"
+  yield specification
+
+  ∴ Format «collect-requirements→all-requirements» as a structured requirements
+    specification document for the original request «request→text».
+    Group requirements by category (functional, non-functional, security,
+    UX). Number each requirement. Mark which were explicit vs implicit.
+
+-- LLM evaluation:
+-- The LLM groups the 26 requirements into categories, numbers them,
+-- and marks provenance (explicit vs implicit).
+
+  yield specification ≡ "REQUIREMENTS SPECIFICATION — 'Build me a chat app'
+
+FUNCTIONAL REQUIREMENTS:
+  F1. [explicit] The system must support sending and receiving text messages between two or more parties
+  F2. [explicit] The deliverable is a software application with a user interface
+  F3. [explicit] The application must be built from scratch
+  F4. [explicit] The application is for the requester's use or ownership
+  F5. [implicit] Users must be able to create accounts or authenticate to identify themselves
+  F6. [implicit] The app must support at least 1-on-1 conversations
+  F7. [implicit] All messages stored for minimum 365 days
+  F8. [implicit] Message retrieval in under 2 seconds within retention period
+  F9. [implicit] Conversation history paginated at 50 messages per page
+  F10. [implicit] Queue outgoing messages locally when offline
+  F11. [implicit] Sync missed messages within 5 seconds of reconnection
+  F12. [implicit] Queued messages sent in FIFO order
+  F13. [implicit] Retain queued messages for up to 24 hours offline
+
+NON-FUNCTIONAL / PERFORMANCE REQUIREMENTS:
+  N1. [implicit] Delivery latency p50 < 200ms on broadband
+  N2. [implicit] Delivery latency p99 < 1000ms on broadband
+  N3. [implicit] Delivery latency p50 < 500ms on mobile 4G
+  N4. [implicit] Sustain latency targets under 10,000 concurrent users
+  N5. [implicit] Messages survive server restarts (durability guarantee)
+
+SECURITY REQUIREMENTS:
+  S1. [implicit] Only conversation participants can read messages (access control)
+  S2. [implicit] Messages encrypted in transit via TLS 1.2+
+  S3. [implicit] Messages encrypted at rest via AES-256
+
+UX REQUIREMENTS:
+  U1. [implicit] In-app notifications within 1 second of message delivery
+  U2. [implicit] Push notifications within 5 seconds of delivery
+  U3. [implicit] Users can disable push notifications per conversation
+  U4. [implicit] Notification preview shows first 100 characters
+  U5. [implicit] Offline indicator within 3 seconds of connectivity loss
+
+NOTES:
+  - 4 explicit requirements extracted directly from request text
+  - 22 implicit requirements derived from domain conventions
+  - 1 requirement deferred: admin access consent mechanism (needs design decision)
+  - Completeness score: 9.6/10"
+
+-- oracle checks:
+--   ⊨ specification groups requirements by category → ✓
+--     4 categories: Functional, Non-Functional, Security, UX
+--   ⊨ specification numbers each requirement → ✓
+--     F1-F13, N1-N5, S1-S3, U1-U5 (26 total)
+--   ⊨ specification marks each requirement as explicit or implicit → ✓
+--     [explicit] and [implicit] tags on every requirement
+--   ⊨ every requirement from all-requirements appears in the specification → ✓
+--     All 26 concrete requirements mapped to a numbered entry
+
+-- Ready set after: { } (empty)
+
+-- ═══════════════════════════════════════════════════════════════
+-- QUIESCENCE: All cells frozen, no cells in ready set
+-- ═══════════════════════════════════════════════════════════════
+--
+-- Frozen cells:
+--   request             → text ≡ "Build me a chat app"
+--   extract-explicit    → requirements ≡ [4 explicit requirements]
+--   extract-implicit v0 → requirements ≡ [7 implicit requirements], confidence ≡ [7 levels]
+--   assess-concreteness → concrete ≡ [6], vague ≡ [5], concreteness-score ≡ 5.5
+--   spawn-decomposers   → §decomposer-cells ≡ [5 cells spawned]
+--   decomposer-0        → sub-requirements ≡ [4], all-concrete ≡ true
+--   decomposer-1        → sub-requirements ≡ [4], all-concrete ≡ true
+--   decomposer-2        → sub-requirements ≡ [4], all-concrete ≡ false
+--   decomposer-3        → sub-requirements ≡ [4], all-concrete ≡ true
+--   decomposer-4        → sub-requirements ≡ [5], all-concrete ≡ true
+--   collect-requirements → all-requirements ≡ [26], remaining-vague ≡ [1], completeness-score ≡ 9.6
+--   format-spec         → specification ≡ (structured document)
+--
+-- Unfired cells:
+--   refine-vague: guard was TRUE (remaining-vague non-empty) but ⊢∘ terminated
+--     before the through chain reached it. ⊢∘ completeness ≥ 9 was met at
+--     collect-requirements, so refine-vague was not needed this iteration.
+--
+-- No cells have unsatisfied given dependencies (except refine-vague, gated by ⊢∘ termination).
+-- No ⊢∘ iterations pending (until condition met at iteration 0).
+-- No ⊢⊢ spawners to fire (spawn-decomposers already fired all 5).
+-- Program has reached quiescence. All cells frozen. ■
+
+-- ═══════════════════════════════════════════════════════════════
+-- EXECUTION SUMMARY
+-- ═══════════════════════════════════════════════════════════════
+--
+-- Total eval-one steps: 12 (frames 0-11)
+-- ⊢∘ iterations: 1 (iteration 0 only) out of max 3
+-- ⊢⊢ spawner firings: 1 (spawned 5 decomposer cells)
+-- Convergence: completeness-score reached 9.6 on first iteration (threshold ≥ 9)
+--
+-- Requirement extraction across pipeline:
+--   Input:    1 vague request ("Build me a chat app")
+--   Explicit: 4 requirements (directly traceable to words)
+--   Implicit: 7 requirements (domain knowledge, confidence-rated)
+--   Concrete: 6 of 11 passed concreteness assessment (score 5.5)
+--   Vague:    5 of 11 sent to decomposer cells
+--   After decomposition: 26 concrete + 1 remaining vague (score 9.6)
+--   Final:    26 requirements in structured specification
+--
+-- Wildcard resolution:
+--   decomposer-*→sub-requirements matched: decomposer-0 through decomposer-4
+--   decomposer-*→all-concrete matched: same 5 cells
+--   Resolved after all 5 spawned cells froze (frames 5-9)
+--
+-- Guard clause evaluation:
+--   refine-vague: guard (length(remaining-vague) > 0) was TRUE but cell
+--   was not reached because ⊢∘ terminated. The guard would have gated
+--   correctly if completeness < 9 required another iteration.
+
+-- ═══════════════════════════════════════════════════════════════
+-- OBSERVATIONS (v0.2-aware)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= obs-spawner-wildcard-synergy
+  yield observation
+  ⊢= observation ← "⊢⊢ + WILDCARD DEPS ARE THE RECURSIVE DECOMPOSITION PATTERN: spawn-decomposers creates N cells dynamically, collect-requirements gathers their outputs via decomposer-*→sub-requirements. This is the v0.2 pattern at its best — spawners create, wildcards collect. Neither alone is sufficient. The spawner decides HOW MANY cells to create (driven by data). The wildcard waits for ALL of them (driven by the graph). Zero coordination code. The pattern appeared in R16 as ad-hoc notation; v0.2 makes it a first-class feature."
+
+⊢= obs-single-iteration-convergence
+  yield observation
+  ⊢= observation ← "⊢∘ CONVERGED IN 1 ITERATION (of max 3): completeness-score hit 9.6 on the first pass. This is because the decomposer cells were highly effective — 4 of 5 produced fully concrete sub-requirements. Only decomposer-2 (privacy) marked all-concrete = false, and even it produced 3 of 4 concrete sub-requirements. The ⊢∘ loop's max 3 iterations provided insurance that was not needed. The program's real work happens in the ⊢⊢ spawner expansion, not the ⊢∘ iteration — the recursive decomposition strategy is more powerful than iterative refinement for this task."
+
+⊢= obs-guard-clause-not-needed
+  yield observation
+  ⊢= observation ← "GUARD CLAUSE ON refine-vague WAS TRUE BUT CELL NEVER FIRED: the v0.2 guard (where length(remaining-vague) > 0) evaluated to TRUE (1 vague requirement remained), so the cell would have entered the ready set. But ⊢∘ terminated before reaching refine-vague in the through chain. This shows the interaction between guard clauses and ⊢∘: guards gate the ready set, but ⊢∘ termination gates the entire loop. In a hypothetical iteration where completeness < 9 and remaining-vague was empty, the guard would have correctly SKIPPED refine-vague, producing ⊥ — preventing useless LLM calls on an empty list."
+
+⊢= obs-aspirational-oracles-all-passed
+  yield observation
+  ⊢= observation ← "v0.2 ASPIRATIONAL SEMANTICS WERE NOT TESTED: extract-implicit's oracles all passed on iteration 0, so we never observed the aspirational behavior (freeze despite oracle failure). This is the happy path — the semantics matter for the SAD path. A harder request (ambiguous domain, conflicting conventions) would likely trigger oracle failures in early iterations, and the aspirational semantics would prevent conflict between ⊨? retry and ⊢∘ iteration. The v0.2 clarification remains necessary even when not exercised."
+
+⊢= obs-accumulate-mode-default
+  yield observation
+  ⊢= observation ← "⊢⊢ ACCUMULATE MODE IS CORRECT FOR THIS PATTERN: spawn-decomposers fired once and created 5 cells. If ⊢∘ iterated again, the spawner would fire again with new vague requirements from the refined assessment, and NEW decomposer cells (decomposer-5, decomposer-6, ...) would accumulate alongside the originals. This is the right behavior — previous decompositions should not be discarded. The v0.2 explicit accumulate mode (default) matches the program's intent. Replace mode would be wrong here — it would destroy already-computed sub-requirements."
+
+⊢= obs-four-to-twenty-six-amplification
+  yield observation
+  ⊢= observation ← "AMPLIFICATION RATIO 1:26 — from 5 words to 26 concrete requirements: 'Build me a chat app' (5 words) → 4 explicit + 7 implicit → 5 vague decomposed into 21 sub-requirements → 26 total concrete requirements in a structured specification. This is Cell's value proposition for requirement extraction: the LLM applies domain knowledge (what chat apps need), the oracles enforce quality (testable, non-duplicate, confidence-rated), and the spawner provides recursive depth (vague → concrete). A single LLM call would miss the recursion; a pipeline without oracles would miss the quality gates."
+
+⊢= obs-wildcard-resolution-timing
+  yield observation
+  ⊢= observation ← "WILDCARD RESOLUTION TIMING VALIDATES v0.2 SEMANTICS: collect-requirements declares given decomposer-*→sub-requirements. This wildcard resolved against {decomposer-0, ..., decomposer-4} — all cells that matched the pattern at the time of ready-set computation. The cell became ready only after ALL 5 matching cells had frozen their sub-requirements field. If the spawner had created cells incrementally (e.g., async spawning), collect-requirements would have waited. The v0.2 spec's rule — 'wildcard re-resolves at each ready-set computation' — ensures correctness even under dynamic spawning."
+
+⊢= obs-file-scope-recovery-not-triggered
+  yield observation
+  ⊢= observation ← "v0.2 FILE-SCOPE ⊨? WORKED AS SAFETY NET: the file-scope ⊨? (retry max 3, then partial-accept(best)) was never triggered — all oracle checks passed on first evaluation. But it provides the safety net for a harder request where, say, extract-implicit fails to avoid duplicating explicit requirements, or decomposer cells fail to produce more-specific sub-requirements. The file-scope default means every cell in this program has recovery without per-cell ⊨? declarations — exactly the v0.2 design intent for reducing boilerplate."

@@ -1,0 +1,672 @@
+-- 27-self-optimizing-cell-frames.cell (v0.2)
+-- Execution trace of 27-self-optimizing-cell.cell via eval-one
+--
+-- v0.2 execution notes:
+--   - File-scope ⊨? active: retry max 3 with failure context, then error-value(⊥)
+--   - ⊢∘ optimize: custom label, explicitly blessed by v0.2 naming convention
+--   - Oracles on propose-optimization (⊢∘ target) are aspirational under v0.2
+--   - compare cell split into 3: compare-semantics (soft), compare-steps (hard),
+--     verdict (hard) — fixes R16 false crystallization [v0.2 ⊢= expression language]
+--   - ⊢= bodies use only valid primitives (arithmetic, comparison, conditional, string ops)
+--   - ⊢⊢ in quoted program: explicit accumulate [v0.2 accumulate/replace]
+--
+-- Meta: A Cell program that analyzes another Cell program for redundancy,
+-- proposes optimizations, verifies semantic preservation via simulated
+-- eval-one, and iterates via ⊢∘ until a valid optimization is found.
+
+-- ═══════════════════════════════════════════════════════════════
+-- READY-SET ANALYSIS (initial state)
+-- ═══════════════════════════════════════════════════════════════
+-- Graph topology:
+--   source-program         → no givens (always ready)
+--   analyze-redundancy     → needs §source-program→§program, source-program→program-text
+--   propose-optimization   → needs source-program→program-text + analyze-redundancy→*
+--   execute-original       → needs source-program→program-text
+--   execute-optimized      → needs propose-optimization→optimized-text
+--   compare-semantics      → needs execute-original→original-output, execute-optimized→optimized-output
+--   compare-steps          → needs execute-original→original-steps, execute-optimized→optimized-steps
+--   verdict                → needs compare-semantics→semantics-preserved, compare-steps→step-delta
+--   report                 → needs source-program→program-text + propose-optimization→* + verdict→* + compare-*→*
+--
+-- ⊢∘ optimize manages: propose-optimization (target)
+--   through: analyze-redundancy, propose-optimization, execute-original,
+--            execute-optimized, compare-semantics, compare-steps, verdict
+--   until: compare-semantics→semantics-preserved and compare-steps→step-delta >= 0
+--
+-- Initial ready set: { source-program }
+-- Blocked: everything else (transitive dependency on source-program)
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 0: evaluate source-program (hard cell, ⊢=)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { source-program } — no givens, always ready
+-- Blocked: { analyze-redundancy, execute-original } — need source-program outputs
+-- Blocked: { propose-optimization, execute-optimized, compare-semantics,
+--            compare-steps, verdict, report } — transitive
+
+⊢ source-program
+  yield §program, program-text
+
+  ⊢= §program ← §p2-spawner-cascade
+  ⊢= program-text ← "
+    ⊢ topic
+      given subject ≡ \"Why do cats purr?\"
+      yield subject, depth
+      ⊢= depth ← 1
+      ⊨ depth = 1
+
+    ⊢⊢ decompose
+      given topic→subject
+      given topic→depth
+      yield sub-questions[]
+      until len(sub-questions) ≥ 3
+      max 5
+      accumulate
+      ∴ Break «topic→subject» into 3 independent sub-questions.
+        Each sub-question should be answerable on its own.
+        Each sub-question should cover a different aspect.
+      ⊨ len(sub-questions) ≥ 3
+      ⊨ each sub-question is a complete question
+
+    ⊢ synthesize
+      given decompose→sub-questions
+      given answer-*→response
+      yield summary
+      ∴ Given these sub-answers about «topic→subject»:
+        «answer-*→response»
+        Synthesize into a single coherent 3-sentence explanation.
+      ⊨ summary is 3 sentences
+      ⊨ summary addresses the original question
+      ⊨? on failure:
+        retry with \"Be more concise — exactly 3 sentences\" appended
+        max 2
+      ⊨? on exhaustion:
+        partial-accept(best)
+  "
+
+-- eval-one: source-program is a hard cell (⊢=). Deterministic evaluation.
+-- §program bound to §p2-spawner-cascade definition. program-text bound to string literal.
+-- No LLM needed.
+
+-- oracle checks:
+--   ⊨ contains(program-text, "⊢") → ✓ (program-text contains multiple ⊢ declarations)
+--   ⊨ §program is a valid Cell program → ✓ (semantic oracle, §p2-spawner-cascade is valid)
+
+  yield §program ≡ §p2-spawner-cascade
+  yield program-text ≡ "
+    ⊢ topic
+      given subject ≡ \"Why do cats purr?\"
+      yield subject, depth
+      ⊢= depth ← 1
+      ⊨ depth = 1
+
+    ⊢⊢ decompose
+      given topic→subject
+      given topic→depth
+      yield sub-questions[]
+      until len(sub-questions) ≥ 3
+      max 5
+      accumulate
+      ∴ Break «topic→subject» into 3 independent sub-questions.
+        Each sub-question should be answerable on its own.
+        Each sub-question should cover a different aspect.
+      ⊨ len(sub-questions) ≥ 3
+      ⊨ each sub-question is a complete question
+
+    ⊢ synthesize
+      given decompose→sub-questions
+      given answer-*→response
+      yield summary
+      ∴ Given these sub-answers about «topic→subject»:
+        «answer-*→response»
+        Synthesize into a single coherent 3-sentence explanation.
+      ⊨ summary is 3 sentences
+      ⊨ summary addresses the original question
+      ⊨? on failure:
+        retry with \"Be more concise — exactly 3 sentences\" appended
+        max 2
+      ⊨? on exhaustion:
+        partial-accept(best)
+  "
+
+-- state after frame 0: source-program frozen.
+-- Ready set: { analyze-redundancy, execute-original }
+--   analyze-redundancy: §source-program→§program + source-program→program-text now available
+--   execute-original: source-program→program-text now available
+-- ⊢∘ optimize begins: iteration 0
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ OPTIMIZE — ITERATION 0
+-- ═══════════════════════════════════════════════════════════════
+-- Target: propose-optimization
+-- Through: analyze-redundancy → propose-optimization → execute-original →
+--          execute-optimized → compare-semantics → compare-steps → verdict
+-- Until: compare-semantics→semantics-preserved and compare-steps→step-delta >= 0
+-- Max: 3
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 1: evaluate analyze-redundancy (soft cell, LLM) [iteration 0]
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { analyze-redundancy, execute-original }
+-- Picking analyze-redundancy (⊢∘ through-chain ordering)
+-- Blocked: { propose-optimization } — needs analyze-redundancy outputs
+-- Blocked: { execute-optimized, compare-semantics, compare-steps, verdict, report } — transitive
+
+⊢ analyze-redundancy
+  given §source-program→§program ≡ §p2-spawner-cascade
+  given source-program→program-text ≡ "
+    ⊢ topic
+      given subject ≡ \"Why do cats purr?\"
+      yield subject, depth
+      ⊢= depth ← 1
+      ⊨ depth = 1
+    ⊢⊢ decompose ...
+    ⊢ synthesize ..."
+  yield redundancies[], tautologies[], unnecessary-deps[], analysis
+
+  ∴ Read «source-program→program-text» carefully. Identify:
+    1. REDUNDANT CELLS ...
+    2. TAUTOLOGICAL ORACLES ...
+    3. UNNECESSARY DEPENDENCIES ...
+
+-- LLM evaluation:
+
+  yield redundancies ≡ [
+    {
+      cell: "topic",
+      finding: "The 'subject' yield is redundant — it is bound by given subject ≡ \"Why do cats purr?\" and yielded unchanged. The topic cell exists only to bind two values (subject, depth), but subject is already a constant. Downstream cells could reference the constant directly.",
+      safe-removal: "Cannot fully inline because decompose references topic→subject and topic→depth as a pair. However, subject could be a file-level ≡ binding rather than a cell yield. Low priority — structural, not computational, redundancy."
+    }
+  ]
+
+  yield tautologies ≡ [
+    {
+      cell: "topic",
+      oracle: "⊨ depth = 1",
+      reason: "The line immediately above says ⊢= depth ← 1. The oracle is checking that the deterministic binding equals the value it was just set to. This is a tautology — it can never fail. The oracle adds zero verification value.",
+      safe-removal: "Delete the ⊨ depth = 1 line. The ⊢= binding is already deterministic and correct by construction."
+    }
+  ]
+
+  yield unnecessary-deps ≡ [
+    {
+      cell: "decompose",
+      dep: "given topic→depth",
+      reason: "The ∴ body of decompose says 'Break «topic→subject» into 3 independent sub-questions.' It never references depth. The depth value is used only in the until clause (len(sub-questions) ≥ 3), which is a structural property of sub-questions, not depth. The given topic→depth creates a false scheduling dependency — decompose must wait for depth to freeze, but depth is never used.",
+      safe-removal: "Remove 'given topic→depth' from decompose. The cell's behavior is unchanged."
+    }
+  ]
+
+  yield analysis ≡ "Three findings in the target program:
+
+1. TAUTOLOGICAL ORACLE in topic: '⊨ depth = 1' immediately follows '⊢= depth ← 1'. The oracle restates the binding. It cannot fail. Safe to remove — zero verification value lost.
+
+2. UNNECESSARY DEPENDENCY in decompose: 'given topic→depth' is declared but the ∴ body never interpolates or references depth. The until clause checks len(sub-questions), not depth. This dependency adds a false scheduling constraint (decompose waits for depth, but depth is bound in the same eval-one step as subject because both are in topic). In a program where depth were computed asynchronously, this would cause real delay.
+
+3. STRUCTURAL REDUNDANCY in topic: subject is passed through unchanged from a constant binding. Not worth inlining because it would scatter the constant across multiple cells. Flag but do not remove.
+
+Recommended optimization: Remove the tautological oracle and the unnecessary dependency. Leave the structural redundancy as-is (too aggressive, risks changing cell topology)."
+
+-- oracle checks:
+--   ⊨ analysis explains each finding with specific references to cells → ✓
+--     Finding 1: references topic cell, ⊨ depth = 1, ⊢= depth ← 1
+--     Finding 2: references decompose cell, given topic→depth, ∴ body
+--     Finding 3: references topic cell, subject yield
+--   ⊨ each redundancy has a proposed removal that preserves semantics → ✓
+--     Tautology: "Delete the ⊨ depth = 1 line"
+--     Unnecessary dep: "Remove 'given topic→depth'"
+--     Structural: "Flag but do not remove" (conservative)
+
+-- state after frame 1: analyze-redundancy frozen (iteration 0).
+-- Ready set: { execute-original, propose-optimization }
+--   execute-original: source-program→program-text available (since frame 0)
+--   propose-optimization: all analyze-redundancy outputs + source-program→program-text available
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 2: evaluate execute-original (soft cell, LLM) [iteration 0]
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { execute-original, propose-optimization }
+-- Picking execute-original (independent of ⊢∘ through-chain; can run in parallel)
+-- Blocked: { execute-optimized } — needs propose-optimization→optimized-text
+-- Blocked: { compare-semantics, compare-steps, verdict, report } — transitive
+
+⊢ execute-original
+  given source-program→program-text ≡ "
+    ⊢ topic ... ⊢⊢ decompose ... ⊢ synthesize ..."
+  yield original-output, original-steps
+
+  ∴ Simulate eval-one on the original program...
+
+-- LLM evaluation (simulated eval-one of the quoted program):
+--
+-- Simulated step 1: topic is ready (given subject ≡ "Why do cats purr?" is constant).
+--   Evaluate topic: ⊢= depth ← 1, yield subject ≡ "Why do cats purr?", yield depth ≡ 1.
+--   Oracle check: ⊨ depth = 1 → ✓ (tautological but passes).
+--   Freeze topic.
+--
+-- Simulated step 2: decompose is ready (topic→subject, topic→depth both frozen).
+--   Evaluate decompose (spawner, ⊢⊢): LLM generates sub-questions.
+--   Tentative: sub-questions ≡ ["What is the physiological mechanism behind purring?",
+--     "What evolutionary purpose does purring serve?",
+--     "In what social/emotional contexts do cats purr?"]
+--   Oracle: ⊨ len(sub-questions) ≥ 3 → ✓ (3 ≥ 3)
+--   Oracle: ⊨ each sub-question is a complete question → ✓
+--   Freeze decompose. until satisfied (len = 3 ≥ 3). Spawner does not re-fire.
+--
+-- Simulated step 3: synthesize is ready (decompose→sub-questions frozen,
+--   answer-*→response would require spawned answer cells — but in the quoted
+--   program, answer cells are implied by the spawner pattern. Simulating with
+--   plausible answers.)
+--   Evaluate synthesize: LLM synthesizes from sub-answers.
+--   Tentative: summary ≡ "Cats purr through a rhythmic vibration of the laryngeal
+--     muscles at 25-150 Hz, controlled by a neural oscillator in the brain.
+--     Evolutionarily, purring serves multiple functions including self-healing
+--     (the frequencies promote bone density and tissue repair), communication
+--     with kittens, and solicitation of care from humans. Cats purr in diverse
+--     contexts — contentment, stress, injury, and social bonding — suggesting
+--     it is a versatile self-soothing and signaling mechanism."
+--   Oracle: ⊨ summary is 3 sentences → ✓ (3 sentences)
+--   Oracle: ⊨ summary addresses the original question → ✓
+--   Freeze synthesize.
+--
+-- Total eval-one steps: 3
+
+  yield original-output ≡ "Cats purr through a rhythmic vibration of the laryngeal muscles at 25-150 Hz, controlled by a neural oscillator in the brain. Evolutionarily, purring serves multiple functions including self-healing (the frequencies promote bone density and tissue repair), communication with kittens, and solicitation of care from humans. Cats purr in diverse contexts — contentment, stress, injury, and social bonding — suggesting it is a versatile self-soothing and signaling mechanism."
+
+  yield original-steps ≡ 3
+
+-- oracle checks:
+--   ⊨ original-output is the final summary from synthesize → ✓
+--   ⊨ original-steps counts each eval-one step → ✓ (3 steps: topic, decompose, synthesize)
+
+-- state after frame 2: execute-original frozen.
+-- Ready set: { propose-optimization }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 3: evaluate propose-optimization (soft cell, LLM) [iteration 0]
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { propose-optimization }
+-- Blocked: { execute-optimized } — needs propose-optimization→optimized-text
+-- Blocked: { compare-semantics, compare-steps, verdict, report } — transitive
+-- Note: propose-optimization is the ⊢∘ target. Its oracles are ASPIRATIONAL [v0.2].
+
+⊢ propose-optimization
+  given source-program→program-text ≡ "⊢ topic ... ⊢⊢ decompose ... ⊢ synthesize ..."
+  given analyze-redundancy→redundancies ≡ [{ cell: "topic", finding: "subject yield is redundant...", ... }]
+  given analyze-redundancy→tautologies ≡ [{ cell: "topic", oracle: "⊨ depth = 1", ... }]
+  given analyze-redundancy→unnecessary-deps ≡ [{ cell: "decompose", dep: "given topic→depth", ... }]
+  given analyze-redundancy→analysis ≡ "Three findings... Remove tautological oracle and unnecessary dependency. Leave structural redundancy."
+  yield §optimized, optimized-text, changes[]
+
+  ∴ Using the analysis from «analyze-redundancy→analysis», produce an optimized version...
+
+-- LLM evaluation:
+
+  yield §optimized ← §(optimized-p2-spawner-cascade)
+
+  yield optimized-text ≡ "
+    ⊢ topic
+      given subject ≡ \"Why do cats purr?\"
+      yield subject, depth
+      ⊢= depth ← 1
+
+    ⊢⊢ decompose
+      given topic→subject
+      yield sub-questions[]
+      until len(sub-questions) ≥ 3
+      max 5
+      accumulate
+      ∴ Break «topic→subject» into 3 independent sub-questions.
+        Each sub-question should be answerable on its own.
+        Each sub-question should cover a different aspect.
+      ⊨ len(sub-questions) ≥ 3
+      ⊨ each sub-question is a complete question
+
+    ⊢ synthesize
+      given decompose→sub-questions
+      given answer-*→response
+      yield summary
+      ∴ Given these sub-answers about «topic→subject»:
+        «answer-*→response»
+        Synthesize into a single coherent 3-sentence explanation.
+      ⊨ summary is 3 sentences
+      ⊨ summary addresses the original question
+      ⊨? on failure:
+        retry with \"Be more concise — exactly 3 sentences\" appended
+        max 2
+      ⊨? on exhaustion:
+        partial-accept(best)
+  "
+
+  yield changes ≡ [
+    {
+      type: "remove-tautological-oracle",
+      cell: "topic",
+      removed: "⊨ depth = 1",
+      reason: "Oracle restates the ⊢= depth ← 1 binding. Cannot fail. Zero verification value."
+    },
+    {
+      type: "remove-unnecessary-dep",
+      cell: "decompose",
+      removed: "given topic→depth",
+      reason: "The ∴ body never references depth. Removing eliminates false scheduling constraint."
+    }
+  ]
+
+-- oracle checks (ASPIRATIONAL — ⊢∘ target, v0.2):
+--   ⊨ optimized-text is valid Cell syntax → ✓ (aspirational, noted)
+--   ⊨ length(optimized-text) < length(source-program→program-text) → ✓ (aspirational, noted)
+--     (2 lines removed: ⊨ depth = 1 and given topic→depth)
+--   ⊨ changes describes each modification made → ✓ (aspirational, noted)
+
+-- state after frame 3: propose-optimization frozen (iteration 0).
+-- Ready set: { execute-optimized }
+--   execute-optimized: propose-optimization→optimized-text now available
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 4: evaluate execute-optimized (soft cell, LLM) [iteration 0]
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { execute-optimized }
+-- Blocked: { compare-semantics } — needs execute-original→original-output (frozen) + execute-optimized→optimized-output
+-- Blocked: { compare-steps } — needs execute-original→original-steps (frozen) + execute-optimized→optimized-steps
+-- Blocked: { verdict, report } — transitive
+
+⊢ execute-optimized
+  given propose-optimization→optimized-text ≡ "
+    ⊢ topic
+      given subject ≡ \"Why do cats purr?\"
+      yield subject, depth
+      ⊢= depth ← 1
+    ⊢⊢ decompose
+      given topic→subject
+      yield sub-questions[] ...
+    ⊢ synthesize ..."
+  yield optimized-output, optimized-steps
+
+  ∴ Simulate eval-one on the optimized program...
+
+-- LLM evaluation (simulated eval-one of the optimized program):
+--
+-- Simulated step 1: topic is ready (given subject ≡ "Why do cats purr?" is constant).
+--   Evaluate topic: ⊢= depth ← 1, yield subject ≡ "Why do cats purr?", yield depth ≡ 1.
+--   No oracles on topic (the tautological ⊨ depth = 1 was removed).
+--   Freeze topic.
+--
+-- Simulated step 2: decompose is ready (topic→subject frozen).
+--   Note: given topic→depth was removed, so decompose no longer waits for depth.
+--   In this case, depth was frozen in the same step as subject (both in topic),
+--   so the scheduling difference is negligible. But in a larger program where
+--   depth came from a separate cell, this would save a step.
+--   Evaluate decompose (spawner, ⊢⊢): LLM generates sub-questions.
+--   Tentative: sub-questions ≡ ["What is the physiological mechanism behind purring?",
+--     "What evolutionary purpose does purring serve?",
+--     "In what social/emotional contexts do cats purr?"]
+--   Oracle: ⊨ len(sub-questions) ≥ 3 → ✓
+--   Oracle: ⊨ each sub-question is a complete question → ✓
+--   Freeze decompose. until satisfied. Spawner does not re-fire.
+--
+-- Simulated step 3: synthesize is ready (decompose→sub-questions frozen,
+--   answer-*→response resolved).
+--   Evaluate synthesize: LLM synthesizes from sub-answers.
+--   Tentative: summary ≡ "Cats purr by rapidly contracting and relaxing their
+--     laryngeal muscles at frequencies between 25 and 150 Hz, driven by a neural
+--     oscillator in the brainstem. This behavior likely evolved as a multi-purpose
+--     signal — the vibration frequencies promote bone healing and tissue repair,
+--     while also serving as communication between mothers and kittens. Cats purr
+--     during contentment, stress, pain, and social bonding, indicating that
+--     purring functions as both a self-soothing mechanism and an interpersonal signal."
+--   Oracle: ⊨ summary is 3 sentences → ✓
+--   Oracle: ⊨ summary addresses the original question → ✓
+--   Freeze synthesize.
+--
+-- Total eval-one steps: 3
+
+  yield optimized-output ≡ "Cats purr by rapidly contracting and relaxing their laryngeal muscles at frequencies between 25 and 150 Hz, driven by a neural oscillator in the brainstem. This behavior likely evolved as a multi-purpose signal — the vibration frequencies promote bone healing and tissue repair, while also serving as communication between mothers and kittens. Cats purr during contentment, stress, pain, and social bonding, indicating that purring functions as both a self-soothing mechanism and an interpersonal signal."
+
+  yield optimized-steps ≡ 3
+
+-- oracle checks:
+--   ⊨ optimized-output is the final summary from the optimized program → ✓
+--   ⊨ optimized-steps counts each eval-one step → ✓ (3 steps: topic, decompose, synthesize)
+
+-- state after frame 4: execute-optimized frozen (iteration 0).
+-- Ready set: { compare-semantics, compare-steps }
+--   compare-semantics: execute-original→original-output + execute-optimized→optimized-output available
+--   compare-steps: execute-original→original-steps + execute-optimized→optimized-steps available
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 5: evaluate compare-semantics (soft cell, LLM) [iteration 0]
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { compare-semantics, compare-steps }
+-- Picking compare-semantics first (compare-steps is hard, could go either way)
+-- Blocked: { verdict } — needs compare-semantics→semantics-preserved + compare-steps→step-delta
+
+⊢ compare-semantics
+  given execute-original→original-output ≡ "Cats purr through a rhythmic vibration of the laryngeal muscles at 25-150 Hz, controlled by a neural oscillator in the brain. Evolutionarily, purring serves multiple functions including self-healing..."
+  given execute-optimized→optimized-output ≡ "Cats purr by rapidly contracting and relaxing their laryngeal muscles at frequencies between 25 and 150 Hz, driven by a neural oscillator in the brainstem. This behavior likely evolved as a multi-purpose signal..."
+  yield semantics-preserved
+
+  ∴ Compare «execute-original→original-output» and «execute-optimized→optimized-output»...
+
+-- LLM evaluation:
+-- Both outputs:
+--   1. Describe the physiological mechanism (laryngeal muscles, 25-150 Hz, neural oscillator)
+--   2. Mention evolutionary/healing function (bone density/repair, tissue healing)
+--   3. Describe multiple contexts (contentment, stress, social bonding, communication)
+--   4. Address the original question "Why do cats purr?"
+-- The factual content is equivalent. Wording differs but information is consistent.
+
+  yield semantics-preserved ≡ true
+
+-- oracle checks:
+--   ⊨ semantics-preserved is true or false → ✓ (true)
+
+-- state after frame 5: compare-semantics frozen.
+-- Ready set: { compare-steps }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 6: evaluate compare-steps (hard cell, ⊢=, crystallized)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { compare-steps }
+-- Blocked: { verdict } — needs compare-steps→step-delta
+
+⊢ compare-steps ▸ crystallized
+  given execute-original→original-steps ≡ 3
+  given execute-optimized→optimized-steps ≡ 3
+  yield step-delta
+
+  ⊢= step-delta ← execute-original→original-steps - execute-optimized→optimized-steps
+
+-- eval-one: hard cell. Deterministic evaluation.
+-- step-delta ← 3 - 3 = 0. No LLM needed.
+
+  yield step-delta ≡ 0
+
+-- oracle checks: (none on this cell)
+
+-- state after frame 6: compare-steps frozen.
+-- Ready set: { verdict }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 7: evaluate verdict (hard cell, ⊢=, crystallized)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { verdict }
+-- Blocked: { report } — needs verdict→judgment + other outputs
+
+⊢ verdict ▸ crystallized
+  given compare-semantics→semantics-preserved ≡ true
+  given compare-steps→step-delta ≡ 0
+  yield judgment
+
+  ⊢= judgment ← if compare-semantics→semantics-preserved and compare-steps→step-delta > 0
+       then "optimization valid: fewer steps, same semantics"
+       else if compare-semantics→semantics-preserved and compare-steps→step-delta = 0
+       then "optimization valid: cleaner code, same steps"
+       else if not compare-semantics→semantics-preserved
+       then "optimization invalid: semantics changed"
+       else "optimization neutral: no improvement"
+
+-- eval-one: hard cell. Deterministic evaluation.
+-- semantics-preserved = true, step-delta = 0.
+-- First branch: true and 0 > 0 → false (0 is not > 0).
+-- Second branch: true and 0 = 0 → true.
+-- judgment ← "optimization valid: cleaner code, same steps"
+
+  yield judgment ≡ "optimization valid: cleaner code, same steps"
+
+-- oracle checks:
+--   ⊨ judgment != "" → ✓
+
+-- state after frame 7: verdict frozen (iteration 0).
+-- ⊢∘ optimize: check convergence
+--   compare-semantics→semantics-preserved ≡ true → ✓
+--   compare-steps→step-delta ≡ 0 ≥ 0 → ✓
+-- BOTH conditions met → CONVERGED at iteration 0.
+--
+-- ⊢∘ optimize terminates. No further iterations needed.
+-- propose-optimization output is the accepted optimization.
+
+-- ═══════════════════════════════════════════════════════════════
+-- POST-⊢∘ CONVERGENCE
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ converged at iteration 0 (out of max 3).
+-- All through-chain cells are frozen with valid outputs.
+-- Ready set: { report }
+--   report: all givens now available:
+--     source-program→program-text (frame 0)
+--     propose-optimization→optimized-text (frame 3)
+--     propose-optimization→changes (frame 3)
+--     verdict→judgment (frame 7)
+--     compare-steps→step-delta (frame 6)
+--     compare-semantics→semantics-preserved (frame 5)
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 8: evaluate report (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { report }
+-- No other cells blocked — this is the final cell.
+
+⊢ report
+  given source-program→program-text ≡ "⊢ topic ... ⊢⊢ decompose ... ⊢ synthesize ..."
+  given propose-optimization→optimized-text ≡ "⊢ topic (no ⊨ depth = 1) ... ⊢⊢ decompose (no given topic→depth) ... ⊢ synthesize ..."
+  given propose-optimization→changes ≡ [{ type: "remove-tautological-oracle", cell: "topic", removed: "⊨ depth = 1", ... }, { type: "remove-unnecessary-dep", cell: "decompose", removed: "given topic→depth", ... }]
+  given verdict→judgment ≡ "optimization valid: cleaner code, same steps"
+  given compare-steps→step-delta ≡ 0
+  given compare-semantics→semantics-preserved ≡ true
+  yield summary, optimized-program
+
+  ∴ Summarize the self-optimization process...
+
+-- LLM evaluation:
+
+  yield summary ≡ "Self-optimization analysis of p2-spawner-cascade found 3 issues:
+
+1. TAUTOLOGICAL ORACLE REMOVED (topic cell): The oracle '⊨ depth = 1' directly restated the deterministic binding '⊢= depth ← 1' on the line above. This oracle could never fail — it was checking that a constant equals itself. Removed with zero semantic impact.
+
+2. UNNECESSARY DEPENDENCY REMOVED (decompose cell): The dependency 'given topic→depth' was declared but never referenced in decompose's ∴ body or its oracles. The only interpolation was «topic→subject». Removing this dependency eliminates a false scheduling constraint without changing any computed values.
+
+3. STRUCTURAL REDUNDANCY NOTED BUT PRESERVED (topic cell): The subject yield passes through unchanged from the constant binding. Inlining was considered too aggressive — it would scatter the constant and change cell topology without clear benefit.
+
+Changes applied: 2 (removed tautological oracle, removed unnecessary dependency)
+Semantics preserved: true (both original and optimized programs produce equivalent 3-sentence summaries about why cats purr, covering the same physiological, evolutionary, and behavioral content)
+Step reduction: 0 (both programs execute in 3 eval-one steps — the optimization reduces code complexity, not step count, because topic→depth was frozen in the same step as topic→subject)
+Verdict: optimization valid: cleaner code, same steps
+
+The optimization is conservative and correct. The ⊢∘ loop converged on iteration 0 — no rollback was needed."
+
+  yield optimized-program ≡ "
+    ⊢ topic
+      given subject ≡ \"Why do cats purr?\"
+      yield subject, depth
+      ⊢= depth ← 1
+
+    ⊢⊢ decompose
+      given topic→subject
+      yield sub-questions[]
+      until len(sub-questions) ≥ 3
+      max 5
+      accumulate
+      ∴ Break «topic→subject» into 3 independent sub-questions.
+        Each sub-question should be answerable on its own.
+        Each sub-question should cover a different aspect.
+      ⊨ len(sub-questions) ≥ 3
+      ⊨ each sub-question is a complete question
+
+    ⊢ synthesize
+      given decompose→sub-questions
+      given answer-*→response
+      yield summary
+      ∴ Given these sub-answers about «topic→subject»:
+        «answer-*→response»
+        Synthesize into a single coherent 3-sentence explanation.
+      ⊨ summary is 3 sentences
+      ⊨ summary addresses the original question
+      ⊨? on failure:
+        retry with \"Be more concise — exactly 3 sentences\" appended
+        max 2
+      ⊨? on exhaustion:
+        partial-accept(best)
+  "
+
+-- oracle checks:
+--   ⊨ summary references specific cells and oracles by name → ✓
+--     References: topic cell, ⊨ depth = 1, ⊢= depth ← 1, decompose cell,
+--     given topic→depth, ∴ body, «topic→subject», synthesize, ⊢∘ loop
+--   ⊨ optimized-program is valid Cell syntax → ✓
+
+-- state after frame 8: report frozen.
+
+-- ═══════════════════════════════════════════════════════════════
+-- QUIESCENCE
+-- ═══════════════════════════════════════════════════════════════
+-- All cells frozen. No cells in ready set.
+-- ⊢∘ optimize converged at iteration 0 (of max 3).
+--
+-- Final state:
+--   source-program:        frozen (hard cell, ⊢=, program-as-data)
+--   analyze-redundancy:    frozen (3 findings: 1 tautology, 1 unnecessary dep, 1 structural)
+--   execute-original:      frozen (3 eval-one steps, summary about cat purring)
+--   propose-optimization:  frozen (⊢∘ target, 2 changes applied)
+--   execute-optimized:     frozen (3 eval-one steps, equivalent summary)
+--   compare-semantics:     frozen (semantics-preserved = true) [v0.2: soft cell, not false ⊢=]
+--   compare-steps:         frozen (step-delta = 0) [v0.2: valid ⊢= arithmetic]
+--   verdict:               frozen (judgment = "optimization valid: cleaner code, same steps") [v0.2: valid ⊢= conditional]
+--   report:                frozen (final summary + optimized program)
+--
+-- v0.2 observations:
+--
+-- ⊢= expression language compliance:
+--   compare-steps uses: subtraction (valid ⊢= arithmetic)
+--   verdict uses: if/then/else, and, not, comparison (all valid ⊢= primitives)
+--   R16 had these judgments in a single "compare" cell with ⊢= bodies containing
+--   "original-output and optimized-output address the same question with equivalent
+--   factual content" — this is a semantic judgment, NOT a valid ⊢= expression.
+--   R17 splits the compare cell: compare-semantics (soft, ∴) handles the semantic
+--   judgment, compare-steps (hard, ⊢=) handles arithmetic, verdict (hard, ⊢=) handles
+--   the deterministic classification. The crystallization boundary is now correct.
+--
+-- ⊢∘ target oracles (aspirational):
+--   propose-optimization's oracles (valid syntax, shorter text, changes described)
+--   were noted as aspirational during frame 3. Under v0.2, they serve as feedback
+--   signals to the ⊢∘ loop but do not independently gate freezing. The ⊢∘ until
+--   condition (semantics-preserved and step-delta >= 0) is the actual gate.
+--
+-- File-scope ⊨?:
+--   The file-scope policy (retry max 3, then error-value(⊥)) applied as default
+--   to all cells without local ⊨?. No cell triggered the file-scope retry in this
+--   trace — all oracles passed on first evaluation. The ⊢∘ loop's own ⊨? (retry
+--   max 2 with conservative changes) was also not triggered since convergence
+--   occurred on iteration 0.
+--
+-- ⊢⊢ accumulate/replace:
+--   The quoted program's ⊢⊢ decompose explicitly specifies "accumulate" [v0.2].
+--   In this trace the spawner fires once and satisfies its until condition, so
+--   accumulate vs replace makes no difference. The distinction matters when
+--   ⊢∘ drives multiple iterations that re-fire the spawner.
+--
+-- Total frames: 9 (frame 0 through frame 8)
+-- ⊢∘ iterations: 1 (iteration 0 only, converged immediately)
+-- Oracle retries: 0
+-- Cells evaluated: 9 (source-program, analyze-redundancy, execute-original,
+--   propose-optimization, execute-optimized, compare-semantics, compare-steps,
+--   verdict, report)

@@ -1,0 +1,96 @@
+-- 21-self-correcting-translator.cell
+-- Tests: ⊢∘ as correction loop, back-translation verification, diff oracle,
+--        segment-level retranslation, convergence via drift minimization
+--
+-- v0.2 improvements over R16:
+-- - File-scope ⊨? provides default recovery for all cells
+-- - ⊢∘ refine label (was "refine") — arbitrary label per v0.2 naming convention
+-- - ⊢∘-managed cells' oracles are aspirational (translate, back-translate)
+-- - ⊢⊢ spawner not needed — correction is in-place, no wildcard deps
+-- - Guard clauses on correct cell for accept-unchanged vs retranslate dispatch
+-- - given? not needed here — all deps are strict
+-- - Conditional oracles on diff explicitly use v0.2 vacuous-satisfaction rule
+-- - ⊢= observation cells at end for v0.2 trace format
+
+⊢ source
+  yield text
+
+  ⊢= text ← "Cell is a self-bootstrapping metacircular language for LLMs. Programs are documents. Execution fills in values. The document IS the program IS the state. Cells start as natural language (soft) and progressively crystallize into deterministic code (hard) under oracle pressure. Cell is the Scheme of LLMs."
+
+⊢ translate
+  given source→text
+  yield spanish-text
+
+  ∴ Translate «source→text» into Spanish. Preserve all technical terms
+    (metacircular, oracle, crystallize, LLM) in their original English form
+    or with standard Spanish computing equivalents. Maintain the rhetorical
+    structure and emphasis of the original. Do not add or remove ideas.
+
+  ⊨ spanish-text is entirely in Spanish (except technical terms)
+  ⊨ spanish-text has the same number of sentences as source→text
+  ⊨ "metacircular" appears in spanish-text
+
+⊢ back-translate
+  given translate→spanish-text
+  yield english-text
+
+  ∴ Translate «translate→spanish-text» back into English. You have NO access
+    to the original text — translate only from the Spanish. Aim for natural
+    English, not word-for-word calque. Preserve technical terms exactly.
+
+  ⊨ english-text is entirely in English
+  ⊨ english-text has the same number of sentences as translate→spanish-text
+
+⊢ diff
+  given source→text
+  given back-translate→english-text
+  yield drifted-segments[], drift-score, acceptable
+
+  ∴ Compare «source→text» against «back-translate→english-text» sentence by
+    sentence. For each sentence pair, identify semantic drift — meaning that
+    changed, was lost, or was added during the round-trip. Score overall
+    drift 0-10 where 0 = perfect preservation, 10 = total meaning loss.
+    A segment is "drifted" if it changes the meaning an implementor would
+    extract. Set acceptable = true if drift-score ≤ 1.
+    Each entry in drifted-segments should contain: the original sentence,
+    the back-translated sentence, and a description of the drift.
+
+  ⊨ drift-score ∈ {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+  ⊨ if drift-score = 0 then drifted-segments is empty
+  ⊨ if drift-score ≤ 1 then acceptable = true
+  ⊨ if drift-score > 1 then acceptable = false
+
+⊢ correct
+  given translate→spanish-text
+  given diff→drifted-segments
+  given diff→acceptable where acceptable = false
+  given source→text
+  yield corrected-spanish, changed-count
+
+  ∴ For each segment in «diff→drifted-segments», retranslate ONLY that
+    segment from «source→text» into Spanish, replacing the corresponding
+    segment in «translate→spanish-text». Preserve segments that did NOT
+    drift. Set changed-count to the number of segments replaced.
+
+  ⊨ changed-count > 0
+  ⊨ corrected-spanish is in Spanish (except technical terms)
+
+⊢ accept-unchanged
+  given translate→spanish-text
+  given diff→acceptable where acceptable = true
+  yield corrected-spanish, changed-count
+
+  ⊢= corrected-spanish ← translate→spanish-text
+  ⊢= changed-count ← 0
+
+⊢∘ refine(translate)
+  through back-translate, diff, correct
+  until diff→acceptable = true
+  max 5
+
+⊨? on failure:
+  retry with «oracle.failures» appended to prompt
+  max 3 attempts
+
+⊨? on exhaustion:
+  error-value(⊥)

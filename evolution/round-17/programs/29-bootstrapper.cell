@@ -1,0 +1,319 @@
+-- 29-bootstrapper.cell (v0.2)
+-- Tests: zero-to-many cell spawning, ⊢⊢ dynamic frontier growth (accumulate mode),
+--        ⊢∘ convergence loop, meta-reasoning about what cells to create,
+--        synthesis from heterogeneous spawned results, wildcard deps,
+--        file-scope ⊨?, guard clauses, given?, ⊢∘ aspirational oracles
+--
+-- v0.2 changes from R16:
+--   - Added file-scope ⊨? recovery policy (retry max 3, then ⊥)
+--   - Wildcard deps (specialist-*→field, gap-filler-*→field) now v0.2 spec-compliant
+--   - ⊢⊢ spawn-specialists/spawn-gap-fillers: explicit `accumulate` mode
+--   - Oracles on ⊢∘-managed cells are aspirational (not hard gates)
+--   - Guard clause on spawn-gap-fillers: skipped when is-complete = true
+--   - given? on re-synthesize: tolerates ⊥ if gap-fillers were skipped
+--   - ⊢∘ evolve label is arbitrary (v0.2 naming convention)
+--
+-- Start with ZERO cells beyond the meta-cell itself. The meta-cell reads a
+-- natural language task, decides what cells are needed, spawns them via ⊢⊢,
+-- reads their results, identifies gaps, spawns more. ⊢∘ loop until the
+-- problem is solved.
+--
+-- Task: "Plan a weekend trip to Tokyo for someone who loves ramen and architecture"
+
+⊨? on failure:
+  retry with «oracle.failures» appended to prompt
+  max 3 attempts
+⊨? on exhaustion:
+  error-value(⊥)
+
+⊢ task
+  given prompt ≡ "Plan a weekend trip to Tokyo for someone who loves ramen and architecture"
+  yield prompt
+
+  ⊨ prompt is a concrete problem statement requiring multi-faceted planning
+
+-- ═══════════════════════════════════════════════════════════════
+-- PHASE 1: Analyze task and decide what capabilities are needed
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ analyze-needs
+  given task→prompt
+  yield needed-cells[], rationale
+
+  ∴ Read «task→prompt» carefully. This is a blank slate — no cells exist yet.
+    Decide what specialist cells are needed to solve this problem.
+    For each needed cell, specify:
+    - A name (kebab-case)
+    - What it should do (one sentence)
+    - What inputs it needs (from other cells or from the task)
+    - What outputs it produces
+
+    Think about what KINDS of knowledge/research are needed:
+    - Domain expertise (ramen spots, architecture landmarks)
+    - Logistics (transport, timing, neighborhoods)
+    - Synthesis (combining into a coherent plan)
+    - Validation (checking feasibility, conflicts)
+
+  ⊨ length(needed-cells) ≥ 3
+  ⊨ needed-cells collectively cover the full scope of the task
+  ⊨ each needed-cell has name, purpose, inputs, outputs
+  ⊨ at least one cell depends on another's output (not all independent)
+
+-- ═══════════════════════════════════════════════════════════════
+-- PHASE 2: Spawn specialist cells from nothing
+-- ═══════════════════════════════════════════════════════════════
+
+⊢⊢ spawn-specialists
+  given analyze-needs→needed-cells
+  given task→prompt
+  given §specialist-template
+  yield §specialist-cells[]
+  until length(specialist-cells) = length(analyze-needs→needed-cells)
+  max 8
+  accumulate
+
+  ∴ For each entry in «analyze-needs→needed-cells», instantiate a specialist
+    cell from «§specialist-template». Bind each cell's purpose and scope from
+    the needed-cell specification. The cells execute independently — they each
+    research or reason about their slice of the problem.
+
+  ⊨ one specialist cell per needed-cell
+  ⊨ each specialist cell has a distinct, non-overlapping scope
+
+⊢ specialist-template
+  given purpose
+  given scope
+  given task→prompt
+  yield findings, recommendations[]
+
+  ∴ You are a specialist focused on: «purpose».
+    Your scope within the overall task «task→prompt» is: «scope».
+
+    Research and reason about your domain. Produce:
+    - findings: what you discovered (facts, options, considerations)
+    - recommendations: specific actionable items for the final plan
+
+    Be concrete. Name real places, give real times, cite real constraints.
+
+  ⊨ findings is substantive (not a restatement of the task)
+  ⊨ length(recommendations) ≥ 2
+  ⊨ recommendations are specific and actionable (names, addresses, times)
+
+-- ═══════════════════════════════════════════════════════════════
+-- PHASE 3: Synthesize results from spawned cells
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ synthesize
+  given specialist-*→findings
+  given specialist-*→recommendations
+  given task→prompt
+  yield draft-plan, coverage-map
+
+  ∴ Read ALL specialist findings and recommendations. Synthesize into a
+    coherent draft plan for «task→prompt».
+
+    The draft-plan should be a structured weekend itinerary:
+    - Day 1 and Day 2 with time blocks
+    - Specific places, travel between them, meal times
+    - Weave ramen and architecture throughout
+
+    The coverage-map should note which aspects of the task are covered
+    and which have gaps (missing information, unresolved conflicts,
+    logistical unknowns).
+
+  ⊨ draft-plan covers both days of the weekend
+  ⊨ draft-plan includes at least 3 ramen spots and 3 architecture sites
+  ⊨ coverage-map identifies any remaining gaps
+
+-- ═══════════════════════════════════════════════════════════════
+-- PHASE 4: Evaluate completeness — is the problem solved?
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ evaluate-completeness
+  given synthesize→draft-plan
+  given synthesize→coverage-map
+  given task→prompt
+  yield is-complete, gaps[], quality-score
+
+  ∴ Evaluate whether «synthesize→draft-plan» fully solves «task→prompt»:
+    1. Does it cover both days with realistic timing?
+    2. Are ramen recommendations specific (not generic "find a ramen shop")?
+    3. Are architecture sites specific and visitable on a weekend?
+    4. Is travel between locations feasible (not zigzagging across the city)?
+    5. Are there practical details (budget hints, reservation needs, transit)?
+
+    Score quality 1-10. Mark is-complete = true only if quality ≥ 7
+    and no critical gaps remain.
+
+  ⊨ is-complete ∈ { true, false }
+  ⊨ quality-score ∈ 1..10
+  ⊨ if not is-complete then length(gaps) ≥ 1
+  ⊨ gaps are specific and addressable (not vague "needs more detail")
+
+-- ═══════════════════════════════════════════════════════════════
+-- PHASE 5: Gap-filling — spawn MORE cells for what's missing
+-- ═══════════════════════════════════════════════════════════════
+
+⊢⊢ spawn-gap-fillers
+  given evaluate-completeness→gaps
+  given evaluate-completeness→is-complete where is-complete = false
+  given synthesize→draft-plan
+  given task→prompt
+  given §gap-filler-template
+  yield §gap-filler-cells[]
+  until length(gap-filler-cells) = length(evaluate-completeness→gaps)
+  max 5
+  accumulate
+
+  ∴ For each gap in «evaluate-completeness→gaps», spawn a cell that
+    specifically addresses that gap. The cell receives the current
+    draft-plan as context so it can fill in what's missing without
+    contradicting what's already planned.
+
+  ⊨ one gap-filler cell per gap
+  ⊨ each gap-filler addresses a specific identified gap
+
+⊢ gap-filler-template
+  given gap-description
+  given draft-plan-context
+  given task→prompt
+  yield additional-findings, patch-recommendations[]
+
+  ∴ You are filling a gap in an existing plan for «task→prompt».
+    The current draft plan: «draft-plan-context»
+    The gap you must address: «gap-description»
+
+    Research this specific gap and provide:
+    - additional-findings: new information that fills the gap
+    - patch-recommendations: specific additions/changes to the draft plan
+
+    Do NOT contradict the existing plan. ADD to it or REFINE it.
+
+  ⊨ additional-findings directly addresses the gap
+  ⊨ patch-recommendations are compatible with the existing draft plan
+  ⊨ length(patch-recommendations) ≥ 1
+
+-- ═══════════════════════════════════════════════════════════════
+-- PHASE 6: Re-synthesize with gap-filler results
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ re-synthesize
+  given synthesize→draft-plan
+  given? gap-filler-*→additional-findings
+  given? gap-filler-*→patch-recommendations
+  given task→prompt
+  yield revised-plan, coverage-map'
+
+  ∴ Merge the gap-filler results into the existing draft plan.
+    Apply «gap-filler-*→patch-recommendations» to «synthesize→draft-plan».
+    Update the coverage map to reflect what's now covered.
+
+    If gap-filler results are ⊥ (no gaps found — is-complete was true),
+    pass through the draft-plan unchanged.
+
+    The revised-plan should be strictly better than the draft: same
+    structure, more detail, fewer gaps.
+
+  ⊨ revised-plan is a superset of draft-plan (no information lost)
+  ⊨ coverage-map' shows fewer gaps than the original coverage-map
+  ⊨ revised-plan maintains logical consistency (no contradictions)
+
+-- ═══════════════════════════════════════════════════════════════
+-- EVOLUTION LOOP: Iterate until quality converges
+-- ═══════════════════════════════════════════════════════════════
+
+⊢∘ bootstrap(synthesize, specialist-*→findings, specialist-*→recommendations, task→prompt)
+  through evaluate-completeness, spawn-gap-fillers, re-synthesize
+  until evaluate-completeness→quality-score ≥ 7
+  max 3
+
+  -- Each iteration:
+  -- 1. synthesize produces draft-plan from specialist results
+  -- 2. evaluate-completeness checks quality and finds gaps
+  -- 3. spawn-gap-fillers creates new cells IF is-complete = false (guard clause)
+  --    If is-complete = true, spawn-gap-fillers is SKIPPED (guard fails),
+  --    gap-filler yields → ⊥, re-synthesize uses given? to accept ⊥
+  -- 4. re-synthesize merges gap-filler results back into the plan
+  -- 5. If quality ≥ 7, stop. Otherwise loop: re-synthesize output
+  --    becomes the new draft-plan for the next evaluation round.
+  --
+  -- Oracles on synthesize, evaluate-completeness, etc. are ASPIRATIONAL
+  -- under ⊢∘ management (v0.2): they provide feedback signals but do
+  -- not independently block freezing. The ⊢∘ until condition is the
+  -- actual convergence criterion.
+
+-- ═══════════════════════════════════════════════════════════════
+-- FINAL: Polish and emit the completed plan
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ final-plan
+  given re-synthesize→revised-plan
+  given evaluate-completeness→quality-score
+  given task→prompt
+  yield polished-plan, meta-summary
+
+  ∴ Take «re-synthesize→revised-plan» and produce the final deliverable.
+
+    polished-plan: A clean, readable weekend itinerary for Tokyo. Include:
+    - Day-by-day schedule with morning/afternoon/evening blocks
+    - Specific ramen shops with what they're known for
+    - Specific architecture sites with brief descriptions
+    - Transit directions between locations
+    - Practical tips (reservations, cash vs card, timing)
+
+    meta-summary: Reflect on the bootstrapping process itself:
+    - How many specialist cells were spawned initially?
+    - How many gap-filler cells were needed?
+    - What was the quality trajectory across iterations?
+    - What does this say about bootstrapping from zero?
+
+  ⊨ polished-plan is a complete, actionable weekend itinerary
+  ⊨ polished-plan mentions ramen AND architecture in every time block
+  ⊨ meta-summary includes cell-count statistics
+  ⊨ meta-summary reflects on the bootstrapping process
+
+-- ═══════════════════════════════════════════════════════════════
+-- OBSERVATIONS
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= bootstrapper-observations
+  yield observations
+
+  ⊢= observations ← "
+    1. ZERO-START BOOTSTRAP: This program begins with no domain cells at all.
+       The meta-cell (analyze-needs) inspects the task and DECIDES what cells
+       to create. This is the purest form of Cell's self-bootstrapping property.
+
+    2. TWO-PHASE SPAWNING: First wave (spawn-specialists) creates broad coverage.
+       Second wave (spawn-gap-fillers) creates targeted depth. The meta-cell
+       reasons about what's MISSING, not just what's NEEDED.
+
+    3. CONVERGENCE VIA ⊢∘: The evolution loop doesn't improve a single cell —
+       it improves the ENSEMBLE. Each iteration spawns new cells into the
+       frontier, making the collective output more complete. The quality-score
+       oracle drives convergence.
+
+    4. TEMPLATE POLYMORPHISM: specialist-template and gap-filler-template are
+       the same shape (given context → yield findings + recommendations) but
+       serve different roles. The spawner binds different purposes to the
+       same interface. This is Cell's version of parametric polymorphism.
+
+    5. META-REASONING: analyze-needs must reason about reasoning — what KINDS
+       of knowledge does this task require? This is the bootstrapping insight:
+       the system must be able to reflect on its own capabilities gap.
+
+    6. MONOTONIC GROWTH: The plan only gets better. re-synthesize is a superset
+       of synthesize. Information accumulates, never retracts. This matches
+       Cell's monotonicity guarantee at the language level.
+
+    7. GUARD-GATED SPAWNING (v0.2): spawn-gap-fillers has a guard clause on
+       is-complete. When the plan reaches quality ≥ 7, the guard evaluates
+       false, the spawner is SKIPPED, its yields become ⊥, and re-synthesize
+       accepts ⊥ via given? — passing through the plan unchanged. No wasted
+       LLM calls on gap-filling when there are no gaps.
+
+    8. FILE-SCOPE ⊨? (v0.2): Default recovery policy ensures that oracle
+       failures in any specialist or gap-filler cell don't crash the program.
+       Three retries with failure context, then ⊥. The ⊢∘ loop can absorb
+       partial failures and still converge.
+  "

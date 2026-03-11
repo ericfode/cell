@@ -1,0 +1,337 @@
+-- 19-code-generator-proof.cell (R17, v0.2)
+-- Tests: proof-carrying computation, ⊢∘ evolution loop, ⊢= crystallized
+--        verifiers, oracle-gated code generation, § quotation for code-as-data,
+--        guard clauses for conditional dispatch, given? for optional deps
+--
+-- A Cell program that takes a spec ("binary search on sorted array, returns
+-- index or -1"). Generates code. Generates property tests. Runs tests (simulated).
+-- If fail: analyze, rewrite, retest. If pass: generate proof sketch.
+-- Oracle validates proof. Assembles proof-carrying certificate.
+--
+-- Demonstrates Cell's killer pattern: LLM generates (NP), verifier checks (P).
+--
+-- v0.2 changes from R16:
+--   - ⊨? at file scope (v0.2 scope rules — default recovery for all cells)
+--   - ⊢∘-managed cell oracles on generate-code are aspirational (v0.2 clarification)
+--   - Guard clauses on analyze-failures, rewrite-code (conditional on fail-count)
+--   - Guard clauses on proof-certificate: dispatches high/medium/low confidence
+--   - ⊢= expression language validated — verify-proof uses only v0.2 primitives
+--     (R16 used undefined proof-covers(), missing-from(), has-loop-invariant() etc.
+--      These are semantic judgments, not deterministic — moved to soft ∴ cell)
+--   - verify-proof split: structural checks stay ⊢= (crystallized), semantic
+--     checks moved to verify-proof-semantic (soft cell, honest about needing LLM)
+--   - ⊢⊢ explicit accumulate/replace not needed (no spawners in this program)
+--   - given? on analyze-failures for optional failure context in first pass
+--   - ⊢∘ oracles on generate-code are aspirational (loop drives improvement)
+
+⊨? on failure:
+  retry with «oracle.failures» appended to prompt
+  max 3 attempts
+
+⊨? on exhaustion:
+  partial-accept(best)
+
+⊢ spec
+  given description ≡ "binary search on sorted array, returns index or -1"
+  given signature ≡ "binary_search(arr: int[], target: int) -> int"
+  given preconditions ≡ "arr is sorted in ascending order, no duplicates"
+  yield description, signature, preconditions
+
+  ⊨ description specifies the algorithm, input, and output
+  ⊨ signature has typed parameters and return type
+  ⊨ preconditions constrain the input space
+
+⊢ generate-code
+  given spec→description
+  given spec→signature
+  given spec→preconditions
+  yield §implementation, code-text
+
+  ∴ Write a correct implementation of «spec→signature» that satisfies:
+    «spec→description»
+    Preconditions: «spec→preconditions»
+
+    Use a standard binary search algorithm. Return the 0-based index of
+    «target» in «arr», or -1 if not found. The implementation must:
+    - Use integer midpoint calculation that avoids overflow
+    - Maintain loop invariant: target is in arr[lo..hi] if present
+    - Terminate when lo > hi (not found) or arr[mid] == target (found)
+
+    Output the code as a Cell ⊢= expression.
+
+  -- v0.2: aspirational under ⊢∘ management — feedback signals, not hard gates
+  ⊨ code-text contains a loop or recursive structure
+  ⊨ code-text returns -1 for not-found case
+  ⊨ code-text uses integer division for midpoint
+
+⊢ generate-property-tests
+  given spec→signature
+  given spec→preconditions
+  given spec→description
+  yield test-cases[], properties[]
+
+  ∴ Generate property-based test cases for «spec→signature».
+
+    Properties to test:
+    1. Found element: if target in arr, result is its index
+    2. Not found: if target not in arr, result is -1
+    3. Boundary: target at first position, last position
+    4. Single element: array of size 1
+    5. Empty array: result must be -1
+    6. Midpoint correctness: target at exact midpoint
+
+    For each property, generate 2-3 concrete test cases with
+    { input-arr, input-target, expected-output }.
+
+  ⊨ len(test-cases) >= 10
+  ⊨ properties covers found, not-found, boundary, and edge cases
+  ⊨ each test-case has input-arr (sorted), input-target, and expected-output
+
+⊢ run-tests
+  given generate-code→code-text
+  given generate-property-tests→test-cases
+  yield results[], pass-count, fail-count, failure-details[]
+
+  ∴ Simulate executing «generate-code→code-text» on each test case
+    in «generate-property-tests→test-cases». For each test:
+    - Trace through the code with the given inputs
+    - Record the actual output
+    - Compare to expected-output
+    - If mismatch: record the failure with step-by-step trace showing
+      where the code diverged from expected behavior
+
+  ⊨ len(results) = len(generate-property-tests→test-cases)
+  ⊨ pass-count + fail-count = len(results)
+  ⊨ if fail-count > 0 then len(failure-details) = fail-count
+
+⊢ analyze-failures
+  given run-tests→fail-count where fail-count > 0
+  given run-tests→failure-details
+  given generate-code→code-text
+  yield diagnosis, bug-category, fix-strategy
+
+  ∴ Analyze «run-tests→failure-details» against
+    «generate-code→code-text». For each failure:
+    - Identify the root cause (off-by-one, wrong comparison, overflow, etc.)
+    - Categorize the bug
+    - Propose a specific fix (which line, what change)
+
+  ⊨ fix-strategy describes a concrete code change
+  ⊨ bug-category ∈ {"off-by-one", "wrong-comparison", "overflow", "logic-error", "boundary-error"}
+
+⊢ skip-analysis
+  given run-tests→fail-count where fail-count = 0
+  yield diagnosis, bug-category, fix-strategy
+
+  ⊢= diagnosis ← "all tests pass"
+  ⊢= bug-category ← "none"
+  ⊢= fix-strategy ← "none"
+
+⊢ rewrite-code
+  given analyze-failures→fix-strategy where fix-strategy != "none"
+  given analyze-failures→diagnosis
+  given generate-code→code-text
+  given run-tests→failure-details
+  yield §implementation', code-text', changed-lines[]
+
+  ∴ Apply «analyze-failures→fix-strategy» to
+    «generate-code→code-text». Rewrite only the lines that need fixing.
+    Record which lines changed and why.
+
+    The rewritten code must preserve the function signature and
+    overall structure. Only fix what's broken.
+
+  ⊨ §implementation' has same given/yield signature as §generate-code
+  ⊨ len(changed-lines) >= 1
+
+⊢ skip-rewrite
+  given skip-analysis→fix-strategy where fix-strategy = "none"
+  given generate-code→code-text
+  yield §implementation', code-text', changed-lines[]
+
+  ⊢= code-text' ← generate-code→code-text
+  ⊢= changed-lines ← []
+
+  ⊨ code-text' = generate-code→code-text
+
+⊢∘ evolve(generate-code, spec→description ≡ spec→description)
+  through run-tests, analyze-failures, rewrite-code
+  until run-tests→fail-count = 0
+  max 3
+
+  -- Each iteration: generate code -> run tests -> analyze failures ->
+  -- rewrite code. The rewritten code replaces generate-code's output,
+  -- then tests re-run on the new version.
+  --
+  -- Interface frozen: generate-code always takes spec→description and
+  -- yields §implementation + code-text. Only the implementation evolves.
+  --
+  -- Termination: when all tests pass (fail-count = 0) or max 3 iterations.
+  --
+  -- v0.2: oracles on generate-code are ASPIRATIONAL while under ⊢∘
+  -- management — they provide feedback but do not independently block
+  -- freezing. The until condition is the actual convergence gate.
+
+⊢ generate-proof-sketch
+  given rewrite-code→code-text'
+  given generate-property-tests→properties
+  given spec→preconditions
+  yield proof-sketch, invariants[], termination-argument
+
+  ∴ Given the verified code «rewrite-code→code-text'» that passes all tests,
+    generate a formal proof sketch establishing correctness.
+
+    The proof must address:
+    1. **Loop invariant**: State the invariant maintained at each iteration.
+       (e.g., "if target is in arr, then arr[lo] <= target <= arr[hi]")
+    2. **Termination**: Prove the loop terminates.
+       (e.g., "hi - lo decreases by at least 1 each iteration, bounded below by -1")
+    3. **Postcondition (found)**: If arr[mid] = target, then result = mid is correct.
+    4. **Postcondition (not found)**: If lo > hi, then target is not in arr[lo0..hi0].
+    5. **Precondition usage**: Where does the proof rely on arr being sorted?
+
+    Express each step as a logical proposition with justification.
+
+  ⊨ proof-sketch contains at least 4 logical steps
+  ⊨ invariants includes a loop invariant referencing lo, hi, and target
+  ⊨ termination-argument identifies a decreasing quantity bounded below
+
+⊢ verify-proof-structural ▸ crystallized
+  given generate-proof-sketch→proof-sketch
+  given generate-proof-sketch→invariants
+  given generate-proof-sketch→termination-argument
+  yield has-invariant, has-termination, invariant-refs-vars, step-count
+
+  -- v0.2: ⊢= uses only defined primitives (string ops, comparison, list ops)
+  -- R16's verify-proof used undefined functions like proof-covers(),
+  -- missing-from(), has-loop-invariant() — semantic judgments masquerading
+  -- as deterministic code. Split into structural (⊢=) and semantic (∴).
+
+  ⊢= has-invariant ← len(invariants) >= 1
+  ⊢= invariant-refs-vars ← all(invariants, fn(inv) ->
+    contains(inv, "lo") and contains(inv, "hi") and contains(inv, "target"))
+  ⊢= has-termination ← contains(termination-argument, "decrease") or
+    contains(termination-argument, "decreasing") or
+    contains(termination-argument, "bounded")
+  ⊢= step-count ← len(split(proof-sketch, "Proposition"))
+
+  ⊨ has-invariant = true
+  ⊨ invariant-refs-vars = true
+  ⊨ step-count >= 4
+
+⊢ verify-proof-semantic
+  given generate-proof-sketch→proof-sketch
+  given generate-proof-sketch→invariants
+  given generate-proof-sketch→termination-argument
+  given rewrite-code→code-text'
+  yield proof-valid, gaps[], verdict
+
+  ∴ Evaluate the proof sketch «generate-proof-sketch→proof-sketch» for
+    logical completeness and correctness against the code «rewrite-code→code-text'».
+
+    Check whether the proof covers:
+    1. Loop invariant (references lo, hi, target; preserved by each iteration)
+    2. Termination (decreasing quantity with lower bound)
+    3. Found-case postcondition (arr[mid] = target implies result = mid)
+    4. Not-found-case postcondition (lo > hi implies target not in arr)
+    5. Precondition usage (proof relies on arr being sorted)
+
+    Set proof-valid to true if the proof addresses all 5 points with
+    sound reasoning. List any gaps (missing or incomplete arguments).
+
+    verdict:
+    - "proof complete" if proof-valid and no gaps
+    - "proof valid with minor gaps" if proof-valid and 1 gap
+    - "proof incomplete" if not proof-valid or 2+ gaps
+
+  ⊨ verdict ∈ {"proof complete", "proof valid with minor gaps", "proof incomplete"}
+  ⊨ if proof-valid then len(gaps) <= 1
+  ⊨ if not proof-valid then len(gaps) >= 2
+
+⊢ proof-certificate-high
+  given verify-proof-semantic→verdict where verdict = "proof complete"
+  given verify-proof-semantic→proof-valid
+  given verify-proof-semantic→gaps
+  given verify-proof-structural→has-invariant
+  given verify-proof-structural→has-termination
+  given generate-proof-sketch→proof-sketch
+  given rewrite-code→code-text'
+  given run-tests→pass-count
+  yield certificate, confidence-level
+
+  ∴ Assemble a proof-carrying certificate for «rewrite-code→code-text'»:
+
+    Certificate contains:
+    1. The verified code
+    2. The proof sketch
+    3. Test results summary (all «run-tests→pass-count» tests passing)
+    4. Proof verification verdict: «verify-proof-semantic→verdict»
+    5. Structural checks: invariant present («verify-proof-structural→has-invariant»),
+       termination argument present («verify-proof-structural→has-termination»)
+
+    Confidence level: "high" — verdict is "proof complete" and all tests pass.
+
+    This certificate is the DELIVERABLE: code + evidence of correctness.
+    The LLM generated the code (NP). The crystallized verifier checked
+    structural properties (P). The semantic verifier checked logical
+    soundness. The tests provide empirical evidence. Together they form
+    a proof-carrying computation.
+
+  ⊢= confidence-level ← "high"
+
+  ⊨ certificate includes code, proof, test-count, and verdict
+  ⊨ confidence-level = "high"
+
+⊢ proof-certificate-medium
+  given verify-proof-semantic→verdict where verdict = "proof valid with minor gaps"
+  given verify-proof-semantic→proof-valid
+  given verify-proof-semantic→gaps
+  given verify-proof-structural→has-invariant
+  given verify-proof-structural→has-termination
+  given generate-proof-sketch→proof-sketch
+  given rewrite-code→code-text'
+  given run-tests→pass-count
+  yield certificate, confidence-level
+
+  ∴ Assemble a proof-carrying certificate for «rewrite-code→code-text'».
+
+    Certificate contains:
+    1. The verified code
+    2. The proof sketch
+    3. Test results summary (all «run-tests→pass-count» tests passing)
+    4. Proof verification verdict: «verify-proof-semantic→verdict»
+    5. Any remaining gaps: «verify-proof-semantic→gaps»
+
+    Confidence level: "medium" — proof is valid but has minor gaps.
+
+  ⊢= confidence-level ← "medium"
+
+  ⊨ certificate includes code, proof, test-count, and verdict
+  ⊨ confidence-level = "medium"
+
+⊢ proof-certificate-low
+  given verify-proof-semantic→verdict where verdict = "proof incomplete"
+  given verify-proof-semantic→proof-valid
+  given verify-proof-semantic→gaps
+  given generate-proof-sketch→proof-sketch
+  given rewrite-code→code-text'
+  given run-tests→pass-count
+  yield certificate, confidence-level
+
+  ∴ Assemble a proof-carrying certificate for «rewrite-code→code-text'».
+    The proof is incomplete. The certificate documents what was achieved
+    and what remains to be proven.
+
+    Certificate contains:
+    1. The verified code (tests pass, but proof is lacking)
+    2. The proof sketch (incomplete)
+    3. Test results summary
+    4. Proof verification verdict: «verify-proof-semantic→verdict»
+    5. Gaps requiring further work: «verify-proof-semantic→gaps»
+
+    Confidence level: "low" — proof incomplete despite tests passing.
+
+  ⊢= confidence-level ← "low"
+
+  ⊨ certificate includes code, proof, test-count, and verdict
+  ⊨ confidence-level = "low"

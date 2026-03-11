@@ -1,0 +1,462 @@
+-- 21-self-correcting-translator-frames.cell — full eval-one execution trace
+--
+-- Ready set analysis:
+--   source: ⊢= data cell, all yields determined by body → READY
+--   translate: needs source→text → BLOCKED
+--   back-translate: needs translate→spanish-text → BLOCKED
+--   diff: needs source→text, back-translate→english-text → BLOCKED
+--   correct: needs translate→spanish-text, diff→drifted-segments,
+--            diff→acceptable (where false), source→text → BLOCKED
+--   accept-unchanged: needs translate→spanish-text,
+--                     diff→acceptable (where true) → BLOCKED
+--
+-- Ready set: { source }
+-- Pre-loop chain: source → translate (⊢∘ target)
+-- ⊢∘ refine loop: translate → back-translate → diff → correct (max 5 iterations)
+-- Guard-gated exit: correct (where acceptable=false) XOR accept-unchanged (where acceptable=true)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 0: source
+-- ═══════════════════════════════════════════════════════════════
+
+-- source is a ⊢= data cell — deterministic. Freezes immediately.
+
+⊢ source
+  yield text ≡ "Cell is a self-bootstrapping metacircular language for LLMs. Programs are documents. Execution fills in values. The document IS the program IS the state. Cells start as natural language (soft) and progressively crystallize into deterministic code (hard) under oracle pressure. Cell is the Scheme of LLMs."
+
+-- No oracles on source. Pure data cell.
+
+-- Ready set after frame 0: { translate }
+-- source→text is frozen. ⊢∘ refine loop begins with translate as target.
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ refine — ITERATION 0
+-- ═══════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 1: translate (iteration 0)
+-- ═══════════════════════════════════════════════════════════════
+
+-- translate is ⊢ (soft), managed by ⊢∘ refine. Its oracles are ASPIRATIONAL
+-- per v0.2 — they provide feedback but do not independently block freezing.
+-- The ⊢∘ until condition (diff→acceptable = true) is the actual gate.
+
+⊢ translate
+  given source→text ≡ "Cell is a self-bootstrapping metacircular language for LLMs. Programs are documents. Execution fills in values. The document IS the program IS the state. Cells start as natural language (soft) and progressively crystallize into deterministic code (hard) under oracle pressure. Cell is the Scheme of LLMs."
+  yield spanish-text
+
+  ∴ Translate «source→text» into Spanish. Preserve all technical terms
+    (metacircular, oracle, crystallize, LLM) in their original English form
+    or with standard Spanish computing equivalents. Maintain the rhetorical
+    structure and emphasis of the original. Do not add or remove ideas.
+
+-- LLM evaluation:
+-- The source has 6 sentences. The LLM translates each, preserving technical
+-- terms in English where no standard Spanish equivalent exists.
+-- Note: "metacircular" has no standard Spanish computing equivalent.
+-- "Oracle" → "oracle" (same in computing Spanish). "Crystallize" → "cristalizar".
+-- "LLM" stays as "LLM". "Scheme" stays as "Scheme" (proper noun).
+
+  yield spanish-text ≡ "Cell es un lenguaje metacircular auto-bootstrapping para LLMs. Los programas son documentos. La ejecución completa los valores. El documento ES el programa ES el estado. Las celdas comienzan como lenguaje natural (soft) y progresivamente se cristalizan en código determinista (hard) bajo presión de oracle. Cell es el Scheme de los LLMs."
+
+-- oracle checks (ASPIRATIONAL — ⊢∘-managed cell):
+--   ⊨ spanish-text is entirely in Spanish (except technical terms)
+--     → ✓ (Spanish prose with preserved terms: metacircular, bootstrapping, LLM, oracle, Scheme)
+--   ⊨ spanish-text has the same number of sentences as source→text
+--     → ✓ (6 sentences in source, 6 sentences in translation)
+--   ⊨ "metacircular" appears in spanish-text
+--     → ✓ ("metacircular" present in first sentence)
+--
+-- All aspirational oracles pass. Cell freezes under ⊢∘ management.
+-- NOTE: Even if an aspirational oracle failed, translate would still freeze.
+-- The failure message would feed into the through chain as context.
+
+-- Ready set after frame 1: { back-translate }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 2: back-translate (iteration 0)
+-- ═══════════════════════════════════════════════════════════════
+
+-- back-translate is ⊢ (soft). It receives ONLY the Spanish text — it has
+-- no access to the original English. This is the blind back-translation
+-- that tests whether meaning survived the round-trip.
+
+⊢ back-translate
+  given translate→spanish-text ≡ "Cell es un lenguaje metacircular auto-bootstrapping para LLMs. Los programas son documentos. La ejecución completa los valores. El documento ES el programa ES el estado. Las celdas comienzan como lenguaje natural (soft) y progresivamente se cristalizan en código determinista (hard) bajo presión de oracle. Cell es el Scheme de los LLMs."
+  yield english-text
+
+  ∴ Translate «translate→spanish-text» back into English. You have NO access
+    to the original text — translate only from the Spanish. Aim for natural
+    English, not word-for-word calque. Preserve technical terms exactly.
+
+-- LLM evaluation:
+-- The LLM translates back from Spanish. Key drift risks:
+-- 1. "auto-bootstrapping" was carried over as English loan — back-translates
+--    directly. Should be "self-bootstrapping" but LLM may not recover this.
+-- 2. "completa los valores" → "completes the values" vs original "fills in values"
+-- 3. "Las celdas" → "The cells" but original said "Cells" (no article)
+-- 4. "bajo presión de oracle" → "under oracle pressure" — this one survives.
+-- 5. "Cell es el Scheme de los LLMs" → "Cell is the Scheme of LLMs" — survives.
+
+  yield english-text ≡ "Cell is a metacircular auto-bootstrapping language for LLMs. Programs are documents. Execution completes the values. The document IS the program IS the state. The cells begin as natural language (soft) and progressively crystallize into deterministic code (hard) under oracle pressure. Cell is the Scheme of LLMs."
+
+-- oracle checks:
+--   ⊨ english-text is entirely in English → ✓
+--   ⊨ english-text has the same number of sentences as translate→spanish-text
+--     → ✓ (6 sentences)
+
+-- Ready set after frame 2: { diff }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 3: diff (iteration 0)
+-- ═══════════════════════════════════════════════════════════════
+
+-- diff compares original against back-translation, sentence by sentence.
+-- This is the semantic comparison oracle — it identifies meaning drift.
+
+⊢ diff
+  given source→text ≡ "Cell is a self-bootstrapping metacircular language for LLMs. Programs are documents. Execution fills in values. The document IS the program IS the state. Cells start as natural language (soft) and progressively crystallize into deterministic code (hard) under oracle pressure. Cell is the Scheme of LLMs."
+  given back-translate→english-text ≡ "Cell is a metacircular auto-bootstrapping language for LLMs. Programs are documents. Execution completes the values. The document IS the program IS the state. The cells begin as natural language (soft) and progressively crystallize into deterministic code (hard) under oracle pressure. Cell is the Scheme of LLMs."
+  yield drifted-segments[], drift-score, acceptable
+
+  ∴ Compare «source→text» against «back-translate→english-text» sentence by
+    sentence. For each sentence pair, identify semantic drift — meaning that
+    changed, was lost, or was added during the round-trip. Score overall
+    drift 0-10 where 0 = perfect preservation, 10 = total meaning loss.
+    A segment is "drifted" if it changes the meaning an implementor would
+    extract. Set acceptable = true if drift-score ≤ 1.
+
+-- LLM evaluation:
+-- Sentence-by-sentence comparison:
+--
+-- S1 original:  "Cell is a self-bootstrapping metacircular language for LLMs."
+-- S1 back:      "Cell is a metacircular auto-bootstrapping language for LLMs."
+--   Drift: Word order changed (metacircular moved before bootstrapping).
+--          "self-bootstrapping" → "auto-bootstrapping" (semantic equivalent
+--          but different term). An implementor might search for "self-bootstrapping"
+--          and miss it. DRIFTED — term change.
+--
+-- S2 original:  "Programs are documents."
+-- S2 back:      "Programs are documents."
+--   Drift: None. Identical. OK.
+--
+-- S3 original:  "Execution fills in values."
+-- S3 back:      "Execution completes the values."
+--   Drift: "fills in" → "completes" — different verb, different connotation.
+--          "fills in" implies blanks being populated (which IS the Cell model).
+--          "completes" implies finishing something. Subtle but real drift.
+--          Also "values" → "the values" (added article). DRIFTED — verb change
+--          loses the "fill in blanks" metaphor.
+--
+-- S4 original:  "The document IS the program IS the state."
+-- S4 back:      "The document IS the program IS the state."
+--   Drift: None. Identical. OK.
+--
+-- S5 original:  "Cells start as natural language (soft) and progressively crystallize into deterministic code (hard) under oracle pressure."
+-- S5 back:      "The cells begin as natural language (soft) and progressively crystallize into deterministic code (hard) under oracle pressure."
+--   Drift: "Cells start" → "The cells begin" — minor (article added, verb synonym).
+--          "start" and "begin" are semantic equivalents. The article is stylistic.
+--          Not meaning-changing. OK.
+--
+-- S6 original:  "Cell is the Scheme of LLMs."
+-- S6 back:      "Cell is the Scheme of LLMs."
+--   Drift: None. Identical. OK.
+--
+-- Overall: 2 drifted segments (S1, S3). S1 changes a technical term.
+-- S3 loses a metaphor. Drift-score = 3 (two meaning-affecting changes,
+-- one of which alters a key technical term).
+
+  yield drifted-segments ≡ [
+    {original: "Cell is a self-bootstrapping metacircular language for LLMs.", back: "Cell is a metacircular auto-bootstrapping language for LLMs.", drift: "Term 'self-bootstrapping' replaced with 'auto-bootstrapping' and word order changed. An implementor searching for 'self-bootstrapping' would miss this. The term is a core identity marker of the language."},
+    {original: "Execution fills in values.", back: "Execution completes the values.", drift: "Verb 'fills in' replaced with 'completes'. The original metaphor — blanks being populated — is the Cell execution model (eval-one fills yield slots). 'Completes' loses this specific connotation."}
+  ]
+  yield drift-score ≡ 3
+  yield acceptable ≡ false
+
+-- oracle checks:
+--   ⊨ drift-score ∈ {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10} → ✓ (3)
+--   ⊨ if drift-score = 0 then drifted-segments is empty
+--     → precondition false (drift-score = 3) → vacuously ✓ [v0.2 conditional oracle rule]
+--   ⊨ if drift-score ≤ 1 then acceptable = true
+--     → precondition false (drift-score = 3) → vacuously ✓
+--   ⊨ if drift-score > 1 then acceptable = false
+--     → precondition true (3 > 1), acceptable = false → ✓
+
+-- Ready set after frame 3: { correct, accept-unchanged }
+-- Guard evaluation:
+--   correct: given diff→acceptable where acceptable = false
+--     → acceptable ≡ false, guard true → ENTERS READY SET
+--   accept-unchanged: given diff→acceptable where acceptable = true
+--     → acceptable ≡ false, guard false → SKIPPED
+--     → accept-unchanged yields become ⊥
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 4: correct (iteration 0)
+-- ═══════════════════════════════════════════════════════════════
+
+-- correct fires because diff→acceptable = false (guard passes).
+-- accept-unchanged is skipped — its yields are ⊥.
+
+⊢ correct
+  given translate→spanish-text ≡ "Cell es un lenguaje metacircular auto-bootstrapping para LLMs. Los programas son documentos. La ejecución completa los valores. El documento ES el programa ES el estado. Las celdas comienzan como lenguaje natural (soft) y progresivamente se cristalizan en código determinista (hard) bajo presión de oracle. Cell es el Scheme de los LLMs."
+  given diff→drifted-segments ≡ [
+    {original: "Cell is a self-bootstrapping metacircular language for LLMs.", back: "Cell is a metacircular auto-bootstrapping language for LLMs.", drift: "Term 'self-bootstrapping' replaced with 'auto-bootstrapping' and word order changed."},
+    {original: "Execution fills in values.", back: "Execution completes the values.", drift: "Verb 'fills in' replaced with 'completes'. Loses the blank-filling metaphor."}
+  ]
+  given diff→acceptable ≡ false
+  given source→text ≡ "Cell is a self-bootstrapping metacircular language for LLMs. Programs are documents. Execution fills in values. The document IS the program IS the state. Cells start as natural language (soft) and progressively crystallize into deterministic code (hard) under oracle pressure. Cell is the Scheme of LLMs."
+  yield corrected-spanish, changed-count
+
+  ∴ For each segment in «diff→drifted-segments», retranslate ONLY that
+    segment from «source→text» into Spanish, replacing the corresponding
+    segment in «translate→spanish-text». Preserve segments that did NOT
+    drift. Set changed-count to the number of segments replaced.
+
+-- LLM evaluation:
+-- Two drifted segments to fix:
+--
+-- S1: "Cell is a self-bootstrapping metacircular language for LLMs."
+--   Original Spanish: "Cell es un lenguaje metacircular auto-bootstrapping para LLMs."
+--   Problem: "auto-bootstrapping" should be "self-bootstrapping" (preserve exact term).
+--   Word order should keep "self-bootstrapping" before "metacircular" as in English.
+--   Retranslated: "Cell es un lenguaje self-bootstrapping metacircular para LLMs."
+--
+-- S3: "Execution fills in values."
+--   Original Spanish: "La ejecución completa los valores."
+--   Problem: "completa" → back-translates as "completes" not "fills in".
+--   "Fills in" = "rellena" or "llena" in Spanish (the blank-filling sense).
+--   Retranslated: "La ejecución rellena los valores."
+--
+-- Segments 2, 4, 5, 6 preserved unchanged.
+
+  yield corrected-spanish ≡ "Cell es un lenguaje self-bootstrapping metacircular para LLMs. Los programas son documentos. La ejecución rellena los valores. El documento ES el programa ES el estado. Las celdas comienzan como lenguaje natural (soft) y progresivamente se cristalizan en código determinista (hard) bajo presión de oracle. Cell es el Scheme de los LLMs."
+  yield changed-count ≡ 2
+
+-- oracle checks:
+--   ⊨ changed-count > 0 → ✓ (2 > 0)
+--   ⊨ corrected-spanish is in Spanish (except technical terms) → ✓
+
+-- ⊢∘ refine: check until condition
+-- diff→acceptable = false → condition NOT met → ITERATE (1 of max 5)
+--
+-- The corrected-spanish feeds back into translate→spanish-text for the
+-- next iteration. ⊢∘ rewrites translate's frozen yield with corrected-spanish.
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ refine — ITERATION 1
+-- ═══════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 5: translate (iteration 1)
+-- ═══════════════════════════════════════════════════════════════
+
+-- translate is re-evaluated by ⊢∘ refine. The corrected Spanish from
+-- iteration 0 replaces the previous output. In the ⊢∘ model, the target
+-- cell is rewritten with feedback from the through chain.
+
+⊢ translate
+  given source→text ≡ "Cell is a self-bootstrapping metacircular language for LLMs. Programs are documents. Execution fills in values. The document IS the program IS the state. Cells start as natural language (soft) and progressively crystallize into deterministic code (hard) under oracle pressure. Cell is the Scheme of LLMs."
+  yield spanish-text
+
+  ∴ Translate «source→text» into Spanish. Preserve all technical terms
+    (metacircular, oracle, crystallize, LLM) in their original English form
+    or with standard Spanish computing equivalents. Maintain the rhetorical
+    structure and emphasis of the original. Do not add or remove ideas.
+
+-- LLM re-evaluation with correction context from iteration 0:
+-- The ⊢∘ loop feeds correct→corrected-spanish as context. The LLM
+-- now knows the previous translation drifted on "self-bootstrapping"
+-- and "fills in". It uses the corrected version as a starting point.
+
+  yield spanish-text ≡ "Cell es un lenguaje self-bootstrapping metacircular para LLMs. Los programas son documentos. La ejecución rellena los valores. El documento ES el programa ES el estado. Las celdas comienzan como lenguaje natural (soft) y progresivamente se cristalizan en código determinista (hard) bajo presión de oracle. Cell es el Scheme de los LLMs."
+
+-- oracle checks (ASPIRATIONAL):
+--   ⊨ spanish-text is entirely in Spanish (except technical terms) → ✓
+--   ⊨ spanish-text has the same number of sentences as source→text → ✓ (6)
+--   ⊨ "metacircular" appears in spanish-text → ✓
+
+-- Ready set after frame 5: { back-translate }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 6: back-translate (iteration 1)
+-- ═══════════════════════════════════════════════════════════════
+
+-- back-translate receives the corrected Spanish. The key question:
+-- do the fixes survive the round-trip?
+
+⊢ back-translate
+  given translate→spanish-text ≡ "Cell es un lenguaje self-bootstrapping metacircular para LLMs. Los programas son documentos. La ejecución rellena los valores. El documento ES el programa ES el estado. Las celdas comienzan como lenguaje natural (soft) y progresivamente se cristalizan en código determinista (hard) bajo presión de oracle. Cell es el Scheme de los LLMs."
+  yield english-text
+
+  ∴ Translate «translate→spanish-text» back into English. You have NO access
+    to the original text — translate only from the Spanish. Aim for natural
+    English, not word-for-word calque. Preserve technical terms exactly.
+
+-- LLM evaluation:
+-- "self-bootstrapping" now appears directly in the Spanish → back-translates
+--   directly as "self-bootstrapping". FIX CONFIRMED.
+-- "rellena los valores" → "fills in the values" or "fills the values".
+--   The LLM chooses "fills in the values" — close but has extra article "the".
+--   This is a minor stylistic difference, not semantic drift.
+-- "Las celdas comienzan" → "The cells begin" or "Cells begin".
+--   The LLM produces "Cells begin" this time (no article). Closer to original.
+
+  yield english-text ≡ "Cell is a self-bootstrapping metacircular language for LLMs. Programs are documents. Execution fills in the values. The document IS the program IS the state. Cells begin as natural language (soft) and progressively crystallize into deterministic code (hard) under oracle pressure. Cell is the Scheme of LLMs."
+
+-- oracle checks:
+--   ⊨ english-text is entirely in English → ✓
+--   ⊨ english-text has the same number of sentences as translate→spanish-text → ✓ (6)
+
+-- Ready set after frame 6: { diff }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 7: diff (iteration 1)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ diff
+  given source→text ≡ "Cell is a self-bootstrapping metacircular language for LLMs. Programs are documents. Execution fills in values. The document IS the program IS the state. Cells start as natural language (soft) and progressively crystallize into deterministic code (hard) under oracle pressure. Cell is the Scheme of LLMs."
+  given back-translate→english-text ≡ "Cell is a self-bootstrapping metacircular language for LLMs. Programs are documents. Execution fills in the values. The document IS the program IS the state. Cells begin as natural language (soft) and progressively crystallize into deterministic code (hard) under oracle pressure. Cell is the Scheme of LLMs."
+  yield drifted-segments[], drift-score, acceptable
+
+  ∴ Compare «source→text» against «back-translate→english-text» sentence by
+    sentence.
+
+-- LLM evaluation:
+-- Sentence-by-sentence comparison:
+--
+-- S1 original:  "Cell is a self-bootstrapping metacircular language for LLMs."
+-- S1 back:      "Cell is a self-bootstrapping metacircular language for LLMs."
+--   Drift: None. Identical. The iteration 0 fix for "auto-bootstrapping" HELD.
+--
+-- S2: Identical. OK.
+--
+-- S3 original:  "Execution fills in values."
+-- S3 back:      "Execution fills in the values."
+--   Drift: Added article "the". Stylistic only — "fills in values" vs
+--   "fills in the values" doesn't change the meaning an implementor would
+--   extract. Both mean "execution populates values." NOT semantically drifted.
+--
+-- S4: Identical. OK.
+--
+-- S5 original:  "Cells start as natural language..."
+-- S5 back:      "Cells begin as natural language..."
+--   Drift: "start" → "begin". Perfect synonyms. No semantic drift.
+--
+-- S6: Identical. OK.
+--
+-- No sentences have meaningful semantic drift. The round-trip preserves
+-- all implementor-relevant meaning. Drift-score = 1 (minor stylistic
+-- differences exist but no meaning change).
+
+  yield drifted-segments ≡ []
+  yield drift-score ≡ 1
+  yield acceptable ≡ true
+
+-- oracle checks:
+--   ⊨ drift-score ∈ {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10} → ✓ (1)
+--   ⊨ if drift-score = 0 then drifted-segments is empty
+--     → precondition false (drift-score = 1) → vacuously ✓
+--   ⊨ if drift-score ≤ 1 then acceptable = true
+--     → precondition true (1 ≤ 1), acceptable = true → ✓
+--   ⊨ if drift-score > 1 then acceptable = false
+--     → precondition false (1 > 1 is false) → vacuously ✓
+
+-- Ready set after frame 7: { correct, accept-unchanged }
+-- Guard evaluation:
+--   correct: given diff→acceptable where acceptable = false
+--     → acceptable ≡ true, guard false → SKIPPED
+--     → correct yields become ⊥
+--   accept-unchanged: given diff→acceptable where acceptable = true
+--     → acceptable ≡ true, guard true → ENTERS READY SET
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 8: accept-unchanged (iteration 1)
+-- ═══════════════════════════════════════════════════════════════
+
+-- accept-unchanged fires because diff→acceptable = true.
+-- correct is skipped — its yields are ⊥.
+-- This is a ⊢= cell — deterministic, no LLM needed.
+
+⊢ accept-unchanged
+  given translate→spanish-text ≡ "Cell es un lenguaje self-bootstrapping metacircular para LLMs. Los programas son documentos. La ejecución rellena los valores. El documento ES el programa ES el estado. Las celdas comienzan como lenguaje natural (soft) y progresivamente se cristalizan en código determinista (hard) bajo presión de oracle. Cell es el Scheme de los LLMs."
+  given diff→acceptable ≡ true
+  yield corrected-spanish, changed-count
+
+  ⊢= corrected-spanish ← "Cell es un lenguaje self-bootstrapping metacircular para LLMs. Los programas son documentos. La ejecución rellena los valores. El documento ES el programa ES el estado. Las celdas comienzan como lenguaje natural (soft) y progresivamente se cristalizan en código determinista (hard) bajo presión de oracle. Cell es el Scheme de los LLMs."
+  ⊢= changed-count ← 0
+
+  yield corrected-spanish ≡ "Cell es un lenguaje self-bootstrapping metacircular para LLMs. Los programas son documentos. La ejecución rellena los valores. El documento ES el programa ES el estado. Las celdas comienzan como lenguaje natural (soft) y progresivamente se cristalizan en código determinista (hard) bajo presión de oracle. Cell es el Scheme de los LLMs."
+  yield changed-count ≡ 0
+
+-- No oracle checks — ⊢= cells are deterministic. Output matches expression.
+
+-- ⊢∘ refine: check until condition
+-- diff→acceptable = true → condition MET → EXIT LOOP
+-- Loop completed in 2 iterations (0 and 1).
+-- Iteration 0: drift-score 3, 2 drifted segments corrected.
+-- Iteration 1: drift-score 1, corrections held, acceptable.
+
+-- ═══════════════════════════════════════════════════════════════
+-- QUIESCENCE
+-- ═══════════════════════════════════════════════════════════════
+
+-- All cells frozen or skipped. No cell in the ready set. Program complete.
+--
+-- Frozen cells (8 total across iterations):
+--   source,
+--   translate (iter 1), back-translate (iter 1), diff (iter 1),
+--   correct (iter 0), accept-unchanged (iter 1)
+-- Skipped cells (2 — guard-gated, across iterations):
+--   accept-unchanged (iter 0, guard false → yields ⊥)
+--   correct (iter 1, guard false → yields ⊥)
+--
+-- 9 eval-one steps total (frames 0-8).
+-- ⊢∘ refine used 2 of 5 allowed iterations.
+-- Self-correction: iteration 0 found and fixed 2 semantic drifts.
+-- Iteration 1 confirmed the fixes held through the round-trip.
+
+-- ═══════════════════════════════════════════════════════════════
+-- OBSERVATIONS
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= obs-back-translation-as-verification
+  given §21-self-correcting-translator
+  yield observations
+
+  ⊢= observations ← "BACK-TRANSLATION IS A SEMANTIC DIFF ORACLE: The program uses no reference translation — it verifies quality by translating BACK to English and comparing against the original. This is proof-carrying computation applied to NL: the back-translation is the certificate, the diff cell is the verifier. The verifier (diff) is easier than the task (translate) — comparing two English texts for semantic equivalence is simpler than producing a correct Spanish translation. This is the P-vs-NP asymmetry Cell exploits: generate in NP space, verify in P space."
+
+⊢= obs-guard-clauses-replace-conditional-body
+  given §21-self-correcting-translator
+  yield observations
+
+  ⊢= observations ← "GUARD CLAUSES SPLIT R16's MONOLITHIC correct CELL: R16 had one correct cell with 'if acceptable then output unchanged, else retranslate.' v0.2 splits this into two guard-gated cells: correct (where acceptable=false) does retranslation, accept-unchanged (where acceptable=true) passes through unchanged. Only one fires per iteration. accept-unchanged is ⊢= (deterministic — just copies the input), while correct is ∴ (soft — needs LLM for retranslation). Guard clauses reveal that the 'pass-through' case never needed an LLM at all. R16 wasted an LLM call on 'output unchanged' — v0.2 eliminates this."
+
+⊢= obs-aspirational-oracles-in-loop
+  given §21-self-correcting-translator
+  yield observations
+
+  ⊢= observations ← "⊢∘-MANAGED ORACLES ARE ASPIRATIONAL, NOT GATES: translate's oracles (Spanish-only, same sentence count, metacircular present) all PASS in this trace, but under v0.2 they would not block freezing even if they failed. The ⊢∘ until condition (diff→acceptable = true) is the real gate. This matters for robustness: if translate's 'same sentence count' oracle failed (LLM merged two sentences), the loop would still iterate and diff would catch it. The aspirational oracles provide diagnostic information — their failure messages would appear in the through chain context — but they don't independently veto."
+
+⊢= obs-conditional-oracle-vacuous-satisfaction
+  given §21-self-correcting-translator
+  yield observations
+
+  ⊢= observations ← "CONDITIONAL ORACLE VACUOUS SATISFACTION IS LOAD-BEARING: diff has 4 oracles, 3 of which are conditional. In iteration 0 (drift-score=3): 'if drift-score=0 then segments empty' is vacuously satisfied (false→P is true). In iteration 1 (drift-score=1): 'if drift-score>1 then acceptable=false' is vacuously satisfied. Without the v0.2 vacuous-satisfaction rule, these oracles would be ambiguous — does a false precondition mean skip or fail? The spec's choice (standard logic: false→P is true) means conditional oracles never produce false negatives from irrelevant conditions."
+
+⊢= obs-convergence-in-two-iterations
+  given §21-self-correcting-translator
+  yield observations
+
+  ⊢= observations ← "TWO ITERATIONS IS REALISTIC FOR TRANSLATION CORRECTION: Iteration 0 found 2 drifted segments (self-bootstrapping→auto-bootstrapping, fills in→completes). The correct cell retranslated only those segments. Iteration 1 confirmed the fixes held: drift-score dropped from 3 to 1. The residual drift-score=1 reflects minor stylistic differences (start→begin, article variations) that don't affect implementor meaning. The ⊢∘ loop's tolerance (drift-score ≤ 1 is acceptable) prevents infinite polishing of irrelevant stylistic differences. This is the right convergence criterion: semantic fidelity, not surface-form identity."
+
+⊢= obs-file-scope-recovery-as-safety-net
+  given §21-self-correcting-translator
+  yield observations
+
+  ⊢= observations ← "FILE-SCOPE ⊨? PROVIDES DEFENSE IN DEPTH: The file-scope recovery policy (retry max 3, exhaustion → error-value(⊥)) applies to any cell without its own ⊨?. In this trace no cell's oracles fail outside the ⊢∘ loop, so the file-scope policy is never activated. But if diff's oracles failed (e.g., drift-score was outside 0-10), the file-scope ⊨? would retry diff up to 3 times before yielding ⊥ for all diff outputs. This would propagate ⊥ to both correct and accept-unchanged (blocking both via their given deps), effectively halting the ⊢∘ loop. R16 had per-cell ⊨? only on correct — v0.2 file-scope ⊨? covers ALL cells uniformly."
+
+⊢= obs-accept-unchanged-crystallization
+  given §21-self-correcting-translator
+  yield observations
+
+  ⊢= observations ← "accept-unchanged IS A CRYSTALLIZATION DISCOVERY: R16's correct cell handled both branches (pass-through and retranslation) in one ∴ body. Splitting via guard clauses revealed that the pass-through branch is FULLY DETERMINISTIC — it just copies translate→spanish-text. In v0.2 it becomes ⊢= (hard cell), needing no LLM at all. This is crystallization-by-refactoring: the act of applying v0.2 guard clauses exposed a latent deterministic computation hiding inside a soft cell. The retranslation branch (correct) remains soft — it genuinely needs LLM judgment to retranslate drifted segments."

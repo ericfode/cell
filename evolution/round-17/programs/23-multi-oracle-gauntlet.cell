@@ -1,0 +1,217 @@
+-- 23-multi-oracle-gauntlet.cell (R17, v0.2)
+-- Tests: ⊢∘ gauntlet loop, 5 independent parallel oracles, crystallized aggregator,
+--        targeted rewrite from failure reports, re-run ALL oracles on each revision,
+--        oracle-gated content generation, multi-dimensional quality checking,
+--        file-scope ⊨?, ⊢∘ aspirational oracles, ⊢= expression language audit
+--
+-- Generates an explanation of monads. Runs through 5 oracles:
+-- structural (format), semantic (accuracy), factual (truth),
+-- stylistic (accessible tone), logical (no circular reasoning).
+-- Any fail → targeted rewrite → re-run ALL. ⊢∘ loop until all pass.
+--
+-- v0.2 changes from R16:
+--   - Added file-scope ⊨? recovery policy (v0.2 blesses file-scope ⊨?)
+--   - Oracles on ⊢∘-managed explain cell are aspirational (v0.2 clarification)
+--   - ⊢∘ max 3→5 (more room for natural convergence, renamed refine→gauntlet-loop)
+--   - ⊢= expression language audited: collect() replaced with filter/map,
+--     concat() remains valid (v0.2 list primitive)
+--   - ⊢⊢ accumulate/replace not applicable (no spawners in this program)
+--   - guard clauses not applicable (no conditional dispatch needed)
+--   - given? not applicable (no ⊥-tolerant dependencies)
+--   - ⊢∘ oracles on explain are aspirational under ⊢∘ management
+
+⊨? on failure:
+  retry with «oracle.failures» appended to prompt
+  max 3 attempts
+⊨? on exhaustion:
+  partial-accept(best)
+
+⊢ topic
+  yield subject, audience
+
+  ⊢= subject ← "monads in functional programming"
+  ⊢= audience ← "intermediate programmers who know functions and types but not category theory"
+
+⊢ explain
+  given topic→subject
+  given topic→audience
+  yield explanation
+
+  ∴ Write a clear explanation of «topic→subject» for «topic→audience».
+
+    The explanation must:
+    - Start with a concrete analogy or example (not a definition)
+    - Define what a monad is (type constructor + return/bind operations)
+    - State the three monad laws in plain language
+    - Give at least 2 concrete examples (Maybe/Option, List)
+    - Show a short code snippet for at least one example
+    - End with why monads matter practically (composition of effectful computations)
+
+    Length: 300-500 words. Use markdown formatting.
+
+  -- v0.2: These oracles are aspirational under ⊢∘ management.
+  -- They serve as feedback signals for the gauntlet, not hard gates.
+  ⊨ explanation is between 300 and 500 words
+  ⊨ explanation contains at least 2 code examples or snippets
+
+⊢ oracle-structural
+  given explain→explanation
+  yield format-ok, format-issues[]
+
+  ∴ Check the FORMAT of «explain→explanation»:
+    1. Has an introductory paragraph with analogy or hook (not a bare definition)
+    2. Has a definition section explaining type constructor + return + bind
+    3. Has concrete examples (at least 2 different monads)
+    4. Has a code snippet
+    5. Has a conclusion about practical value
+
+    Set format-ok = true if all 5 structural elements are present.
+    List missing elements in format-issues.
+
+  ⊨ format-ok ∈ {true, false}
+  ⊨ if format-ok then format-issues is empty
+  ⊨ if not format-ok then len(format-issues) ≥ 1
+
+⊢ oracle-semantic
+  given explain→explanation
+  given topic→subject
+  yield accuracy-ok, accuracy-issues[]
+
+  ∴ Check the ACCURACY of «explain→explanation» regarding «topic→subject»:
+    1. Monad definition is correct (type constructor M, return: a → M a,
+       bind: M a → (a → M b) → M b)
+    2. Monad laws are correctly stated (left identity, right identity, associativity)
+    3. Examples correctly implement the monad interface
+    4. No confusion between monads and functors/applicatives
+
+    Set accuracy-ok = true if no semantic errors found.
+    List errors in accuracy-issues.
+
+  ⊨ accuracy-ok ∈ {true, false}
+  ⊨ if accuracy-ok then accuracy-issues is empty
+  ⊨ if not accuracy-ok then each issue in accuracy-issues identifies a specific error
+
+⊢ oracle-factual
+  given explain→explanation
+  yield factual-ok, factual-issues[]
+
+  ∴ Check the FACTUAL TRUTH of «explain→explanation»:
+    1. Haskell monads use >>= (bind) and return — verify if mentioned
+    2. Maybe/Option IS a monad — verify claim correctness
+    3. List IS a monad (bind = concatMap) — verify if discussed
+    4. Promises in JS are monad-like but violate laws — flag if claimed as exact monad
+    5. No false historical claims (monads from category theory, Moggi 1991, Wadler 1992)
+
+    Set factual-ok = true if no factual errors found.
+    List errors in factual-issues with corrections.
+
+  ⊨ factual-ok ∈ {true, false}
+  ⊨ if factual-ok then factual-issues is empty
+  ⊨ if not factual-ok then each issue in factual-issues includes a correction
+
+⊢ oracle-stylistic
+  given explain→explanation
+  given topic→audience
+  yield tone-ok, tone-issues[]
+
+  ∴ Check the STYLE of «explain→explanation» for «topic→audience»:
+    1. No unexplained jargon (if "endofunctor" appears, it must be defined)
+    2. Tone is conversational and accessible, not academic
+    3. Analogies bridge unfamiliar concepts to familiar ones
+    4. Sentence length varies (not all long, not all short)
+    5. Active voice preferred over passive
+
+    Set tone-ok = true if style is appropriate for the audience.
+    List style issues in tone-issues with suggestions.
+
+  ⊨ tone-ok ∈ {true, false}
+  ⊨ if tone-ok then tone-issues is empty
+  ⊨ if not tone-ok then each issue in tone-issues includes a suggestion
+
+⊢ oracle-logical
+  given explain→explanation
+  yield logic-ok, logic-issues[]
+
+  ∴ Check the LOGICAL COHERENCE of «explain→explanation»:
+    1. No circular definitions (does NOT define monads as "things that are monadic")
+    2. Examples follow from the definition (not introduced before the concept)
+    3. Each claim has support or is flagged as intuition
+    4. The three laws are presented as distinct (not conflated)
+    5. No contradictions between sections
+
+    Set logic-ok = true if no logical issues found.
+    List issues in logic-issues.
+
+  ⊨ logic-ok ∈ {true, false}
+  ⊨ if logic-ok then logic-issues is empty
+  ⊨ if not logic-ok then each issue in logic-issues identifies the contradiction or circularity
+
+⊢ gauntlet ▸ crystallized
+  given oracle-structural→format-ok
+  given oracle-semantic→accuracy-ok
+  given oracle-factual→factual-ok
+  given oracle-stylistic→tone-ok
+  given oracle-logical→logic-ok
+  given oracle-structural→format-issues
+  given oracle-semantic→accuracy-issues
+  given oracle-factual→factual-issues
+  given oracle-stylistic→tone-issues
+  given oracle-logical→logic-issues
+  yield all-pass, failure-report[], failed-oracles[]
+
+  -- v0.2: ⊢= expressions use only valid primitives
+  ⊢= all-pass ← (format-ok and accuracy-ok and factual-ok and tone-ok and logic-ok)
+
+  ⊢= failed-oracles ← filter(
+    ["structural", "semantic", "factual", "stylistic", "logical"],
+    name -> not [format-ok, accuracy-ok, factual-ok, tone-ok, logic-ok][
+      ["structural", "semantic", "factual", "stylistic", "logical"].index(name)
+    ]
+  )
+
+  ⊢= failure-report ← concat(
+    format-issues, accuracy-issues, factual-issues,
+    tone-issues, logic-issues
+  )
+
+  ⊨ if all-pass then len(failed-oracles) = 0
+  ⊨ if all-pass then len(failure-report) = 0
+  ⊨ if not all-pass then len(failed-oracles) ≥ 1
+
+⊢ rewrite
+  given explain→explanation
+  given gauntlet→all-pass
+  given gauntlet→failure-report
+  given gauntlet→failed-oracles
+  yield revised-explanation, changes-made[]
+
+  ∴ If «gauntlet→all-pass» is true: output revised-explanation ≡ «explain→explanation»
+    unchanged. Set changes-made to empty.
+
+    If «gauntlet→all-pass» is false: revise «explain→explanation» to fix ONLY the
+    issues in «gauntlet→failure-report». Target the specific oracles that failed:
+    «gauntlet→failed-oracles».
+
+    For each failed oracle:
+    - structural: add missing sections or restructure
+    - semantic: correct definitions, laws, or type signatures
+    - factual: fix false claims with correct information
+    - stylistic: simplify jargon, adjust tone, add analogies
+    - logical: remove circular definitions, reorder for logical flow
+
+    Preserve parts that passed their oracles. Make minimal, targeted changes.
+    Record each change in changes-made.
+
+  ⊨ if gauntlet→all-pass then revised-explanation = explain→explanation
+  ⊨ if gauntlet→all-pass then len(changes-made) = 0
+  ⊨ if not gauntlet→all-pass then len(changes-made) ≥ 1
+  ⊨ revised-explanation is between 300 and 500 words
+
+  ⊨? on failure:
+    retry with «gauntlet→failure-report» appended to prompt
+    max 3 attempts
+
+⊢∘ gauntlet-loop(explain)
+  through oracle-structural, oracle-semantic, oracle-factual, oracle-stylistic, oracle-logical, gauntlet, rewrite
+  until gauntlet→all-pass = true
+  max 5

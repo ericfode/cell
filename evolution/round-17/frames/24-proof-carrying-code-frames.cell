@@ -1,0 +1,625 @@
+-- 24-proof-carrying-code-frames.cell (v0.2)
+-- Execution trace of 24-proof-carrying-code.cell via eval-one
+--
+-- v0.2 execution notes:
+--   - File-scope ⊨? active: retry max 3 with failure context, then partial-accept(best)
+--   - verify-proof-structure is ⊢= crystallized (valid v0.2 primitives only)
+--   - verify-proof-gaps is ∴ soft (honest: gap-finding requires semantic judgment)
+--   - fill-gaps has guard clause: `where verdict != "proof complete"` — skipped when no gaps
+--   - assemble-certificate uses given? fill-gaps→proof-patch (tolerates ⊥ from guard-skip)
+--   - ⊢∘ evolve: generate-proof's oracles are aspirational (feedback, not gates)
+--   - R16's verify-proof ⊢= used undefined functions (proof-covers, has-loop-invariant,
+--     missing-from) — v0.2 AUDITED and split into crystallized structural check +
+--     honest soft gap-finder
+--
+-- Problem: merge two sorted lists. Generate code, proof, and certificate.
+
+-- ═══════════════════════════════════════════════════════════════
+-- READY-SET ANALYSIS (initial state)
+-- ═══════════════════════════════════════════════════════════════
+--
+-- Cells and their dependencies:
+--   spec               : no external givens (all ≡ bound)         → READY
+--   generate-code      : needs spec→{description, signature, preconditions}
+--   generate-tests     : needs spec→{signature, preconditions, postconditions}
+--   run-tests          : needs generate-code→code-text, generate-tests→test-cases
+--   generate-proof     : needs generate-code→code-text, spec→{preconditions, postconditions}, run-tests→pass-count
+--   verify-proof-structure : needs generate-proof→{proof-argument, invariants, termination-argument, properties-proved}
+--   verify-proof-gaps  : needs generate-proof→proof-argument, generate-code→code-text, verify-proof-structure→struct-valid
+--   fill-gaps          : needs verify-proof-gaps→{gaps, verdict}, generate-proof→proof-argument, generate-code→code-text, spec→preconditions
+--                        GUARD: verdict != "proof complete"
+--   assemble-certificate : needs generate-code→code-text, fill-gaps→proof-patch (given?),
+--                          generate-proof→{proof-argument, properties-proved},
+--                          verify-proof-gaps→{verdict, gaps}, run-tests→pass-count
+--
+-- ⊢∘ evolve targets generate-proof through verify-proof-structure, verify-proof-gaps, fill-gaps
+--   until verify-proof-gaps→verdict = "proof complete", max 3
+--
+-- Initial ready set: { spec }
+-- Everything else transitively blocked.
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 0: evaluate spec (pass-through, all givens ≡ bound)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { spec }
+-- Blocked: { generate-code, generate-tests } — need spec→fields
+
+⊢ spec
+  given description ≡ "merge two sorted lists into one sorted list"
+  given signature ≡ "merge_sorted(a: int[], b: int[]) -> int[]"
+  given preconditions ≡ "a is sorted ascending, b is sorted ascending"
+  given postconditions ≡ "result is sorted ascending, result is a permutation of a ++ b"
+  yield description, signature, preconditions, postconditions
+
+-- eval-one: spec is a pass-through. All yields inherit from given ≡ bindings.
+-- No ∴ body, no ⊢= body.
+
+  yield description ≡ "merge two sorted lists into one sorted list"
+  yield signature ≡ "merge_sorted(a: int[], b: int[]) -> int[]"
+  yield preconditions ≡ "a is sorted ascending, b is sorted ascending"
+  yield postconditions ≡ "result is sorted ascending, result is a permutation of a ++ b"
+
+-- oracle checks:
+--   ⊨ description specifies the algorithm, inputs, and output → ✓
+--   ⊨ signature has typed parameters and return type → ✓
+--   ⊨ preconditions constrain both input lists → ✓ ("a is sorted", "b is sorted")
+--   ⊨ postconditions specify sortedness and permutation properties → ✓
+
+-- state after frame 0: spec frozen.
+-- Ready set: { generate-code, generate-tests } — both have spec deps satisfied
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 1: evaluate generate-code (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { generate-code, generate-tests }
+-- Pick: generate-code (arbitrary — confluence guarantees same result)
+-- Blocked: { run-tests } — needs generate-code→code-text AND generate-tests→test-cases
+
+⊢ generate-code
+  given spec→description ≡ "merge two sorted lists into one sorted list"
+  given spec→signature ≡ "merge_sorted(a: int[], b: int[]) -> int[]"
+  given spec→preconditions ≡ "a is sorted ascending, b is sorted ascending"
+  yield §implementation, code-text
+
+  ∴ Write a correct implementation of «spec→signature» that satisfies:
+    «spec→description»
+    Preconditions: «spec→preconditions»
+    ...
+
+-- LLM evaluation:
+
+  yield implementation ≡ §(
+    ⊢= merge_sorted ← fn(a, b) →
+      let i ← 0, j ← 0, result ← []
+      while i < len(a) and j < len(b):
+        if a[i] <= b[j]:
+          result ← concat(result, [a[i]])
+          i ← i + 1
+        else:
+          result ← concat(result, [b[j]])
+          j ← j + 1
+      result ← concat(result, drop(a, i))
+      result ← concat(result, drop(b, j))
+      result
+  )
+
+  yield code-text ≡ "fn merge_sorted(a: int[], b: int[]) -> int[]: let i=0, j=0, result=[]; while i < len(a) and j < len(b): if a[i] <= b[j] then append a[i], i+=1 else append b[j], j+=1; append remaining a[i..] then b[j..]; return result"
+
+-- oracle checks:
+--   ⊨ code-text contains a loop or iterative structure → ✓ ("while i < len(a) and j < len(b)")
+--   ⊨ code-text compares elements from both lists → ✓ ("if a[i] <= b[j]")
+--   ⊨ code-text handles the case when one list is exhausted → ✓ ("append remaining a[i..] then b[j..]")
+
+-- state after frame 1: generate-code frozen.
+-- Ready set: { generate-tests }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 2: evaluate generate-tests (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { generate-tests }
+-- Blocked: { run-tests } — still needs generate-tests→test-cases
+
+⊢ generate-tests
+  given spec→signature ≡ "merge_sorted(a: int[], b: int[]) -> int[]"
+  given spec→preconditions ≡ "a is sorted ascending, b is sorted ascending"
+  given spec→postconditions ≡ "result is sorted ascending, result is a permutation of a ++ b"
+  yield test-cases[], properties[]
+
+  ∴ Generate test cases for «spec→signature»...
+
+-- LLM evaluation:
+
+  yield properties ≡ ["sorted-output", "permutation", "length", "empty-left", "empty-right", "both-empty", "interleaved", "duplicates"]
+
+  yield test-cases ≡ [
+    { id: "sorted-1", input-a: [1, 3, 5], input-b: [2, 4, 6], expected: [1, 2, 3, 4, 5, 6] },
+    { id: "sorted-2", input-a: [1, 2, 3], input-b: [4, 5, 6], expected: [1, 2, 3, 4, 5, 6] },
+    { id: "perm-1", input-a: [10, 20], input-b: [15], expected: [10, 15, 20] },
+    { id: "perm-2", input-a: [1], input-b: [2, 3, 4], expected: [1, 2, 3, 4] },
+    { id: "len-1", input-a: [5, 10, 15], input-b: [7, 12], expected: [5, 7, 10, 12, 15] },
+    { id: "len-2", input-a: [1, 2], input-b: [3, 4, 5, 6], expected: [1, 2, 3, 4, 5, 6] },
+    { id: "empty-left-1", input-a: [], input-b: [1, 2, 3], expected: [1, 2, 3] },
+    { id: "empty-left-2", input-a: [], input-b: [99], expected: [99] },
+    { id: "empty-right-1", input-a: [4, 5, 6], input-b: [], expected: [4, 5, 6] },
+    { id: "empty-right-2", input-a: [0], input-b: [], expected: [0] },
+    { id: "both-empty", input-a: [], input-b: [], expected: [] },
+    { id: "interleave-1", input-a: [1, 3, 5, 7], input-b: [2, 4, 6, 8], expected: [1, 2, 3, 4, 5, 6, 7, 8] },
+    { id: "dup-1", input-a: [1, 2, 2, 5], input-b: [2, 3, 5], expected: [1, 2, 2, 2, 3, 5, 5] },
+    { id: "dup-2", input-a: [3, 3, 3], input-b: [3, 3], expected: [3, 3, 3, 3, 3] },
+    { id: "dup-3", input-a: [1, 1], input-b: [1, 1, 1], expected: [1, 1, 1, 1, 1] }
+  ]
+
+-- oracle checks:
+--   ⊨ length(test-cases) ≥ 12 → ✓ (15 test cases)
+--   ⊨ properties covers sorted, permutation, empty, and duplicate cases → ✓
+--     ["sorted-output", "permutation", "length", "empty-left", "empty-right",
+--      "both-empty", "interleaved", "duplicates"]
+--   ⊨ each test-case has input-a (sorted), input-b (sorted), and expected-output (sorted) → ✓
+--     All input-a sorted ascending, all input-b sorted ascending, all expected sorted ascending
+
+-- state after frame 2: generate-tests frozen.
+-- Ready set: { run-tests } — both generate-code→code-text and generate-tests→test-cases now available
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 3: evaluate run-tests (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { run-tests }
+-- Blocked: { generate-proof } — needs run-tests→pass-count
+
+⊢ run-tests
+  given generate-code→code-text ≡ "fn merge_sorted(a: int[], b: int[]) -> int[]: ..."
+  given generate-tests→test-cases ≡ [{ id: "sorted-1", ... }, ..., { id: "dup-3", ... }]
+  yield results[], pass-count, fail-count, failure-details[]
+
+  ∴ Simulate executing «generate-code→code-text» on each test case...
+
+-- LLM evaluation:
+-- The LLM traces through the two-pointer merge for each of 15 test cases.
+
+  yield results ≡ [
+    { id: "sorted-1", actual: [1, 2, 3, 4, 5, 6], pass: true },
+    { id: "sorted-2", actual: [1, 2, 3, 4, 5, 6], pass: true },
+    { id: "perm-1", actual: [10, 15, 20], pass: true },
+    { id: "perm-2", actual: [1, 2, 3, 4], pass: true },
+    { id: "len-1", actual: [5, 7, 10, 12, 15], pass: true },
+    { id: "len-2", actual: [1, 2, 3, 4, 5, 6], pass: true },
+    { id: "empty-left-1", actual: [1, 2, 3], pass: true },
+    { id: "empty-left-2", actual: [99], pass: true },
+    { id: "empty-right-1", actual: [4, 5, 6], pass: true },
+    { id: "empty-right-2", actual: [0], pass: true },
+    { id: "both-empty", actual: [], pass: true },
+    { id: "interleave-1", actual: [1, 2, 3, 4, 5, 6, 7, 8], pass: true },
+    { id: "dup-1", actual: [1, 2, 2, 2, 3, 5, 5], pass: true },
+    { id: "dup-2", actual: [3, 3, 3, 3, 3], pass: true },
+    { id: "dup-3", actual: [1, 1, 1, 1, 1], pass: true }
+  ]
+
+  yield pass-count ≡ 15
+  yield fail-count ≡ 0
+  yield failure-details ≡ []
+
+-- oracle checks:
+--   ⊨ length(results) = length(generate-tests→test-cases) → ✓ (15 = 15)
+--   ⊨ pass-count + fail-count = length(results) → ✓ (15 + 0 = 15)
+--   ⊨ if fail-count > 0 then length(failure-details) = fail-count → ✓ (vacuously — fail-count = 0)
+
+-- state after frame 3: run-tests frozen.
+-- Ready set: { generate-proof } — all givens satisfied (code-text, preconditions, postconditions, pass-count)
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ ITERATION 1 BEGINS
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ evolve(generate-proof, spec→preconditions ≡ spec→preconditions)
+--   through verify-proof-structure, verify-proof-gaps, fill-gaps
+--   until verify-proof-gaps→verdict = "proof complete"
+--   max 3
+--
+-- generate-proof enters the ready set. Its ⊨ oracles are ASPIRATIONAL
+-- (v0.2: ⊢∘-managed cell's oracles are feedback signals, not hard gates).
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 4: evaluate generate-proof — iteration 1 (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { generate-proof }
+-- Blocked: { verify-proof-structure } — needs generate-proof outputs
+
+⊢ generate-proof
+  given generate-code→code-text ≡ "fn merge_sorted(a: int[], b: int[]) -> int[]: ..."
+  given spec→preconditions ≡ "a is sorted ascending, b is sorted ascending"
+  given spec→postconditions ≡ "result is sorted ascending, result is a permutation of a ++ b"
+  given run-tests→pass-count ≡ 15
+  yield proof-argument, invariants[], termination-argument, properties-proved[]
+
+  ∴ Given the code «generate-code→code-text» that passes 15 tests,
+    generate a formal correctness argument...
+
+-- LLM evaluation:
+-- First attempt. The LLM generates a proof but with a gap in the permutation
+-- argument — it asserts the property without showing the counting argument.
+
+  yield proof-argument ≡ "**1. Loop Invariant**: At each iteration of the while loop, result[0..k] is a sorted array containing exactly the elements a[0..i] ∪ b[0..j], where k = i + j. Initially i=0, j=0, k=0, result=[] — trivially sorted and empty union is empty. **2. Sortedness Preservation**: At each step we append min(a[i], b[j]) to result. Since result[k-1] ≤ a[i] (because a is sorted and we took a[i-1] or b[j-1] ≤ a[i] at the previous step) and similarly result[k-1] ≤ b[j], we have result[k-1] ≤ min(a[i], b[j]) = result[k]. So sortedness is maintained. **3. Permutation**: Every element of a and b is visited exactly once because i increments only when a[i] is taken and j increments only when b[j] is taken. No element is skipped. At termination, the remaining elements are appended in order. **4. Termination**: The quantity i + j increases by exactly 1 each iteration. It is bounded above by len(a) + len(b). When i = len(a) or j = len(b), the loop exits and remainders are appended. Total iterations ≤ len(a) + len(b). **5. Postcondition Discharge**: By invariant (1), at loop exit result contains a[0..i] ∪ b[0..j] sorted. The remainder append adds a[i..] and b[j..] (both already sorted, and all ≥ result[k-1] by sortedness of a, b). So result = sorted(a ∪ b) = sorted permutation of a ++ b."
+
+  yield invariants ≡ [
+    "At each iteration, result[0..k] is sorted and contains exactly the elements a[0..i] ∪ b[0..j] where k = i + j"
+  ]
+
+  yield termination-argument ≡ "i + j increases by exactly 1 each iteration, bounded above by len(a) + len(b). Loop exits when i = len(a) or j = len(b)."
+
+  yield properties-proved ≡ ["sortedness", "permutation", "termination", "postcondition"]
+
+-- oracle checks (ASPIRATIONAL — feedback only, under ⊢∘ management):
+--   ⊨ proof-argument contains at least 5 logical steps → ✓ (5 steps: invariant, sortedness, permutation, termination, postcondition)
+--   ⊨ invariants includes a loop invariant referencing i, j, and result → ✓
+--   ⊨ termination-argument identifies a quantity that increases monotonically → ✓ ("i + j increases by exactly 1")
+--   ⊨ properties-proved includes "sortedness" and "permutation" → ✓
+--   All aspirational oracles pass. Good signal for the evolution loop.
+
+-- state after frame 4: generate-proof frozen (tentatively, under ⊢∘).
+-- Ready set: { verify-proof-structure }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 5: evaluate verify-proof-structure (⊢= crystallized, deterministic)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { verify-proof-structure }
+-- Blocked: { verify-proof-gaps } — needs verify-proof-structure→struct-valid
+
+⊢ verify-proof-structure ▸ crystallized
+  given generate-proof→proof-argument ≡ "**1. Loop Invariant**: At each iteration..."
+  given generate-proof→invariants ≡ ["At each iteration, result[0..k] is sorted and contains exactly the elements a[0..i] ∪ b[0..j] where k = i + j"]
+  given generate-proof→termination-argument ≡ "i + j increases by exactly 1 each iteration, bounded above by len(a) + len(b). Loop exits when i = len(a) or j = len(b)."
+  given generate-proof→properties-proved ≡ ["sortedness", "permutation", "termination", "postcondition"]
+  yield struct-valid, step-count, has-invariant, has-termination, covers-required
+
+-- ⊢= deterministic evaluation (v0.2 valid primitives only):
+
+  ⊢= step-count ← len(split("**1. Loop Invariant**: ...***2. Sortedness**...**3. Permutation**...**4. Termination**...**5. Postcondition**...", "**")) / 2
+  -- split on "**" yields ~11 segments, / 2 = 5
+
+  yield step-count ≡ 5
+
+  ⊢= has-invariant ← any(["At each iteration, result[0..k]...a[0..i] ∪ b[0..j] where k = i + j"], fn(inv) → contains(inv, "i") and contains(inv, "j") and contains(inv, "result"))
+  -- contains("...a[0..i]...", "i") = true, contains("...b[0..j]...", "j") = true, contains("...result[0..k]...", "result") = true
+  -- any([true]) = true
+
+  yield has-invariant ≡ true
+
+  ⊢= has-termination ← contains("i + j increases by exactly 1 each iteration, bounded above by len(a) + len(b)...", "increase") or contains(..., "monoton") or contains(..., "decrease") or contains(..., "bound")
+  -- contains(termination-argument, "increase") = true (first disjunct short-circuits)
+
+  yield has-termination ≡ true
+
+  ⊢= covers-required ← any(["sortedness", "permutation", "termination", "postcondition"], fn(p) → contains(lower(p), "sorted")) and any([...], fn(p) → contains(lower(p), "permutation"))
+  -- any([true, false, false, false]) = true AND any([false, true, false, false]) = true
+
+  yield covers-required ≡ true
+
+  ⊢= struct-valid ← 5 >= 5 and true and true and true
+
+  yield struct-valid ≡ true
+
+-- oracle check:
+--   ⊨ struct-valid = true or struct-valid = false → ✓ (true)
+
+-- state after frame 5: verify-proof-structure frozen.
+-- Ready set: { verify-proof-gaps } — struct-valid available
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 6: evaluate verify-proof-gaps — iteration 1 (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { verify-proof-gaps }
+-- This cell is ∴ SOFT — v0.2 honest classification. Finding gaps in a
+-- proof requires READING and UNDERSTANDING the argument.
+
+⊢ verify-proof-gaps
+  given generate-proof→proof-argument ≡ "**1. Loop Invariant**: At each iteration..."
+  given generate-code→code-text ≡ "fn merge_sorted(a: int[], b: int[]) -> int[]: ..."
+  given verify-proof-structure→struct-valid ≡ true
+  yield gaps[], verdict
+
+  ∴ Examine «generate-proof→proof-argument» for completeness...
+
+-- LLM evaluation:
+-- The LLM reads the proof argument carefully and finds one gap:
+-- Step 3 (Permutation) asserts "no element is skipped" but doesn't formally
+-- show the counting argument: that at termination i + j = len(a) + len(b),
+-- meaning every element was taken exactly once.
+
+  yield gaps ≡ [
+    "permutation-counting: Step 3 claims 'every element is visited exactly once' but does not formally show that i + j = len(a) + len(b) at termination, which is needed to establish that no elements were dropped or duplicated during the remainder-append phase."
+  ]
+
+  yield verdict ≡ "proof valid with gaps"
+
+-- oracle checks:
+--   ⊨ verdict ∈ {"proof complete", "proof valid with gaps", "proof incomplete"} → ✓
+--   ⊨ if verdict = "proof complete" then len(gaps) = 0 → ✓ (vacuously — verdict ≠ "proof complete")
+--   ⊨ if verdict = "proof incomplete" then len(gaps) ≥ 1 → ✓ (vacuously — verdict ≠ "proof incomplete")
+
+-- state after frame 6: verify-proof-gaps frozen.
+-- verdict = "proof valid with gaps" — NOT converged.
+-- Ready set: { fill-gaps }
+-- Guard check on fill-gaps: verdict != "proof complete" → "proof valid with gaps" != "proof complete" → TRUE
+-- fill-gaps ENTERS the ready set (guard satisfied).
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 7: evaluate fill-gaps — iteration 1 (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { fill-gaps }
+-- Guard: verdict != "proof complete" → ✓ (guard passes, cell executes)
+
+⊢ fill-gaps
+  given verify-proof-gaps→gaps ≡ ["permutation-counting: Step 3 claims 'every element is visited exactly once' but does not formally show that i + j = len(a) + len(b) at termination..."]
+  given verify-proof-gaps→verdict ≡ "proof valid with gaps" where verdict != "proof complete"
+  given generate-proof→proof-argument ≡ "**1. Loop Invariant**: ..."
+  given generate-code→code-text ≡ "fn merge_sorted(a: int[], b: int[]) -> int[]: ..."
+  given spec→preconditions ≡ "a is sorted ascending, b is sorted ascending"
+  yield proof-patch, patched-steps[]
+
+  ∴ For each gap in «verify-proof-gaps→gaps»:
+    - Identify what the proof is missing
+    - Write the missing argument step
+    ...
+
+-- LLM evaluation:
+
+  yield proof-patch ≡ "additive"
+
+  yield patched-steps ≡ [
+    "**3a. Permutation — Counting Argument** (supplements Step 3): Define count(x, S) = number of occurrences of x in multiset S. We must show count(x, result) = count(x, a) + count(x, b) for all x. During the while loop: each iteration takes exactly one element from either a (incrementing i) or b (incrementing j) and appends it to result. No element is created or destroyed. At loop exit, i = i_exit, j = j_exit where i_exit = len(a) or j_exit = len(b) (or both). The remainder phase appends a[i_exit..len(a)] and b[j_exit..len(b)] — the exactly the unvisited elements. At termination: elements taken from a = a[0..i_exit] ++ a[i_exit..len(a)] = a[0..len(a)] = a (all of a). Similarly for b. Therefore count(x, result) = count(x, a) + count(x, b). QED: result is a permutation of a ++ b."
+  ]
+
+-- oracle checks:
+--   ⊨ length(patched-steps) = length(verify-proof-gaps→gaps) → ✓ (1 = 1)
+--   ⊨ each patched-step references the specific gap it addresses → ✓
+--     ("supplements Step 3", "Permutation — Counting Argument")
+
+-- state after frame 7: fill-gaps frozen.
+--
+-- ⊢∘ CHECK: verdict = "proof valid with gaps" ≠ "proof complete". NOT CONVERGED.
+-- The evolution loop reruns: fill-gaps→patched-steps feed back into generate-proof.
+-- generate-proof is rewritten with the gap-fill context appended.
+-- Interface (given/yield) preserved. Only the proof argument evolves.
+-- verify-proof-structure, verify-proof-gaps unfrozen for re-evaluation.
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ ITERATION 2: EVOLUTION LOOP RESTARTS
+-- ═══════════════════════════════════════════════════════════════
+-- generate-proof is rewritten with patched-steps as additional context.
+-- Downstream cells (verify-proof-structure, verify-proof-gaps, fill-gaps) unfrozen.
+-- Ready set: { generate-proof }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 8: evaluate generate-proof — iteration 2 (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { generate-proof }
+-- generate-proof receives the patched-steps as additional context from iteration 1.
+-- Its ⊨ oracles remain aspirational under ⊢∘.
+
+⊢ generate-proof
+  given generate-code→code-text ≡ "fn merge_sorted(a: int[], b: int[]) -> int[]: ..."
+  given spec→preconditions ≡ "a is sorted ascending, b is sorted ascending"
+  given spec→postconditions ≡ "result is sorted ascending, result is a permutation of a ++ b"
+  given run-tests→pass-count ≡ 15
+  yield proof-argument, invariants[], termination-argument, properties-proved[]
+
+-- LLM evaluation:
+-- With the gap-fill feedback, the LLM produces a complete proof that
+-- includes the counting argument inline.
+
+  yield proof-argument ≡ "**1. Loop Invariant**: At each iteration of the while loop, result[0..k] is a sorted array containing exactly the elements of multiset a[0..i] ∪ b[0..j], where k = i + j. Base case: i=0, j=0, k=0, result=[] — sorted trivially, empty ∪ empty = empty ✓. Inductive step: assume result[0..k] = sorted(a[0..i] ∪ b[0..j]). We append min(a[i], b[j]); WLOG a[i] ≤ b[j], then result[0..k+1] = sorted(a[0..i+1] ∪ b[0..j]) and k+1 = (i+1) + j ✓. **2. Sortedness Preservation**: result[k] = min(a[i], b[j]). We need result[k] ≥ result[k-1]. Case A: result[k-1] came from a, so result[k-1] = a[i-1] ≤ a[i] ≤ min(a[i], b[j]) ✓. Case B: result[k-1] came from b, so result[k-1] = b[j-1] ≤ b[j] and result[k-1] ≤ a[i] (because we didn't take a at step k-1, meaning b[j-1] ≤ a[i-1] or we were still on b), either way result[k-1] ≤ min(a[i], b[j]) ✓. **3. Permutation (with counting argument)**: Define count(x, S) as occurrences of x in multiset S. Each while-loop iteration takes exactly one element from a (incrementing i) or b (incrementing j), appending it to result. No element is created or destroyed. At loop exit: i = i_exit, j = j_exit. Remainder phase appends a[i_exit..] and b[j_exit..]. Total elements from a: a[0..i_exit] ++ a[i_exit..] = a[0..len(a)] = all of a. Similarly for b. Therefore for all x: count(x, result) = count(x, a) + count(x, b). Result is a permutation of a ++ b. **4. Termination**: i + j increases by exactly 1 each iteration (exactly one of i, j increments). Upper bound: len(a) + len(b). When i = len(a) or j = len(b), loop exits. Remaining elements appended in O(len(a) + len(b) - i - j) time. Algorithm always terminates. **5. Postcondition Discharge**: At termination, by (1) result contains all elements of a ∪ b, by (2) result is sorted, by (3) result is a permutation of a ++ b. Both postconditions — sorted ascending AND permutation of a ++ b — are established. QED."
+
+  yield invariants ≡ [
+    "At each iteration, result[0..k] is a sorted array containing exactly the elements of multiset a[0..i] ∪ b[0..j], where k = i + j. Inductive: appending min(a[i], b[j]) maintains both sortedness and the union property."
+  ]
+
+  yield termination-argument ≡ "i + j increases by exactly 1 each iteration (exactly one of i, j increments). Bounded above by len(a) + len(b). Loop exits when i = len(a) or j = len(b). The while loop always terminates."
+
+  yield properties-proved ≡ ["sortedness", "permutation", "termination", "postcondition"]
+
+-- oracle checks (ASPIRATIONAL):
+--   ⊨ proof-argument contains at least 5 logical steps → ✓ (5 numbered steps)
+--   ⊨ invariants includes a loop invariant referencing i, j, and result → ✓
+--   ⊨ termination-argument identifies monotonically increasing quantity → ✓ ("i + j increases by exactly 1")
+--   ⊨ properties-proved includes "sortedness" and "permutation" → ✓
+
+-- state after frame 8: generate-proof frozen (iteration 2).
+-- Ready set: { verify-proof-structure }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 9: evaluate verify-proof-structure — iteration 2 (⊢= crystallized)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { verify-proof-structure }
+
+⊢ verify-proof-structure ▸ crystallized
+  given generate-proof→proof-argument ≡ "**1. Loop Invariant**: At each iteration..."
+  given generate-proof→invariants ≡ ["At each iteration, result[0..k] is a sorted array..."]
+  given generate-proof→termination-argument ≡ "i + j increases by exactly 1 each iteration..."
+  given generate-proof→properties-proved ≡ ["sortedness", "permutation", "termination", "postcondition"]
+  yield struct-valid, step-count, has-invariant, has-termination, covers-required
+
+-- ⊢= deterministic evaluation:
+
+  yield step-count ≡ 5
+  -- split on "**" → 11 segments, / 2 = 5 (same structure)
+
+  yield has-invariant ≡ true
+  -- invariant still contains "i", "j", "result"
+
+  yield has-termination ≡ true
+  -- termination-argument still contains "increase"
+
+  yield covers-required ≡ true
+  -- properties-proved still contains "sortedness" and "permutation"
+
+  yield struct-valid ≡ true
+  -- 5 >= 5 and true and true and true
+
+-- oracle check: ✓
+
+-- state after frame 9: verify-proof-structure frozen (iteration 2).
+-- Ready set: { verify-proof-gaps }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 10: evaluate verify-proof-gaps — iteration 2 (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { verify-proof-gaps }
+
+⊢ verify-proof-gaps
+  given generate-proof→proof-argument ≡ "**1. Loop Invariant**: At each iteration...count(x, result) = count(x, a) + count(x, b)...QED."
+  given generate-code→code-text ≡ "fn merge_sorted(a: int[], b: int[]) -> int[]: ..."
+  given verify-proof-structure→struct-valid ≡ true
+  yield gaps[], verdict
+
+  ∴ Examine «generate-proof→proof-argument» for completeness...
+
+-- LLM evaluation:
+-- The LLM examines the revised proof. All five required components are
+-- present and well-argued:
+-- 1. Loop invariant: stated with base case and inductive step ✓
+-- 2. Sortedness preservation: case analysis on previous element source ✓
+-- 3. Permutation: counting argument with multiset union, full accounting ✓
+-- 4. Termination: monotone quantity + bound identified ✓
+-- 5. Postcondition discharge: connects (1)+(2)+(3) to both postconditions ✓
+
+  yield gaps ≡ []
+
+  yield verdict ≡ "proof complete"
+
+-- oracle checks:
+--   ⊨ verdict ∈ {"proof complete", "proof valid with gaps", "proof incomplete"} → ✓
+--   ⊨ if verdict = "proof complete" then len(gaps) = 0 → ✓ (0 = 0)
+--   ⊨ if verdict = "proof incomplete" then len(gaps) ≥ 1 → ✓ (vacuously)
+
+-- state after frame 10: verify-proof-gaps frozen (iteration 2).
+-- verdict = "proof complete" — ⊢∘ CONVERGENCE CHECK:
+
+-- ⊢∘ CHECK: verdict = "proof complete". CONVERGED.
+-- Evolution loop exits after 2 iterations.
+--
+-- fill-gaps guard check: verdict != "proof complete" → "proof complete" != "proof complete" → FALSE
+-- fill-gaps is SKIPPED. All fill-gaps yields become ⊥.
+--   fill-gaps→proof-patch ≡ ⊥
+--   fill-gaps→patched-steps ≡ ⊥
+--
+-- v0.2 guard-induced bottom: fill-gaps yields ⊥, downstream given? tolerates it.
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 11 (skipped): fill-gaps — guard false, yields ⊥
+-- ═══════════════════════════════════════════════════════════════
+-- Guard: verify-proof-gaps→verdict != "proof complete"
+--        "proof complete" != "proof complete" → FALSE
+-- Cell SKIPPED. Yields:
+--   fill-gaps→proof-patch ≡ ⊥
+--   fill-gaps→patched-steps ≡ ⊥
+--
+-- This is v0.2 guard-induced bottom propagation in action.
+-- assemble-certificate uses `given? fill-gaps→proof-patch` and tolerates ⊥.
+
+-- Ready set: { assemble-certificate }
+--   generate-code→code-text ≡ (frozen) ✓
+--   fill-gaps→proof-patch ≡ ⊥ (given? — tolerated) ✓
+--   generate-proof→proof-argument ≡ (frozen, iteration 2) ✓
+--   generate-proof→properties-proved ≡ (frozen, iteration 2) ✓
+--   verify-proof-gaps→verdict ≡ "proof complete" ✓
+--   verify-proof-gaps→gaps ≡ [] ✓
+--   run-tests→pass-count ≡ 15 ✓
+-- All inputs available. assemble-certificate enters ready set.
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 12: evaluate assemble-certificate (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { assemble-certificate }
+-- This is the final cell. After this, all cells are frozen → quiescence.
+
+⊢ assemble-certificate
+  given generate-code→code-text ≡ "fn merge_sorted(a: int[], b: int[]) -> int[]: let i=0, j=0, result=[]; while i < len(a) and j < len(b): if a[i] <= b[j] then append a[i], i+=1 else append b[j], j+=1; append remaining a[i..] then b[j..]; return result"
+  given? fill-gaps→proof-patch ≡ ⊥
+  given generate-proof→proof-argument ≡ "**1. Loop Invariant**: ...QED."
+  given generate-proof→properties-proved ≡ ["sortedness", "permutation", "termination", "postcondition"]
+  given verify-proof-gaps→verdict ≡ "proof complete"
+  given verify-proof-gaps→gaps ≡ []
+  given run-tests→pass-count ≡ 15
+  yield certificate, confidence-level
+
+  ∴ Assemble a proof-carrying certificate...
+    fill-gaps→proof-patch = ⊥ → no patches needed (proof was complete).
+
+-- LLM evaluation:
+
+  yield certificate ≡ {
+    code: "fn merge_sorted(a: int[], b: int[]) -> int[]: let i=0, j=0, result=[]; while i < len(a) and j < len(b): if a[i] <= b[j] then append a[i], i+=1 else append b[j], j+=1; append remaining a[i..] then b[j..]; return result",
+    proof: "**1. Loop Invariant**: At each iteration, result[0..k] is sorted containing multiset a[0..i] ∪ b[0..j], k = i + j. Base: trivial. Inductive: append min(a[i], b[j]) maintains both. **2. Sortedness**: result[k] = min(a[i],b[j]) ≥ result[k-1] by case analysis on source. **3. Permutation**: count(x, result) = count(x, a) + count(x, b) — each element taken exactly once, remainder appended. **4. Termination**: i+j increases by 1 each step, bounded by len(a)+len(b). **5. QED: sorted ∧ permutation of a++b.",
+    patches: "none (proof complete, no gap-fills applied)",
+    test-count: 15,
+    test-failures: 0,
+    verdict: "proof complete",
+    gaps: [],
+    properties-proved: ["sortedness", "permutation", "termination", "postcondition"]
+  }
+
+  yield confidence-level ≡ "high"
+  -- verdict = "proof complete" and pass-count = 15 ≥ 12 → "high"
+
+-- oracle checks:
+--   ⊨ certificate includes code, proof, test-count, verdict, and properties-proved → ✓
+--     code ✓, proof ✓, test-count: 15 ✓, verdict: "proof complete" ✓,
+--     properties-proved: ["sortedness", "permutation", "termination", "postcondition"] ✓
+--   ⊨ confidence-level ∈ {"high", "medium", "low"} → ✓ ("high")
+--   ⊨ if verdict = "proof complete" and pass-count ≥ 12 then confidence-level = "high" → ✓
+--     verdict = "proof complete" ∧ 15 ≥ 12 → confidence-level = "high" ✓
+
+-- ═══════════════════════════════════════════════════════════════
+-- QUIESCENCE: ALL CELLS FROZEN
+-- ═══════════════════════════════════════════════════════════════
+--
+-- Total cells: 9 (spec, generate-code, generate-tests, run-tests,
+--   generate-proof, verify-proof-structure, verify-proof-gaps,
+--   fill-gaps, assemble-certificate)
+--
+-- Total eval-one steps: 12 (frames 0-12, with frame 11 a guard-skip)
+-- ⊢∘ iterations: 2 (converged when verdict = "proof complete")
+-- ⊢= crystallized evaluations: verify-proof-structure (2 times, once per ⊢∘ iteration)
+-- ⊨? file-scope recovery: never triggered (all oracles passed on first attempt)
+-- ⊥ produced: fill-gaps (guard-induced bottom on iteration 2 when proof was complete)
+-- Guard clauses exercised: fill-gaps (true on iteration 1, false on iteration 2)
+--
+-- Final graph at quiescence:
+--   FROZEN: spec, generate-code, generate-tests, run-tests, generate-proof,
+--           verify-proof-structure, verify-proof-gaps, assemble-certificate
+--   GUARD-SKIPPED (⊥): fill-gaps (iteration 2 — proof already complete)
+--   NEVER ENTERED READY SET: none
+--
+-- Ready set: {} (empty — no unfrozen cells with satisfied givens)
+-- Program reached quiescence. Natural completion.
+
+-- ═══════════════════════════════════════════════════════════════
+-- OBSERVATIONS
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= obs-honest-crystallization
+  given §24-proof-carrying-code
+  yield observations ≡ "V0.2 EXPRESSION LANGUAGE AUDIT: R16's verify-proof used ⊢= bodies with undefined functions — proof-covers(), has-loop-invariant(), invariant-references(), has-monotone-quantity(), has-upper-bound(), missing-from(). These all require semantic judgment to evaluate: 'does this proof cover sortedness?' is not a string-contains check — it requires understanding what constitutes a sortedness argument. V0.2 forced honest reclassification. The solution: SPLIT verify-proof into verify-proof-structure (genuinely ⊢= using contains/any/len on strings) and verify-proof-gaps (honestly ∴ soft). The structural cell catches gross deficiencies (missing keywords, too few steps). The semantic cell catches quality gaps (arguments that mention a topic but don't actually prove it). This split is exactly the NP/P pattern the program is ABOUT: the LLM finds gaps (semantic judgment), the crystallized checker detects structural absence (deterministic). The program now embodies its own thesis at two levels."
+
+⊢= obs-guard-bottom-interaction
+  given §24-proof-carrying-code
+  yield observations ≡ "GUARD + BOTTOM + GIVEN? CHAIN: v0.2's three new features work in concert here. fill-gaps declares `where verdict != \"proof complete\"` (guard clause). When the proof IS complete (iteration 2), the guard evaluates false → fill-gaps is skipped → all yields become ⊥ (guard-induced bottom). assemble-certificate declares `given? fill-gaps→proof-patch` (optional given) → accepts ⊥ gracefully. The LLM knows proof-patch is ⊥ and omits patches from the certificate. This three-feature chain (guard → ⊥ → given?) replaces R16's clunky ∴ conditional: 'If verdict = proof complete, output proof-patch ≡ none'. The v0.2 version is declarative — the GRAPH expresses the conditional, not the prompt. Cell's dataflow handles what procedural languages handle with if-statements."
+
+⊢= obs-aspirational-oracles
+  given §24-proof-carrying-code
+  yield observations ≡ "⊢∘ ASPIRATIONAL ORACLE SEMANTICS: generate-proof has four ⊨ assertions (≥5 steps, invariant references, monotone quantity, sortedness+permutation). Under v0.2, these are aspirational because generate-proof is the ⊢∘ target. In iteration 1, ALL aspirational oracles passed — but verify-proof-gaps still found a gap (the counting argument). This shows the value of the two-tier system: aspirational oracles are a coarse filter (structural sanity), while the ⊢∘ through-chain (verify-proof-gaps) is the fine filter (semantic completeness). If generate-proof's oracles had FAILED, the feedback message would help the LLM on retry. But passing aspirational oracles doesn't mean the proof is done — it means the proof is worth checking in detail. Aspirational = 'good enough to evaluate further', not 'good enough to ship'."
+
+⊢= obs-evolution-convergence-depth
+  given §24-proof-carrying-code
+  yield observations ≡ "TWO-ITERATION CONVERGENCE: The ⊢∘ loop converged in 2 iterations (max 3). Iteration 1: proof generated with one gap (permutation counting argument missing). fill-gaps provided the patch. Iteration 2: proof regenerated with counting argument inline → gaps = [] → 'proof complete'. This matches the R17 research-plan-evolver (also 2 iterations) and suggests a pattern: well-structured programs converge in 2 iterations because iteration 1 identifies the specific deficiencies and iteration 2 addresses them directly. The max-3 bound was never approached. A max-2 would suffice for this program, but max-3 provides headroom for harder proofs where the first gap-fill reveals a second gap."
+
+⊢= obs-proof-carrying-pattern-realized
+  given §24-proof-carrying-code
+  yield observations ≡ "NP/P SEPARATION IN PRACTICE: The execution trace demonstrates Cell's proof-carrying pattern at full fidelity. LLM work (NP): generate-code (write merge algorithm), generate-proof (write correctness argument), verify-proof-gaps (find semantic gaps), fill-gaps (write missing argument steps), assemble-certificate (compose final output). Crystallized work (P): verify-proof-structure (check keyword presence, step count, required coverage — pure string operations). The P-verifier caught no issues that the NP-finder missed, which is expected: the structural checks are a SUBSET of what the semantic gap-finder evaluates. But the structural checks are CHEAP and RELIABLE — they can't be fooled by a plausible-sounding but vacuous proof. In production, verify-proof-structure would run first as a fast-fail gate before the expensive LLM call to verify-proof-gaps."
+
+⊢= obs-v02-false-crystallization-fix
+  given §24-proof-carrying-code
+  yield observations ≡ "FALSE CRYSTALLIZATION — THE CORE V0.2 LESSON: R16's program 24 was specifically cited in the v0.2 spec (alongside programs 19, 23, 25) for using undefined ⊢= functions. The fix — splitting into structural ⊢= + semantic ∴ — is NOT a weakening. It's a STRENGTHENING of the language's guarantees. When a ⊢= cell says 'this is deterministic', you can TRUST it. R16's verify-proof ⊢= was lying — proof-covers() sounds deterministic but requires understanding what 'covers' means for a proof. This is exactly the false-crystallization anti-pattern that makes the soft/hard boundary meaningless. V0.2's expression language primitives (contains, any, all, split, len) are the bright line: if you can express it with these, it's genuinely ⊢=. If you can't, it's ∴. Programs 27 and 28 had the same disease. This program's cure — honest split — is the template for fixing all false crystallization."
+
+⊢= obs-certificate-completeness
+  given §24-proof-carrying-code
+  yield observations ≡ "CERTIFICATE AS DELIVERABLE: The final certificate bundles code + proof + test evidence + verification verdict + confidence level. This is Cell's answer to 'how do you trust LLM output?' — you don't trust the output, you trust the CERTIFICATE. The certificate records: (1) what was generated (code), (2) why it's correct (proof), (3) empirical evidence (15/15 tests), (4) structural verification (⊢= passed), (5) semantic verification (gaps = []), (6) confidence (high). Any downstream consumer can inspect the certificate at their chosen trust level: production deployment might require confidence = 'high' AND verdict = 'proof complete' AND pass-count ≥ N. Research might accept 'medium'. The certificate format is the protocol between the generating agent and the consuming agent — Cell's equivalent of a type signature, but for correctness rather than shape."

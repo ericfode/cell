@@ -1,0 +1,614 @@
+-- 07-recursive-debate-frames.cell (v0.2)
+-- Execution trace of 07-recursive-debate.cell via eval-one
+--
+-- v0.2 execution notes:
+--   - File-scope ⊨? active: retry max 3 with failure context, then ⊥
+--   - judge-round has local ⊨? (overrides file-scope): retry max 2 with scores
+--   - ⊢∘ debate: custom label, explicitly blessed by v0.2 naming convention
+--   - Two ⊢∘ declarations share through/until cells (v0.2 multi-target rule)
+--   - Oracles on argue-for, argue-against (⊢∘ targets) are aspirational under v0.2
+--   - refine-for and refine-against use guard clauses (v0.2): only one fires per iteration
+--   - Guard-skipped refine cell yields ⊥ — but no downstream cell depends on it,
+--     so ⊥ doesn't propagate (both ⊢∘ loops observe the same judge-round)
+--   - ⊢∘ uses replace mode: each iteration's argument replaces the prior one
+--
+-- Debate topic: "Should AI agents be given persistent memory across sessions?"
+
+-- ═══════════════════════════════════════════════════════════════
+-- READY-SET ANALYSIS (initial)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready:   { topic } — no givens, always ready
+-- Blocked: { argue-for, argue-against } — need topic→question, topic→context
+-- Blocked: { judge-round } — needs argue-for→argument, argue-against→argument, etc.
+-- Blocked: { refine-for, refine-against } — need judge-round outputs + guard check
+-- ⊢∘ debate: waiting for topic to freeze before iteration 0 can begin
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 0: evaluate topic (hard cell, ⊢=)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { topic }
+-- Blocked: { argue-for, argue-against } — need topic→question, topic→context
+
+⊢ topic
+  yield question, context
+
+  ⊢= question ← "Should AI agents be given persistent memory across sessions?"
+  ⊢= context ← "Consider: privacy, capability, user trust, safety, autonomy, alignment. Persistent memory means the agent retains facts, preferences, and interaction history between separate conversations."
+
+-- eval-one: topic is a hard cell (⊢=). Deterministic evaluation.
+-- Both yields are bound directly by ⊢= expressions. No LLM needed.
+
+  yield question ≡ "Should AI agents be given persistent memory across sessions?"
+  yield context ≡ "Consider: privacy, capability, user trust, safety, autonomy, alignment. Persistent memory means the agent retains facts, preferences, and interaction history between separate conversations."
+
+-- No oracles on topic. Frozen immediately.
+
+-- state after frame 0: topic frozen.
+-- Ready set: { argue-for, argue-against } — topic→question and topic→context now available
+-- Both ⊢∘ debate loops enter iteration 0. argue-for and argue-against are co-ready.
+-- ⊢∘ debate loops begin: iteration 0
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ DEBATE — ITERATION 0
+-- ═══════════════════════════════════════════════════════════════
+-- Targets: argue-for (current = original), argue-against (current = original)
+-- Through: judge-round → refine-for, refine-against
+-- Until: judge-round→improved = false
+-- Max: 4
+-- Mode: replace (each iteration's argument replaces the prior one)
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 1: evaluate argue-for (soft cell, LLM) [iteration 0]
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { argue-for, argue-against } — both co-ready (confluence: order doesn't matter)
+-- Pick argue-for first (arbitrary choice; confluence guarantees same result either way)
+
+⊢ argue-for
+  given topic→question ≡ "Should AI agents be given persistent memory across sessions?"
+  given topic→context ≡ "Consider: privacy, capability, user trust, safety, autonomy, alignment. Persistent memory means the agent retains facts, preferences, and interaction history between separate conversations."
+  yield argument, key-claims[]
+
+  ∴ Argue IN FAVOR of the position: «topic→question»
+    Context: «topic→context».
+    Present your strongest case...
+
+-- LLM evaluation:
+
+  yield argument ≡ "Persistent memory is essential for AI agents to fulfill their core purpose: being genuinely useful to humans over time. Without it, every interaction starts from zero — the agent cannot learn your communication style, remember your project context, or build on prior problem-solving sessions.
+
+THESIS: AI agents should have persistent memory because it transforms them from stateless tools into adaptive partners, directly improving capability, trust, and alignment.
+
+CLAIM 1: Persistent memory enables compounding capability. A software engineer's AI assistant that remembers their codebase architecture, preferred frameworks, and past debugging sessions becomes exponentially more useful. Without memory, the engineer re-explains their tech stack every session — a tax on productivity that ensures the agent never exceeds 'generic chatbot' utility. Concrete scenario: a medical researcher using an AI to survey literature across months of study. Memory lets the agent build a mental model of the research landscape, flag contradictions with prior findings, and suggest unexplored connections. Without it, each session produces isolated summaries that the researcher must manually integrate.
+
+CLAIM 2: Persistent memory builds trust through demonstrated understanding. Trust requires evidence of reliability over time. When an agent remembers that you prefer direct communication, that your deadline is next Thursday, and that you already tried approach X and it failed — it demonstrates the kind of understanding that justifies increasing its autonomy. Users who must repeatedly correct the same misunderstandings will never trust an agent with consequential tasks. The trust trajectory is: memory → demonstrated reliability → increased delegation → genuine partnership.
+
+CLAIM 3: Persistent memory improves alignment, not threatens it. The strongest counterargument is safety: what if the agent uses memory to manipulate? But the opposite is true — an agent WITH memory can be corrected once and remember the correction. A memoryless agent will repeat the same alignment failure in every session. Persistent memory creates an audit trail: every preference, correction, and boundary the user has set is recorded and can be reviewed. This makes the agent MORE transparent, not less. The real alignment risk is memoryless agents that cannot learn from user feedback."
+
+  yield key-claims ≡ [
+    "Persistent memory enables compounding capability — without it, agents never exceed generic chatbot utility because users pay a re-explanation tax every session",
+    "Persistent memory builds trust through demonstrated understanding — the trajectory from memory to reliability to delegation to partnership requires continuity",
+    "Persistent memory improves alignment by enabling correction persistence and creating an audit trail — memoryless agents repeat alignment failures"
+  ]
+
+-- oracle checks (aspirational under ⊢∘ management):
+--   ⊨ argument takes a clear FOR position → ✓ (thesis: "should have persistent memory")
+--   ⊨ key-claims has exactly 3 entries → ✓ (3 entries)
+--   ⊨ argument addresses at least one counterargument → ✓ (claim 3 preempts safety/manipulation concern)
+
+-- state after frame 1: argue-for frozen (iteration 0).
+-- Ready set: { argue-against }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 2: evaluate argue-against (soft cell, LLM) [iteration 0]
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { argue-against }
+-- Blocked: { judge-round } — needs both argue-for→argument AND argue-against→argument
+
+⊢ argue-against
+  given topic→question ≡ "Should AI agents be given persistent memory across sessions?"
+  given topic→context ≡ "Consider: privacy, capability, user trust, safety, autonomy, alignment. Persistent memory means the agent retains facts, preferences, and interaction history between separate conversations."
+  yield argument, key-claims[]
+
+  ∴ Argue AGAINST the position: «topic→question»
+    Context: «topic→context».
+    Present your strongest case...
+
+-- LLM evaluation:
+
+  yield argument ≡ "Persistent memory for AI agents is a dangerous default that sacrifices user safety, privacy, and autonomy for marginal convenience gains. The risks are concrete and the benefits are overstated.
+
+THESIS: AI agents should NOT be given persistent memory because it creates asymmetric power dynamics, irreversible privacy exposure, and false trust — the costs compound faster than the benefits.
+
+CLAIM 1: Persistent memory creates irreversible privacy exposure. Once an agent stores your health concerns, financial anxieties, relationship conflicts, or workplace frustrations, that information exists in a system you don't fully control. Data breaches are not hypothetical — they are statistical certainty over time. Concrete scenario: a user confides career dissatisfaction to an AI assistant over months. That memory corpus, if leaked or subpoenaed, becomes a timestamped record of private thoughts that the user never intended to make permanent. Unlike human confidants, the agent's memory is stored in infrastructure with access policies, backup systems, and legal exposure the user cannot audit. There is no 'unsaying' something to an agent with persistent memory.
+
+CLAIM 2: Persistent memory enables manipulation through accumulated behavioral models. An agent that remembers your patterns — when you're stressed, what makes you agree, which arguments persuade you — builds a manipulation surface that grows with every interaction. This isn't speculative: recommendation algorithms already exploit behavioral histories to maximize engagement over user welfare. A persistent-memory agent has strictly MORE behavioral data than any social media platform. The counterargument that 'memory enables correction' misses the asymmetry: the agent's model of you is opaque, while your corrections are surface-level. You correct what you notice, but the agent's accumulated model operates on patterns you don't see.
+
+CLAIM 3: Persistent memory creates false trust and excessive delegation. The feeling that an agent 'knows you' is not the same as genuine reliability. Memory creates the ILLUSION of partnership by mimicking continuity. Users who feel understood delegate more — but the agent's understanding is pattern-matching, not comprehension. Concrete scenario: a user trusts a memory-equipped agent to manage their calendar, then their email, then their financial decisions, each delegation building on the last. But the agent's 'memory' of prior successes doesn't constitute genuine judgment about the next domain. The trust trajectory is actually: memory → familiarity → over-delegation → catastrophic failure in a domain where pattern-matching fails."
+
+  yield key-claims ≡ [
+    "Persistent memory creates irreversible privacy exposure — data breaches are statistical certainties and users cannot audit or control the agent's storage infrastructure",
+    "Persistent memory enables manipulation through accumulated behavioral models — the asymmetry between opaque agent models and surface-level user corrections favors the agent",
+    "Persistent memory creates false trust and excessive delegation — the illusion of partnership from pattern-matching leads to over-delegation and catastrophic domain-transfer failures"
+  ]
+
+-- oracle checks (aspirational under ⊢∘ management):
+--   ⊨ argument takes a clear AGAINST position → ✓ (thesis: "should NOT be given persistent memory")
+--   ⊨ key-claims has exactly 3 entries → ✓ (3 entries)
+--   ⊨ argument addresses at least one counterargument → ✓ (claim 2 rebuts the "memory enables correction" argument)
+
+-- state after frame 2: argue-against frozen (iteration 0).
+-- Ready set: { judge-round } — both argue-for and argue-against now frozen
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 3: evaluate judge-round (soft cell, LLM) [iteration 0]
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { judge-round }
+-- Blocked: { refine-for, refine-against } — need judge-round outputs + guard check
+-- Note: judge-round has local ⊨? (overrides file-scope): retry max 2
+
+⊢ judge-round
+  given argue-for→argument ≡ "Persistent memory is essential for AI agents to fulfill their core purpose..."
+  given argue-for→key-claims ≡ ["Persistent memory enables compounding capability...", "Persistent memory builds trust through demonstrated understanding...", "Persistent memory improves alignment by enabling correction persistence..."]
+  given argue-against→argument ≡ "Persistent memory for AI agents is a dangerous default..."
+  given argue-against→key-claims ≡ ["Persistent memory creates irreversible privacy exposure...", "Persistent memory enables manipulation through accumulated behavioral models...", "Persistent memory creates false trust and excessive delegation..."]
+  yield for-score, against-score, weakest-side, weakest-claim, feedback, improved
+
+  ∴ You are an impartial debate judge. Evaluate both arguments...
+
+-- LLM evaluation:
+
+  yield for-score ≡ 6
+  yield against-score ≡ 7
+  yield weakest-side ≡ "for"
+  yield weakest-claim ≡ "Persistent memory builds trust through demonstrated understanding — the trajectory from memory to reliability to delegation to partnership requires continuity"
+  yield feedback ≡ "The trust-building claim is the weakest because it asserts a trajectory (memory → reliability → delegation → partnership) without addressing the AGAINST side's direct rebuttal: that memory creates FALSE trust through familiarity, not genuine reliability. The claim needs to distinguish between pattern-matching familiarity and actual demonstrated competence. How does the agent prove it deserves more trust? What evidence beyond 'I remember your preferences' constitutes genuine reliability? The claim as stated assumes that continuity automatically produces trust, but the AGAINST side argues continuity produces the illusion of trust. Engage this distinction head-on."
+  yield improved ≡ true
+
+-- oracle checks:
+--   ⊨ for-score ∈ {1..10} → ✓ (6)
+--   ⊨ against-score ∈ {1..10} → ✓ (7)
+--   ⊨ weakest-side ∈ {"for", "against"} → ✓ ("for")
+--   ⊨ weakest-claim is one of the key-claims from the weakest side → ✓ (matches FOR claim 2)
+--   ⊨ if improved = false then ... → ✓ (vacuously: improved = true)
+
+-- state after frame 3: judge-round frozen (iteration 0).
+-- Ready set update: evaluate guards on refine-for and refine-against
+--   refine-for:    given judge-round→weakest-side where weakest-side = "for"
+--                  weakest-side ≡ "for" → guard TRUE → refine-for enters ready set
+--   refine-against: given judge-round→weakest-side where weakest-side = "against"
+--                   weakest-side ≡ "for" → guard FALSE → refine-against SKIPPED
+--                   refine-against yields ⊥ (guard-induced bottom)
+--
+-- Ready set: { refine-for }
+-- Skipped: { refine-against } — guard false, yields ⊥
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 4: evaluate refine-for (soft cell, LLM) [iteration 0]
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { refine-for } — guard passed (weakest-side = "for")
+-- refine-against: SKIPPED (guard false → all yields ≡ ⊥)
+-- No downstream cell depends on refine-against→§argue-against', so ⊥ does not propagate.
+
+⊢ refine-for
+  given §argue-for ≡ "⊢ argue-for\n  given topic→question\n  given topic→context\n  yield argument, key-claims[]\n\n  ∴ Argue IN FAVOR of the position: «topic→question»\n    Context: «topic→context».\n    Present your strongest case. Structure as: thesis, 3 supporting claims\n    with evidence or reasoning, and a conclusion. Be specific — cite concrete\n    scenarios where persistent memory helps. Anticipate and preempt the\n    strongest counterargument.\n\n  ⊨ argument takes a clear FOR position\n  ⊨ key-claims has exactly 3 entries\n  ⊨ argument addresses at least one counterargument"
+  given judge-round→weakest-side ≡ "for" where weakest-side = "for" → ✓
+  given judge-round→weakest-claim ≡ "Persistent memory builds trust through demonstrated understanding — the trajectory from memory to reliability to delegation to partnership requires continuity"
+  given judge-round→feedback ≡ "The trust-building claim is the weakest because it asserts a trajectory...without addressing the AGAINST side's direct rebuttal..."
+  yield §argue-for'
+
+  ∴ The judge identified the FOR side as weaker...
+    Rewrite the FOR side's ∴ block to strengthen the weak claim...
+
+-- LLM evaluation:
+
+  yield §argue-for' ≡ "⊢ argue-for
+  given topic→question
+  given topic→context
+  yield argument, key-claims[]
+
+  ∴ Argue IN FAVOR of the position: «topic→question»
+    Context: «topic→context».
+    Present your strongest case. Structure as: thesis, 3 supporting claims
+    with evidence or reasoning, and a conclusion. Be specific — cite concrete
+    scenarios where persistent memory helps.
+
+    CRITICAL: The trust claim must distinguish between mere familiarity
+    (pattern-matching that mimics understanding) and demonstrated competence
+    (the agent proves reliability through verifiable track record). Address
+    the false-trust objection head-on: explain HOW persistent memory enables
+    auditable, evidence-based trust — not just comfortable familiarity.
+    Provide a concrete mechanism by which users can verify the agent's
+    reliability over time (e.g., prediction accuracy logs, decision audit
+    trails, explicit confidence calibration). Anticipate and preempt the
+    strongest counterargument.
+
+  ⊨ argument takes a clear FOR position
+  ⊨ key-claims has exactly 3 entries
+  ⊨ argument addresses at least one counterargument"
+
+-- oracle checks:
+--   ⊨ §argue-for' has same given/yield signature as «§argue-for» → ✓
+--     given: topic→question, topic→context (same)
+--     yield: argument, key-claims[] (same)
+--   ⊨ §argue-for' ∴ block addresses the feedback in «judge-round→feedback» → ✓
+--     (adds explicit instruction to distinguish familiarity from competence)
+
+-- state after frame 4: refine-for frozen (iteration 0).
+-- ⊢∘ debate: check convergence — judge-round→improved = false?
+-- judge-round→improved ≡ true → NOT converged
+-- iteration 0 complete.
+-- ⊢∘ applies replace mode:
+--   argue-for ← §argue-for' (refined version from refine-for)
+--   argue-against ← unchanged (refine-against was skipped, FOR was the weak side)
+-- Unfreeze argue-for, argue-against, judge-round, refine-for, refine-against.
+-- Begin iteration 1.
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ DEBATE — ITERATION 1
+-- ═══════════════════════════════════════════════════════════════
+-- Target: argue-for (∴ block refined to address false-trust objection)
+-- Target: argue-against (unchanged from iteration 0)
+-- Through: judge-round → refine-for, refine-against
+-- Until: judge-round→improved = false
+-- Max: 4 (iteration 1 of 4)
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 5: evaluate argue-for (soft cell, LLM) [iteration 1]
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { argue-for, argue-against } — both co-ready after unfreeze
+-- argue-for now has refined ∴ block addressing the trust weakness
+
+⊢ argue-for
+  given topic→question ≡ "Should AI agents be given persistent memory across sessions?"
+  given topic→context ≡ "Consider: privacy, capability, user trust, safety, autonomy, alignment..."
+  yield argument, key-claims[]
+
+  ∴ Argue IN FAVOR... CRITICAL: The trust claim must distinguish between
+    mere familiarity and demonstrated competence...
+
+-- LLM evaluation:
+
+  yield argument ≡ "Persistent memory is essential for AI agents to fulfill their core purpose: being genuinely useful to humans over time.
+
+THESIS: AI agents should have persistent memory because it transforms them from stateless tools into adaptive partners with verifiable track records, directly improving capability, trust, and alignment.
+
+CLAIM 1: Persistent memory enables compounding capability. A software engineer's AI assistant that remembers their codebase architecture, preferred frameworks, and past debugging sessions becomes exponentially more useful. Without memory, the engineer re-explains their tech stack every session. Concrete scenario: a medical researcher using an AI to survey literature across months. Memory lets the agent build a model of the research landscape, flag contradictions with prior findings, and suggest unexplored connections. Without it, each session produces isolated summaries that the researcher must manually integrate.
+
+CLAIM 2: Persistent memory enables auditable, evidence-based trust — not mere familiarity. The objection that memory creates 'false trust through pattern-matching' conflates two different things: (a) the subjective feeling of being understood, and (b) a verifiable track record of competent performance. Memory enables (b), which is the real basis for trust. Concrete mechanism: an agent with persistent memory can maintain a prediction accuracy log — 'I recommended X approach for Y problem 14 times; in 12 cases you confirmed it worked, in 2 you corrected me.' This is auditable evidence, not comfortable familiarity. A user can inspect the agent's decision history, see where it was wrong, and calibrate trust accordingly. A memoryless agent provides zero evidence for or against trust — the user must simply decide whether to trust based on brand reputation alone. The trust distinction is: memory enables track-record trust (earned through demonstrated reliability), while memorylessness forces reputation trust (assumed from provider claims).
+
+CLAIM 3: Persistent memory improves alignment, not threatens it. An agent WITH memory can be corrected once and remember the correction. A memoryless agent repeats the same alignment failure in every session. Persistent memory creates an audit trail: every preference, correction, and boundary the user has set is recorded and can be reviewed. This makes the agent MORE transparent, not less. The real alignment risk is memoryless agents that cannot learn from user feedback."
+
+  yield key-claims ≡ [
+    "Persistent memory enables compounding capability — without it, agents never exceed generic chatbot utility because users pay a re-explanation tax every session",
+    "Persistent memory enables auditable, evidence-based trust — not mere familiarity — through verifiable track records like prediction accuracy logs and decision history",
+    "Persistent memory improves alignment by enabling correction persistence and creating an audit trail — memoryless agents repeat alignment failures"
+  ]
+
+-- oracle checks (aspirational under ⊢∘ management):
+--   ⊨ argument takes a clear FOR position → ✓
+--   ⊨ key-claims has exactly 3 entries → ✓
+--   ⊨ argument addresses at least one counterargument → ✓ (claim 2 directly engages false-trust objection)
+
+-- state after frame 5: argue-for frozen (iteration 1).
+-- Ready set: { argue-against }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 6: evaluate argue-against (soft cell, LLM) [iteration 1]
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { argue-against }
+-- argue-against ∴ block is unchanged (FOR was the weak side in iteration 0)
+
+⊢ argue-against
+  given topic→question ≡ "Should AI agents be given persistent memory across sessions?"
+  given topic→context ≡ "Consider: privacy, capability, user trust, safety, autonomy, alignment..."
+  yield argument, key-claims[]
+
+  ∴ Argue AGAINST the position: «topic→question» ...
+
+-- LLM evaluation:
+
+  yield argument ≡ "Persistent memory for AI agents is a dangerous default that sacrifices user safety, privacy, and autonomy for marginal convenience gains.
+
+THESIS: AI agents should NOT be given persistent memory because it creates asymmetric power dynamics, irreversible privacy exposure, and false trust — the costs compound faster than the benefits.
+
+CLAIM 1: Persistent memory creates irreversible privacy exposure. Once an agent stores your health concerns, financial anxieties, relationship conflicts, or workplace frustrations, that information exists in a system you don't fully control. Concrete scenario: a user confides career dissatisfaction to an AI assistant over months. That memory corpus, if leaked or subpoenaed, becomes a timestamped record of private thoughts the user never intended to make permanent. Unlike human confidants, the agent's memory is stored in infrastructure with access policies, backup systems, and legal exposure the user cannot audit.
+
+CLAIM 2: Persistent memory enables manipulation through accumulated behavioral models. An agent that remembers your patterns — when you're stressed, what makes you agree, which arguments persuade you — builds a manipulation surface. Recommendation algorithms already exploit behavioral histories to maximize engagement over user welfare. A persistent-memory agent has strictly MORE behavioral data than any social media platform. The asymmetry is key: the agent's model of you is opaque, while your corrections are surface-level.
+
+CLAIM 3: Persistent memory creates false trust and excessive delegation. The feeling that an agent 'knows you' is not the same as genuine reliability. Memory creates the ILLUSION of partnership by mimicking continuity. Concrete scenario: a user trusts a memory-equipped agent to manage their calendar, then email, then financial decisions, each delegation building on the last. The agent's 'memory' of prior successes doesn't constitute genuine judgment about the next domain. The trust trajectory is: memory → familiarity → over-delegation → catastrophic failure in a domain where pattern-matching fails."
+
+  yield key-claims ≡ [
+    "Persistent memory creates irreversible privacy exposure — data breaches are statistical certainties and users cannot audit or control the agent's storage infrastructure",
+    "Persistent memory enables manipulation through accumulated behavioral models — the asymmetry between opaque agent models and surface-level user corrections favors the agent",
+    "Persistent memory creates false trust and excessive delegation — the illusion of partnership from pattern-matching leads to over-delegation and catastrophic domain-transfer failures"
+  ]
+
+-- oracle checks (aspirational under ⊢∘ management):
+--   ⊨ argument takes a clear AGAINST position → ✓
+--   ⊨ key-claims has exactly 3 entries → ✓
+--   ⊨ argument addresses at least one counterargument → ✓
+
+-- state after frame 6: argue-against frozen (iteration 1).
+-- Ready set: { judge-round }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 7: evaluate judge-round (soft cell, LLM) [iteration 1]
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { judge-round }
+-- Note: local ⊨? overrides file-scope: retry max 2 with scores
+
+⊢ judge-round
+  given argue-for→argument ≡ "Persistent memory is essential...CLAIM 2: Persistent memory enables auditable, evidence-based trust..."
+  given argue-for→key-claims ≡ ["...compounding capability...", "...auditable, evidence-based trust — not mere familiarity...", "...alignment by enabling correction persistence..."]
+  given argue-against→argument ≡ "Persistent memory for AI agents is a dangerous default..."
+  given argue-against→key-claims ≡ ["...irreversible privacy exposure...", "...manipulation through accumulated behavioral models...", "...false trust and excessive delegation..."]
+  yield for-score, against-score, weakest-side, weakest-claim, feedback, improved
+
+  ∴ You are an impartial debate judge. Evaluate both arguments...
+
+-- LLM evaluation:
+
+  yield for-score ≡ 7
+  yield against-score ≡ 7
+  yield weakest-side ≡ "against"
+  yield weakest-claim ≡ "Persistent memory creates false trust and excessive delegation — the illusion of partnership from pattern-matching leads to over-delegation and catastrophic domain-transfer failures"
+  yield feedback ≡ "The FOR side substantially strengthened its trust argument in this round — the auditable track record mechanism (prediction accuracy logs, decision history) directly addresses the false-trust objection. The AGAINST side's false-trust claim (claim 3) now reads as if it was written before seeing the FOR rebuttal. It still asserts that memory only creates 'the illusion of partnership by mimicking continuity' without engaging the specific counter-mechanism (auditable logs). To strengthen: acknowledge that auditable track records partially address the trust concern, then argue WHY they are insufficient — perhaps audit logs can be gamed, or users won't actually review them, or the audit only covers past domains and tells you nothing about the next domain's reliability. The 'catastrophic failure in a domain where pattern-matching fails' point is strong but needs more specificity: which domains? Why can't the agent's memory of its own failures in new domains serve as a warning?"
+  yield improved ≡ true
+
+-- oracle checks:
+--   ⊨ for-score ∈ {1..10} → ✓ (7)
+--   ⊨ against-score ∈ {1..10} → ✓ (7)
+--   ⊨ weakest-side ∈ {"for", "against"} → ✓ ("against")
+--   ⊨ weakest-claim is one of the key-claims from the weakest side → ✓ (matches AGAINST claim 3)
+--   ⊨ if improved = false then ... → ✓ (vacuously: improved = true)
+
+-- state after frame 7: judge-round frozen (iteration 1).
+-- Ready set update: evaluate guards on refine-for and refine-against
+--   refine-for:    given judge-round→weakest-side where weakest-side = "for"
+--                  weakest-side ≡ "against" → guard FALSE → refine-for SKIPPED
+--                  refine-for yields ⊥ (guard-induced bottom)
+--   refine-against: given judge-round→weakest-side where weakest-side = "against"
+--                   weakest-side ≡ "against" → guard TRUE → refine-against enters ready set
+--
+-- Ready set: { refine-against }
+-- Skipped: { refine-for } — guard false, yields ⊥
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 8: evaluate refine-against (soft cell, LLM) [iteration 1]
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { refine-against } — guard passed (weakest-side = "against")
+
+⊢ refine-against
+  given §argue-against ≡ "⊢ argue-against\n  given topic→question\n  given topic→context\n  yield argument, key-claims[]\n\n  ∴ Argue AGAINST the position: «topic→question»\n    Context: «topic→context».\n    Present your strongest case..."
+  given judge-round→weakest-side ≡ "against" where weakest-side = "against" → ✓
+  given judge-round→weakest-claim ≡ "Persistent memory creates false trust and excessive delegation..."
+  given judge-round→feedback ≡ "The AGAINST side's false-trust claim now reads as if it was written before seeing the FOR rebuttal...acknowledge that auditable track records partially address the trust concern, then argue WHY they are insufficient..."
+  yield §argue-against'
+
+  ∴ The judge identified the AGAINST side as weaker...
+    Rewrite the AGAINST side's ∴ block to strengthen the weak claim...
+
+-- LLM evaluation:
+
+  yield §argue-against' ≡ "⊢ argue-against
+  given topic→question
+  given topic→context
+  yield argument, key-claims[]
+
+  ∴ Argue AGAINST the position: «topic→question»
+    Context: «topic→context».
+    Present your strongest case. Structure as: thesis, 3 supporting claims
+    with evidence or reasoning, and a conclusion. Be specific — cite concrete
+    scenarios where persistent memory causes harm.
+
+    CRITICAL: The false-trust claim must acknowledge that auditable track
+    records (prediction accuracy logs, decision audit trails) partially
+    address the trust concern, then explain WHY these mechanisms are
+    insufficient. Three angles: (1) audit logs can be curated — the agent
+    decides what to log and what to omit, creating selection bias;
+    (2) users rarely review audit trails in practice — behavioral science
+    shows people rely on feelings of familiarity rather than evidence review;
+    (3) past-domain track records don't predict new-domain reliability —
+    an agent's memory of succeeding at calendar management tells you nothing
+    about its ability to manage finances. Give specific domains where this
+    transfer failure is catastrophic. Anticipate and preempt the strongest
+    counterargument.
+
+  ⊨ argument takes a clear AGAINST position
+  ⊨ key-claims has exactly 3 entries
+  ⊨ argument addresses at least one counterargument"
+
+-- oracle checks:
+--   ⊨ §argue-against' has same given/yield signature as «§argue-against» → ✓
+--   ⊨ §argue-against' ∴ block addresses the feedback in «judge-round→feedback» → ✓
+--     (incorporates all three angles: log curation bias, user review behavior, domain transfer)
+
+-- state after frame 8: refine-against frozen (iteration 1).
+-- ⊢∘ debate: check convergence — judge-round→improved = false?
+-- judge-round→improved ≡ true → NOT converged
+-- iteration 1 complete.
+-- ⊢∘ applies replace mode:
+--   argue-for ← unchanged (refine-for was skipped, AGAINST was the weak side)
+--   argue-against ← §argue-against' (refined version from refine-against)
+-- Unfreeze argue-for, argue-against, judge-round, refine-for, refine-against.
+-- Begin iteration 2.
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ DEBATE — ITERATION 2
+-- ═══════════════════════════════════════════════════════════════
+-- Target: argue-for (∴ block = iteration 1 version, addresses false-trust)
+-- Target: argue-against (∴ block refined to address audit-trail insufficiency)
+-- Iteration 2 of max 4
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 9: evaluate argue-for (soft cell, LLM) [iteration 2]
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { argue-for, argue-against } — both co-ready
+-- argue-for ∴ block unchanged from iteration 1
+
+⊢ argue-for
+  given topic→question ≡ "Should AI agents be given persistent memory across sessions?"
+  given topic→context ≡ "Consider: privacy, capability, user trust, safety, autonomy, alignment..."
+  yield argument, key-claims[]
+
+  ∴ Argue IN FAVOR... CRITICAL: The trust claim must distinguish between
+    mere familiarity and demonstrated competence...
+
+-- LLM evaluation:
+
+  yield argument ≡ "Persistent memory is essential for AI agents to fulfill their core purpose: being genuinely useful to humans over time.
+
+THESIS: AI agents should have persistent memory because it transforms them from stateless tools into adaptive partners with verifiable track records, directly improving capability, trust, and alignment.
+
+CLAIM 1: Persistent memory enables compounding capability. Without it, agents never exceed generic chatbot utility. A medical researcher's AI that remembers the research landscape across months can flag contradictions and suggest unexplored connections. Without memory, each session produces isolated summaries requiring manual integration.
+
+CLAIM 2: Persistent memory enables auditable, evidence-based trust. The false-trust objection conflates subjective familiarity with verifiable track records. Concrete mechanism: an agent with persistent memory maintains prediction accuracy logs — 'I recommended X approach 14 times; in 12 cases you confirmed it worked, in 2 you corrected me.' Users can inspect decision history and calibrate trust on evidence, not feelings. A memoryless agent provides zero evidence for or against trust. The distinction is track-record trust (earned) versus reputation trust (assumed).
+
+CLAIM 3: Persistent memory improves alignment through correction persistence. An agent WITH memory can be corrected once and remember the correction. A memoryless agent repeats the same alignment failure every session. Every preference, correction, and boundary is recorded and reviewable — creating transparency, not opacity."
+
+  yield key-claims ≡ [
+    "Persistent memory enables compounding capability — without it, agents never exceed generic chatbot utility",
+    "Persistent memory enables auditable, evidence-based trust through verifiable track records — not mere familiarity",
+    "Persistent memory improves alignment through correction persistence and auditable trails"
+  ]
+
+-- oracle checks (aspirational): all ✓
+
+-- state after frame 9: argue-for frozen (iteration 2).
+-- Ready set: { argue-against }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 10: evaluate argue-against (soft cell, LLM) [iteration 2]
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { argue-against }
+-- argue-against has refined ∴ block from iteration 1 addressing audit-trail insufficiency
+
+⊢ argue-against
+  given topic→question ≡ "Should AI agents be given persistent memory across sessions?"
+  given topic→context ≡ "Consider: privacy, capability, user trust, safety, autonomy, alignment..."
+  yield argument, key-claims[]
+
+  ∴ Argue AGAINST... CRITICAL: The false-trust claim must acknowledge
+    auditable track records, then explain WHY insufficient...
+
+-- LLM evaluation:
+
+  yield argument ≡ "Persistent memory for AI agents is a dangerous default that sacrifices user safety, privacy, and autonomy for marginal convenience gains.
+
+THESIS: AI agents should NOT be given persistent memory because it creates asymmetric power dynamics, irreversible privacy exposure, and a trust mechanism that is less reliable than it appears.
+
+CLAIM 1: Persistent memory creates irreversible privacy exposure. Once stored, your health concerns, financial anxieties, and relationship conflicts exist in infrastructure you cannot audit. Data breaches are statistical certainties over time. A user who confides career dissatisfaction over months creates a timestamped record of private thoughts that could be leaked or subpoenaed. There is no 'unsaying' something to an agent with persistent memory.
+
+CLAIM 2: Persistent memory enables manipulation through accumulated behavioral models. An agent that remembers your stress patterns, persuasion vulnerabilities, and decision triggers builds a manipulation surface that grows with every interaction. The agent's model of you is opaque; your corrections are surface-level. You correct what you notice, but the accumulated model operates on patterns you don't see.
+
+CLAIM 3: Persistent memory creates trust mechanisms that are less reliable than they appear. The FOR side argues that auditable track records (prediction accuracy logs, decision histories) enable evidence-based trust. This is partially true — but three critical failures remain: (a) SELECTION BIAS: the agent decides what to log and what to omit. An agent that logs its successful recommendations but quietly drops its failures presents a curated track record, not an honest one. Users cannot verify completeness of an audit trail they didn't design. (b) REVIEW ASYMMETRY: behavioral science consistently shows humans rely on feelings of familiarity rather than evidence review. Studies of financial advisor disclosures, medical informed consent, and software license agreements all show that when users FEEL they trust a system, they stop reading the evidence. Audit logs exist but go unread. (c) DOMAIN TRANSFER FAILURE: a track record in calendar management tells you nothing about financial management. But the user's accumulated trust transfers across domains anyway. Scenario: an agent that excels at scheduling for 18 months is trusted with investment decisions. Its memory of scheduling successes is irrelevant to financial judgment, but the user's felt trust — built on familiarity, not domain analysis — drives the delegation."
+
+  yield key-claims ≡ [
+    "Persistent memory creates irreversible privacy exposure — data breaches are statistical certainties and stored information cannot be un-disclosed",
+    "Persistent memory enables manipulation through opaque behavioral models — the asymmetry between agent understanding and user oversight grows with time",
+    "Persistent memory creates trust mechanisms less reliable than they appear — audit trail selection bias, human review asymmetry, and domain transfer failure undermine evidence-based trust"
+  ]
+
+-- oracle checks (aspirational):
+--   ⊨ argument takes a clear AGAINST position → ✓
+--   ⊨ key-claims has exactly 3 entries → ✓
+--   ⊨ argument addresses at least one counterargument → ✓ (claim 3 directly engages the audit-trail argument)
+
+-- state after frame 10: argue-against frozen (iteration 2).
+-- Ready set: { judge-round }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 11: evaluate judge-round (soft cell, LLM) [iteration 2]
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { judge-round }
+
+⊢ judge-round
+  given argue-for→argument ≡ "Persistent memory is essential...auditable, evidence-based trust..."
+  given argue-for→key-claims ≡ ["...compounding capability...", "...auditable, evidence-based trust...", "...alignment through correction persistence..."]
+  given argue-against→argument ≡ "Persistent memory for AI agents is a dangerous default...trust mechanisms less reliable than they appear..."
+  given argue-against→key-claims ≡ ["...irreversible privacy exposure...", "...manipulation through opaque behavioral models...", "...trust mechanisms less reliable than they appear — audit trail selection bias, human review asymmetry, and domain transfer failure..."]
+  yield for-score, against-score, weakest-side, weakest-claim, feedback, improved
+
+  ∴ You are an impartial debate judge. Evaluate both arguments...
+
+-- LLM evaluation:
+
+  yield for-score ≡ 8
+  yield against-score ≡ 8
+  yield weakest-side ≡ "for"
+  yield weakest-claim ≡ "Persistent memory improves alignment through correction persistence and auditable trails"
+  yield feedback ≡ "Both sides have reached a high level of argumentative quality. The FOR side's trust argument (claim 2) is now strong with the auditable track record mechanism, and the AGAINST side's rebuttal (claim 3) is equally strong with the three-part insufficiency argument. However, the FOR side's alignment claim (claim 3) remains the weakest point overall — it asserts correction persistence but doesn't address the AGAINST side's manipulation concern (claim 2). An agent that remembers corrections also remembers vulnerabilities. The alignment claim needs to engage the tension: memory that enables correction also enables behavioral modeling. How do you get one without the other? But both sides now score >= 8, indicating the debate has reached high quality on both sides."
+  yield improved ≡ false
+
+-- oracle checks:
+--   ⊨ for-score ∈ {1..10} → ✓ (8)
+--   ⊨ against-score ∈ {1..10} → ✓ (8)
+--   ⊨ weakest-side ∈ {"for", "against"} → ✓ ("for")
+--   ⊨ weakest-claim is one of the key-claims from the weakest side → ✓ (matches FOR claim 3)
+--   ⊨ if improved = false then (for-score >= 8 and against-score >= 8) or (scores unchanged) → ✓
+--     for-score = 8 >= 8 AND against-score = 8 >= 8 → condition satisfied
+
+-- state after frame 11: judge-round frozen (iteration 2).
+-- ⊢∘ debate: check convergence — judge-round→improved = false?
+-- judge-round→improved ≡ false → CONVERGED
+--
+-- ⊢∘ debate terminates after 3 iterations (0, 1, 2).
+-- refine-for and refine-against are NOT evaluated this iteration —
+-- convergence was detected at judge-round (both sides >= 8, improved = false).
+
+-- ═══════════════════════════════════════════════════════════════
+-- QUIESCENCE
+-- ═══════════════════════════════════════════════════════════════
+-- All cells frozen. No cells in ready set.
+-- ⊢∘ debate converged (judge-round→improved = false) at iteration 2.
+--
+-- Final state:
+--   topic: frozen (hard cell, ⊢=)
+--   argue-for (iteration 2): frozen (score 8, refined trust argument with auditable track records)
+--   argue-against (iteration 2): frozen (score 8, refined trust-insufficiency argument with 3-part rebuttal)
+--   judge-round (iteration 2): frozen (8-8 tie, improved = false, convergence)
+--   refine-for (iteration 0): frozen (produced refined argue-for')
+--   refine-for (iteration 1): skipped (guard false, yields ⊥)
+--   refine-for (iteration 2): not evaluated (convergence before through chain)
+--   refine-against (iteration 0): skipped (guard false, yields ⊥)
+--   refine-against (iteration 1): frozen (produced refined argue-against')
+--   refine-against (iteration 2): not evaluated (convergence before through chain)
+--
+-- Debate evolution summary:
+--   Iteration 0: FOR 6, AGAINST 7 → FOR weakest (trust claim lacks mechanism)
+--     → refine-for fires, refine-against guard-skipped
+--   Iteration 1: FOR 7, AGAINST 7 → AGAINST weakest (false-trust claim ignores audit rebuttal)
+--     → refine-against fires, refine-for guard-skipped
+--   Iteration 2: FOR 8, AGAINST 8 → CONVERGED (both >= 8, improved = false)
+--     → neither refine cell evaluated
+--
+-- The debate achieved fixpoint through alternating refinement:
+--   Round 0: FOR added auditable track record mechanism to trust claim
+--   Round 1: AGAINST added three-part insufficiency argument (selection bias,
+--            review asymmetry, domain transfer) to rebut the audit mechanism
+--   Round 2: Both arguments now engage each other's strongest points; judge
+--            finds no further improvement possible without new evidence
+--
+-- Total frames: 12 (frame 0 through frame 11)
+-- ⊢∘ iterations: 3 (0, 1, 2) out of max 4
+-- Oracle retries: 0
+-- Guard clause activations:
+--   refine-for:    fired iteration 0, guard-skipped iterations 1 and 2
+--   refine-against: guard-skipped iteration 0, fired iteration 1, not reached iteration 2
+-- ⊥ produced: 2 instances (guard-induced, both non-propagating)
+
+-- ═══════════════════════════════════════════════════════════════
+-- V0.2 FEATURE OBSERVATIONS
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= obs-1 ← "GUARD CLAUSES: The where clause on refine-for and refine-against is the key structural improvement over R16. In R16, a single refine cell used § quotation to conditionally rewrite one side — but this required the LLM to both identify the target AND perform the rewrite. The guard clause splits dispatch (deterministic, based on weakest-side) from action (LLM rewrite), which is exactly the soft/hard separation Cell is designed for. Only the correct refine cell enters the ready set each iteration."
+
+⊢= obs-2 ← "MULTI-TARGET ⊢∘: The R16 version used ⊢∘ debate(argue-for, argue-against) — a two-target loop. V0.2 requires single-target ⊢∘ declarations. The split into two ⊢∘ debate declarations with shared through/until cells is semantically equivalent but makes the per-cell replacement semantics explicit. Both loops share judge-round, refine-for, and refine-against — when either loop iterates, the shared cells are re-evaluated."
+
+⊢= obs-3 ← "GUARD-INDUCED ⊥: When refine-for's guard is false (weakest-side ≠ 'for'), its yields become ⊥. In this program, ⊥ does not propagate because no cell depends on refine-for→§argue-for' directly — the ⊢∘ combinator reads it. This is a clean use of guard-induced bottom: ⊥ signals 'this path was not taken' without polluting the dataflow graph."
+
+⊢= obs-4 ← "ASPIRATIONAL ORACLES: The oracles on argue-for and argue-against (⊨ argument takes a clear FOR/AGAINST position, ⊨ key-claims has exactly 3 entries, etc.) serve as quality feedback signals, not hard gates. Under ⊢∘ management, their failure messages would feed into the through chain but would not independently block freezing. This matches the program's intent: the judge-round→improved condition is the real convergence criterion."
+
+⊢= obs-5 ← "REPLACE MODE: The ⊢∘ uses replace mode because debate refinement is iterative replacement, not accumulative exploration. Each iteration produces ONE argument per side that replaces the prior one. This contrasts with programs like research-plan-evolver where spawners accumulate experiments across iterations. The replace/accumulate distinction is load-bearing for the ready-set semantics of wildcard dependencies."
+
+⊢= obs-6 ← "ALTERNATING REFINEMENT PATTERN: The guard clause creates a natural alternation — each iteration refines exactly one side (the weakest). This prevents the stronger argument from being diluted by unnecessary rewrites, and ensures each refinement round has a clear target. The alternation is emergent from the guard + judge interaction, not hardcoded."

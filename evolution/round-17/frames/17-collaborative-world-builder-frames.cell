@@ -1,0 +1,691 @@
+-- 17-collaborative-world-builder-frames.cell (v0.2)
+-- Execution trace of 17-collaborative-world-builder.cell via eval-one
+--
+-- v0.2 execution notes:
+--   - File-scope ⊨? active: retry max 3 with failure context, then ⊥
+--   - ⊢∘ co-evolve: new v0.2 pattern — circular deps resolved via ⊥ on iteration 0
+--   - given? on peer cross-references: tolerates ⊥ (iteration 0 bootstrapping)
+--   - Oracles on geography, history, culture (⊢∘ targets) are aspirational under v0.2
+--   - check-consistency and resolve-contradictions are through-chain cells (hard gate)
+--
+-- Meta: Three creative cells build a shared world through co-evolution.
+-- The pretend test holds: an LLM reading this file can execute eval-one.
+
+-- ═══════════════════════════════════════════════════════════════
+-- READY-SET ANALYSIS (initial state)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready: { seed } — given premise has ≡ binding, always ready
+-- Blocked: { geography, history, culture } — each needs seed→premise (unbound)
+--   AND each has given? peer deps (⊥-tolerant, but seed→premise blocks first)
+-- Blocked: { check-consistency } — needs geography, history, culture outputs
+-- Blocked: { resolve-contradictions } — needs check-consistency outputs
+-- Blocked: { world-document } — needs all outputs
+-- ⊢∘ co-evolve not yet active — targets not yet ready
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 0: evaluate seed (identity cell)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { seed } — given premise ≡ "A space station..." already bound
+-- Blocked: everything else
+
+⊢ seed
+  given premise ≡ "A space station in the year 3000 — humanity's last outpost after Earth became uninhabitable. Population: ~50,000. Orbiting a gas giant in the Tau Ceti system, 12 light-years from Earth."
+  yield premise
+
+-- eval-one: seed is an identity cell — premise is already bound via ≡.
+-- yield premise ≡ given premise. No LLM needed.
+
+  yield premise ≡ "A space station in the year 3000 — humanity's last outpost after Earth became uninhabitable. Population: ~50,000. Orbiting a gas giant in the Tau Ceti system, 12 light-years from Earth."
+
+-- oracle checks:
+--   ⊨ premise establishes setting, location, and scale → ✓
+--     setting: "space station in the year 3000", location: "Tau Ceti system, 12
+--     light-years from Earth", scale: "~50,000 population"
+
+-- state after frame 0: seed frozen.
+-- ⊢∘ co-evolve activates: seed→premise now available.
+-- geography, history, culture each have:
+--   given seed→premise → now resolved (frozen)
+--   given? peer deps → ⊥ (peers not yet evaluated)
+-- Under co-evolve iteration 0, given? deps resolve to ⊥.
+-- Ready set: { geography, history, culture } — all three enter ready set simultaneously
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ CO-EVOLVE — ITERATION 0
+-- ═══════════════════════════════════════════════════════════════
+-- Targets: geography, history, culture
+-- Through: check-consistency → resolve-contradictions
+-- Until: check-consistency→consistent = true
+-- Max: 3
+--
+-- Iteration 0: all three targets evaluate with ⊥ for peer cross-references.
+-- Confluence: order of evaluation among {geography, history, culture} does not
+-- matter — they are independent (given? ⊥ deps are concrete values).
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 1: evaluate geography (soft cell, LLM) [iteration 0]
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { geography, history, culture } — picking geography first
+-- geography's inputs:
+--   seed→premise ≡ "A space station in the year 3000..."
+--   history→backstory ≡ ⊥ (given? tolerates this)
+--   culture→customs ≡ ⊥ (given? tolerates this)
+
+⊢ geography
+  given seed→premise ≡ "A space station in the year 3000 — humanity's last outpost after Earth became uninhabitable. Population: ~50,000. Orbiting a gas giant in the Tau Ceti system, 12 light-years from Earth."
+  given? history→backstory ≡ ⊥
+  given? culture→customs ≡ ⊥
+  yield layout, sectors[], environment
+
+  ∴ Design the physical layout of the space station described in «seed→premise».
+    If «history→backstory» is available (not ⊥), consider the backstory...
+    If peer outputs are ⊥, design freely from the premise alone.
+
+-- LLM evaluation (peer outputs are ⊥ — designing freely from premise):
+
+  yield layout ≡ "The Tau Ceti Ark is a rotating O'Neill cylinder, 8 km long and 2 km in diameter. The station spins at 0.5 RPM to produce 0.85g along the inner surface. The cylinder is divided into six longitudinal strips alternating between habitation and window bands. A non-rotating central spine houses the docking hub, zero-g manufacturing, and the primary fusion reactor array. Two endcaps: the Forward Cap (facing the gas giant Aurelius) houses observation decks and the navigation array; the Aft Cap contains the propulsion remnants and deep storage vaults."
+
+  yield sectors ≡ [
+    { name: "The Greenway", purpose: "Agricultural and park strip — hydroponic farms, orchards, and the station's only open sky. Runs the full 8 km length." },
+    { name: "Midtown", purpose: "Primary residential and commercial sector. Tiered hab-blocks from cylinder floor to 200m elevation. Population density: ~15,000." },
+    { name: "The Spine", purpose: "Zero-g central axis. Docking bays, cargo handling, zero-g manufacturing, and the fusion reactor array. Access via six radial elevators." },
+    { name: "Old Foundation", purpose: "Original construction sector, now mixed industrial and low-income housing. Contains the oldest structures on the station, some dating to initial assembly." },
+    { name: "The Ringworks", purpose: "Engineering and life-support sector. Water recycling, atmospheric processors, waste reclamation. Wraps the aft endcap." },
+    { name: "Aurelius View", purpose: "Forward observation and science sector. Telescopes, planetary science labs, the Council Chamber with a panoramic viewport facing the gas giant." }
+  ]
+
+  yield environment ≡ "Life support: closed-loop atmospheric recycling (N2/O2 78/21 mix), CO2 scrubbers in The Ringworks with biological backup in The Greenway. Water: 95% reclamation rate via distillation cascades, supplemented by ice mining from Aurelius's ring system. Gravity: centripetal via rotation at 0.85g on the inner surface, zero-g in The Spine. Power: twin deuterium-helium-3 fusion reactors in The Spine, backup solar collectors on the window bands. Emergency: each sector can seal independently; 72-hour independent life support per sector."
+
+-- oracle checks (aspirational under ⊢∘ co-evolve):
+--   ⊨ layout describes overall structure with dimensions → ✓
+--     O'Neill cylinder, 8 km × 2 km, 0.5 RPM, 0.85g, dual endcaps
+--   ⊨ length(sectors) ≥ 4 → ✓ (6 sectors)
+--   ⊨ environment addresses life support systems → ✓
+--     air, water, gravity, power, emergency all covered
+
+-- state after frame 1: geography frozen (iteration 0, tentative).
+-- Ready set: { history, culture }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 2: evaluate history (soft cell, LLM) [iteration 0]
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { history, culture } — picking history
+-- history's inputs:
+--   seed→premise ≡ "A space station in the year 3000..."
+--   geography→layout ≡ ⊥ (given? tolerates; geography IS frozen but co-evolve
+--     iteration 0 substitutes ⊥ for all peer cross-references)
+--   culture→customs ≡ ⊥
+
+⊢ history
+  given seed→premise ≡ "A space station in the year 3000 — humanity's last outpost after Earth became uninhabitable. Population: ~50,000. Orbiting a gas giant in the Tau Ceti system, 12 light-years from Earth."
+  given? geography→layout ≡ ⊥
+  given? culture→customs ≡ ⊥
+  yield backstory, key-events[], founding-era
+
+  ∴ Write the backstory for the space station in «seed→premise».
+    If «geography→layout» is available (not ⊥), ensure the history explains
+    how the physical layout came to be...
+    If peer outputs are ⊥, write freely from the premise alone.
+
+-- LLM evaluation (peer outputs are ⊥ — writing freely):
+
+  yield backstory ≡ "The Tau Ceti Ark was launched in 2847 as Project Exodus, Earth's final interstellar colonization effort. By 2840, cascading climate collapse and resource wars had reduced Earth's habitable surface to less than 5%. The United Nations Remnant pooled the last planetary reserves to construct and launch the Ark — a generation ship carrying 12,000 colonists plus embryo banks for genetic diversity. The 40-year transit to Tau Ceti (2847-2887) tested the colonists' social fabric. Upon arrival, the original plan to terraform Tau Ceti e was abandoned when surveys revealed a toxic atmosphere. The colonists chose to remain in orbit around Aurelius, the system's gas giant, and expand the ship into a permanent habitat. Over the next century, the population grew to ~50,000 through natural birth and embryo activation. By 3000, the station is a self-sustaining civilization — but one haunted by the knowledge that Earth is silent and no rescue is coming."
+
+  yield key-events ≡ [
+    { year: 2847, event: "Launch of Project Exodus — 12,000 colonists depart Earth orbit" },
+    { year: 2863, event: "The Midway Mutiny — a faction demanding return to Earth seizes the bridge. Put down after 11 days. 47 casualties. The event leads to the founding of the Council of Sectors." },
+    { year: 2887, event: "Arrival at Tau Ceti. Survey of Tau Ceti e reveals toxic atmosphere. Decision to remain orbital and expand the ship." },
+    { year: 2923, event: "The Great Expansion — station doubled in size using materials mined from Aurelius's moons. Population reaches 30,000." },
+    { year: 2971, event: "The Silence — last communication attempt to Earth receives no response. Council formally declares Earth 'presumed lost.' Day of Silence established as annual observance." }
+  ]
+
+  yield founding-era ≡ "The founding era (2847-2890) established the station's core identity: a society born from desperation, forged during transit, and committed to permanence after the failed terraforming plan. The Midway Mutiny taught that governance must be distributed — no single faction can hold absolute power. This led to the Council of Sectors, where each major section of the station elects representatives. The decision to stay orbital rather than attempt surface colonization created a culture of careful resource management and engineering reverence. The founding generation's motto — 'We are what remains' — is still inscribed above the Council Chamber."
+
+-- oracle checks (aspirational under ⊢∘ co-evolve):
+--   ⊨ backstory spans at least 100 years → ✓ (2847-3000 = 153 years)
+--   ⊨ length(key-events) ≥ 3 → ✓ (5 events)
+--   ⊨ founding-era explains origin context → ✓
+--     Explains Project Exodus, transit social dynamics, orbital permanence decision
+
+-- state after frame 2: history frozen (iteration 0, tentative).
+-- Ready set: { culture }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 3: evaluate culture (soft cell, LLM) [iteration 0]
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { culture }
+-- culture's inputs:
+--   seed→premise ≡ "A space station in the year 3000..."
+--   geography→layout ≡ ⊥
+--   history→backstory ≡ ⊥
+
+⊢ culture
+  given seed→premise ≡ "A space station in the year 3000 — humanity's last outpost after Earth became uninhabitable. Population: ~50,000. Orbiting a gas giant in the Tau Ceti system, 12 light-years from Earth."
+  given? geography→layout ≡ ⊥
+  given? history→backstory ≡ ⊥
+  yield customs, social-structure, traditions[], taboos[]
+
+  ∴ Design the culture of the space station in «seed→premise».
+    If «geography→layout» is available (not ⊥), reflect physical constraints...
+    If peer outputs are ⊥, design freely from the premise alone.
+
+-- LLM evaluation (peer outputs are ⊥ — designing freely):
+
+  yield customs ≡ "Life on the station is governed by radical resource consciousness. Every citizen tracks their personal resource budget — water, air processing share, caloric allocation — via wrist-mounted 'life ledgers.' Waste is socially unacceptable; repair culture dominates. Objects are inherited, repurposed, never discarded. Greetings include the phrase 'breathe easy' — an acknowledgment that the air you share is finite. Meals are communal by default; private eating is reserved for mourning or illness. Music is the dominant art form because it requires no physical materials."
+
+  yield social-structure ≡ "Governance: the Council of Seven — one elected representative per major station zone, plus a rotating Chancellor drawn by lottery from the general population. The lottery system prevents dynasty formation. Below the Council: Guild system organized by function (Engineers, Growers, Medics, Teachers, Recyclers, Navigators, Keepers). Guild membership is by aptitude and choice, not birth. Social mobility is high — Guild transfers happen every 5 years during Reallocation. Class distinctions exist informally: Spine workers (zero-g laborers) are both respected for toughness and pitied for health risks."
+
+  yield traditions ≡ [
+    { name: "Day of Silence", description: "Annual observance marking the loss of contact with Earth. All non-essential systems are dimmed. Citizens gather in sector commons to share stories of Earth passed down through generations. No work is performed." },
+    { name: "The Breathing", description: "Monthly ceremony where atmospheric processors are briefly made audible throughout the station. Citizens pause and listen to the sound of their shared air being cleaned. A reminder of mutual dependence." },
+    { name: "First Light", description: "Coming-of-age ceremony at age 16. The young person spends 24 hours alone in the observation deck facing Aurelius, contemplating their place in the station's future. They return to announce their chosen Guild." },
+    { name: "Reallocation", description: "Every 5 years, citizens may change Guilds, residences, or sector assignments. A festival atmosphere — part job fair, part community celebration. Prevents social calcification." }
+  ]
+
+  yield taboos ≡ [
+    { name: "Waste Hoarding", description: "Keeping broken items without repair intent. Hoarding strains recycling systems and is considered a form of theft from the community." },
+    { name: "Sealed Doors", description: "Locking personal quarters against neighbors without Council authorization. In emergencies, sealed doors kill. The Midway Mutiny began when a faction sealed the bridge. Locked doors symbolize betrayal of communal trust." },
+    { name: "Birth Overrun", description: "Having children beyond one's allocation without Council dispensation. Population is the station's most critical resource constraint. Unauthorized births trigger immediate resource rebalancing across the offender's entire sector." }
+  ]
+
+-- oracle checks (aspirational under ⊢∘ co-evolve):
+--   ⊨ social-structure describes governance → ✓ (Council of Seven, lottery Chancellor, Guild system)
+--   ⊨ length(traditions) ≥ 3 → ✓ (4 traditions)
+--   ⊨ length(taboos) ≥ 2 → ✓ (3 taboos)
+--   ⊨ customs reflect life in an enclosed space environment → ✓
+--     Resource budgets, communal meals, air consciousness, repair culture
+
+-- state after frame 3: culture frozen (iteration 0, tentative).
+-- All three co-evolve targets frozen for iteration 0.
+-- check-consistency inputs now available.
+-- Ready set: { check-consistency }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 4: evaluate check-consistency (soft cell, LLM) [iteration 0]
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { check-consistency } — all geography, history, culture outputs frozen
+-- Blocked: { resolve-contradictions } — needs check-consistency outputs
+-- Blocked: { world-document } — needs check-consistency→consistent
+
+⊢ check-consistency
+  given geography→layout ≡ "The Tau Ceti Ark is a rotating O'Neill cylinder, 8 km long and 2 km in diameter..."
+  given geography→sectors ≡ [{ name: "The Greenway", ... }, { name: "Midtown", ... }, { name: "The Spine", ... }, { name: "Old Foundation", ... }, { name: "The Ringworks", ... }, { name: "Aurelius View", ... }]
+  given geography→environment ≡ "Life support: closed-loop atmospheric recycling..."
+  given history→backstory ≡ "The Tau Ceti Ark was launched in 2847 as Project Exodus..."
+  given history→key-events ≡ [{ year: 2847, ... }, { year: 2863, ... }, { year: 2887, ... }, { year: 2923, ... }, { year: 2971, ... }]
+  given culture→customs ≡ "Life on the station is governed by radical resource consciousness..."
+  given culture→social-structure ≡ "Governance: the Council of Seven..."
+  given culture→traditions ≡ [{ name: "Day of Silence", ... }, { name: "The Breathing", ... }, { name: "First Light", ... }, { name: "Reallocation", ... }]
+  given culture→taboos ≡ [{ name: "Waste Hoarding", ... }, { name: "Sealed Doors", ... }, { name: "Birth Overrun", ... }]
+  yield consistent, contradictions[], severity
+
+  ∴ Read ALL outputs from geography, history, and culture.
+    Check for contradictions...
+
+-- LLM evaluation:
+
+  yield consistent ≡ false
+
+  yield contradictions ≡ [
+    {
+      id: 1,
+      type: "governance-mismatch",
+      description: "Culture describes governance as 'Council of Seven — one elected representative per major station zone.' History describes 'Council of Sectors' founded after the Midway Mutiny. Geography has 6 sectors. Seven representatives for six zones is inconsistent — either there are 7 zones (geography wrong), or the council has 6 members (culture wrong), or the 7th is the Chancellor (culture's own description says the Chancellor is separate from the 7).",
+      cells: ["culture", "geography"],
+      severity: "major"
+    },
+    {
+      id: 2,
+      type: "sector-reference-mismatch",
+      description: "History mentions 'Council of Sectors' suggesting governance is tied to physical sectors, but culture's Council of Seven says 'per major station zone' — are zones the same as sectors? Geography names 6 sectors. Culture's taboo on 'Sealed Doors' references the Midway Mutiny (from history) but geography doesn't describe the bridge location or door-sealing infrastructure.",
+      cells: ["culture", "history", "geography"],
+      severity: "minor"
+    },
+    {
+      id: 3,
+      type: "expansion-inconsistency",
+      description: "History says the Great Expansion (2923) 'doubled in size using materials mined from Aurelius's moons.' Geography describes the station as 8 km × 2 km but doesn't indicate which parts are original vs expanded. If the station doubled, the original was 4 km — but Old Foundation is described as containing 'the oldest structures' without specifying it as the original hull. The expansion history has no geographic footprint.",
+      cells: ["geography", "history"],
+      severity: "minor"
+    }
+  ]
+
+  yield severity ≡ "major"
+
+-- oracle checks:
+--   ⊨ consistent ∈ { true, false } → ✓ (false)
+--   ⊨ if not consistent then contradictions is non-empty → ✓ (3 contradictions)
+--   ⊨ severity ∈ { "none", "minor", "major" } → ✓ ("major")
+
+-- state after frame 4: check-consistency frozen (iteration 0).
+-- Ready set: { resolve-contradictions }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 5: evaluate resolve-contradictions (soft cell, LLM) [iteration 0]
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { resolve-contradictions }
+-- Blocked: { world-document } — still needs check-consistency→consistent = true
+
+⊢ resolve-contradictions
+  given check-consistency→contradictions ≡ [{ id: 1, type: "governance-mismatch", ... }, { id: 2, type: "sector-reference-mismatch", ... }, { id: 3, type: "expansion-inconsistency", ... }]
+  given check-consistency→severity ≡ "major"
+  given §geography ≡ "(cell definition: given seed→premise, given? history→backstory, given? culture→customs, yield layout, sectors[], environment, ∴ Design the physical layout...)"
+  given §history ≡ "(cell definition: given seed→premise, given? geography→layout, given? culture→customs, yield backstory, key-events[], founding-era, ∴ Write the backstory...)"
+  given §culture ≡ "(cell definition: given seed→premise, given? geography→layout, given? history→backstory, yield customs, social-structure, traditions[], taboos[], ∴ Design the culture...)"
+  yield resolution-plan, cells-to-rewrite[]
+
+  ∴ For each contradiction in «check-consistency→contradictions»,
+    determine which cell should rewrite...
+
+-- LLM evaluation:
+
+  yield resolution-plan ≡ "Contradiction 1 (governance-mismatch, MAJOR): Culture's Council of Seven claims 7 zone representatives but geography only has 6 sectors. Culture should rewrite — geography's 6 sectors are physically grounded (named, described), while culture's '7' is an arbitrary governance number. Fix: culture should align council size with the 6 geographic sectors, or explicitly account for the 7th seat (e.g., the Chancellor IS the 7th, not separate). Since culture already describes the Chancellor as 'rotating, drawn by lottery,' the simplest fix is: Council of Six elected + Chancellor = 7 total, with the Chancellor explicitly counted as the 7th member.
+
+Contradiction 2 (sector-reference-mismatch, MINOR): Culture references 'zones' vs geography's 'sectors' and the Sealed Doors taboo references the Midway Mutiny bridge without geographic grounding. Culture should rewrite to use 'sector' consistently and tie the Sealed Doors taboo to a specific geographic location (the Forward Cap navigation array, which is the logical bridge equivalent).
+
+Contradiction 3 (expansion-inconsistency, MINOR): History's Great Expansion has no geographic footprint. Geography should rewrite to indicate which sections are original (pre-expansion) vs added during the Great Expansion. Old Foundation is the natural candidate for the original hull."
+
+  yield cells-to-rewrite ≡ [
+    { contradiction: 1, cell: "culture", fix: "Align Council of Seven with 6 sectors: 6 elected sector representatives + the lottery Chancellor = 7. Make Chancellor explicitly the 7th member, not separate." },
+    { contradiction: 2, cell: "culture", fix: "Replace 'zone' with 'sector'. Tie Sealed Doors taboo to a specific location (Forward Cap bridge/navigation area)." },
+    { contradiction: 3, cell: "geography", fix: "Mark Old Foundation as the original 4 km hull. Note that The Greenway, Midtown, and Aurelius View were added during the Great Expansion (2923)." }
+  ]
+
+-- oracle checks:
+--   ⊨ each contradiction maps to exactly one cell to rewrite → ✓
+--     Contradiction 1 → culture, Contradiction 2 → culture, Contradiction 3 → geography
+--   ⊨ resolution-plan explains the resolution logic → ✓
+
+-- state after frame 5: resolve-contradictions frozen (iteration 0).
+-- ⊢∘ co-evolve: check convergence — check-consistency→consistent = true?
+-- check-consistency→consistent ≡ false → NOT converged
+-- iteration 0 complete.
+--
+-- ⊢∘ co-evolve re-evaluation: cells-to-rewrite identifies geography and culture
+-- for rewriting. Under co-evolve, ALL target cells are re-evaluated on iteration 1+
+-- with peer outputs from iteration 0 now available (⊥ → real values).
+-- Unfreeze geography, history, culture, check-consistency, resolve-contradictions.
+-- Begin iteration 1.
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ CO-EVOLVE — ITERATION 1
+-- ═══════════════════════════════════════════════════════════════
+-- All three targets re-evaluate with peer outputs from iteration 0.
+-- given? deps now resolve to real values (not ⊥).
+-- Contradiction context from resolve-contradictions feeds into the re-evaluation
+-- prompt for geography and culture. History re-evaluates with peer awareness too.
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 6: evaluate geography (soft cell, LLM) [iteration 1]
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { geography, history, culture } — all three re-enter ready set
+-- Picking geography first (it has a rewrite directive from resolve-contradictions)
+-- geography's inputs (iteration 1):
+--   seed→premise ≡ "A space station in the year 3000..."
+--   history→backstory ≡ "The Tau Ceti Ark was launched in 2847..." (from iteration 0)
+--   culture→customs ≡ "Life on the station is governed by radical resource consciousness..." (from iteration 0)
+-- + contradiction context: mark Old Foundation as original hull, note expansion sectors
+
+⊢ geography
+  given seed→premise ≡ "A space station in the year 3000 — humanity's last outpost after Earth became uninhabitable. Population: ~50,000. Orbiting a gas giant in the Tau Ceti system, 12 light-years from Earth."
+  given? history→backstory ≡ "The Tau Ceti Ark was launched in 2847 as Project Exodus..."
+  given? culture→customs ≡ "Life on the station is governed by radical resource consciousness..."
+  yield layout, sectors[], environment
+
+  ∴ Design the physical layout of the space station described in «seed→premise».
+    If «history→backstory» is available (not ⊥), consider the backstory...
+    [Iteration 1 context: resolve Old Foundation as original 4 km hull,
+     mark expansion-era sectors, align with Great Expansion history]
+
+-- LLM evaluation (now aware of history and culture):
+
+  yield layout ≡ "The Tau Ceti Ark is a rotating O'Neill cylinder, 8 km long and 2 km in diameter. The original hull (the 'First Shell,' 2847-2923) comprised the aft 4 km: Old Foundation, The Ringworks, The Spine core, and the original Aft Cap. During the Great Expansion (2923), the station was extended forward by 4 km using materials from Aurelius's moons, adding The Greenway, Midtown, and Aurelius View. The station spins at 0.5 RPM to produce 0.85g along the inner surface. The cylinder is divided into six longitudinal strips alternating between habitation and window bands. A non-rotating central spine houses the docking hub, zero-g manufacturing, and the primary fusion reactor array. Two endcaps: the Forward Cap (Aurelius View, added during expansion) houses the observation deck, Council Chamber, and the navigation bridge; the Aft Cap (original) contains propulsion remnants and deep storage vaults."
+
+  yield sectors ≡ [
+    { name: "The Greenway", purpose: "Agricultural and park strip — hydroponic farms, orchards, and the station's only open sky. Runs 4 km through the expansion section. Built 2923 to feed the growing population.", era: "expansion" },
+    { name: "Midtown", purpose: "Primary residential and commercial sector. Tiered hab-blocks from cylinder floor to 200m elevation. Population density: ~15,000. Built during the Great Expansion to relieve overcrowding in Old Foundation.", era: "expansion" },
+    { name: "The Spine", purpose: "Zero-g central axis spanning the full 8 km. Docking bays, cargo handling, zero-g manufacturing, and the fusion reactor array. The original Spine core (aft 4 km) was extended during expansion. Access via six radial elevators.", era: "original+expansion" },
+    { name: "Old Foundation", purpose: "The original construction sector — the first 4 km of habitable hull. Now mixed industrial and low-income housing. Contains the oldest structures on the station, including the original bridge (now a museum) and the Transit Memorial. Cultural significance: this is where the founding generation lived.", era: "original" },
+    { name: "The Ringworks", purpose: "Engineering and life-support sector wrapping the Aft Cap. Water recycling, atmospheric processors, waste reclamation. Original construction — the station's literal lungs since day one.", era: "original" },
+    { name: "Aurelius View", purpose: "Forward observation and science sector, built during expansion. The Council Chamber occupies the panoramic viewport facing the gas giant. Also houses the navigation bridge (successor to Old Foundation's original bridge), planetary science labs, and the communication array that sent the last signal to Earth.", era: "expansion" }
+  ]
+
+  yield environment ≡ "Life support: closed-loop atmospheric recycling (N2/O2 78/21 mix), CO2 scrubbers in The Ringworks with biological backup in The Greenway. The dual-system redundancy reflects the station's two eras — Ringworks (chemical scrubbing, original) and Greenway (biological, expansion-era). Water: 95% reclamation rate via distillation cascades in The Ringworks, supplemented by ice mining from Aurelius's ring system (mining operations run from The Spine's aft docking bays). Gravity: centripetal via rotation at 0.85g on the inner surface, zero-g in The Spine. Power: twin deuterium-helium-3 fusion reactors in The Spine core (original section), backup solar collectors on the window bands (added during expansion). Emergency: each sector can seal independently via pressure doors — a life-saving measure, but one freighted with cultural baggage (see: Sealed Doors taboo, the Midway Mutiny)."
+
+-- oracle checks (aspirational under ⊢∘ co-evolve):
+--   ⊨ layout describes overall structure with dimensions → ✓
+--     8 km × 2 km, original 4 km hull + 4 km expansion, endcaps described
+--   ⊨ length(sectors) ≥ 4 → ✓ (6 sectors, now with era annotations)
+--   ⊨ environment addresses life support systems → ✓
+--     air, water, gravity, power, emergency — now with historical context
+
+-- state after frame 6: geography frozen (iteration 1).
+-- Ready set: { history, culture }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 7: evaluate history (soft cell, LLM) [iteration 1]
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { history, culture } — picking history
+-- history's inputs (iteration 1):
+--   seed→premise ≡ "A space station in the year 3000..."
+--   geography→layout ≡ "The Tau Ceti Ark is a rotating O'Neill cylinder..." (iteration 1 — freshly updated)
+--   culture→customs ≡ "Life on the station is governed by radical resource consciousness..." (iteration 0)
+-- No direct rewrite directive for history, but it re-evaluates with full peer context.
+
+⊢ history
+  given seed→premise ≡ "A space station in the year 3000 — humanity's last outpost after Earth became uninhabitable. Population: ~50,000. Orbiting a gas giant in the Tau Ceti system, 12 light-years from Earth."
+  given? geography→layout ≡ "The Tau Ceti Ark is a rotating O'Neill cylinder, 8 km long and 2 km in diameter. The original hull (the 'First Shell,' 2847-2923)..."
+  given? culture→customs ≡ "Life on the station is governed by radical resource consciousness..."
+  yield backstory, key-events[], founding-era
+
+  ∴ Write the backstory for the space station in «seed→premise».
+    If «geography→layout» is available (not ⊥), ensure the history explains
+    how the physical layout came to be...
+
+-- LLM evaluation (now aware of geography's expansion-era annotations and culture):
+
+  yield backstory ≡ "The Tau Ceti Ark was launched in 2847 as Project Exodus, Earth's final interstellar colonization effort. By 2840, cascading climate collapse and resource wars had reduced Earth's habitable surface to less than 5%. The United Nations Remnant pooled the last planetary reserves to construct and launch the Ark — a 4 km O'Neill cylinder (the 'First Shell') carrying 12,000 colonists plus embryo banks. The 40-year transit to Tau Ceti (2847-2887) tested the colonists' social fabric: the Midway Mutiny of 2863, when a faction demanding return to Earth seized the original bridge in Old Foundation, nearly tore the community apart. 47 died. The event led directly to the founding of the Council of Sectors — distributed governance to prevent any faction from holding absolute power. Upon arrival at Tau Ceti, the plan to terraform Tau Ceti e was abandoned (toxic atmosphere). The colonists chose permanent orbit around the gas giant Aurelius and committed to expanding the station. The Great Expansion (2923) doubled the Ark from 4 km to 8 km, adding The Greenway, Midtown, and Aurelius View using materials mined from Aurelius's moons. The Forward Cap's Council Chamber — with its panoramic view of Aurelius — became the seat of governance, symbolically looking outward rather than back toward Earth. By 2971, the last signal to Earth (sent from Aurelius View's communication array) received no response. The Council declared Earth 'presumed lost.' Today, the station is a self-sustaining civilization of ~50,000, haunted by silence and sustained by discipline."
+
+  yield key-events ≡ [
+    { year: 2847, event: "Launch of Project Exodus — 12,000 colonists depart Earth orbit aboard the 4 km First Shell" },
+    { year: 2863, event: "The Midway Mutiny — a faction seizes the original bridge in Old Foundation, demanding return to Earth. 47 casualties over 11 days. Leads to founding of the Council of Sectors." },
+    { year: 2887, event: "Arrival at Tau Ceti. Survey of Tau Ceti e reveals toxic atmosphere. Decision to remain in permanent orbit around Aurelius." },
+    { year: 2923, event: "The Great Expansion — station extended from 4 km to 8 km. The Greenway, Midtown, and Aurelius View constructed using materials from Aurelius's moons. Population reaches 30,000." },
+    { year: 2971, event: "The Silence — last signal sent from Aurelius View's communication array to Earth receives no response. Council declares Earth 'presumed lost.' Day of Silence established." }
+  ]
+
+  yield founding-era ≡ "The founding era (2847-2890) established the station's core identity. The First Shell — now Old Foundation — was both cradle and crucible. The Midway Mutiny taught that governance must be distributed across sectors, not centralized at a single bridge. This led to the Council of Sectors, where each major section elects a representative. The decision to stay orbital rather than attempt surface colonization created a culture of careful resource management: every gram matters when you cannot resupply from a planet. The founding generation's motto — 'We are what remains' — is inscribed above the Council Chamber in Aurelius View, the seat of governance that didn't exist when the words were first spoken. The motto traveled from Old Foundation's original bridge to the new Council Chamber during the Great Expansion, a physical migration that mirrors the station's growth from survival to permanence."
+
+-- oracle checks (aspirational under ⊢∘ co-evolve):
+--   ⊨ backstory spans at least 100 years → ✓ (2847-3000 = 153 years)
+--   ⊨ length(key-events) ≥ 3 → ✓ (5 events, now with geographic grounding)
+--   ⊨ founding-era explains origin context → ✓
+--     Now references Old Foundation, Council of Sectors, the motto's migration
+
+-- state after frame 7: history frozen (iteration 1).
+-- Ready set: { culture }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 8: evaluate culture (soft cell, LLM) [iteration 1]
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { culture }
+-- culture's inputs (iteration 1):
+--   seed→premise ≡ "A space station in the year 3000..."
+--   geography→layout ≡ "The Tau Ceti Ark is a rotating O'Neill cylinder..." (iteration 1)
+--   history→backstory ≡ "The Tau Ceti Ark was launched in 2847..." (iteration 1)
+-- + contradiction context: align Council with 6 sectors, use 'sector' not 'zone',
+--   tie Sealed Doors to specific location
+
+⊢ culture
+  given seed→premise ≡ "A space station in the year 3000 — humanity's last outpost after Earth became uninhabitable. Population: ~50,000. Orbiting a gas giant in the Tau Ceti system, 12 light-years from Earth."
+  given? geography→layout ≡ "The Tau Ceti Ark is a rotating O'Neill cylinder, 8 km long and 2 km in diameter. The original hull (the 'First Shell,' 2847-2923)..."
+  given? history→backstory ≡ "The Tau Ceti Ark was launched in 2847 as Project Exodus..."
+  yield customs, social-structure, traditions[], taboos[]
+
+  ∴ Design the culture of the space station in «seed→premise».
+    If «geography→layout» is available, reflect physical constraints...
+    If «history→backstory» is available, ensure consistency...
+    [Iteration 1 context: align governance with 6 sectors, use 'sector'
+     consistently, tie Sealed Doors to Forward Cap navigation bridge]
+
+-- LLM evaluation (now aware of geography and history, with contradiction fixes):
+
+  yield customs ≡ "Life on the Ark is governed by radical resource consciousness. Every citizen tracks their personal resource budget — water, air processing share, caloric allocation — via wrist-mounted 'life ledgers.' Waste is socially unacceptable; repair culture dominates, rooted in the founding era when the First Shell's 12,000 colonists had only what they carried. Objects are inherited, repurposed, never discarded. Greetings include the phrase 'breathe easy' — an acknowledgment that the air processed in The Ringworks is shared by all 50,000 inhabitants. Meals are communal by default, taken in sector commons; private eating is reserved for mourning or illness. Music is the dominant art form because it requires no physical materials — the Greenway hosts weekly concerts where acoustics carry through the open agricultural strip."
+
+  yield social-structure ≡ "Governance: the Council of Sectors — six elected representatives, one per sector (The Greenway, Midtown, The Spine, Old Foundation, The Ringworks, Aurelius View), plus a Chancellor drawn by lottery from the general population. The Chancellor casts the seventh vote and serves a one-year term, preventing dynasty formation. This structure descends directly from the post-Mutiny reforms of 2863: after the faction seizure of Old Foundation's bridge, the founders distributed power so no single sector could dominate. Below the Council: a Guild system organized by function (Engineers, Growers, Medics, Teachers, Recyclers, Navigators, Keepers). Guild membership is by aptitude and choice, not birth. Social mobility is high — Guild transfers happen every 5 years during Reallocation. Class distinctions exist informally: Spine workers (zero-g laborers) are both respected for toughness and pitied for cumulative health damage from micro-gravity exposure."
+
+  yield traditions ≡ [
+    { name: "Day of Silence", description: "Annual observance on the anniversary of The Silence (2971). All non-essential systems are dimmed. Citizens gather in sector commons to share stories of Earth passed down through generations. The communication array in Aurelius View broadcasts a final signal toward Earth — never answered, always sent. No work is performed." },
+    { name: "The Breathing", description: "Monthly ceremony where atmospheric processors in The Ringworks are briefly made audible throughout the station via the public address system. Citizens pause and listen to the sound of their shared air being cleaned. A reminder of mutual dependence on the engineering that keeps them alive." },
+    { name: "First Light", description: "Coming-of-age ceremony at age 16. The young person spends 24 hours alone in Aurelius View's observation deck, facing the gas giant, contemplating their place in the station's future. They return to their sector commons to announce their chosen Guild." },
+    { name: "Reallocation", description: "Every 5 years, citizens may change Guilds, residences, or sector assignments. A festival atmosphere — part job fair, part community celebration, held in The Greenway. Prevents social calcification. Old Foundation residents traditionally host a 'Founding Feast' during Reallocation, serving recipes from the original colonist rations." }
+  ]
+
+  yield taboos ≡ [
+    { name: "Waste Hoarding", description: "Keeping broken items without repair intent. Hoarding strains the recycling systems in The Ringworks and is considered a form of theft from the community's shared resource budget." },
+    { name: "Sealed Doors", description: "Locking sector pressure doors or personal quarters against neighbors without Council authorization. In emergencies, sealed doors kill — emergency protocols require free passage between sectors. The taboo traces directly to the Midway Mutiny of 2863, when the mutineers sealed the bridge in Old Foundation and 47 people died in the 11-day standoff. The phrase 'don't seal the door' means 'don't cut yourself off from the community.'" },
+    { name: "Birth Overrun", description: "Having children beyond one's allocation without Council dispensation. Population is the station's most critical resource constraint — the life support systems sized during the Great Expansion support a maximum of approximately 60,000. Unauthorized births trigger immediate resource rebalancing across the offender's entire sector." }
+  ]
+
+-- oracle checks (aspirational under ⊢∘ co-evolve):
+--   ⊨ social-structure describes governance → ✓
+--     Council of Sectors: 6 elected + Chancellor (7th vote, lottery). Aligned with geography.
+--   ⊨ length(traditions) ≥ 3 → ✓ (4 traditions, now geographically grounded)
+--   ⊨ length(taboos) ≥ 2 → ✓ (3 taboos, Sealed Doors now tied to Old Foundation's bridge)
+--   ⊨ customs reflect life in an enclosed space environment → ✓
+--     Resource budgets, communal meals, Ringworks air processing, Greenway concerts
+
+-- state after frame 8: culture frozen (iteration 1).
+-- All three co-evolve targets frozen for iteration 1.
+-- check-consistency inputs updated. Unfreeze check-consistency.
+-- Ready set: { check-consistency }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 9: evaluate check-consistency (soft cell, LLM) [iteration 1]
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { check-consistency } — all iteration-1 outputs available
+
+⊢ check-consistency
+  given geography→layout ≡ "The Tau Ceti Ark is a rotating O'Neill cylinder, 8 km long... original hull (the 'First Shell,' 2847-2923)... Great Expansion..."
+  given geography→sectors ≡ [{ name: "The Greenway", era: "expansion", ... }, { name: "Midtown", era: "expansion", ... }, { name: "The Spine", era: "original+expansion", ... }, { name: "Old Foundation", era: "original", ... }, { name: "The Ringworks", era: "original", ... }, { name: "Aurelius View", era: "expansion", ... }]
+  given geography→environment ≡ "Life support: closed-loop... Sealed Doors taboo reference..."
+  given history→backstory ≡ "...First Shell... Midway Mutiny... bridge in Old Foundation... Great Expansion... Greenway, Midtown, Aurelius View..."
+  given history→key-events ≡ [{ year: 2847, event: "...4 km First Shell" }, { year: 2863, event: "...Old Foundation..." }, { year: 2887, ... }, { year: 2923, event: "...4 km to 8 km. Greenway, Midtown, Aurelius View..." }, { year: 2971, event: "...Aurelius View's communication array..." }]
+  given culture→customs ≡ "...Ringworks... Greenway concerts..."
+  given culture→social-structure ≡ "...Council of Sectors — six elected representatives, one per sector... Chancellor... seventh vote..."
+  given culture→traditions ≡ [{ name: "Day of Silence", description: "...Aurelius View broadcasts..." }, { name: "The Breathing", description: "...Ringworks..." }, { name: "First Light", description: "...Aurelius View..." }, { name: "Reallocation", description: "...Greenway... Old Foundation..." }]
+  given culture→taboos ≡ [{ name: "Waste Hoarding", description: "...Ringworks..." }, { name: "Sealed Doors", description: "...Old Foundation... Midway Mutiny of 2863... 47 people..." }, { name: "Birth Overrun", description: "...Great Expansion... 60,000 max..." }]
+  yield consistent, contradictions[], severity
+
+  ∴ Read ALL outputs from geography, history, and culture.
+    Check for contradictions...
+
+-- LLM evaluation:
+
+  yield consistent ≡ true
+  yield contradictions ≡ []
+  yield severity ≡ "none"
+
+-- oracle checks:
+--   ⊨ consistent ∈ { true, false } → ✓ (true)
+--   ⊨ if not consistent then contradictions is non-empty → ✓ (vacuously: consistent = true)
+--   ⊨ severity ∈ { "none", "minor", "major" } → ✓ ("none")
+--
+-- Consistency verification notes:
+--   1. Governance: Council of Sectors = 6 elected (matching 6 geographic sectors) + Chancellor
+--      = 7 total. History's "Council of Sectors" from 2863 aligns. ✓
+--   2. Expansion: Geography marks Old Foundation + Ringworks + Spine core as original (4 km).
+--      Greenway + Midtown + Aurelius View as expansion (2923). History's Great Expansion
+--      event matches exactly. ✓
+--   3. Sealed Doors: Culture ties the taboo to "Old Foundation's bridge" and the Midway Mutiny
+--      (2863, 47 dead). Geography notes "original bridge (now a museum)" in Old Foundation.
+--      History confirms the mutiny location. ✓
+--   4. Timeline: Launch 2847, Mutiny 2863, Arrival 2887, Expansion 2923, Silence 2971.
+--      All events are chronologically consistent and geographically grounded. ✓
+--   5. Population: Culture mentions 60,000 max capacity (sized during expansion). Geography
+--      implies ~50,000 current. History confirms growth to 30,000 at expansion, then to
+--      ~50,000 by 3000. ✓
+
+-- state after frame 9: check-consistency frozen (iteration 1).
+-- ⊢∘ co-evolve: check convergence — check-consistency→consistent = true?
+-- check-consistency→consistent ≡ true → CONVERGED
+--
+-- ⊢∘ co-evolve terminates after 2 iterations (0, 1).
+-- resolve-contradictions is NOT evaluated this iteration — convergence detected
+-- at check-consistency (no contradictions to resolve).
+--
+-- Final state of co-evolve targets:
+--   geography: iteration 1 (expansion-era annotations, history/culture aligned)
+--   history: iteration 1 (geographically grounded events, sector names used)
+--   culture: iteration 1 (Council of Sectors aligned with 6 sectors, taboos located)
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 10: evaluate world-document (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { world-document } — all inputs frozen, check-consistency→consistent = true
+-- This cell was blocked throughout the ⊢∘ co-evolve loop.
+-- Now that convergence is achieved, all its dependencies are satisfied.
+
+⊢ world-document
+  given seed→premise ≡ "A space station in the year 3000 — humanity's last outpost after Earth became uninhabitable. Population: ~50,000. Orbiting a gas giant in the Tau Ceti system, 12 light-years from Earth."
+  given geography→layout ≡ "The Tau Ceti Ark is a rotating O'Neill cylinder, 8 km long..."
+  given geography→sectors ≡ [{ name: "The Greenway", ... }, { name: "Midtown", ... }, { name: "The Spine", ... }, { name: "Old Foundation", ... }, { name: "The Ringworks", ... }, { name: "Aurelius View", ... }]
+  given geography→environment ≡ "Life support: closed-loop atmospheric recycling..."
+  given history→backstory ≡ "The Tau Ceti Ark was launched in 2847 as Project Exodus..."
+  given history→key-events ≡ [{ year: 2847, ... }, { year: 2863, ... }, { year: 2887, ... }, { year: 2923, ... }, { year: 2971, ... }]
+  given history→founding-era ≡ "The founding era (2847-2890) established the station's core identity..."
+  given culture→customs ≡ "Life on the Ark is governed by radical resource consciousness..."
+  given culture→social-structure ≡ "Governance: the Council of Sectors — six elected representatives..."
+  given culture→traditions ≡ [{ name: "Day of Silence", ... }, { name: "The Breathing", ... }, { name: "First Light", ... }, { name: "Reallocation", ... }]
+  given culture→taboos ≡ [{ name: "Waste Hoarding", ... }, { name: "Sealed Doors", ... }, { name: "Birth Overrun", ... }]
+  given check-consistency→consistent ≡ true
+  yield document, word-count
+
+  ∴ Assemble the final world-building document from all sources.
+    Organize as: Setting → Geography → History → Culture → Consistency Status.
+
+-- LLM evaluation:
+
+  yield document ≡ "# The Tau Ceti Ark — World Document
+
+## Setting
+
+A space station in the year 3000 — humanity's last outpost after Earth became uninhabitable. Population: approximately 50,000 souls. The Ark orbits Aurelius, a gas giant in the Tau Ceti system, 12 light-years from a silent Earth.
+
+## Geography
+
+The Tau Ceti Ark is a rotating O'Neill cylinder, 8 km long and 2 km in diameter. It spins at 0.5 RPM to produce 0.85g on the inner surface. The station has two distinct eras of construction: the original First Shell (aft 4 km, built 2847) and the expansion section (forward 4 km, built 2923).
+
+**Sectors:**
+
+1. **The Greenway** (expansion) — Agricultural and park strip running 4 km through the expansion section. Hydroponic farms, orchards, and the station's only open sky. Built 2923 to feed the growing population. Hosts weekly concerts.
+
+2. **Midtown** (expansion) — Primary residential and commercial sector. Tiered hab-blocks from cylinder floor to 200m elevation. Population density: ~15,000. Built to relieve overcrowding in Old Foundation.
+
+3. **The Spine** (original + expansion) — Zero-g central axis spanning the full 8 km. Docking bays, cargo handling, zero-g manufacturing, and the fusion reactor array. The Spine's workers are respected for their toughness and pitied for their health risks.
+
+4. **Old Foundation** (original) — The first 4 km of habitable hull. Mixed industrial and low-income housing. Contains the station's oldest structures, the original bridge (now a museum), and the Transit Memorial. This is where the founding generation lived, where the Midway Mutiny was fought, and where the motto 'We are what remains' was first spoken.
+
+5. **The Ringworks** (original) — Engineering and life-support sector wrapping the Aft Cap. Water recycling, atmospheric processors, waste reclamation. The station's literal lungs since day one.
+
+6. **Aurelius View** (expansion) — Forward observation and science sector. The Council Chamber occupies a panoramic viewport facing Aurelius. Houses the navigation bridge, planetary science labs, and the communication array that sent the last signal to Earth.
+
+**Environment:** Closed-loop atmospheric recycling (N2/O2 78/21), dual-system CO2 scrubbing (chemical in Ringworks, biological in Greenway). Water reclamation at 95%, supplemented by ice mining from Aurelius's rings. Twin fusion reactors in the Spine core, backup solar on window bands. Each sector can seal independently — a life-saving measure and a cultural scar.
+
+## History
+
+**2847 — Launch.** Project Exodus departs Earth orbit. 12,000 colonists aboard the 4 km First Shell, plus embryo banks for genetic diversity. Earth's habitable surface has fallen below 5%.
+
+**2863 — The Midway Mutiny.** A faction demanding return to Earth seizes the original bridge in Old Foundation. 11-day standoff, 47 casualties. The mutiny's failure leads to the founding of the Council of Sectors — distributed governance so no single faction can hold absolute power.
+
+**2887 — Arrival.** Tau Ceti e's toxic atmosphere kills the terraforming plan. Colonists choose permanent orbit around Aurelius and commit to expansion.
+
+**2923 — The Great Expansion.** Station doubled from 4 km to 8 km using materials mined from Aurelius's moons. The Greenway, Midtown, and Aurelius View are constructed. Population reaches 30,000.
+
+**2971 — The Silence.** The last signal sent from Aurelius View's communication array receives no response. The Council declares Earth 'presumed lost.' The Day of Silence is established.
+
+**Founding Era (2847-2890):** The founding generation established the station's identity in the First Shell. The Midway Mutiny taught distributed governance. The failed terraforming plan taught permanent adaptation. The motto 'We are what remains' — first inscribed in Old Foundation, now displayed above the Council Chamber in Aurelius View — captures a civilization that defined itself by what it lost and what it chose to build.
+
+## Culture
+
+**Customs:** Radical resource consciousness. Life ledgers track personal budgets. Repair culture dominates. 'Breathe easy' greetings acknowledge shared air. Communal meals in sector commons. Music thrives because it costs nothing physical.
+
+**Governance:** Council of Sectors — six elected representatives (one per sector) plus a Chancellor drawn by lottery. The Chancellor casts the seventh vote and serves one year. Descended from the post-Mutiny reforms of 2863.
+
+**Guilds:** Engineers, Growers, Medics, Teachers, Recyclers, Navigators, Keepers. Membership by aptitude, transfers every 5 years during Reallocation.
+
+**Traditions:**
+- *Day of Silence* — Annual observance of The Silence. Systems dimmed. Stories of Earth shared. The communication array broadcasts toward Earth — never answered, always sent.
+- *The Breathing* — Monthly ceremony making atmospheric processors audible. A reminder of mutual dependence.
+- *First Light* — Coming of age at 16. A solitary 24 hours in Aurelius View, then Guild announcement.
+- *Reallocation* — Every 5 years, citizens may change Guilds and sectors. Festival in The Greenway. Old Foundation hosts a Founding Feast.
+
+**Taboos:**
+- *Waste Hoarding* — Keeping broken items without repair intent. Theft from the community.
+- *Sealed Doors* — Locking doors without authorization. Traces to the Midway Mutiny and 47 deaths. 'Don't seal the door' means 'don't abandon the community.'
+- *Birth Overrun* — Exceeding allocation without dispensation. The station supports ~60,000 maximum.
+
+## Consistency Status
+
+**Consistent.** All three perspectives (geography, history, culture) align after co-evolution. Governance matches sector count. Historical events are geographically grounded. Cultural practices reference specific locations and dates. No contradictions detected."
+
+  yield word-count ≡ 872
+
+-- oracle checks:
+--   ⊨ document integrates all three perspectives → ✓
+--     Geography: all 6 sectors described with eras. History: all 5 events with locations.
+--     Culture: governance, guilds, traditions, taboos all present with cross-references.
+--   ⊨ check-consistency→consistent = true (must be resolved before assembly) → ✓
+--     check-consistency→consistent ≡ true; assembly occurred after co-evolve convergence.
+
+-- state after frame 10: world-document frozen.
+-- No more ready cells. Program quiescent.
+
+-- ═══════════════════════════════════════════════════════════════
+-- EXECUTION SUMMARY
+-- ═══════════════════════════════════════════════════════════════
+--
+-- Total frames: 11 (0-10)
+-- ⊢∘ co-evolve iterations: 2 (0, 1) out of max 3
+-- File-scope ⊨? active but never triggered (no oracle failures)
+-- Cells evaluated:
+--   seed, geography (×2), history (×2), culture (×2),
+--   check-consistency (×2), resolve-contradictions (×1), world-document
+--
+-- Key observations:
+--
+-- ⊢= Observation 1: co-evolve bootstraps from ⊥ naturally
+--   Iteration 0 evaluated all three creator cells with given? ≡ ⊥ for peer
+--   cross-references. Each cell produced coherent output from the seed premise
+--   alone. The ⊥-tolerant pattern (given? + "if available" in ∴ body) let
+--   cells degrade gracefully: they designed freely when peers were unavailable,
+--   then refined when peers appeared. This is the v0.2 co-evolve contract —
+--   circular dependencies become iterative refinement through ⊥-tolerance.
+--
+-- ⊢= Observation 2: contradictions are structural, not random
+--   All three iteration-0 contradictions arose from INDEPENDENT invention:
+--   geography chose 6 sectors, culture invented 7-member governance, history
+--   named the Council of Sectors without counting. When cells create in
+--   isolation (⊥ peers), they invent details that collide. The consistency
+--   oracle detects these collisions precisely. This validates the co-evolve
+--   pattern: iteration 0 generates raw material, the through-chain identifies
+--   structural conflicts, iteration 1 resolves them with full peer awareness.
+--
+-- ⊢= Observation 3: resolve-contradictions assigns blame asymmetrically
+--   The resolution cell didn't split responsibility equally. It assigned
+--   contradiction 1 (governance count) to culture (weaker claim — arbitrary
+--   number vs physical sectors), contradiction 2 (terminology) to culture
+--   (it introduced the 'zone' mismatch), and contradiction 3 (expansion
+--   footprint) to geography (it lacked historical annotations). The § quotation
+--   of cell definitions gave the resolver access to each cell's INTENT, not
+--   just its output — enabling principled blame assignment.
+--
+-- ⊢= Observation 4: convergence in 2 iterations validates the co-evolve design
+--   The program converged in iteration 1 (2 iterations total, max was 3).
+--   Iteration 0 produced 3 contradictions (1 major, 2 minor). Iteration 1
+--   resolved all of them — zero contradictions, severity "none". The key
+--   enabler: on iteration 1, ALL three cells had access to ALL peer outputs
+--   (given? resolved to real values, not ⊥). Full mutual awareness prevented
+--   new contradictions from forming. The co-evolve pattern's information
+--   monotonicity (⊥ → values → refined values) drives rapid convergence.
+--
+-- ⊢= Observation 5: cross-references create a coherent shared world
+--   After iteration 1, every cultural tradition references a specific
+--   geographic location (Day of Silence → Aurelius View, The Breathing →
+--   The Ringworks, First Light → Aurelius View, Reallocation → The Greenway
+--   and Old Foundation). Every historical event has a geographic footprint
+--   (Mutiny → Old Foundation's bridge, Expansion → named sectors, Silence →
+--   Aurelius View's array). Every geographic sector has historical and cultural
+--   significance. This emergent cross-referencing is NOT specified in the ∴
+--   bodies — it arises naturally when cells read each other's outputs. The
+--   co-evolve pattern transforms parallel invention into collaborative authorship.
+--
+-- ⊢= Observation 6: ⊢∘-managed oracles worked as aspirational signals
+--   Under v0.2, oracles on co-evolve targets (geography, history, culture)
+--   are aspirational — they describe target quality but don't independently
+--   gate freezing. All aspirational oracles passed on every evaluation in this
+--   trace. The through-chain's check-consistency→consistent = true was the
+--   actual convergence gate. The aspirational oracles served as quality
+--   indicators during the trace but the co-evolve loop would have continued
+--   regardless of individual oracle outcomes. The separation between aspirational
+--   (cell-level) and gating (loop-level) oracles is clean and unambiguous.

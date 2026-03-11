@@ -1,0 +1,149 @@
+-- 20-language-designer.cell (R17, v0.2)
+-- Tests: ⊢∘ as design iteration loop, §-quotation for DSL-as-data,
+--        oracle-driven critique, multi-example validation, convergence
+--        via awkwardness minimization, ⊢⊢ spawner for examples
+--
+-- Domain: cooking recipes with timing constraints and ingredient substitutions.
+-- Designs a mini-DSL. Spawns 3 example programs. Evals each for awkwardness.
+-- Redesigns. ⊢∘ loop until clean.
+--
+-- v0.2 changes from R16:
+--   - ⊨? at file scope (v0.2 blesses file-scope ⊨?)
+--   - Wildcard deps: critique uses given example-*→code, example-*→label
+--   - ⊢⊢ explicit accumulate (v0.2 accumulate/replace clarification)
+--   - Guard clauses on redesign (only fires when is-clean = false)
+--   - given? on redesign for ⊥ tolerance if guard skips
+--   - ⊢∘ oracles on draft-dsl are aspirational (v0.2 clarification)
+--   - ⊢∘ refine naming explicitly blessed (v0.2 arbitrary label rule)
+--   - Observation cells (⊢=) added per v0.2 trace convention
+
+⊨? on failure:
+  retry with «oracle.failures» appended to prompt
+  max 3 attempts
+⊨? on exhaustion:
+  error-value(⊥)
+
+⊢ domain
+  yield name, requirements[]
+
+  ⊢= name ← "RecipeCell"
+  ⊢= requirements ← [
+    "Describe cooking recipes as structured steps with durations",
+    "Express timing constraints between steps (parallel, sequential, start-before-end)",
+    "Specify ingredient substitutions with ratio adjustments",
+    "Handle conditional steps (e.g., if using substitution X, add step Y)",
+    "Be readable by a home cook, not just a programmer"
+  ]
+
+⊢ draft-dsl
+  given domain→name
+  given domain→requirements
+  yield grammar, explanation
+
+  ∴ Design a mini-DSL called «domain→name» for cooking recipes.
+    The DSL must address ALL requirements in «domain→requirements».
+
+    Define the syntax for:
+    - Recipe header (name, servings, total-time)
+    - Ingredient declarations with optional substitutions
+    - Step declarations with durations and timing constraints
+    - Timing operators: sequential (then), parallel (while), wait-until
+    - Substitution blocks: "or" clauses with ratio adjustments
+    - Conditional steps tied to substitution choices
+
+    Output the grammar as a concise BNF-like specification.
+    Output explanation as a plain-English walkthrough of each construct.
+
+  -- v0.2: aspirational under ⊢∘ management — feedback signals, not gates
+  ⊨ grammar defines syntax for: recipe, ingredient, step, timing, substitution
+  ⊨ grammar includes at least one timing operator
+  ⊨ grammar includes substitution syntax with ratio adjustment
+  ⊨ explanation covers every production rule in grammar
+
+⊢⊢ spawn-examples accumulate
+  given §draft-dsl
+  given draft-dsl→grammar
+  given draft-dsl→explanation
+  given domain→requirements
+  yield §example-0, §example-1, §example-2
+
+  ∴ Using the grammar from «draft-dsl→grammar», instantiate exactly 3
+    example cells named example-0, example-1, example-2. Each cell yields
+    code (a complete recipe in the DSL) and label (difficulty level).
+
+    Example 0: Simple — scrambled eggs with toast. Sequential timing.
+      One substitution (butter → olive oil). Label: "simple".
+
+    Example 1: Medium — pasta with tomato sauce. Parallel timing
+      (boil pasta WHILE sauce simmers). Multiple substitutions
+      (fresh tomatoes → canned, parmesan → nutritional yeast). Label: "medium".
+
+    Example 2: Complex — stir-fry with rice. Three parallel tracks
+      (rice cooker, vegetable prep, wok cooking). Timing constraint:
+      wok step must start 5 minutes before rice finishes. Conditional
+      step: if using tofu instead of chicken, press tofu first. Label: "complex".
+
+  ⊨ spawns exactly 3 cells named example-0, example-1, example-2
+  ⊨ each spawned cell yields code, label
+
+⊢ critique
+  given example-*→code
+  given example-*→label
+  given draft-dsl→grammar
+  given domain→requirements
+  yield awkward-parts[], severity-scores[], overall-score, is-clean
+
+  ∴ Evaluate each example in «example-*→code» (labeled «example-*→label»)
+    for DSL usability:
+
+    For each awkward part found, record:
+    - Which example (by label) and which line
+    - What is awkward (verbose, ambiguous, unreadable, missing construct)
+    - Suggested fix (syntax change, new operator, removed redundancy)
+    - Severity: 1 (minor annoyance) to 5 (fundamentally broken)
+
+    Categories to check:
+    - VERBOSITY: Does expressing a simple idea require too many tokens?
+    - AMBIGUITY: Could a line be parsed two ways?
+    - READABILITY: Would a home cook understand this without a manual?
+    - COMPLETENESS: Is there a common recipe pattern the DSL can't express?
+    - CONSISTENCY: Do similar operations use similar syntax?
+
+    Calculate overall-score as the mean severity across all awkward parts.
+    Set is-clean = true if overall-score ≤ 1.5 AND no single issue has
+    severity ≥ 4.
+
+  ⊨ each severity-score ∈ {1, 2, 3, 4, 5}
+  ⊨ overall-score = mean of severity-scores (or 0 if no awkward parts)
+  ⊨ if overall-score ≤ 1.5 and max(severity-scores) < 4 then is-clean = true
+  ⊨ if overall-score > 1.5 or max(severity-scores) ≥ 4 then is-clean = false
+
+⊢ redesign
+  given draft-dsl→grammar
+  given draft-dsl→explanation
+  given critique→awkward-parts
+  given critique→is-clean where is-clean = false
+  given domain→requirements
+  yield grammar', explanation'
+
+  ∴ Redesign the grammar to fix every awkward part listed in
+    «critique→awkward-parts». For each fix:
+    - Apply the suggested syntax change (or a better one)
+    - Ensure the fix doesn't break other constructs
+    - Verify the fix addresses the root cause, not just the symptom
+
+    Preserve constructs that work well. Only change what's broken.
+    Output the revised grammar and updated explanation.
+
+  ⊨ grammar' addresses every awkward part with severity ≥ 3
+  ⊨ grammar' still satisfies all domain→requirements
+  ⊨ §redesign has same given/yield signature as «§draft-dsl»
+
+  ⊨? on failure:
+    retry with «critique→awkward-parts» appended to prompt
+    max 3 attempts
+
+⊢∘ refine(draft-dsl)
+  through spawn-examples, critique, redesign
+  until critique→is-clean = true
+  max 4

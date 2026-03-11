@@ -1,0 +1,564 @@
+-- 13-progressive-summarization-frames.cell (v0.2)
+-- Execution trace of 13-progressive-summarization.cell via eval-one
+--
+-- v0.2 execution notes:
+--   - File-scope ⊨? active: retry max 3 with failure context, then error-value(⊥)
+--   - compress-further has local ⊨? (overrides file-scope): retry max 2 with lost-concepts
+--   - compress-further uses guard clause: given acceptable where acceptable = true
+--   - Guard-induced ⊥: when check-fidelity→acceptable = false, guard blocks
+--     compress-further → all its yields become ⊥ → blocks ⊢⊢ recurse-compression
+--   - report uses given? to accept ⊥ from compress-further (v0.2 optional given)
+--   - ⊥ propagation is the natural termination mechanism for the compression loop
+--
+-- Meta: Cell summarizes its own specification, compressing until information loss
+--   is unacceptable, then halts via guard-induced ⊥.
+
+-- ═══════════════════════════════════════════════════════════════
+-- READY-SET ANALYSIS (initial state)
+-- ═══════════════════════════════════════════════════════════════
+-- Cells: document, summarize, check-fidelity, compress-further, report, recurse-compression
+--
+-- document:
+--   given: (none) → READY
+--
+-- summarize:
+--   given: document→text → BLOCKED (document not frozen)
+--
+-- check-fidelity:
+--   given: document→text, summarize→summary, summarize→actual-word-count → BLOCKED
+--
+-- compress-further:
+--   given: summarize→summary, summarize→actual-word-count,
+--          check-fidelity→acceptable (where acceptable = true),
+--          check-fidelity→lost-concepts → BLOCKED
+--   Note: guard clause on check-fidelity→acceptable
+--
+-- report:
+--   given?: compress-further→next-summary (optional),
+--   given: summarize→summary, check-fidelity→fidelity-score,
+--          check-fidelity→acceptable → BLOCKED
+--
+-- recurse-compression (⊢⊢):
+--   given: compress-further→next-summary, compress-further→next-word-count,
+--          document→text → BLOCKED
+--
+-- Ready set: { document }
+-- Blocked: all others (transitive dependency on document)
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 0: evaluate document (hard cell, ⊢=)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { document } — no givens, always ready
+-- Blocked: { summarize } — needs document→text
+-- Blocked: { check-fidelity, compress-further, report, recurse-compression } — transitive
+
+⊢ document
+  yield text, word-count
+
+  ⊢= text ← "Cell Language Specification v0.1
+
+What Cell Is: Cell is a self-bootstrapping metacircular language for LLMs. Programs are documents. Execution fills in values. The document IS the program IS the state. Cells start as natural language (soft) and progressively crystallize into deterministic code (hard) under oracle pressure.
+
+Core Syntax: ⊢ declares a cell with given inputs, yield outputs, ∴ for natural language body, ⊢= for deterministic body, ⊨ for oracle assertions, ⊨? for recovery policy, § for quotation, «» for interpolation, ≡ for binding, → for output access, ▸ for stage annotation, ⊢∘ for evolution loops.
+
+Execution Model (eval-one): Kahn's algorithm, one step at a time. Find cells with all given inputs bound. Pick one. Evaluate it. Spawn oracle claim cells. If claims pass, freeze output. If claims fail, retry or produce ⊥. Properties: document-is-state, monotonicity, non-termination by design, confluence, content addressing, fusion of classical and semantic substrates.
+
+Quotation: § passes a cell's definition as data. §greet is the definition, greet→message is the output. Enables code-as-data, reflection, self-modification.
+
+Crystallization: Progression from soft (∴) to hard (⊢=). Verification crystallizes before computation. Oracles on soft cells are guardrails; on crystallized cells, contracts. crystallize and eval-one are permanently soft.
+
+Oracle System: Every ⊨ is syntactic sugar for a claim cell spawned by cell-zero. Oracle types: deterministic, structural, semantic, ambiguous. ⊨? defines retry with feedback. Retry is graph rewrite preserving immutability. Oracle promotion: when oracle states the implementation, runtime can crystallize.
+
+Proof-Carrying Computation: LLM finds solution (NP space), crystallized verifier checks it (P space). Verifier always catches wrong answers.
+
+Evolution Loops (⊢∘): First-class fixed-point combinator over cell definitions. Interface freeze constraint: implementation changes, interface cannot. Generalizes to tournament, beam search, adversarial co-evolution.
+
+Self-Crystallization: crystallize cell reads §target, writes ⊢= replacement, verify-crystal checks against oracles. 'May replace' is permission (deontic). The ∴ is the specification, ⊢= is the optimization. Both coexist.
+
+Bootstrap Sequence: External syntax → LLM executes first cells → describe parses syntax → crystallize writes ⊢= → verify checks → more crystallize → LLM cost drops. Trajectory: soft everywhere → hard core, soft frontier.
+
+Oracle Classification: Assertions (post-hoc check, catch formatting) vs Rules (prescription, catch reasoning). Conditional oracles may have soft preconditions. Exhaustion handler: escalate, error-value(⊥), partial-accept.
+
+Frontier Growth (⊢⊢): Spawner cells create new cells joining the frontier. Semantic automata — never-terminating. Monotonicity preserved, confluence preserved, termination not guaranteed. § marks crystallization boundary.
+
+Cell-as-Agent Pattern: inbox → §handlers[] → dispatch → results[] → act → actions[]. Cell's eval/apply. Code-as-data via §. Open: streaming, error propagation."
+
+  ⊢= word-count ← 347
+
+-- eval-one: document is a hard cell (⊢=). Deterministic evaluation.
+-- text and word-count are bound directly by ⊢= expressions. No LLM needed.
+
+  yield text ≡ "Cell Language Specification v0.1 ..."
+  yield word-count ≡ 347
+
+-- No oracles on document. Frozen immediately.
+
+-- state after frame 0: document frozen.
+-- Ready set: { summarize } — document→text now available
+-- Blocked: { check-fidelity } — needs summarize→summary
+-- Blocked: { compress-further, report, recurse-compression } — transitive
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 1: evaluate summarize (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { summarize } — document→text available, target-ratio ≡ 0.50
+-- Blocked: { check-fidelity } — needs summarize→summary, summarize→actual-word-count
+-- Blocked: { compress-further, report, recurse-compression } — transitive
+
+⊢ summarize
+  given document→text ≡ "Cell Language Specification v0.1 ..."
+  given target-ratio ≡ 0.50
+  yield summary, actual-word-count
+
+  ∴ Summarize «document→text» to approximately «target-ratio» of its original
+    length. Preserve the most important concepts, relationships, and distinctive
+    features. Cut examples, elaboration, and redundancy first. Every sentence
+    in the summary must carry load — no filler.
+
+-- LLM evaluation:
+
+  yield summary ≡ "Cell is a self-bootstrapping metacircular language where programs are documents and execution fills in values. Cells start as natural language (soft) and crystallize into deterministic code (hard) under oracle pressure.
+
+Core syntax uses ⊢ for cell declaration, ∴ for soft bodies, ⊢= for hard bodies, ⊨ for oracle assertions, § for quotation, «» for interpolation, ≡ for binding, and → for output access.
+
+Execution follows Kahn's algorithm (eval-one): find ready cells, evaluate one, spawn oracle claim cells, freeze if claims pass. Key properties: document-is-state, monotonicity, non-termination by design, confluence, content addressing, fusion of classical and semantic substrates.
+
+§ enables code-as-data and reflection. Crystallization moves cells from soft to hard — verification crystallizes before computation. Oracles are claim cells spawned by cell-zero; retry is graph rewrite preserving immutability.
+
+⊢∘ provides evolution loops with interface freeze constraint. Self-crystallization: ∴ is the specification, ⊢= is the proven optimization. Bootstrap trajectory: soft everywhere → hard core, soft frontier.
+
+⊢⊢ spawners grow the frontier (semantic automata, never-terminating). Proof-carrying computation: LLM finds solutions (NP), crystallized verifiers check them (P)."
+
+  yield actual-word-count ≡ 155
+
+-- oracle checks:
+--   ⊨ actual-word-count ≤ target-ratio × 347 × 1.1
+--     → 155 ≤ 0.50 × 347 × 1.1 = 190.85 → ✓
+--   ⊨ actual-word-count ≥ target-ratio × 347 × 0.5
+--     → 155 ≥ 0.50 × 347 × 0.5 = 86.75 → ✓
+
+-- state after frame 1: summarize frozen.
+-- Ready set: { check-fidelity } — document→text, summarize→summary, summarize→actual-word-count available
+-- Blocked: { compress-further } — needs check-fidelity→acceptable (+ guard)
+-- Blocked: { report } — needs check-fidelity→fidelity-score, check-fidelity→acceptable
+-- Blocked: { recurse-compression } — needs compress-further→*
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 2: evaluate check-fidelity (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { check-fidelity } — all givens available
+-- Blocked: { compress-further } — needs check-fidelity→acceptable (+ guard check)
+-- Blocked: { report } — needs check-fidelity→fidelity-score, check-fidelity→acceptable
+-- Blocked: { recurse-compression } — transitive
+
+⊢ check-fidelity
+  given document→text ≡ "Cell Language Specification v0.1 ..."
+  given summarize→summary ≡ "Cell is a self-bootstrapping metacircular language..."
+  given summarize→actual-word-count ≡ 155
+  yield preserved-concepts[], lost-concepts[], fidelity-score, acceptable
+
+  ∴ Compare «summarize→summary» against «document→text». Identify which key
+    concepts were preserved and which were lost. A concept is "key" if an
+    implementor needs it to build a correct Cell runtime. Score fidelity 1-10
+    where 10 = no meaningful loss. Set acceptable = false if any CRITICAL
+    concept is lost (one that would cause an incorrect implementation).
+
+-- LLM evaluation:
+
+  yield preserved-concepts ≡ [
+    "self-bootstrapping metacircular language",
+    "programs are documents / document-is-state",
+    "soft (∴) to hard (⊢=) crystallization",
+    "eval-one via Kahn's algorithm",
+    "oracle claim cells spawned by cell-zero",
+    "retry as graph rewrite preserving immutability",
+    "monotonicity, confluence, non-termination",
+    "§ quotation / code-as-data",
+    "⊢∘ evolution loops with interface freeze",
+    "⊢⊢ spawners / frontier growth / semantic automata",
+    "proof-carrying computation (NP find / P verify)",
+    "bootstrap trajectory: soft → hard core, soft frontier",
+    "fusion of classical and semantic substrates"
+  ]
+
+  yield lost-concepts ≡ [
+    "⊨? recovery policy (mentioned as retry but not ⊨? syntax)",
+    "▸ stage annotation",
+    "cell-as-agent pattern (inbox/dispatch/act)",
+    "oracle classification (assertions vs rules)",
+    "exhaustion handler (escalate / error-value(⊥) / partial-accept)"
+  ]
+
+  yield fidelity-score ≡ 7
+  yield acceptable ≡ true
+
+-- oracle checks:
+--   ⊨ fidelity-score ∈ {1, 2, 3, 4, 5, 6, 7, 8, 9, 10} → ✓ (7)
+--   ⊨ if acceptable = false then lost-concepts is non-empty
+--     → acceptable = true → vacuously satisfied ✓
+--   ⊨ if fidelity-score ≤ 3 then acceptable = false
+--     → fidelity-score = 7 > 3 → vacuously satisfied ✓
+
+-- state after frame 2: check-fidelity frozen.
+-- Guard evaluation for compress-further:
+--   given check-fidelity→acceptable where acceptable = true
+--   → acceptable ≡ true, guard evaluates to true → compress-further enters ready set
+-- Ready set: { compress-further, report }
+--   compress-further: all givens available + guard passed
+--   report: summarize→summary, check-fidelity→fidelity-score, check-fidelity→acceptable
+--           available; given? compress-further→next-summary still unresolved but it's optional
+--           → report is NOT ready yet (given? still waits for compress-further to freeze or ⊥)
+-- Correction: given? tolerates ⊥ but still needs the source cell to be evaluated.
+-- compress-further is not yet frozen, so report waits.
+-- Ready set: { compress-further }
+-- Blocked: { report } — needs compress-further to resolve (frozen or ⊥)
+-- Blocked: { recurse-compression } — needs compress-further→next-summary
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 3: evaluate compress-further (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { compress-further } — guard passed (acceptable = true)
+-- Blocked: { report } — needs compress-further→next-summary (via given?)
+-- Blocked: { recurse-compression } — needs compress-further→next-summary, next-word-count
+
+⊢ compress-further
+  given summarize→summary ≡ "Cell is a self-bootstrapping metacircular language..."
+  given summarize→actual-word-count ≡ 155
+  given check-fidelity→acceptable ≡ true     -- guard: acceptable = true → ✓ passed
+  given check-fidelity→lost-concepts ≡ ["⊨? recovery policy", "▸ stage annotation", "cell-as-agent pattern", "oracle classification", "exhaustion handler"]
+  given target-ratio ≡ 0.50
+  yield next-summary, next-word-count
+
+  ∴ Summarize «summarize→summary» to «target-ratio» of its current length
+    (halving again). Preserve all concepts NOT in «check-fidelity→lost-concepts».
+    Every sentence must carry load — no filler.
+
+-- LLM evaluation:
+
+  yield next-summary ≡ "Cell: self-bootstrapping metacircular LLM language. Programs are documents; execution fills values. Cells crystallize from soft (∴, natural language) to hard (⊢=, deterministic) under oracle pressure.
+
+Eval-one: Kahn's algorithm — find ready cell, evaluate, spawn oracle claim cells, freeze on pass. Retry is graph rewrite. Properties: document-is-state, monotonicity, confluence, non-termination, content addressing, fusion.
+
+§ quotation enables code-as-data. ⊢∘ evolution loops iterate with interface freeze. ⊢⊢ spawners grow the frontier (semantic automata). Proof-carrying: LLM finds (NP), verifier checks (P). Bootstrap: soft everywhere → hard core, soft frontier."
+
+  yield next-word-count ≡ 82
+
+-- oracle checks:
+--   ⊨ next-word-count ≤ summarize→actual-word-count × 0.6
+--     → 82 ≤ 155 × 0.6 = 93 → ✓
+--   ⊨ next-word-count ≥ 15
+--     → 82 ≥ 15 → ✓
+
+-- state after frame 3: compress-further frozen.
+-- Ready set: { report, recurse-compression }
+--   report: given? compress-further→next-summary is now resolved (not ⊥, has value)
+--   recurse-compression: compress-further→next-summary available, next-word-count available
+-- Pick: recurse-compression (⊢⊢ spawner — drives the loop)
+-- But eval-one picks ONE cell. Either is valid (confluence). Pick report first
+-- since it doesn't spawn new cells — or pick recurse-compression to continue the loop.
+-- We pick recurse-compression to exercise the spawner pattern.
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 4: evaluate recurse-compression (⊢⊢ spawner)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { report, recurse-compression }
+-- Choosing recurse-compression to continue the compression loop.
+-- Check until: next-word-count < 20? → 82 < 20 → false → spawner fires.
+
+⊢⊢ recurse-compression
+  given compress-further→next-summary ≡ "Cell: self-bootstrapping metacircular LLM language..."
+  given compress-further→next-word-count ≡ 82
+  given document→text ≡ "Cell Language Specification v0.1 ..."
+  yield §compression-steps[]
+  until next-word-count < 20
+
+  ∴ Spawn a new {summarize, check-fidelity, compress-further} chain, feeding
+    next-summary as the new input and halving target-ratio.
+
+-- Spawner fires. Creates:
+--   summarize-1: given text ≡ compress-further→next-summary, target-ratio ≡ 0.50
+--   check-fidelity-1: given document→text, summarize-1→summary, summarize-1→actual-word-count
+--   compress-further-1: given summarize-1→summary, summarize-1→actual-word-count,
+--                       check-fidelity-1→acceptable (where acceptable = true),
+--                       check-fidelity-1→lost-concepts
+
+-- state after frame 4: recurse-compression has fired (iteration 0).
+-- New cells in graph: summarize-1, check-fidelity-1, compress-further-1
+-- Ready set: { report, summarize-1 }
+--   report: still ready (all givens resolved)
+--   summarize-1: text bound from compress-further→next-summary
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 5: evaluate summarize-1 (soft cell, LLM) [spawned, level 2]
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { report, summarize-1 }
+-- Choosing summarize-1 to continue the compression chain.
+
+⊢ summarize-1
+  given document→text ≡ "Cell: self-bootstrapping metacircular LLM language. Programs are documents; execution fills values. Cells crystallize from soft (∴, natural language) to hard (⊢=, deterministic) under oracle pressure.
+
+Eval-one: Kahn's algorithm — find ready cell, evaluate, spawn oracle claim cells, freeze on pass. Retry is graph rewrite. Properties: document-is-state, monotonicity, confluence, non-termination, content addressing, fusion.
+
+§ quotation enables code-as-data. ⊢∘ evolution loops iterate with interface freeze. ⊢⊢ spawners grow the frontier (semantic automata). Proof-carrying: LLM finds (NP), verifier checks (P). Bootstrap: soft everywhere → hard core, soft frontier."
+  given target-ratio ≡ 0.50
+  yield summary, actual-word-count
+
+  ∴ Summarize «document→text» to approximately «target-ratio» of its original
+    length. Preserve the most important concepts.
+
+-- LLM evaluation:
+
+  yield summary ≡ "Cell: metacircular LLM language. Programs are documents, cells crystallize soft→hard under oracles. Eval-one via Kahn's: find ready, evaluate, oracle check, freeze. Retry = graph rewrite. § for code-as-data, ⊢∘ for evolution, ⊢⊢ for frontier growth. Proof-carrying: LLM finds, verifier checks."
+
+  yield actual-word-count ≡ 41
+
+-- oracle checks:
+--   ⊨ actual-word-count ≤ target-ratio × 347 × 1.1
+--     Note: oracle references 347 (original doc length). 41 ≤ 190.85 → ✓
+--     (The oracle was written for the original document. On spawned chains,
+--     the word-count bound is generous. This is a design observation, not a failure.)
+--   ⊨ actual-word-count ≥ target-ratio × 347 × 0.5
+--     → 41 ≥ 86.75 → ✗ FAILED
+--
+-- Oracle failure! The spawned summarize-1 uses the SAME oracle bounds as the original
+-- summarize cell (hard-coded to reference 347), but the input text is only 82 words.
+-- 50% of 82 = 41, which is below the floor of 86.75 derived from the original 347.
+--
+-- ⊨? file-scope policy: retry with failure context, max 3 attempts
+-- Retry attempt 1 (with failure context: "actual-word-count 41 < floor 86.75"):
+
+-- LLM re-evaluation:
+-- The LLM cannot produce a summary of 82 words that is both 50% compression AND
+-- above 86.75 words. This is a genuine constraint conflict. The oracle bounds
+-- assume the original document length, not the spawned input length.
+
+  yield summary ≡ "Cell: metacircular LLM language. Programs are documents, cells crystallize soft→hard under oracles. Eval-one via Kahn's: find ready, evaluate, oracle check, freeze. Retry = graph rewrite. § for code-as-data, ⊢∘ for evolution, ⊢⊢ for frontier growth. Proof-carrying: LLM finds, verifier checks. Document-is-state, monotonicity, confluence, non-termination, content addressing, fusion."
+
+  yield actual-word-count ≡ 47
+
+-- oracle checks (retry 1):
+--   ⊨ actual-word-count ≤ 190.85 → 47 ≤ 190.85 → ✓
+--   ⊨ actual-word-count ≥ 86.75 → 47 ≥ 86.75 → ✗ FAILED
+
+-- Retry attempt 2: LLM tries to pad the summary to meet the floor.
+
+  yield summary ≡ "Cell is a metacircular LLM language where programs are documents and execution fills in values. Cells start as soft natural language and crystallize into hard deterministic code under oracle pressure. Eval-one follows Kahn's algorithm: find a ready cell, evaluate it, spawn oracle claim cells, freeze if all pass. Retry on failure is a graph rewrite preserving immutability. Key mechanisms include § quotation for code-as-data, ⊢∘ evolution loops for iterative improvement, and ⊢⊢ spawners for frontier growth."
+
+  yield actual-word-count ≡ 76
+
+-- oracle checks (retry 2):
+--   ⊨ actual-word-count ≤ 190.85 → 76 ≤ 190.85 → ✓
+--   ⊨ actual-word-count ≥ 86.75 → 76 ≥ 86.75 → ✗ FAILED
+
+-- Retry attempt 3: LLM pads further.
+
+  yield summary ≡ "Cell is a self-bootstrapping metacircular language for LLMs where programs are documents and execution fills in values progressively. Cells begin as soft natural language (∴ bodies) and crystallize into hard deterministic code (⊢= bodies) under oracle pressure from claim cells spawned by cell-zero. Eval-one follows Kahn's algorithm: identify a ready cell with all givens bound, evaluate it, spawn oracle claim cells to verify the tentative output, and freeze if all claims pass. Retry on oracle failure is a graph rewrite that preserves immutability."
+
+  yield actual-word-count ≡ 88
+
+-- oracle checks (retry 3):
+--   ⊨ actual-word-count ≤ 190.85 → 88 ≤ 190.85 → ✓
+--   ⊨ actual-word-count ≥ 86.75 → 88 ≥ 86.75 → ✓
+
+-- state after frame 5: summarize-1 frozen (after 3 retries).
+-- Ready set: { report, check-fidelity-1 }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 6: evaluate check-fidelity-1 (soft cell, LLM) [spawned, level 2]
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { report, check-fidelity-1 }
+-- Choosing check-fidelity-1 to continue the compression chain.
+
+⊢ check-fidelity-1
+  given document→text ≡ "Cell Language Specification v0.1 ..."
+  given summarize-1→summary ≡ "Cell is a self-bootstrapping metacircular language for LLMs where programs are documents and execution fills in values progressively..."
+  given summarize-1→actual-word-count ≡ 88
+  yield preserved-concepts[], lost-concepts[], fidelity-score, acceptable
+
+  ∴ Compare «summarize-1→summary» against «document→text». Identify which key
+    concepts were preserved and which were lost.
+
+-- LLM evaluation:
+
+  yield preserved-concepts ≡ [
+    "self-bootstrapping metacircular language",
+    "programs are documents",
+    "soft (∴) to hard (⊢=) crystallization",
+    "eval-one via Kahn's algorithm",
+    "oracle claim cells spawned by cell-zero",
+    "retry as graph rewrite preserving immutability"
+  ]
+
+  yield lost-concepts ≡ [
+    "§ quotation / code-as-data",
+    "⊢∘ evolution loops",
+    "⊢⊢ spawners / frontier growth / semantic automata",
+    "proof-carrying computation (NP/P)",
+    "bootstrap trajectory",
+    "confluence, non-termination, content addressing",
+    "monotonicity",
+    "fusion of classical and semantic substrates",
+    "⊨? recovery policy",
+    "cell-as-agent pattern",
+    "oracle classification",
+    "exhaustion handler"
+  ]
+
+  yield fidelity-score ≡ 3
+  yield acceptable ≡ false
+
+-- oracle checks:
+--   ⊨ fidelity-score ∈ {1, 2, 3, 4, 5, 6, 7, 8, 9, 10} → ✓ (3)
+--   ⊨ if acceptable = false then lost-concepts is non-empty → ✓ (12 items)
+--   ⊨ if fidelity-score ≤ 3 then acceptable = false → ✓ (3 ≤ 3, acceptable = false)
+
+-- state after frame 6: check-fidelity-1 frozen.
+--
+-- GUARD EVALUATION for compress-further-1:
+--   given check-fidelity-1→acceptable where acceptable = true
+--   → acceptable ≡ false → GUARD FAILS
+--   → compress-further-1 is SKIPPED
+--   → compress-further-1→next-summary ≡ ⊥ (guard-induced bottom)
+--   → compress-further-1→next-word-count ≡ ⊥ (guard-induced bottom)
+--
+-- ⊥ PROPAGATION:
+--   recurse-compression (⊢⊢):
+--     given compress-further-1→next-summary — next-summary ≡ ⊥
+--     → ⊢⊢ recurse-compression is PERMANENTLY BLOCKED
+--     → No further compression chains will be spawned
+--     → The loop has bottomed out via ⊥ propagation
+--
+-- Ready set: { report }
+--   report uses given? compress-further→next-summary (from original compress-further,
+--   which IS frozen with a real value). report can proceed.
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 7: evaluate report (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { report } — all givens resolved
+-- No other cells can become ready:
+--   compress-further-1: SKIPPED (guard-induced ⊥)
+--   recurse-compression: PERMANENTLY BLOCKED (⊥ from compress-further-1)
+
+⊢ report
+  given? compress-further→next-summary ≡ "Cell is a self-bootstrapping metacircular language for LLMs where programs are documents and execution fills in values progressively..."
+  given summarize→summary ≡ "Cell is a self-bootstrapping metacircular language..."
+  given check-fidelity→fidelity-score ≡ 7
+  given check-fidelity→acceptable ≡ true
+  yield final-summary, compression-ratio, stopped-by
+
+  ∴ If «compress-further→next-summary» is ⊥ (guard blocked compress-further
+    because fidelity was unacceptable), the last acceptable summary is
+    «summarize→summary». Report it as final-summary.
+    If «compress-further→next-summary» is available, report it as final-summary.
+
+-- LLM evaluation:
+-- compress-further→next-summary is available (not ⊥) — it contains the level-2 summary.
+-- However, the level-2 summary was subsequently found to have fidelity-score = 3
+-- (unacceptable) by check-fidelity-1. The report cell sees the original
+-- check-fidelity→acceptable = true (level 1) and compress-further→next-summary
+-- (level 2 input). The report doesn't see check-fidelity-1's results directly.
+--
+-- The compression chain went: 347 words → 155 words → 88 words (padded from 41).
+-- Level-2 fidelity was unacceptable (score 3), so compress-further-1 was guard-blocked.
+-- The best available summary is compress-further→next-summary (the level-2 input,
+-- 82 words before retry inflation to 88). But report sees compress-further's output,
+-- which IS the 82-word summary that was the INPUT to the failed level-2 chain.
+
+  yield final-summary ≡ "Cell: self-bootstrapping metacircular LLM language. Programs are documents; execution fills values. Cells crystallize from soft (∴, natural language) to hard (⊢=, deterministic) under oracle pressure.
+
+Eval-one: Kahn's algorithm — find ready cell, evaluate, spawn oracle claim cells, freeze on pass. Retry is graph rewrite. Properties: document-is-state, monotonicity, confluence, non-termination, content addressing, fusion.
+
+§ quotation enables code-as-data. ⊢∘ evolution loops iterate with interface freeze. ⊢⊢ spawners grow the frontier (semantic automata). Proof-carrying: LLM finds (NP), verifier checks (P). Bootstrap: soft everywhere → hard core, soft frontier."
+
+  yield compression-ratio ≡ 0.236
+  yield stopped-by ≡ "compression-complete"
+
+-- oracle checks:
+--   ⊨ compression-ratio ≤ 1.0 → 0.236 ≤ 1.0 → ✓
+--   ⊨ compression-ratio > 0.0 → 0.236 > 0.0 → ✓
+--   ⊨ if check-fidelity→acceptable = false then stopped-by = "guard-induced-⊥"
+--     → check-fidelity→acceptable = true → vacuously satisfied ✓
+
+-- state after frame 7: report frozen.
+
+-- ═══════════════════════════════════════════════════════════════
+-- QUIESCENCE
+-- ═══════════════════════════════════════════════════════════════
+-- All evaluable cells frozen. No cells in ready set.
+--
+-- Final state:
+--   document:              frozen (⊢=, 347 words)
+--   summarize:             frozen (level 1: 155 words, ~45% of original)
+--   check-fidelity:        frozen (fidelity 7/10, acceptable = true)
+--   compress-further:      frozen (level 2: 82 words, ~24% of original)
+--   summarize-1:           frozen (level 2 re-summary: 88 words, after 3 retries)
+--   check-fidelity-1:      frozen (fidelity 3/10, acceptable = false)
+--   compress-further-1:    SKIPPED (guard-induced ⊥, all yields ≡ ⊥)
+--   recurse-compression:   PERMANENTLY BLOCKED (⊥ from compress-further-1)
+--   report:                frozen (final summary = 82 words, ratio 0.236)
+--
+-- Compression achieved: 347 → 155 → 82 words (76.4% reduction).
+-- Level-3 attempt would have required ~41 words, but the retry-inflated
+-- level-2 re-summary (88 words) lost too many critical concepts (fidelity 3),
+-- triggering guard-induced ⊥ at compress-further-1 and halting the loop.
+--
+-- Total frames: 8 (frame 0 through frame 7)
+-- Spawner fires: 1 (recurse-compression, iteration 0)
+-- Guard-induced ⊥: 1 (compress-further-1, check-fidelity-1→acceptable = false)
+-- ⊥ propagation: compress-further-1 → recurse-compression (permanent block)
+-- Oracle retries: 3 (summarize-1, file-scope ⊨? policy, floor constraint conflict)
+
+-- ═══════════════════════════════════════════════════════════════
+-- v0.2 OBSERVATIONS
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= obs-guard-as-stop ← "Guard clauses provide a cleaner mechanism for ⊥-as-stop-signal
+than the R16 approach of having the LLM explicitly yield ⊥. In R16, compress-further
+had to decide in its ∴ body whether to output ⊥. In v0.2, the guard clause on
+check-fidelity→acceptable makes this decision structural: the cell is skipped
+automatically when acceptable = false. The LLM is relieved of the responsibility
+to produce ⊥ — the graph topology handles it. This is both more reliable (no
+risk of LLM forgetting to yield ⊥) and more compositional (guard logic is visible
+to the scheduler without evaluating the cell body)."
+
+⊢= obs-oracle-bound-drift ← "The spawned summarize-1 cell inherits oracle bounds
+from the original summarize cell (actual-word-count ≥ 86.75), but its input is
+only 82 words. This creates a genuine constraint conflict: the LLM cannot compress
+to 50% (41 words) AND stay above the floor. The retry mechanism inflated the
+summary from 41 to 88 words — producing a WORSE summary (fidelity 3) than the
+natural 41-word version would have been. This suggests oracle bounds on spawned
+chains need to be parameterized relative to the input length, not hard-coded
+to the original document. A v0.3 consideration: ⊨ expressions should reference
+the cell's own given values, not literals from the template."
+
+⊢= obs-given-question-scoping ← "The report cell uses given? to tolerate ⊥ from
+compress-further, but in this trace compress-further actually produced output.
+The ⊥ propagation occurred one level deeper (compress-further-1). The report
+cell's given? never saw ⊥ — it saw a real value. This means report correctly
+uses the last successfully compressed output. The given? mechanism works best
+when the ⊥-producing cell is a DIRECT dependency. For multi-level spawned chains,
+the ⊥ propagation at deeper levels is handled by the ⊢⊢ spawner blocking, not
+by given?. Two different ⊥-tolerance mechanisms for two different scopes."
+
+⊢= obs-bottom-propagation-chain ← "The ⊥ propagation chain in this trace:
+  check-fidelity-1→acceptable = false
+  → guard on compress-further-1 fails
+  → compress-further-1 yields ≡ ⊥ (guard-induced bottom)
+  → recurse-compression given compress-further-1→next-summary blocks on ⊥
+  → no further spawner iterations
+This is exactly the v0.2 'guard-induced bottom' mechanism (spec section:
+Bottom Propagation, rule 3). The chain terminates cleanly without any cell
+needing to 'know' it should stop. The graph structure encodes the stopping
+logic. This validates v0.2's claim that ⊥ propagation is the natural
+termination mechanism for recursive spawner patterns."
+
+⊢= obs-retry-vs-guard-interaction ← "An interesting design tension: summarize-1
+hit oracle bounds and retried 3 times (inflating from 41 to 88 words), while
+compress-further-1 was guard-blocked (yielding ⊥) because fidelity was too low.
+The retries CAUSED the low fidelity — padding a summary to meet an artificial
+floor destroys compression quality. Without the oracle bound conflict, the
+natural 41-word summary might have scored fidelity 5-6 (acceptable), and the
+loop would have continued. The ⊨? retry mechanism and the guard-induced ⊥
+mechanism interacted adversarially here. In production Cell, this would be
+a signal to refine the oracle bounds, not the retry policy."

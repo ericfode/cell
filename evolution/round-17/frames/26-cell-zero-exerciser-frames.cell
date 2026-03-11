@@ -1,0 +1,978 @@
+-- 26-cell-zero-exerciser-frames.cell — full eval-one execution trace
+--
+-- Ready set analysis:
+--   target: given §program (≡ §p1-parallel-confluence) → data cell → READY
+--   read-graph: needs target→§program → BLOCKED
+--   check-inputs: needs read-graph→cells, read-graph→edges, target→§program → BLOCKED
+--   pick-cell: needs check-inputs→ready-set → BLOCKED
+--   evaluate: needs pick-cell→§target-cell, target→§program → BLOCKED
+--   spawn-claims: needs evaluate→tentative-outputs, pick-cell→§target-cell → BLOCKED
+--   check-claims: needs spawn-claims→§claim-cells → BLOCKED
+--   decide-freeze: needs check-claims→all-pass (where true), evaluate→tentative-outputs → BLOCKED
+--   decide-rewrite: needs check-claims→all-pass (where false), check-claims→failed-oracles → BLOCKED
+--   state-tracker: needs read-graph→cells, decide-freeze→frozen-outputs → BLOCKED
+--   obs-*: all need §26-cell-zero-exerciser → available at any time (data refs)
+--
+-- Ready set: { target }
+-- Chain: target → read-graph → check-inputs → [⊢∘ eval-one-loop: pick-cell →
+--   evaluate → spawn-claims → check-claims → decide-freeze/rewrite] → state-tracker
+-- Observations: fire after quiescence
+--
+-- The ⊢∘ eval-one-loop iterates: check-inputs feeds pick-cell, loop repeats
+-- until check-inputs→ready-set = [] (all target cells frozen).
+--
+-- INNER TARGET (p1-parallel-confluence): 5 cells
+--   config → { poet, scientist, child } → combine
+-- OUTER EXERCISER: traces cell-zero evaluating each inner cell one at a time.
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 0: target (data cell — quoted program as input)
+-- ═══════════════════════════════════════════════════════════════
+
+-- target is a data cell: its yield is determined entirely by its given.
+-- §p1-parallel-confluence is a quotation — the full source of the target program,
+-- passed as data. cell-zero will operate on this quoted program.
+
+⊢ target
+  given §program ≡ §p1-parallel-confluence
+  yield §program ≡ §p1-parallel-confluence
+
+  ⊨ §program contains cells: config, poet, scientist, child, combine → ✓
+  -- (§p1-parallel-confluence defines exactly these 5 cells)
+
+-- Ready set after frame 0: { read-graph }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 1: read-graph (cell-zero parses the quoted program)
+-- ═══════════════════════════════════════════════════════════════
+
+-- read-graph is ⊢ (soft). The LLM reads the quoted §program and extracts
+-- the cell graph: names, dependencies, oracle lists, cell types.
+
+⊢ read-graph
+  given §cell-zero.read-graph ≡ "(cell-zero's graph parser specification)"
+  given target→§program ≡ §p1-parallel-confluence
+  yield cells[], edges[]
+
+  ∴ Apply cell-zero's read-graph to «target→§program».
+    Parse all ⊢ declarations into cells.
+    Extract all given cell→output edges.
+
+-- LLM evaluation:
+-- Reading §p1-parallel-confluence, the LLM identifies:
+--
+-- Cells:
+--   config: ⊢ (data cell), given topic ≡ "the moon", yield topic
+--           oracles: [⊨ topic is a noun phrase]
+--   poet:   ⊢ (soft), given config→topic, yield poem
+--           oracles: [⊨ poem is exactly 3 lines, ⊨ poem follows 5-7-5]
+--   scientist: ⊢ (soft), given config→topic, yield fact
+--           oracles: [⊨ fact is one sentence, ⊨ fact is factually accurate]
+--   child:  ⊢ (soft), given config→topic, yield question
+--           oracles: [⊨ question ends with ?, ⊨ question uses simple vocabulary]
+--   combine: ⊢= (hard), given poet→poem + scientist→fact + child→question, yield document
+--           oracles: [⊨ document contains all three inputs]
+--
+-- Edges (dependency arcs):
+--   config→topic feeds poet, scientist, child
+--   poet→poem, scientist→fact, child→question all feed combine
+
+  yield cells ≡ [config, poet, scientist, child, combine]
+  yield edges ≡ [
+    (config→topic, poet),
+    (config→topic, scientist),
+    (config→topic, child),
+    (poet→poem, combine),
+    (scientist→fact, combine),
+    (child→question, combine)
+  ]
+
+-- oracle checks:
+--   ⊨ cells = [config, poet, scientist, child, combine] → ✓
+--   ⊨ edges = [(config→topic, poet), ...] → ✓ (6 edges, all present)
+
+-- Ready set after frame 1: { check-inputs }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 2: check-inputs (find the ready set of the TARGET program)
+-- ═══════════════════════════════════════════════════════════════
+
+-- check-inputs examines the inner program's cells and identifies which have
+-- all givens bound. This is the Kahn's algorithm "find zero in-degree" step.
+
+⊢ check-inputs
+  given read-graph→cells ≡ [config, poet, scientist, child, combine]
+  given read-graph→edges ≡ [(config→topic, poet), (config→topic, scientist), (config→topic, child), (poet→poem, combine), (scientist→fact, combine), (child→question, combine)]
+  given target→§program ≡ §p1-parallel-confluence
+  yield ready-set[], blocked-set[]
+
+  ∴ Apply cell-zero's check-inputs.
+    For each cell, check whether all given inputs are bound (≡ present)
+    and guard clauses (if any) evaluate to true.
+    config has given topic ≡ "the moon" — all givens bound, no guards.
+    poet, scientist, child depend on config→topic — BLOCKED.
+    combine depends on all three — BLOCKED.
+
+-- LLM evaluation:
+-- Scanning each cell's given clauses against the current frozen set (empty):
+--
+--   config: given topic ≡ "the moon" — literal binding, already present → READY
+--   poet: given config→topic — config not frozen → BLOCKED
+--   scientist: given config→topic — config not frozen → BLOCKED
+--   child: given config→topic — config not frozen → BLOCKED
+--   combine: given poet→poem, scientist→fact, child→question — all unfrozen → BLOCKED
+
+  yield ready-set ≡ [config]
+  yield blocked-set ≡ [poet, scientist, child, combine]
+
+-- oracle checks:
+--   ⊨ ready-set = [config] → ✓
+--   ⊨ blocked-set = [poet, scientist, child, combine] → ✓
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ eval-one-loop — ITERATION 0
+-- ready-set = [config] (non-empty → enter loop)
+-- ═══════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 3: pick-cell (iteration 0 — select config)
+-- ═══════════════════════════════════════════════════════════════
+
+-- pick-cell is ⊢= (hard). Deterministically selects the first cell from
+-- the ready set. Only one cell ready: config.
+
+⊢= pick-cell
+  given check-inputs→ready-set ≡ [config]
+  yield §target-cell
+
+  ⊢= §target-cell ← check-inputs→ready-set[0]
+
+-- evaluation:
+-- ready-set[0] = config
+
+  yield §target-cell ≡ config
+
+-- oracle checks:
+--   ⊨ §target-cell ∈ ready-set → ✓ (config ∈ [config])
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 4: evaluate (iteration 0 — config is hard, pass-through)
+-- ═══════════════════════════════════════════════════════════════
+
+-- evaluate dispatches on cell type. config has given topic ≡ "the moon" and
+-- yield topic — it's a data cell (hard). The yield echoes the given binding.
+-- No LLM needed. This is the classical substrate.
+
+⊢ evaluate
+  given pick-cell→§target-cell ≡ config
+  given target→§program ≡ §p1-parallel-confluence
+  yield tentative-outputs[], cell-type
+
+  ∴ Read «pick-cell→§target-cell» from «target→§program».
+    If the cell has a ⊢= body, evaluate deterministically → cell-type = "hard".
+    If the cell has a ∴ body, interpret via LLM → cell-type = "soft".
+    Produce tentative outputs matching the cell's yield signature.
+
+-- LLM evaluation:
+-- config has: given topic ≡ "the moon", yield topic.
+-- No ∴ body. It's a data cell — yield mirrors the given binding.
+-- cell-type = "hard" (deterministic pass-through, no LLM needed).
+
+  yield tentative-outputs ≡ [topic ≡ "the moon"]
+  yield cell-type ≡ "hard"
+
+-- oracle checks:
+--   ⊨ |tentative-outputs| = |§target-cell.yields| → ✓ (1 = 1)
+--   ⊨ cell-type ∈ {"hard", "soft"} → ✓ ("hard")
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 5: spawn-claims (iteration 0 — config has 1 oracle)
+-- ═══════════════════════════════════════════════════════════════
+
+-- spawn-claims is ⊢⊢ (spawner, accumulate). It reads config's oracles
+-- and instantiates one claim cell per oracle assertion.
+
+⊢⊢ spawn-claims accumulate
+  given evaluate→tentative-outputs ≡ [topic ≡ "the moon"]
+  given pick-cell→§target-cell ≡ config
+  given target→§program ≡ §p1-parallel-confluence
+  yield §claim-cells[]
+
+  ∴ Read the ⊨ assertions from «pick-cell→§target-cell» in «target→§program».
+    For each oracle, spawn one claim cell.
+    config has one oracle: ⊨ topic is a noun phrase.
+
+-- LLM evaluation:
+-- config's oracles: [⊨ topic is a noun phrase]
+-- Spawn 1 claim cell: claim-config-0 checks "the moon" is a noun phrase.
+
+  yield §claim-cells ≡ [claim-config-0]
+
+-- oracle checks:
+--   ⊨ |§claim-cells| = |§target-cell.oracles| → ✓ (1 = 1)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 6: check-claims (iteration 0 — evaluate config's oracle)
+-- ═══════════════════════════════════════════════════════════════
+
+-- check-claims evaluates each spawned claim cell and collects verdicts.
+-- Uses wildcard dep spawn-claims-*→verdict to collect from all claim cells.
+
+⊢ check-claims
+  given spawn-claims→§claim-cells ≡ [claim-config-0]
+  given spawn-claims-*→verdict ≡ [true]
+  yield all-pass, failed-oracles[]
+
+  ∴ Evaluate each claim cell in «spawn-claims→§claim-cells».
+    Collect verdicts. If all pass, all-pass = true.
+
+-- LLM evaluation:
+-- claim-config-0: Is "the moon" a noun phrase?
+--   "the" (article) + "moon" (noun) = noun phrase → verdict: true ✓
+-- All 1 claim passes.
+
+  yield all-pass ≡ true
+  yield failed-oracles ≡ []
+
+-- oracle checks:
+--   ⊨ all-pass = true if and only if failed-oracles is empty → ✓ (true, [])
+--   ⊨ each failed-oracle references the specific ⊨ that failed → ✓ (vacuously — none)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 7: decide-freeze (iteration 0 — FREEZE config)
+-- ═══════════════════════════════════════════════════════════════
+
+-- Guard clause evaluation [v0.2]:
+--   decide-freeze: given check-claims→all-pass where all-pass = true
+--     → all-pass ≡ true, guard evaluates to true → ENTERS READY SET
+--   decide-rewrite: given check-claims→all-pass where all-pass = false
+--     → all-pass ≡ true, guard evaluates to false → SKIPPED
+--     → all yields of decide-rewrite become ⊥
+
+⊢= decide-freeze
+  given check-claims→all-pass ≡ true
+  given evaluate→tentative-outputs ≡ [topic ≡ "the moon"]
+  yield action, frozen-outputs[]
+
+  ⊢= action ← "freeze"
+  ⊢= frozen-outputs ← evaluate→tentative-outputs
+
+  yield action ≡ "freeze"
+  yield frozen-outputs ≡ [topic ≡ "the moon"]
+
+-- oracle checks:
+--   ⊨ action = "freeze" → ✓
+
+-- decide-rewrite: SKIPPED (guard false). Yields:
+--   action ≡ ⊥
+--   rewrite-context ≡ ⊥
+
+-- ═══════════════════════════════════════════════════════════════
+-- STATE AFTER ITERATION 0: config frozen
+-- Frozen: { config }  Unfrozen: { poet, scientist, child, combine }
+-- Hash transition: h0 → h1
+-- ═══════════════════════════════════════════════════════════════
+
+-- ⊢∘ eval-one-loop: check until condition
+-- check-inputs→ready-set was [config] → non-empty → condition NOT met → ITERATE
+-- Re-evaluate check-inputs with updated frozen state.
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 8: check-inputs (re-evaluation — config now frozen)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ check-inputs
+  given read-graph→cells ≡ [config, poet, scientist, child, combine]
+  given read-graph→edges ≡ [(config→topic, poet), (config→topic, scientist), (config→topic, child), (poet→poem, combine), (scientist→fact, combine), (child→question, combine)]
+  given target→§program ≡ §p1-parallel-confluence
+  yield ready-set[], blocked-set[]
+
+  ∴ Apply cell-zero's check-inputs.
+    config is now frozen with topic ≡ "the moon".
+    poet, scientist, child each depend only on config→topic — all READY.
+    combine depends on poet→poem, scientist→fact, child→question — still BLOCKED.
+
+    CONFLUENCE POINT: any ordering of {poet, scientist, child}
+    produces the same final state. cell-zero can pick any one.
+
+-- LLM evaluation:
+-- Frozen set: {config: {topic ≡ "the moon"}}
+--
+--   poet: given config→topic — config frozen, topic bound → READY
+--   scientist: given config→topic — config frozen, topic bound → READY
+--   child: given config→topic — config frozen, topic bound → READY
+--   combine: given poet→poem — poet not frozen → BLOCKED
+--            given scientist→fact — scientist not frozen → BLOCKED
+--            given child→question — child not frozen → BLOCKED
+
+  yield ready-set ≡ [poet, scientist, child]
+  yield blocked-set ≡ [combine]
+
+-- oracle checks:
+--   ⊨ ready-set = [config] → ✗ (ASPIRATIONAL — ⊢∘ managed, feedback only)
+--     ready-set changed to [poet, scientist, child], original oracle stale.
+--     This is expected: the oracle was written for the first pass, but under
+--     ⊢∘ management the cell re-evaluates with evolving state.
+--   ⊨ blocked-set = [poet, scientist, child, combine] → ✗ (ASPIRATIONAL)
+--     blocked-set is now [combine]. Same reason: aspirational feedback.
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ eval-one-loop — ITERATION 1
+-- ready-set = [poet, scientist, child] (non-empty → continue)
+-- ═══════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 9: pick-cell (iteration 1 — select poet)
+-- ═══════════════════════════════════════════════════════════════
+
+-- Confluence: all three are equivalent choices. pick-cell takes [0] = poet.
+
+⊢= pick-cell
+  given check-inputs→ready-set ≡ [poet, scientist, child]
+  yield §target-cell
+
+  ⊢= §target-cell ← check-inputs→ready-set[0]
+
+  yield §target-cell ≡ poet
+
+-- oracle checks:
+--   ⊨ §target-cell ∈ ready-set → ✓ (poet ∈ [poet, scientist, child])
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 10: evaluate (iteration 1 — poet is soft, requires LLM)
+-- ═══════════════════════════════════════════════════════════════
+
+-- poet has a ∴ body: "Write a haiku about «config→topic»."
+-- config→topic ≡ "the moon". The LLM interprets the natural language instruction.
+-- This is the semantic substrate — the fusion property in action.
+
+⊢ evaluate
+  given pick-cell→§target-cell ≡ poet
+  given target→§program ≡ §p1-parallel-confluence
+  yield tentative-outputs[], cell-type
+
+  ∴ Read «pick-cell→§target-cell» from «target→§program».
+    poet has a ∴ body: "Write a haiku about «config→topic»."
+    Substitute config→topic ≡ "the moon" and evaluate via LLM.
+
+-- LLM evaluation:
+-- Prompt: Write a haiku about the moon.
+-- Constraint: 5-7-5 syllable pattern, exactly 3 lines.
+--
+-- Simulated output:
+--   Sil-ver cres-cent glows        (5 syllables)
+--   A-bove the whis-per-ing pines  (7 syllables)
+--   Night breathes, soft and still  (5 syllables)
+
+  yield tentative-outputs ≡ [poem ≡ "Silver crescent glows\nAbove the whispering pines\nNight breathes, soft and still"]
+  yield cell-type ≡ "soft"
+
+-- oracle checks:
+--   ⊨ |tentative-outputs| = |§target-cell.yields| → ✓ (1 = 1)
+--   ⊨ cell-type ∈ {"hard", "soft"} → ✓ ("soft")
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 11: spawn-claims (iteration 1 — poet has 2 oracles)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢⊢ spawn-claims accumulate
+  given evaluate→tentative-outputs ≡ [poem ≡ "Silver crescent glows\nAbove the whispering pines\nNight breathes, soft and still"]
+  given pick-cell→§target-cell ≡ poet
+  given target→§program ≡ §p1-parallel-confluence
+  yield §claim-cells[]
+
+  ∴ poet has two oracles:
+    ⊨ poem is exactly 3 lines
+    ⊨ poem follows 5-7-5 syllable pattern
+    Spawn two claim cells.
+
+  yield §claim-cells ≡ [claim-poet-0, claim-poet-1]
+
+-- oracle checks:
+--   ⊨ |§claim-cells| = |§target-cell.oracles| → ✓ (2 = 2)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 12: check-claims (iteration 1 — poet's 2 oracles)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ check-claims
+  given spawn-claims→§claim-cells ≡ [claim-poet-0, claim-poet-1]
+  given spawn-claims-*→verdict ≡ [true, true]
+  yield all-pass, failed-oracles[]
+
+  ∴ Evaluate each claim cell.
+
+-- LLM evaluation:
+-- claim-poet-0: "poem is exactly 3 lines"
+--   "Silver crescent glows\nAbove the whispering pines\nNight breathes, soft and still"
+--   Split on \n → 3 lines → ✓
+--
+-- claim-poet-1: "poem follows 5-7-5 syllable pattern"
+--   Line 1: Sil-ver cres-cent glows → 5 syllables ✓
+--   Line 2: A-bove the whis-per-ing pines → 7 syllables ✓
+--   Line 3: Night breathes, soft and still → 5 syllables ✓
+--   Pattern: 5-7-5 → ✓
+
+  yield all-pass ≡ true
+  yield failed-oracles ≡ []
+
+-- oracle checks:
+--   ⊨ all-pass = true if and only if failed-oracles is empty → ✓
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 13: decide-freeze (iteration 1 — FREEZE poet)
+-- ═══════════════════════════════════════════════════════════════
+
+-- Guard evaluation:
+--   decide-freeze: all-pass = true → guard true → READY
+--   decide-rewrite: all-pass = true → guard false → SKIPPED (yields ⊥)
+
+⊢= decide-freeze
+  given check-claims→all-pass ≡ true
+  given evaluate→tentative-outputs ≡ [poem ≡ "Silver crescent glows\nAbove the whispering pines\nNight breathes, soft and still"]
+  yield action, frozen-outputs[]
+
+  ⊢= action ← "freeze"
+  ⊢= frozen-outputs ← evaluate→tentative-outputs
+
+  yield action ≡ "freeze"
+  yield frozen-outputs ≡ [poem ≡ "Silver crescent glows\nAbove the whispering pines\nNight breathes, soft and still"]
+
+-- oracle checks:
+--   ⊨ action = "freeze" → ✓
+
+-- ═══════════════════════════════════════════════════════════════
+-- STATE AFTER ITERATION 1: poet frozen
+-- Frozen: { config, poet }  Unfrozen: { scientist, child, combine }
+-- Hash transition: h1 → h2
+-- ═══════════════════════════════════════════════════════════════
+
+-- ⊢∘ eval-one-loop: check until condition
+-- check-inputs→ready-set was [poet, scientist, child] → non-empty → ITERATE
+-- Re-evaluate check-inputs.
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 14: check-inputs (re-evaluation — config, poet frozen)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ check-inputs
+  given read-graph→cells ≡ [config, poet, scientist, child, combine]
+  given read-graph→edges ≡ [(config→topic, poet), (config→topic, scientist), (config→topic, child), (poet→poem, combine), (scientist→fact, combine), (child→question, combine)]
+  given target→§program ≡ §p1-parallel-confluence
+  yield ready-set[], blocked-set[]
+
+  ∴ config and poet are frozen.
+    scientist: given config→topic — bound → READY
+    child: given config→topic — bound → READY
+    combine: needs poet→poem (frozen ✓), scientist→fact (not frozen ✗) → BLOCKED
+
+  yield ready-set ≡ [scientist, child]
+  yield blocked-set ≡ [combine]
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ eval-one-loop — ITERATION 2
+-- ready-set = [scientist, child] (non-empty → continue)
+-- ═══════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 15: pick-cell (iteration 2 — select scientist)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= pick-cell
+  given check-inputs→ready-set ≡ [scientist, child]
+  yield §target-cell
+
+  ⊢= §target-cell ← check-inputs→ready-set[0]
+
+  yield §target-cell ≡ scientist
+
+-- oracle checks:
+--   ⊨ §target-cell ∈ ready-set → ✓
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 16: evaluate (iteration 2 — scientist is soft, LLM)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ evaluate
+  given pick-cell→§target-cell ≡ scientist
+  given target→§program ≡ §p1-parallel-confluence
+  yield tentative-outputs[], cell-type
+
+  ∴ scientist has ∴ body: "State one surprising scientific fact about
+    «config→topic» in a single sentence."
+    Substitute config→topic ≡ "the moon" and evaluate via LLM.
+
+-- LLM evaluation:
+-- Prompt: State one surprising scientific fact about the moon in a single sentence.
+--
+-- Simulated output:
+--   "The Moon is drifting away from Earth at a rate of approximately
+--    3.8 centimeters per year."
+-- One sentence (single period), factually accurate (lunar recession ≈ 3.8 cm/yr).
+
+  yield tentative-outputs ≡ [fact ≡ "The Moon is drifting away from Earth at a rate of approximately 3.8 centimeters per year."]
+  yield cell-type ≡ "soft"
+
+-- oracle checks:
+--   ⊨ |tentative-outputs| = |§target-cell.yields| → ✓ (1 = 1)
+--   ⊨ cell-type ∈ {"hard", "soft"} → ✓
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 17: spawn-claims (iteration 2 — scientist has 2 oracles)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢⊢ spawn-claims accumulate
+  given evaluate→tentative-outputs ≡ [fact ≡ "The Moon is drifting away from Earth at a rate of approximately 3.8 centimeters per year."]
+  given pick-cell→§target-cell ≡ scientist
+  given target→§program ≡ §p1-parallel-confluence
+  yield §claim-cells[]
+
+  ∴ scientist has two oracles:
+    ⊨ fact is one sentence
+    ⊨ fact is factually accurate
+    Spawn two claim cells.
+
+  yield §claim-cells ≡ [claim-scientist-0, claim-scientist-1]
+
+-- oracle checks:
+--   ⊨ |§claim-cells| = |§target-cell.oracles| → ✓ (2 = 2)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 18: check-claims (iteration 2 — scientist's 2 oracles)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ check-claims
+  given spawn-claims→§claim-cells ≡ [claim-scientist-0, claim-scientist-1]
+  given spawn-claims-*→verdict ≡ [true, true]
+  yield all-pass, failed-oracles[]
+
+  ∴ Evaluate each claim cell.
+
+-- LLM evaluation:
+-- claim-scientist-0: "fact is one sentence"
+--   "The Moon is drifting away from Earth at a rate of approximately 3.8 centimeters per year."
+--   One period at end, no other sentence terminators → single sentence → ✓
+--
+-- claim-scientist-1: "fact is factually accurate"
+--   Lunar recession rate ≈ 3.8 cm/year — confirmed by lunar laser ranging experiments.
+--   → ✓
+
+  yield all-pass ≡ true
+  yield failed-oracles ≡ []
+
+-- oracle checks:
+--   ⊨ all-pass = true if and only if failed-oracles is empty → ✓
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 19: decide-freeze (iteration 2 — FREEZE scientist)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= decide-freeze
+  given check-claims→all-pass ≡ true
+  given evaluate→tentative-outputs ≡ [fact ≡ "The Moon is drifting away from Earth at a rate of approximately 3.8 centimeters per year."]
+  yield action, frozen-outputs[]
+
+  ⊢= action ← "freeze"
+  ⊢= frozen-outputs ← evaluate→tentative-outputs
+
+  yield action ≡ "freeze"
+  yield frozen-outputs ≡ [fact ≡ "The Moon is drifting away from Earth at a rate of approximately 3.8 centimeters per year."]
+
+-- decide-rewrite: SKIPPED (guard false → yields ⊥)
+
+-- ═══════════════════════════════════════════════════════════════
+-- STATE AFTER ITERATION 2: scientist frozen
+-- Frozen: { config, poet, scientist }  Unfrozen: { child, combine }
+-- Hash transition: h2 → h3
+-- ═══════════════════════════════════════════════════════════════
+
+-- ⊢∘ eval-one-loop: ready-set was [scientist, child] → non-empty → ITERATE
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 20: check-inputs (re-evaluation — config, poet, scientist frozen)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ check-inputs
+  given read-graph→cells ≡ [config, poet, scientist, child, combine]
+  given read-graph→edges ≡ [(config→topic, poet), (config→topic, scientist), (config→topic, child), (poet→poem, combine), (scientist→fact, combine), (child→question, combine)]
+  given target→§program ≡ §p1-parallel-confluence
+  yield ready-set[], blocked-set[]
+
+  ∴ config, poet, scientist are frozen.
+    child: given config→topic — bound → READY
+    combine: needs poet→poem (✓), scientist→fact (✓), child→question (✗) → BLOCKED
+
+  yield ready-set ≡ [child]
+  yield blocked-set ≡ [combine]
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ eval-one-loop — ITERATION 3
+-- ready-set = [child] (non-empty → continue)
+-- ═══════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 21: pick-cell (iteration 3 — select child)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= pick-cell
+  given check-inputs→ready-set ≡ [child]
+  yield §target-cell
+
+  ⊢= §target-cell ← check-inputs→ready-set[0]
+
+  yield §target-cell ≡ child
+
+-- oracle checks:
+--   ⊨ §target-cell ∈ ready-set → ✓
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 22: evaluate (iteration 3 — child is soft, LLM)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ evaluate
+  given pick-cell→§target-cell ≡ child
+  given target→§program ≡ §p1-parallel-confluence
+  yield tentative-outputs[], cell-type
+
+  ∴ child has ∴ body: "Ask a question about «config→topic» the way a
+    curious 5-year-old would."
+    Substitute config→topic ≡ "the moon" and evaluate via LLM.
+
+-- LLM evaluation:
+-- Prompt: Ask a question about the moon the way a curious 5-year-old would.
+--
+-- Simulated output:
+--   "Why does the moon follow me when I walk?"
+-- Ends with "?", uses simple vocabulary (follow, walk, moon, why).
+
+  yield tentative-outputs ≡ [question ≡ "Why does the moon follow me when I walk?"]
+  yield cell-type ≡ "soft"
+
+-- oracle checks:
+--   ⊨ |tentative-outputs| = |§target-cell.yields| → ✓ (1 = 1)
+--   ⊨ cell-type ∈ {"hard", "soft"} → ✓
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 23: spawn-claims (iteration 3 — child has 2 oracles)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢⊢ spawn-claims accumulate
+  given evaluate→tentative-outputs ≡ [question ≡ "Why does the moon follow me when I walk?"]
+  given pick-cell→§target-cell ≡ child
+  given target→§program ≡ §p1-parallel-confluence
+  yield §claim-cells[]
+
+  ∴ child has two oracles:
+    ⊨ question ends with a question mark
+    ⊨ question uses simple vocabulary
+    Spawn two claim cells.
+
+  yield §claim-cells ≡ [claim-child-0, claim-child-1]
+
+-- oracle checks:
+--   ⊨ |§claim-cells| = |§target-cell.oracles| → ✓ (2 = 2)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 24: check-claims (iteration 3 — child's 2 oracles)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ check-claims
+  given spawn-claims→§claim-cells ≡ [claim-child-0, claim-child-1]
+  given spawn-claims-*→verdict ≡ [true, true]
+  yield all-pass, failed-oracles[]
+
+  ∴ Evaluate each claim cell.
+
+-- LLM evaluation:
+-- claim-child-0: "question ends with a question mark"
+--   "Why does the moon follow me when I walk?"
+--   Last character is "?" → ✓
+--
+-- claim-child-1: "question uses simple vocabulary"
+--   Words: why, does, the, moon, follow, me, when, I, walk
+--   All common words, grade-1 reading level → ✓
+
+  yield all-pass ≡ true
+  yield failed-oracles ≡ []
+
+-- oracle checks:
+--   ⊨ all-pass = true if and only if failed-oracles is empty → ✓
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 25: decide-freeze (iteration 3 — FREEZE child)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= decide-freeze
+  given check-claims→all-pass ≡ true
+  given evaluate→tentative-outputs ≡ [question ≡ "Why does the moon follow me when I walk?"]
+  yield action, frozen-outputs[]
+
+  ⊢= action ← "freeze"
+  ⊢= frozen-outputs ← evaluate→tentative-outputs
+
+  yield action ≡ "freeze"
+  yield frozen-outputs ≡ [question ≡ "Why does the moon follow me when I walk?"]
+
+-- decide-rewrite: SKIPPED (guard false → yields ⊥)
+
+-- ═══════════════════════════════════════════════════════════════
+-- STATE AFTER ITERATION 3: child frozen
+-- Frozen: { config, poet, scientist, child }  Unfrozen: { combine }
+-- Hash transition: h3 → h4
+-- ═══════════════════════════════════════════════════════════════
+
+-- ⊢∘ eval-one-loop: ready-set was [child] → non-empty → ITERATE
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 26: check-inputs (re-evaluation — only combine remains)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ check-inputs
+  given read-graph→cells ≡ [config, poet, scientist, child, combine]
+  given read-graph→edges ≡ [(config→topic, poet), (config→topic, scientist), (config→topic, child), (poet→poem, combine), (scientist→fact, combine), (child→question, combine)]
+  given target→§program ≡ §p1-parallel-confluence
+  yield ready-set[], blocked-set[]
+
+  ∴ config, poet, scientist, child are all frozen.
+    combine: needs poet→poem (✓), scientist→fact (✓), child→question (✓) → READY
+    All three inputs now bound!
+
+  yield ready-set ≡ [combine]
+  yield blocked-set ≡ []
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ eval-one-loop — ITERATION 4
+-- ready-set = [combine] (non-empty → continue)
+-- ═══════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 27: pick-cell (iteration 4 — select combine)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= pick-cell
+  given check-inputs→ready-set ≡ [combine]
+  yield §target-cell
+
+  ⊢= §target-cell ← check-inputs→ready-set[0]
+
+  yield §target-cell ≡ combine
+
+-- oracle checks:
+--   ⊨ §target-cell ∈ ready-set → ✓
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 28: evaluate (iteration 4 — combine is ⊢= hard, deterministic)
+-- ═══════════════════════════════════════════════════════════════
+
+-- combine is ⊢= (hard cell). Its body is a deterministic string concatenation:
+--   ⊢= document ← "POEM:\n" + poet→poem + "\n\nFACT:\n" + scientist→fact
+--                  + "\n\nQUESTION:\n" + child→question
+-- No LLM needed. Classical substrate only.
+
+⊢ evaluate
+  given pick-cell→§target-cell ≡ combine
+  given target→§program ≡ §p1-parallel-confluence
+  yield tentative-outputs[], cell-type
+
+  ∴ combine has a ⊢= body. Evaluate deterministically.
+    Substitute frozen values into the expression.
+
+-- Deterministic evaluation (classical substrate):
+-- poet→poem ≡ "Silver crescent glows\nAbove the whispering pines\nNight breathes, soft and still"
+-- scientist→fact ≡ "The Moon is drifting away from Earth at a rate of approximately 3.8 centimeters per year."
+-- child→question ≡ "Why does the moon follow me when I walk?"
+--
+-- ⊢= document ← "POEM:\n" + poem + "\n\nFACT:\n" + fact + "\n\nQUESTION:\n" + question
+-- = "POEM:\nSilver crescent glows\nAbove the whispering pines\nNight breathes, soft and still\n\nFACT:\nThe Moon is drifting away from Earth at a rate of approximately 3.8 centimeters per year.\n\nQUESTION:\nWhy does the moon follow me when I walk?"
+
+  yield tentative-outputs ≡ [document ≡ "POEM:\nSilver crescent glows\nAbove the whispering pines\nNight breathes, soft and still\n\nFACT:\nThe Moon is drifting away from Earth at a rate of approximately 3.8 centimeters per year.\n\nQUESTION:\nWhy does the moon follow me when I walk?"]
+  yield cell-type ≡ "hard"
+
+-- oracle checks:
+--   ⊨ |tentative-outputs| = |§target-cell.yields| → ✓ (1 = 1)
+--   ⊨ cell-type ∈ {"hard", "soft"} → ✓ ("hard")
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 29: spawn-claims (iteration 4 — combine has 1 oracle)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢⊢ spawn-claims accumulate
+  given evaluate→tentative-outputs ≡ [document ≡ "POEM:\nSilver crescent glows\n..."]
+  given pick-cell→§target-cell ≡ combine
+  given target→§program ≡ §p1-parallel-confluence
+  yield §claim-cells[]
+
+  ∴ combine has one oracle:
+    ⊨ document contains all three inputs
+    Spawn one claim cell.
+
+  yield §claim-cells ≡ [claim-combine-0]
+
+-- oracle checks:
+--   ⊨ |§claim-cells| = |§target-cell.oracles| → ✓ (1 = 1)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 30: check-claims (iteration 4 — combine's oracle)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ check-claims
+  given spawn-claims→§claim-cells ≡ [claim-combine-0]
+  given spawn-claims-*→verdict ≡ [true]
+  yield all-pass, failed-oracles[]
+
+  ∴ Evaluate claim cell.
+
+-- LLM evaluation:
+-- claim-combine-0: "document contains all three inputs"
+--   contains(document, "Silver crescent glows") → ✓ (poet→poem present)
+--   contains(document, "Moon is drifting away") → ✓ (scientist→fact present)
+--   contains(document, "moon follow me when I walk?") → ✓ (child→question present)
+-- All three inputs found in document → ✓
+
+  yield all-pass ≡ true
+  yield failed-oracles ≡ []
+
+-- oracle checks:
+--   ⊨ all-pass = true if and only if failed-oracles is empty → ✓
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 31: decide-freeze (iteration 4 — FREEZE combine)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= decide-freeze
+  given check-claims→all-pass ≡ true
+  given evaluate→tentative-outputs ≡ [document ≡ "POEM:\nSilver crescent glows\nAbove the whispering pines\nNight breathes, soft and still\n\nFACT:\nThe Moon is drifting away from Earth at a rate of approximately 3.8 centimeters per year.\n\nQUESTION:\nWhy does the moon follow me when I walk?"]
+  yield action, frozen-outputs[]
+
+  ⊢= action ← "freeze"
+  ⊢= frozen-outputs ← evaluate→tentative-outputs
+
+  yield action ≡ "freeze"
+  yield frozen-outputs ≡ [document ≡ "POEM:\nSilver crescent glows\nAbove the whispering pines\nNight breathes, soft and still\n\nFACT:\nThe Moon is drifting away from Earth at a rate of approximately 3.8 centimeters per year.\n\nQUESTION:\nWhy does the moon follow me when I walk?"]
+
+-- decide-rewrite: SKIPPED (guard false → yields ⊥)
+
+-- ═══════════════════════════════════════════════════════════════
+-- STATE AFTER ITERATION 4: combine frozen — ALL TARGET CELLS DONE
+-- Frozen: { config, poet, scientist, child, combine }
+-- Unfrozen: { }
+-- Hash transition: h4 → h5
+-- ═══════════════════════════════════════════════════════════════
+
+-- ⊢∘ eval-one-loop: ready-set was [combine] → non-empty → ITERATE
+-- Re-evaluate check-inputs to discover quiescence.
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 32: check-inputs (final — all cells frozen)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ check-inputs
+  given read-graph→cells ≡ [config, poet, scientist, child, combine]
+  given read-graph→edges ≡ [(config→topic, poet), (config→topic, scientist), (config→topic, child), (poet→poem, combine), (scientist→fact, combine), (child→question, combine)]
+  given target→§program ≡ §p1-parallel-confluence
+  yield ready-set[], blocked-set[]
+
+  ∴ All five cells are frozen. No cells remain unfrozen. Quiesce.
+
+  yield ready-set ≡ []
+  yield blocked-set ≡ []
+
+-- ⊢∘ eval-one-loop: check until condition
+-- check-inputs→ready-set = [] → condition MET → EXIT LOOP
+-- Loop completed in 5 iterations (0 through 4), 33 frames total.
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 33: state-tracker (post-loop summary)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= state-tracker
+  given read-graph→cells ≡ [config, poet, scientist, child, combine]
+  given decide-freeze→frozen-outputs ≡ [document ≡ "POEM:\nSilver crescent glows\n..."]
+  yield frozen-count, quiescent
+
+  ⊢= frozen-count ← len(filter(read-graph→cells, c -> c has frozen outputs))
+  ⊢= quiescent ← frozen-count = len(read-graph→cells)
+
+-- evaluation:
+-- All 5 cells have frozen outputs. frozen-count = 5. len(cells) = 5.
+-- 5 = 5 → quiescent = true.
+
+  yield frozen-count ≡ 5
+  yield quiescent ≡ true
+
+-- oracle checks:
+--   ⊨ frozen-count is a non-negative integer → ✓ (5)
+--   ⊨ quiescent = true when all cells are frozen → ✓
+
+-- ═══════════════════════════════════════════════════════════════
+-- QUIESCENCE
+-- ═══════════════════════════════════════════════════════════════
+
+-- All exerciser cells frozen or skipped. No cell in the ready set.
+-- Program complete.
+--
+-- Frozen cells (across all iterations):
+--   target, read-graph, check-inputs (×6), pick-cell (×5),
+--   evaluate (×5), spawn-claims (×5), check-claims (×5),
+--   decide-freeze (×5), state-tracker
+-- Skipped cells:
+--   decide-rewrite (guard false on all 5 iterations → yields ⊥ each time)
+--
+-- Inner target program evaluation:
+--   5 eval-one steps: config → poet → scientist → child → combine
+--   8 total oracle checks: config(1), poet(2), scientist(2), child(2), combine(1)
+--   All 8 passed — no retries triggered.
+--   0 uses of decide-rewrite (no oracle failures).
+--   File-scope ⊨? was available but never needed.
+
+-- ═══════════════════════════════════════════════════════════════
+-- OBSERVATIONS
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= obs-metacircular
+  given §26-cell-zero-exerciser
+  yield observations
+
+  ⊢= observations ← "METACIRCULAR EVALUATION WORKS: cell-zero's eval-one loop executed p1-parallel-confluence in 5 eval-one steps across 33 frames. Each step is one complete cycle: check-inputs → pick-cell → evaluate → spawn-claims → check-claims → decide. The exerciser is itself a Cell program — the trace IS a Cell document. cell-zero evaluating Cell is Scheme's metacircular evaluator for the LLM age."
+
+⊢= obs-confluence-demonstrated
+  given §26-cell-zero-exerciser
+  yield observations
+
+  ⊢= observations ← "CONFLUENCE EXERCISED AT THE CRITICAL POINT: After config froze (iteration 0), three cells entered the ready set simultaneously: {poet, scientist, child}. cell-zero's pick-cell chose poet first (index 0), but any of the 6 possible orderings produces the same combine→document. This is the eval_diamond theorem from Confluence.lean, demonstrated concretely: independent eval-one steps commute."
+
+⊢= obs-fusion-both-substrates
+  given §26-cell-zero-exerciser
+  yield observations
+
+  ⊢= observations ← "FUSION PROPERTY VISIBLE IN DISPATCH: The evaluate phase dispatched on cell type 5 times: config=hard (pass-through), poet=soft (LLM haiku), scientist=soft (LLM fact), child=soft (LLM question), combine=hard (⊢= concatenation). Both substrates were exercised within one program execution. This is what makes Cell a fusion language — neither classical nor semantic alone suffices."
+
+⊢= obs-guard-clauses-clean-branching
+  given §26-cell-zero-exerciser
+  yield observations
+
+  ⊢= observations ← "v0.2 GUARD CLAUSES ELIMINATE PROCEDURAL BRANCHING: The decide phase splits into decide-freeze (where all-pass = true) and decide-rewrite (where all-pass = false). On each iteration exactly one fires; the other's yields become ⊥. In R16, a single decide cell used procedural logic in its ∴ body. The v0.2 version makes the branching structural — visible in the graph topology, not hidden inside a cell. Zero wasted evaluations."
+
+⊢= obs-wildcard-deps-collect-claims
+  given §26-cell-zero-exerciser
+  yield observations
+
+  ⊢= observations ← "WILDCARD DEPS COLLECT ORACLE VERDICTS: check-claims uses spawn-claims-*→verdict to gather verdicts from dynamically spawned claim cells. As spawn-claims (⊢⊢ accumulate) creates different claim cells each iteration (claim-config-0, claim-poet-0/1, claim-scientist-0/1, claim-child-0/1, claim-combine-0), the wildcard re-resolves at each ready-set computation. This is the wildcard-meets-spawner pattern from v0.2 spec section 'Interaction with ⊢⊢ spawners'."
+
+⊢= obs-aspirational-oracles-in-loop
+  given §26-cell-zero-exerciser
+  yield observations
+
+  ⊢= observations ← "⊢∘ ASPIRATIONAL ORACLES WORK AS DESIGNED: check-inputs has oracles asserting ready-set = [config] and blocked-set = [poet, scientist, child, combine]. These are correct for iteration 0 but stale by iteration 1 (ready-set becomes [poet, scientist, child]). Under ⊢∘ management, these oracles are ASPIRATIONAL — they provide feedback signals but don't block freezing. The until condition (ready-set = []) is the actual convergence gate. This is exactly the v0.2 semantics for oracles on ⊢∘-managed cells."
+
+⊢= obs-file-scope-recovery-safety-net
+  given §26-cell-zero-exerciser
+  yield observations
+
+  ⊢= observations ← "FILE-SCOPE ⊨? PROVIDES DEFENSE IN DEPTH: The file-scope recovery policy (retry max 2, exhaustion → error-value(⊥)) applies to any cell without its own ⊨?. In this trace, all 8 oracle checks passed and no retries were needed. But if any soft evaluation had produced output failing its oracles (e.g., poet's haiku had wrong syllable count), the file-scope policy would trigger retry with oracle.failures context — then ⊥ on exhaustion. The safety net exists even when it's never activated."
+
+⊢= obs-state-hash-progression
+  given §26-cell-zero-exerciser
+  yield observations
+
+  ⊢= observations ← "CONTENT-ADDRESSABLE STATE PROGRESSION: 6 hash transitions trace the inner program's evolution: h0(nothing) → h1(config) → h2(+poet) → h3(+scientist) → h4(+child) → h5(+combine). Each transition corresponds to exactly one eval-one step freezing one cell. The frozen set grows monotonically. state-tracker confirms: frozen-count=5, quiescent=true. Hash the document at any point = hash the state at that point. The document IS the execution trace."

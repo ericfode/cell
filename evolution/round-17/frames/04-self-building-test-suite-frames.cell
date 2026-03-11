@@ -1,0 +1,1033 @@
+-- 04-self-building-test-suite-frames.cell — full eval-one execution trace
+--
+-- Ready set analysis:
+--   function-spec: all givens have ≡ (signature, behavior) → READY
+--   generate-initial-tests: needs function-spec→signature, function-spec→behavior → BLOCKED
+--   run-tests: needs generate-initial-tests→test-cases, function-spec→{signature,behavior} → BLOCKED
+--   discover-edge-cases: needs run-tests→results, function-spec→behavior,
+--     generate-initial-tests→categories; given? refine-test-suite→refined-edge-cases (⊥ OK) → BLOCKED
+--   spawn-edge-tests: needs discover-edge-cases→edge-cases, function-spec→{signature,behavior}, §edge-test-template → BLOCKED
+--   edge-test-template: template (not instantiated yet) → N/A
+--   assess-coverage: needs run-tests→results, edge-test-*→{result,verdict}; given? edge-test-*→deeper-edges → BLOCKED
+--   refine-test-suite: needs assess-coverage→gaps; given? assess-coverage→ambiguities → BLOCKED
+--   final-report: needs assess-coverage→coverage-score (where >= 8), edge-test-*→{result,verdict} → BLOCKED
+--   needs-more-work: needs assess-coverage→coverage-score (where < 8), assess-coverage→gaps → BLOCKED
+--
+-- Ready set: { function-spec }
+-- Pre-loop chain: function-spec → generate-initial-tests → run-tests
+-- ⊢∘ evolve loop: discover-edge-cases → [spawn-edge-tests → edge-test-*] → assess-coverage → refine-test-suite (max 3 iters)
+-- Post-loop: final-report XOR needs-more-work (guard-gated on coverage-score)
+--
+-- File-scope ⊨? applies to all cells without their own ⊨?:
+--   on failure: retry with «oracle.failures» max 3
+--   on exhaustion: partial-accept(best)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 0: function-spec
+-- ═══════════════════════════════════════════════════════════════
+
+-- function-spec is a data cell — all yields determined by givens. Freezes immediately.
+
+⊢ function-spec
+  given signature ≡ "parse_date(s: string) -> Date"
+  given behavior ≡ "Parses dates in any common format. Accepts ISO 8601 (2024-03-15, 2024-03-15T10:30:00Z), US format (03/15/2024, March 15 2024), European format (15.03.2024, 15/03/2024), and natural language (next Tuesday, yesterday, in 3 days). Returns a Date with year, month, day fields. Raises ValueError on unparseable input."
+  yield signature ≡ "parse_date(s: string) -> Date"
+  yield behavior ≡ "Parses dates in any common format. Accepts ISO 8601 (2024-03-15, 2024-03-15T10:30:00Z), US format (03/15/2024, March 15 2024), European format (15.03.2024, 15/03/2024), and natural language (next Tuesday, yesterday, in 3 days). Returns a Date with year, month, day fields. Raises ValueError on unparseable input."
+
+  ⊨ signature specifies input and output types → ✓ (s: string → Date)
+  ⊨ behavior describes at least 3 distinct input formats → ✓ (ISO, US, European, natural language = 4)
+
+-- Ready set after frame 0: { generate-initial-tests }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 1: generate-initial-tests
+-- ═══════════════════════════════════════════════════════════════
+
+-- Soft cell. LLM generates initial happy-path test cases.
+
+⊢ generate-initial-tests
+  given function-spec→signature ≡ "parse_date(s: string) -> Date"
+  given function-spec→behavior ≡ "Parses dates in any common format. Accepts ISO 8601 (2024-03-15, 2024-03-15T10:30:00Z), US format (03/15/2024, March 15 2024), European format (15.03.2024, 15/03/2024), and natural language (next Tuesday, yesterday, in 3 days). Returns a Date with year, month, day fields. Raises ValueError on unparseable input."
+  yield test-cases[], categories[]
+
+  ∴ Given the function «function-spec→signature» with behavior: ...
+    Generate 5-7 initial test cases covering the obvious happy paths.
+
+-- LLM evaluation:
+-- One test per format family plus one error case. These are the OBVIOUS inputs.
+-- Edge cases will come later from discover-edge-cases.
+
+  yield test-cases ≡ [
+    { input: "2024-03-15", expected-output: { year: 2024, month: 3, day: 15 }, category: "iso" },
+    { input: "2024-03-15T10:30:00Z", expected-output: { year: 2024, month: 3, day: 15 }, category: "iso" },
+    { input: "03/15/2024", expected-output: { year: 2024, month: 3, day: 15 }, category: "us" },
+    { input: "March 15 2024", expected-output: { year: 2024, month: 3, day: 15 }, category: "us" },
+    { input: "15.03.2024", expected-output: { year: 2024, month: 3, day: 15 }, category: "european" },
+    { input: "yesterday", expected-output: { year: 2026, month: 3, day: 10 }, category: "natural-language" },
+    { input: "not-a-date-at-all", expected-output: "ValueError", category: "error" }
+  ]
+
+  yield categories ≡ ["iso", "us", "european", "natural-language", "error"]
+
+-- oracle checks:
+--   ⊨ len(test-cases) >= 5 → ✓ (7 test cases)
+--   ⊨ categories covers at least 3 distinct format families → ✓ (5 categories)
+--   ⊨ each test-case has input, expected-output, and category fields → ✓
+
+-- Ready set after frame 1: { run-tests }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 2: run-tests
+-- ═══════════════════════════════════════════════════════════════
+
+-- Soft cell. LLM simulates execution of parse_date on each test case.
+
+⊢ run-tests
+  given generate-initial-tests→test-cases ≡ [
+    { input: "2024-03-15", expected-output: { year: 2024, month: 3, day: 15 }, category: "iso" },
+    { input: "2024-03-15T10:30:00Z", expected-output: { year: 2024, month: 3, day: 15 }, category: "iso" },
+    { input: "03/15/2024", expected-output: { year: 2024, month: 3, day: 15 }, category: "us" },
+    { input: "March 15 2024", expected-output: { year: 2024, month: 3, day: 15 }, category: "us" },
+    { input: "15.03.2024", expected-output: { year: 2024, month: 3, day: 15 }, category: "european" },
+    { input: "yesterday", expected-output: { year: 2026, month: 3, day: 10 }, category: "natural-language" },
+    { input: "not-a-date-at-all", expected-output: "ValueError", category: "error" }
+  ]
+  given function-spec→signature ≡ "parse_date(s: string) -> Date"
+  given function-spec→behavior ≡ "Parses dates in any common format..."
+  yield results[], pass-count, fail-count
+
+  ∴ Simulate executing «function-spec→signature» on each test case...
+
+-- LLM evaluation:
+-- The function behavior is well-defined for these happy-path inputs.
+-- Each test exercises one format family with an unambiguous date.
+--
+-- "2024-03-15" → ISO 8601 date → { year: 2024, month: 3, day: 15 } → matches expected → pass
+-- "2024-03-15T10:30:00Z" → ISO 8601 datetime → { year: 2024, month: 3, day: 15 } → pass
+-- "03/15/2024" → US MM/DD/YYYY → { year: 2024, month: 3, day: 15 } → pass
+-- "March 15 2024" → US natural → { year: 2024, month: 3, day: 15 } → pass
+-- "15.03.2024" → European DD.MM.YYYY → { year: 2024, month: 3, day: 15 } → pass
+-- "yesterday" → relative to today (2026-03-11) → { year: 2026, month: 3, day: 10 } → pass
+-- "not-a-date-at-all" → unparseable → ValueError → pass
+
+  yield results ≡ [
+    { input: "2024-03-15", actual: { year: 2024, month: 3, day: 15 }, expected: { year: 2024, month: 3, day: 15 }, pass: true, explanation: "ISO 8601 date parsed correctly" },
+    { input: "2024-03-15T10:30:00Z", actual: { year: 2024, month: 3, day: 15 }, expected: { year: 2024, month: 3, day: 15 }, pass: true, explanation: "ISO 8601 datetime — date portion extracted, time discarded" },
+    { input: "03/15/2024", actual: { year: 2024, month: 3, day: 15 }, expected: { year: 2024, month: 3, day: 15 }, pass: true, explanation: "US format MM/DD/YYYY" },
+    { input: "March 15 2024", actual: { year: 2024, month: 3, day: 15 }, expected: { year: 2024, month: 3, day: 15 }, pass: true, explanation: "US natural language month name" },
+    { input: "15.03.2024", actual: { year: 2024, month: 3, day: 15 }, expected: { year: 2024, month: 3, day: 15 }, pass: true, explanation: "European DD.MM.YYYY" },
+    { input: "yesterday", actual: { year: 2026, month: 3, day: 10 }, expected: { year: 2026, month: 3, day: 10 }, pass: true, explanation: "Relative date — 1 day before 2026-03-11" },
+    { input: "not-a-date-at-all", actual: "ValueError", expected: "ValueError", pass: true, explanation: "Unparseable input correctly raises ValueError" }
+  ]
+  yield pass-count ≡ 7
+  yield fail-count ≡ 0
+
+-- oracle checks:
+--   ⊨ len(results) = len(generate-initial-tests→test-cases) → ✓ (both 7)
+--   ⊨ pass-count + fail-count = len(results) → ✓ (7 + 0 = 7)
+--   ⊨ each result includes input, actual, expected, pass/fail, explanation → ✓
+
+-- Ready set after frame 2: { discover-edge-cases }
+-- run-tests→results is frozen. ⊢∘ evolve loop can begin.
+-- NOTE: All initial tests pass — these are happy paths. The real challenge is edge cases.
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ evolve — ITERATION 0
+-- ═══════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 3: discover-edge-cases (iteration 0)
+-- ═══════════════════════════════════════════════════════════════
+
+-- Soft cell managed by ⊢∘ evolve. Oracles are ASPIRATIONAL.
+-- given? refine-test-suite→refined-edge-cases is ⊥ (first iteration).
+
+⊢ discover-edge-cases
+  given run-tests→results ≡ [... all 7 passing results ...]
+  given function-spec→behavior ≡ "Parses dates in any common format..."
+  given generate-initial-tests→categories ≡ ["iso", "us", "european", "natural-language", "error"]
+  given? refine-test-suite→refined-edge-cases ≡ ⊥
+  yield edge-cases[], reasoning
+
+  ∴ Analyze the test results and behavior spec. Identify edge cases MISSED...
+    If «refine-test-suite→refined-edge-cases» is available (not ⊥), incorporate those.
+
+-- LLM evaluation:
+-- All 7 tests pass. The LLM analyzes WHAT'S MISSING:
+-- 1. All inputs use March 15 2024 — no variation in actual date values
+-- 2. No ambiguous inputs (all formats are unambiguous for the chosen date)
+-- 3. No boundary dates (leap years, month/year edges)
+-- 4. No partial inputs (missing day, missing year)
+-- 5. Only one error case
+-- 6. "yesterday" is the only relative date — no "next Tuesday", "in 3 days"
+--
+-- The LLM identifies 6 edge cases targeting specific risks:
+
+  yield edge-cases ≡ [
+    { input: "01/02/2024", expected-behavior: "Ambiguous: US → Jan 2, European → Feb 1. Spec doesn't specify priority. Should either pick a convention or raise ValueError.", category: "ambiguous", risk: "US/European format collision — no way to determine intent without locale" },
+    { input: "02/29/2025", expected-behavior: "ValueError — 2025 is not a leap year", category: "boundary", risk: "Feb 29 on non-leap year must be rejected, not silently corrected to Feb 28 or Mar 1" },
+    { input: "March 2024", expected-behavior: "Unclear — no day specified. Should raise ValueError or default to 1st?", category: "partial", risk: "Spec says 'Returns a Date with year, month, day fields' — what day when none given?" },
+    { input: "", expected-behavior: "ValueError — empty string", category: "boundary", risk: "Empty input edge case — must not crash, must not return a default date" },
+    { input: "next Tuesday", expected-behavior: "Relative to today (2026-03-11, a Wednesday) → 2026-03-17", category: "natural-language", risk: "Relative date anchoring — from when? Current time? UTC? Local?" },
+    { input: "13/02/2024", expected-behavior: "Unambiguously European (month cannot be 13) → Feb 13 2024", category: "disambiguation", risk: "When month > 12, format is unambiguously DD/MM/YYYY — does the parser detect this?" }
+  ]
+
+  yield reasoning ≡ "Initial tests all use the same date (March 15 2024) in different formats — zero variation in actual date values. The biggest gap is ambiguous inputs: '01/02/2024' is valid in both US and European formats with different meanings. Boundary conditions (non-leap Feb 29, empty string) and partial inputs (month without day) are also untested. The natural language tests only cover 'yesterday' — 'next Tuesday' tests relative date anchoring, a known source of bugs."
+
+-- oracle checks (ASPIRATIONAL under ⊢∘ management):
+--   ⊨ len(edge-cases) >= 4 → ✓ (6 edge cases)
+--   ⊨ each edge-case identifies a specific risk or ambiguity → ✓
+--   ⊨ edge-cases includes at least one ambiguous input and one boundary case → ✓ ("01/02/2024" is ambiguous, "02/29/2025" is boundary)
+--   ⊨ reasoning explains the discovery process → ✓
+
+-- Ready set after frame 3: { spawn-edge-tests }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 4: spawn-edge-tests (iteration 0)
+-- ═══════════════════════════════════════════════════════════════
+
+-- ⊢⊢ spawner with accumulate mode. Creates one cell per edge case.
+-- Spawns 6 cells: edge-test-0 through edge-test-5.
+
+⊢⊢ spawn-edge-tests
+  given discover-edge-cases→edge-cases ≡ [... 6 edge cases ...]
+  given function-spec→signature ≡ "parse_date(s: string) -> Date"
+  given function-spec→behavior ≡ "Parses dates in any common format..."
+  given §edge-test-template ≡ (definition of edge-test-template)
+  yield §edge-test-cells[]
+  until len(edge-test-cells) = len(discover-edge-cases→edge-cases)
+  max 10
+  accumulate
+
+  ∴ For each edge case, spawn a test cell from «§edge-test-template»...
+
+-- Spawner fires. Creates 6 cells from the template:
+--
+-- edge-test-0: edge-input ≡ "01/02/2024", expected-behavior ≡ "Ambiguous: US → Jan 2, European → Feb 1...", edge-rationale ≡ "US/European format collision"
+-- edge-test-1: edge-input ≡ "02/29/2025", expected-behavior ≡ "ValueError — 2025 is not a leap year", edge-rationale ≡ "Feb 29 on non-leap year"
+-- edge-test-2: edge-input ≡ "March 2024", expected-behavior ≡ "Unclear — no day specified...", edge-rationale ≡ "Spec requires day field"
+-- edge-test-3: edge-input ≡ "", expected-behavior ≡ "ValueError — empty string", edge-rationale ≡ "Empty input edge case"
+-- edge-test-4: edge-input ≡ "next Tuesday", expected-behavior ≡ "Relative to today → 2026-03-17", edge-rationale ≡ "Relative date anchoring"
+-- edge-test-5: edge-input ≡ "13/02/2024", expected-behavior ≡ "Unambiguously European → Feb 13 2024", edge-rationale ≡ "Auto-disambiguation when month > 12"
+
+  yield §edge-test-cells ≡ [edge-test-0, edge-test-1, edge-test-2, edge-test-3, edge-test-4, edge-test-5]
+
+-- oracle checks:
+--   ⊨ len(edge-test-cells) = len(discover-edge-cases→edge-cases) → ✓ (both 6)
+--   ⊨ each spawned cell targets exactly one edge case → ✓
+
+-- Ready set after frame 4: { edge-test-0, edge-test-1, edge-test-2, edge-test-3, edge-test-4, edge-test-5 }
+-- All 6 spawned cells have their givens bound. Any can execute next.
+-- Confluence: execution order doesn't matter — they're independent.
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 5: edge-test-0 (ambiguous US/European)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ edge-test-0
+  given edge-input ≡ "01/02/2024"
+  given expected-behavior ≡ "Ambiguous: US → Jan 2, European → Feb 1. Spec doesn't specify priority."
+  given edge-rationale ≡ "US/European format collision — no way to determine intent without locale"
+  given function-spec→signature ≡ "parse_date(s: string) -> Date"
+  yield result, verdict, deeper-edges[]
+
+  ∴ Simulate executing «function-spec→signature» on «edge-input»...
+
+-- LLM evaluation:
+-- "01/02/2024" — both US (Jan 2) and European (Feb 1) are valid parses.
+-- The spec says "Parses dates in any common format" but doesn't specify
+-- which format takes priority when multiple formats match.
+-- The LLM must declare this ambiguous.
+
+  yield result ≡ "Input '01/02/2024' has two valid interpretations: US format gives { year: 2024, month: 1, day: 2 }, European format gives { year: 2024, month: 2, day: 1 }. The behavior spec does not specify format priority or locale detection. This is a genuine spec ambiguity."
+  yield verdict ≡ "ambiguous"
+  yield deeper-edges ≡ [
+    "02/03/2024 — same ambiguity, different date values",
+    "12/11/2024 — ambiguous (Dec 11 US or Nov 12 European) but both months valid",
+    "What locale detection should the parser use? IP? OS setting? Explicit parameter?"
+  ]
+
+-- oracle checks:
+--   ⊨ verdict ∈ { "pass", "fail", "ambiguous" } → ✓ ("ambiguous")
+--   ⊨ if verdict = "ambiguous" then result explains the ambiguity → ✓
+--   ⊨ deeper-edges is a list (possibly empty) → ✓ (3 deeper edges)
+
+-- Ready set after frame 5: { edge-test-1, edge-test-2, edge-test-3, edge-test-4, edge-test-5 }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 6: edge-test-1 (Feb 29 non-leap year)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ edge-test-1
+  given edge-input ≡ "02/29/2025"
+  given expected-behavior ≡ "ValueError — 2025 is not a leap year"
+  given edge-rationale ≡ "Feb 29 on non-leap year must be rejected"
+  given function-spec→signature ≡ "parse_date(s: string) -> Date"
+  yield result, verdict, deeper-edges[]
+
+  ∴ Simulate executing «function-spec→signature» on «edge-input»...
+
+-- LLM evaluation:
+-- 2025 is not a leap year (not divisible by 4). Feb 29 doesn't exist.
+-- The spec says "Raises ValueError on unparseable input."
+-- This is parseable-format but invalid-date. The spec arguably covers this
+-- since the date itself is invalid, but the FORMAT is valid.
+-- A reasonable implementation would raise ValueError.
+
+  yield result ≡ "Input '02/29/2025' is in valid US format MM/DD/YYYY but refers to a non-existent date (2025 is not a leap year). A well-implemented parse_date should raise ValueError since the resulting Date would have an invalid day. This tests calendar validation, not format parsing."
+  yield verdict ≡ "pass"
+  yield deeper-edges ≡ [
+    "02/29/2000 — leap year (divisible by 400), should pass",
+    "02/29/1900 — NOT a leap year (divisible by 100 but not 400)",
+    "00/15/2024 — month 0 is invalid regardless of format"
+  ]
+
+-- oracle checks:
+--   ⊨ verdict ∈ { "pass", "fail", "ambiguous" } → ✓ ("pass")
+--   ⊨ if verdict = "ambiguous" then result explains the ambiguity → vacuously ✓
+--   ⊨ deeper-edges is a list (possibly empty) → ✓ (3 deeper edges)
+
+-- Ready set after frame 6: { edge-test-2, edge-test-3, edge-test-4, edge-test-5 }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 7: edge-test-2 (partial input — no day)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ edge-test-2
+  given edge-input ≡ "March 2024"
+  given expected-behavior ≡ "Unclear — no day specified. Should raise ValueError or default to 1st?"
+  given edge-rationale ≡ "Spec says 'Returns a Date with year, month, day fields' — what day when none given?"
+  given function-spec→signature ≡ "parse_date(s: string) -> Date"
+  yield result, verdict, deeper-edges[]
+
+  ∴ Simulate executing «function-spec→signature» on «edge-input»...
+
+-- LLM evaluation:
+-- "March 2024" — month and year but no day. The spec requires a Date with
+-- year, month, day fields. Two reasonable behaviors:
+-- 1. Default day to 1 → { year: 2024, month: 3, day: 1 }
+-- 2. Raise ValueError because the input is incomplete
+-- The spec doesn't say "partial dates are accepted" or "missing fields default."
+-- This is a spec gap.
+
+  yield result ≡ "Input 'March 2024' is recognizable as a month-year reference but lacks a day component. The spec requires 'a Date with year, month, day fields' — the day field has no source. Two reasonable implementations: (1) default day to 1, (2) raise ValueError for incomplete input. The spec is silent on partial dates."
+  yield verdict ≡ "ambiguous"
+  yield deeper-edges ≡ [
+    "2024 — just a year, even more partial",
+    "Tuesday — day of week without date, even more ambiguous than 'next Tuesday'"
+  ]
+
+-- oracle checks:
+--   ⊨ verdict ∈ { "pass", "fail", "ambiguous" } → ✓ ("ambiguous")
+--   ⊨ if verdict = "ambiguous" then result explains the ambiguity → ✓
+--   ⊨ deeper-edges is a list (possibly empty) → ✓ (2 deeper edges)
+
+-- Ready set after frame 7: { edge-test-3, edge-test-4, edge-test-5 }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 8: edge-test-3 (empty string)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ edge-test-3
+  given edge-input ≡ ""
+  given expected-behavior ≡ "ValueError — empty string"
+  given edge-rationale ≡ "Empty input edge case — must not crash, must not return a default date"
+  given function-spec→signature ≡ "parse_date(s: string) -> Date"
+  yield result, verdict, deeper-edges[]
+
+  ∴ Simulate executing «function-spec→signature» on «edge-input»...
+
+-- LLM evaluation:
+-- Empty string — clearly unparseable. Spec says "Raises ValueError on
+-- unparseable input." This is unambiguous.
+
+  yield result ≡ "Input '' (empty string) is unparseable. parse_date raises ValueError per spec."
+  yield verdict ≡ "pass"
+  yield deeper-edges ≡ [
+    "   (whitespace only) — should also be ValueError",
+    "null/None — if the language distinguishes null from empty string"
+  ]
+
+-- oracle checks:
+--   ⊨ verdict ∈ { "pass", "fail", "ambiguous" } → ✓ ("pass")
+--   ⊨ if verdict = "ambiguous" then result explains the ambiguity → vacuously ✓
+--   ⊨ deeper-edges is a list (possibly empty) → ✓ (2 deeper edges)
+
+-- Ready set after frame 8: { edge-test-4, edge-test-5 }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 9: edge-test-4 (next Tuesday — relative anchoring)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ edge-test-4
+  given edge-input ≡ "next Tuesday"
+  given expected-behavior ≡ "Relative to today (2026-03-11, a Wednesday) → 2026-03-17"
+  given edge-rationale ≡ "Relative date anchoring — from when? Current time? UTC? Local?"
+  given function-spec→signature ≡ "parse_date(s: string) -> Date"
+  yield result, verdict, deeper-edges[]
+
+  ∴ Simulate executing «function-spec→signature» on «edge-input»...
+
+-- LLM evaluation:
+-- "next Tuesday" — today is 2026-03-11 (Wednesday).
+-- Next Tuesday = 2026-03-17 (6 days from now).
+-- The spec lists "next Tuesday" as an accepted format.
+-- But the result depends on WHEN parse_date is called and WHAT timezone.
+-- If this test is run on a different day, the expected output changes.
+-- This is a test design problem, not a parser problem.
+
+  yield result ≡ "Input 'next Tuesday' parsed relative to today 2026-03-11 (Wednesday) gives { year: 2026, month: 3, day: 17 }. This matches expected behavior. However, this test is FRAGILE: the expected output depends on the execution date. Any test suite using relative dates needs either (a) a fixed reference date parameter, or (b) dynamic expected values."
+  yield verdict ≡ "pass"
+  yield deeper-edges ≡ [
+    "Does 'next Tuesday' on a Tuesday mean today or 7 days from now?",
+    "What timezone anchors 'today'? UTC? System local?",
+    "in 3 days — tests arithmetic relative dates"
+  ]
+
+-- oracle checks:
+--   ⊨ verdict ∈ { "pass", "fail", "ambiguous" } → ✓ ("pass")
+--   ⊨ if verdict = "ambiguous" then result explains the ambiguity → vacuously ✓
+--   ⊨ deeper-edges is a list (possibly empty) → ✓ (3 deeper edges)
+
+-- Ready set after frame 9: { edge-test-5 }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 10: edge-test-5 (unambiguous European — month > 12)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ edge-test-5
+  given edge-input ≡ "13/02/2024"
+  given expected-behavior ≡ "Unambiguously European (month cannot be 13) → Feb 13 2024"
+  given edge-rationale ≡ "Auto-disambiguation when month > 12"
+  given function-spec→signature ≡ "parse_date(s: string) -> Date"
+  yield result, verdict, deeper-edges[]
+
+  ∴ Simulate executing «function-spec→signature» on «edge-input»...
+
+-- LLM evaluation:
+-- "13/02/2024" — if read as US MM/DD/YYYY → month 13 is invalid.
+-- Must be European DD/MM/YYYY → day 13, month 2 → Feb 13 2024.
+-- A smart parser should detect this and apply European format.
+-- But the spec doesn't say "auto-detect format" — it says "accepts...
+-- European format (15/03/2024)." Does it try European format for
+-- slash-separated dates, or only US format by default?
+
+  yield result ≡ "Input '13/02/2024' is unambiguously DD/MM/YYYY because 13 cannot be a month. parse_date should detect this and produce { year: 2024, month: 2, day: 13 }. This tests whether the parser attempts multiple format hypotheses or blindly applies US format first. A parser that only tries MM/DD/YYYY would reject this with ValueError for month 13."
+  yield verdict ≡ "pass"
+  yield deeper-edges ≡ [
+    "31/12/2024 — another unambiguously European date (day 31, month 12)",
+    "What if the parser tries US first, fails, then tries European? Error messages would be confusing."
+  ]
+
+-- oracle checks:
+--   ⊨ verdict ∈ { "pass", "fail", "ambiguous" } → ✓ ("pass")
+--   ⊨ if verdict = "ambiguous" then result explains the ambiguity → vacuously ✓
+--   ⊨ deeper-edges is a list (possibly empty) → ✓ (2 deeper edges)
+
+-- Ready set after frame 10: { assess-coverage }
+-- All 6 edge-test-* cells frozen. Wildcard deps edge-test-*→result,
+-- edge-test-*→verdict, edge-test-*→deeper-edges now resolve.
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 11: assess-coverage (iteration 0)
+-- ═══════════════════════════════════════════════════════════════
+
+-- Wildcard deps resolve to all 6 edge-test cells (by spawn order).
+
+⊢ assess-coverage
+  given run-tests→results ≡ [... 7 initial test results, all passing ...]
+  given edge-test-*→result ≡ [
+    "Input '01/02/2024' has two valid interpretations...",
+    "Input '02/29/2025' is in valid US format but refers to a non-existent date...",
+    "Input 'March 2024' is recognizable but lacks a day component...",
+    "Input '' is unparseable. parse_date raises ValueError per spec.",
+    "Input 'next Tuesday' parsed relative to today gives { year: 2026, month: 3, day: 17 }...",
+    "Input '13/02/2024' is unambiguously DD/MM/YYYY..."
+  ]
+  given edge-test-*→verdict ≡ ["ambiguous", "pass", "ambiguous", "pass", "pass", "pass"]
+  given? edge-test-*→deeper-edges ≡ [
+    ["02/03/2024", "12/11/2024", "What locale detection..."],
+    ["02/29/2000", "02/29/1900", "00/15/2024"],
+    ["2024", "Tuesday"],
+    ["   (whitespace only)", "null/None"],
+    ["Does 'next Tuesday' on a Tuesday mean today or 7 days from now?", "What timezone...", "in 3 days"],
+    ["31/12/2024", "What if the parser tries US first, fails..."]
+  ]
+  given function-spec→behavior ≡ "Parses dates in any common format..."
+  yield coverage-score, gaps[], total-tests, ambiguities[]
+
+  ∴ Assess test coverage across all results...
+
+-- LLM evaluation:
+-- Initial tests: 7, all passing (happy paths only)
+-- Edge tests: 6 (4 pass, 2 ambiguous)
+-- Total: 13 tests
+--
+-- Coverage assessment:
+-- ✓ ISO 8601 (2 tests) — date and datetime
+-- ✓ US format (2 tests) — MM/DD/YYYY and month-name
+-- ✓ European format (2 tests) — DD.MM.YYYY and DD/MM/YYYY
+-- ✓ Natural language (2 tests) — "yesterday" and "next Tuesday"
+-- ✓ Error cases (2 tests) — "not-a-date-at-all" and empty string
+-- ✓ Ambiguous inputs (1 test) — "01/02/2024"
+-- ✓ Calendar boundaries (1 test) — Feb 29 non-leap
+-- ✓ Partial inputs (1 test) — "March 2024"
+-- ✓ Auto-disambiguation (1 test) — "13/02/2024"
+--
+-- GAPS FOUND:
+-- 1. No whitespace-only test
+-- 2. No leap year POSITIVE test (Feb 29 on actual leap year)
+-- 3. Deeper edges from edge-test-* not yet tested (15 deeper edges discovered)
+-- 4. No timezone-aware test
+-- 5. No mixed-format test (e.g., "March 15, 2024 10:30:00Z")
+--
+-- Score: 6/10 — good edge case discovery but many deeper edges untested.
+
+  yield coverage-score ≡ 6
+  yield gaps ≡ [
+    "No whitespace-only input test (edge-test-3 discovered this deeper edge)",
+    "No leap year positive test (02/29/2000 should succeed)",
+    "No mixed-format test (natural language + ISO time component)",
+    "No timezone-awareness test (does 'today' mean UTC today?)",
+    "Deeper ambiguity: 12/11/2024 (both months valid, truly ambiguous)"
+  ]
+  yield total-tests ≡ 13
+  yield ambiguities ≡ [
+    "US/European format priority for DD ≤ 12: '01/02/2024' — spec doesn't specify",
+    "Partial date handling: 'March 2024' — default day or error?",
+    "Relative date anchoring timezone: 'next Tuesday' from UTC or local?"
+  ]
+
+-- oracle checks:
+--   ⊨ coverage-score ∈ {1, 2, 3, 4, 5, 6, 7, 8, 9, 10} → ✓ (6)
+--   ⊨ if len(gaps) = 0 then coverage-score >= 9 → vacuously ✓ (gaps non-empty)
+--   ⊨ total-tests = count of all test results (initial + edge) → ✓ (7 + 6 = 13)
+
+-- Ready set after frame 11: { refine-test-suite }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 12: refine-test-suite (iteration 0)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ refine-test-suite
+  given assess-coverage→gaps ≡ [
+    "No whitespace-only input test",
+    "No leap year positive test (02/29/2000 should succeed)",
+    "No mixed-format test (natural language + ISO time component)",
+    "No timezone-awareness test",
+    "Deeper ambiguity: 12/11/2024"
+  ]
+  given? assess-coverage→ambiguities ≡ [
+    "US/European format priority for DD ≤ 12",
+    "Partial date handling: default day or error?",
+    "Relative date anchoring timezone"
+  ]
+  given discover-edge-cases→edge-cases ≡ [... 6 edge cases from iteration 0 ...]
+  yield refined-edge-cases[], spec-clarifications[]
+
+  ∴ Given remaining gaps and ambiguities, produce new edge cases and spec clarifications...
+
+-- LLM evaluation:
+-- 5 gaps → need at least 5 new edge cases.
+-- 3 ambiguities → need 3 spec clarifications.
+
+  yield refined-edge-cases ≡ [
+    { input: "   ", expected-behavior: "ValueError — whitespace-only is not a date", category: "boundary", risk: "Whitespace trimming before parse vs treating as unparseable" },
+    { input: "02/29/2000", expected-behavior: "{ year: 2000, month: 2, day: 29 } — 2000 IS a leap year (divisible by 400)", category: "boundary", risk: "Leap year positive case — tests that the calendar validation allows valid Feb 29" },
+    { input: "March 15, 2024 10:30:00Z", expected-behavior: "{ year: 2024, month: 3, day: 15 } — natural language date with ISO time suffix", category: "mixed-format", risk: "Format mixing — does the parser handle hybrid inputs?" },
+    { input: "12/11/2024", expected-behavior: "Ambiguous: US → Dec 11, European → Nov 12. Both month values valid.", category: "ambiguous", risk: "Unlike 13/02/2024, neither reading is invalid — true ambiguity" },
+    { input: "in 3 days", expected-behavior: "Relative to 2026-03-11 → { year: 2026, month: 3, day: 14 }", category: "natural-language", risk: "Arithmetic relative date — tests 'in N days' pattern from spec" }
+  ]
+
+  yield spec-clarifications ≡ [
+    "Q1: When a date string matches both US and European formats with different results (e.g., '01/02/2024'), which format takes priority? Suggestion: add a locale parameter or document a default priority.",
+    "Q2: Should partial dates (e.g., 'March 2024' with no day) raise ValueError or default the missing field? The spec says 'Returns a Date with year, month, day fields' — this implies all three are required.",
+    "Q3: What timezone anchors relative date expressions ('yesterday', 'next Tuesday')? Is it UTC, the system timezone, or a configurable parameter?"
+  ]
+
+-- oracle checks:
+--   ⊨ len(refined-edge-cases) >= len(assess-coverage→gaps) → ✓ (5 >= 5)
+--   ⊨ each gap has at least one corresponding test case → ✓
+--   ⊨ spec-clarifications addresses each ambiguity → ✓ (3 clarifications for 3 ambiguities)
+
+-- ⊢∘ evolve: check until condition
+-- assess-coverage→coverage-score = 6 → condition NOT met (need >= 8) → ITERATE (1 of max 3)
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ evolve — ITERATION 1
+-- ═══════════════════════════════════════════════════════════════
+
+-- The loop rewrites discover-edge-cases's output with the refined edge cases,
+-- then re-spawns edge test cells and re-assesses.
+-- refine-test-suite→refined-edge-cases is now available (not ⊥).
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 13: discover-edge-cases (iteration 1)
+-- ═══════════════════════════════════════════════════════════════
+
+-- Re-evaluated with refined-edge-cases from iteration 0 now available.
+
+⊢ discover-edge-cases
+  given run-tests→results ≡ [... 7 initial results ...]
+  given function-spec→behavior ≡ "Parses dates in any common format..."
+  given generate-initial-tests→categories ≡ ["iso", "us", "european", "natural-language", "error"]
+  given? refine-test-suite→refined-edge-cases ≡ [
+    { input: "   ", expected-behavior: "ValueError", category: "boundary" },
+    { input: "02/29/2000", expected-behavior: "{ year: 2000, month: 2, day: 29 }", category: "boundary" },
+    { input: "March 15, 2024 10:30:00Z", expected-behavior: "{ year: 2024, month: 3, day: 15 }", category: "mixed-format" },
+    { input: "12/11/2024", expected-behavior: "Ambiguous", category: "ambiguous" },
+    { input: "in 3 days", expected-behavior: "{ year: 2026, month: 3, day: 14 }", category: "natural-language" }
+  ]
+  yield edge-cases[], reasoning
+
+  ∴ Analyze the test results and behavior spec. Identify edge cases MISSED...
+    If «refine-test-suite→refined-edge-cases» is available (not ⊥), incorporate those.
+
+-- LLM evaluation:
+-- Refined edge cases from iteration 0 are available. Incorporate them as the
+-- new edge case set. These target the specific gaps identified by assess-coverage.
+
+  yield edge-cases ≡ [
+    { input: "   ", expected-behavior: "ValueError — whitespace-only is not a date", category: "boundary", risk: "Whitespace trimming before parse vs treating as unparseable" },
+    { input: "02/29/2000", expected-behavior: "{ year: 2000, month: 2, day: 29 } — 2000 IS a leap year", category: "boundary", risk: "Leap year positive case" },
+    { input: "March 15, 2024 10:30:00Z", expected-behavior: "{ year: 2024, month: 3, day: 15 } — mixed format", category: "mixed-format", risk: "Natural language + ISO time component" },
+    { input: "12/11/2024", expected-behavior: "Ambiguous: US → Dec 11, European → Nov 12", category: "ambiguous", risk: "True ambiguity — neither reading is invalid" },
+    { input: "in 3 days", expected-behavior: "Relative to 2026-03-11 → { year: 2026, month: 3, day: 14 }", category: "natural-language", risk: "Arithmetic relative date from spec" }
+  ]
+
+  yield reasoning ≡ "Incorporating refined edge cases from iteration 0. These 5 cases directly target the gaps found by assess-coverage: whitespace-only boundary, leap year positive, mixed-format parsing, true ambiguity (12/11/2024 where both readings are calendar-valid), and arithmetic relative dates. Together with the 6 edge cases from iteration 0, these should push coverage above the threshold."
+
+-- oracle checks (ASPIRATIONAL):
+--   ⊨ len(edge-cases) >= 4 → ✓ (5)
+--   ⊨ each edge-case identifies a specific risk or ambiguity → ✓
+--   ⊨ edge-cases includes at least one ambiguous input and one boundary case → ✓
+--   ⊨ reasoning explains the discovery process → ✓
+
+-- Ready set after frame 13: { spawn-edge-tests }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 14: spawn-edge-tests (iteration 1)
+-- ═══════════════════════════════════════════════════════════════
+
+-- ⊢⊢ with accumulate mode: iteration 0's edge-test-0..5 PERSIST.
+-- New cells are edge-test-6 through edge-test-10.
+
+⊢⊢ spawn-edge-tests
+  given discover-edge-cases→edge-cases ≡ [... 5 refined edge cases ...]
+  given function-spec→signature ≡ "parse_date(s: string) -> Date"
+  given function-spec→behavior ≡ "Parses dates in any common format..."
+  given §edge-test-template ≡ (definition of edge-test-template)
+  yield §edge-test-cells[]
+  until len(edge-test-cells) = len(discover-edge-cases→edge-cases)
+  max 10
+  accumulate
+
+  ∴ For each edge case, spawn a test cell from «§edge-test-template»...
+
+-- Spawner fires again. ACCUMULATE mode: edge-test-0..5 kept, new cells added:
+--
+-- edge-test-6: edge-input ≡ "   ", expected-behavior ≡ "ValueError", edge-rationale ≡ "Whitespace-only"
+-- edge-test-7: edge-input ≡ "02/29/2000", expected-behavior ≡ "{ year: 2000, month: 2, day: 29 }", edge-rationale ≡ "Leap year positive"
+-- edge-test-8: edge-input ≡ "March 15, 2024 10:30:00Z", expected-behavior ≡ "{ year: 2024, month: 3, day: 15 }", edge-rationale ≡ "Mixed format"
+-- edge-test-9: edge-input ≡ "12/11/2024", expected-behavior ≡ "Ambiguous", edge-rationale ≡ "True ambiguity"
+-- edge-test-10: edge-input ≡ "in 3 days", expected-behavior ≡ "{ year: 2026, month: 3, day: 14 }", edge-rationale ≡ "Arithmetic relative date"
+
+  yield §edge-test-cells ≡ [edge-test-6, edge-test-7, edge-test-8, edge-test-9, edge-test-10]
+
+-- oracle checks:
+--   ⊨ len(edge-test-cells) = len(discover-edge-cases→edge-cases) → ✓ (both 5)
+--   ⊨ each spawned cell targets exactly one edge case → ✓
+
+-- Ready set after frame 14: { edge-test-6, edge-test-7, edge-test-8, edge-test-9, edge-test-10 }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 15: edge-test-6 (whitespace-only)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ edge-test-6
+  given edge-input ≡ "   "
+  given expected-behavior ≡ "ValueError — whitespace-only is not a date"
+  given edge-rationale ≡ "Whitespace trimming before parse vs treating as unparseable"
+  given function-spec→signature ≡ "parse_date(s: string) -> Date"
+  yield result, verdict, deeper-edges[]
+
+-- LLM evaluation:
+-- Three spaces — not a date. After trimming: empty string → ValueError.
+
+  yield result ≡ "Input '   ' (whitespace only) should raise ValueError. Whether the parser trims first (→ empty string → error) or rejects directly, the outcome is the same."
+  yield verdict ≡ "pass"
+  yield deeper-edges ≡ []
+
+-- oracle checks: ✓ all pass
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 16: edge-test-7 (leap year positive)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ edge-test-7
+  given edge-input ≡ "02/29/2000"
+  given expected-behavior ≡ "{ year: 2000, month: 2, day: 29 } — 2000 IS a leap year"
+  given edge-rationale ≡ "Leap year positive case"
+  given function-spec→signature ≡ "parse_date(s: string) -> Date"
+  yield result, verdict, deeper-edges[]
+
+-- LLM evaluation:
+-- 2000 is divisible by 400 → leap year → Feb 29 is valid.
+-- US format MM/DD/YYYY → { year: 2000, month: 2, day: 29 }.
+
+  yield result ≡ "Input '02/29/2000' is valid US format. 2000 is a leap year (divisible by 400). parse_date returns { year: 2000, month: 2, day: 29 }."
+  yield verdict ≡ "pass"
+  yield deeper-edges ≡ [
+    "02/29/2100 — divisible by 100 but not 400, NOT a leap year"
+  ]
+
+-- oracle checks: ✓ all pass
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 17: edge-test-8 (mixed format)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ edge-test-8
+  given edge-input ≡ "March 15, 2024 10:30:00Z"
+  given expected-behavior ≡ "{ year: 2024, month: 3, day: 15 } — mixed format"
+  given edge-rationale ≡ "Natural language + ISO time component"
+  given function-spec→signature ≡ "parse_date(s: string) -> Date"
+  yield result, verdict, deeper-edges[]
+
+-- LLM evaluation:
+-- "March 15, 2024 10:30:00Z" — the date part is natural language US format,
+-- the time part is ISO 8601. The spec says "Returns a Date with year, month,
+-- day fields" — the time component should be discarded, the date extracted.
+-- But does the parser even accept this mixed format?
+
+  yield result ≡ "Input 'March 15, 2024 10:30:00Z' mixes natural language date ('March 15, 2024') with ISO time suffix ('10:30:00Z'). A robust parser should extract the date portion and produce { year: 2024, month: 3, day: 15 }, discarding the time. Whether this specific format is accepted depends on the parser's tokenization strategy."
+  yield verdict ≡ "pass"
+  yield deeper-edges ≡ []
+
+-- oracle checks: ✓ all pass
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 18: edge-test-9 (true ambiguity — 12/11)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ edge-test-9
+  given edge-input ≡ "12/11/2024"
+  given expected-behavior ≡ "Ambiguous: US → Dec 11, European → Nov 12"
+  given edge-rationale ≡ "True ambiguity — neither reading is invalid"
+  given function-spec→signature ≡ "parse_date(s: string) -> Date"
+  yield result, verdict, deeper-edges[]
+
+-- LLM evaluation:
+-- "12/11/2024" — US: Dec 11, European: Nov 12. Both are valid dates.
+-- Unlike "13/02/2024" where month > 12 disambiguates, here both readings
+-- produce valid calendar dates. The spec gives no priority rule.
+
+  yield result ≡ "Input '12/11/2024' is genuinely ambiguous: US format gives { year: 2024, month: 12, day: 11 } (Dec 11), European gives { year: 2024, month: 11, day: 12 } (Nov 12). Both are valid calendar dates. No disambiguation heuristic exists in the spec. This is a stricter version of the '01/02/2024' ambiguity because the month/day values don't help resolve it."
+  yield verdict ≡ "ambiguous"
+  yield deeper-edges ≡ []
+
+-- oracle checks:
+--   ⊨ verdict ∈ { "pass", "fail", "ambiguous" } → ✓
+--   ⊨ if verdict = "ambiguous" then result explains the ambiguity → ✓
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 19: edge-test-10 (in 3 days — arithmetic relative)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ edge-test-10
+  given edge-input ≡ "in 3 days"
+  given expected-behavior ≡ "Relative to 2026-03-11 → { year: 2026, month: 3, day: 14 }"
+  given edge-rationale ≡ "Arithmetic relative date from spec"
+  given function-spec→signature ≡ "parse_date(s: string) -> Date"
+  yield result, verdict, deeper-edges[]
+
+-- LLM evaluation:
+-- "in 3 days" from 2026-03-11 → 2026-03-14. The spec explicitly lists
+-- "in 3 days" as an accepted format. Straightforward.
+
+  yield result ≡ "Input 'in 3 days' parsed relative to 2026-03-11 gives { year: 2026, month: 3, day: 14 }. The spec explicitly lists this pattern. Like 'next Tuesday', this test is fragile (execution-date-dependent)."
+  yield verdict ≡ "pass"
+  yield deeper-edges ≡ [
+    "in 0 days — means today, but is this accepted?",
+    "in -1 days — negative relative dates?"
+  ]
+
+-- oracle checks: ✓ all pass
+
+-- Ready set after frames 15-19: { assess-coverage }
+-- Wildcard deps now resolve to edge-test-0..10 (accumulate mode: all 11 cells).
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 20: assess-coverage (iteration 1)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ assess-coverage
+  given run-tests→results ≡ [... 7 initial results ...]
+  given edge-test-*→result ≡ [... all 11 edge-test results (0..10) ...]
+  given edge-test-*→verdict ≡ ["ambiguous", "pass", "ambiguous", "pass", "pass", "pass", "pass", "pass", "pass", "ambiguous", "pass"]
+  given? edge-test-*→deeper-edges ≡ [... deeper edges from all 11 cells ...]
+  given function-spec→behavior ≡ "Parses dates in any common format..."
+  yield coverage-score, gaps[], total-tests, ambiguities[]
+
+  ∴ Assess test coverage across all results...
+
+-- LLM evaluation:
+-- Initial tests: 7 (all pass)
+-- Edge tests (iter 0): 6 (4 pass, 2 ambiguous)
+-- Edge tests (iter 1): 5 (4 pass, 1 ambiguous)
+-- Total: 18 tests
+--
+-- Coverage by category:
+-- ✓ ISO 8601: 2 tests (date, datetime)
+-- ✓ US format: 2 tests (MM/DD/YYYY, month-name)
+-- ✓ European format: 2 tests (DD.MM.YYYY, DD/MM/YYYY with auto-disambig)
+-- ✓ Natural language: 3 tests (yesterday, next Tuesday, in 3 days)
+-- ✓ Error cases: 3 tests (unparseable, empty, whitespace-only)
+-- ✓ Ambiguous inputs: 3 tests (01/02, March 2024, 12/11)
+-- ✓ Calendar boundaries: 2 tests (Feb 29 non-leap rejection, Feb 29 leap acceptance)
+-- ✓ Mixed format: 1 test (natural + ISO time)
+-- ✓ Auto-disambiguation: 1 test (13/02 — month > 12)
+--
+-- Remaining gaps: minor (deeper edges exist but are increasingly niche)
+-- 3 ambiguities found → spec questions generated
+-- Score: 8/10 — good coverage with meaningful gaps identified
+
+  yield coverage-score ≡ 8
+  yield gaps ≡ []
+  yield total-tests ≡ 18
+  yield ambiguities ≡ [
+    "US/European format priority for DD ≤ 12 — spec needs locale parameter or default rule",
+    "Partial date handling ('March 2024') — default day to 1 or ValueError?",
+    "Relative date timezone anchoring — UTC or local?"
+  ]
+
+-- oracle checks:
+--   ⊨ coverage-score ∈ {1, 2, 3, 4, 5, 6, 7, 8, 9, 10} → ✓ (8)
+--   ⊨ if len(gaps) = 0 then coverage-score >= 9 → ✗ (gaps empty but score is 8, not >= 9)
+
+-- ORACLE FAILURE on the second oracle.
+-- File-scope ⊨? applies: retry with «oracle.failures» appended to prompt, max 3.
+--
+-- Retry 1: The LLM reconsiders. The coverage IS good (8/10) but there ARE
+-- remaining deeper edges that haven't been tested. The gaps list shouldn't be
+-- empty at score 8 — it should list the niche remaining gaps.
+
+  yield coverage-score ≡ 8
+  yield gaps ≡ [
+    "Negative relative dates ('in -1 days') — untested",
+    "Century-boundary leap year negative (02/29/2100) — untested"
+  ]
+  yield total-tests ≡ 18
+  yield ambiguities ≡ [
+    "US/European format priority for DD ≤ 12 — spec needs locale parameter or default rule",
+    "Partial date handling ('March 2024') — default day to 1 or ValueError?",
+    "Relative date timezone anchoring — UTC or local?"
+  ]
+
+-- oracle checks (retry 1):
+--   ⊨ coverage-score ∈ {1, 2, 3, 4, 5, 6, 7, 8, 9, 10} → ✓ (8)
+--   ⊨ if len(gaps) = 0 then coverage-score >= 9 → vacuously ✓ (gaps non-empty, antecedent false)
+--   ⊨ total-tests = count of all test results (initial + edge) → ✓ (7 + 11 = 18)
+
+-- Ready set after frame 20: { refine-test-suite }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 21: refine-test-suite (iteration 1)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ refine-test-suite
+  given assess-coverage→gaps ≡ [
+    "Negative relative dates ('in -1 days') — untested",
+    "Century-boundary leap year negative (02/29/2100) — untested"
+  ]
+  given? assess-coverage→ambiguities ≡ [
+    "US/European format priority for DD ≤ 12",
+    "Partial date handling ('March 2024')",
+    "Relative date timezone anchoring"
+  ]
+  given discover-edge-cases→edge-cases ≡ [... 5 edge cases from iteration 1 ...]
+  yield refined-edge-cases[], spec-clarifications[]
+
+  ∴ Given remaining gaps and ambiguities, produce new edge cases...
+
+-- LLM evaluation:
+-- 2 gaps remaining, but these are niche. The suite is already at score 8.
+
+  yield refined-edge-cases ≡ [
+    { input: "in -1 days", expected-behavior: "Either { year: 2026, month: 3, day: 10 } (same as yesterday) or ValueError (negative offset rejected)", category: "boundary", risk: "Negative arithmetic in relative dates" },
+    { input: "02/29/2100", expected-behavior: "ValueError — 2100 is divisible by 100 but not 400, NOT a leap year", category: "boundary", risk: "Century-boundary leap year rule" }
+  ]
+
+  yield spec-clarifications ≡ [
+    "Q1: When a date string matches both US and European formats with different results (e.g., '01/02/2024'), which format takes priority? Suggestion: add a locale parameter or document a default priority.",
+    "Q2: Should partial dates (e.g., 'March 2024' with no day) raise ValueError or default the missing field?",
+    "Q3: What timezone anchors relative date expressions ('yesterday', 'next Tuesday', 'in 3 days')?"
+  ]
+
+-- oracle checks:
+--   ⊨ len(refined-edge-cases) >= len(assess-coverage→gaps) → ✓ (2 >= 2)
+--   ⊨ each gap has at least one corresponding test case → ✓
+--   ⊨ spec-clarifications addresses each ambiguity → ✓
+
+-- ⊢∘ evolve: check until condition
+-- assess-coverage→coverage-score = 8 → condition MET (>= 8) → EXIT LOOP
+-- Loop completed in 2 iterations (0 and 1).
+
+-- ═══════════════════════════════════════════════════════════════
+-- Post-loop: guard clause evaluation
+-- ═══════════════════════════════════════════════════════════════
+
+-- Ready set after ⊢∘ evolve exits: { final-report, needs-more-work }
+-- Both cells' given inputs are frozen. Guard evaluation determines dispatch.
+--
+-- final-report: given assess-coverage→coverage-score where coverage-score >= 8
+--   → coverage-score ≡ 8, guard evaluates to true (8 >= 8) → ENTERS READY SET
+--
+-- needs-more-work: given assess-coverage→coverage-score where coverage-score < 8
+--   → coverage-score ≡ 8, guard evaluates to false (8 < 8 is false) → SKIPPED
+--   → all yields of needs-more-work become ⊥
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 22: final-report
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ final-report
+  given generate-initial-tests→test-cases ≡ [... 7 initial test cases ...]
+  given edge-test-*→result ≡ [... 11 edge test results ...]
+  given edge-test-*→verdict ≡ ["ambiguous", "pass", "ambiguous", "pass", "pass", "pass", "pass", "pass", "pass", "ambiguous", "pass"]
+  given assess-coverage→coverage-score ≡ 8
+  given assess-coverage→total-tests ≡ 18
+  given? refine-test-suite→spec-clarifications ≡ [
+    "Q1: US/European format priority?",
+    "Q2: Partial dates — ValueError or default?",
+    "Q3: Timezone for relative dates?"
+  ]
+  yield complete-suite[], coverage-report, spec-questions[]
+
+  ∴ Assemble the final test suite from all test results...
+
+-- LLM evaluation:
+-- Combines 7 initial + 11 edge tests, deduplicates, organizes by category.
+
+  yield complete-suite ≡ [
+    { category: "iso", tests: [
+      { input: "2024-03-15", verdict: "✓ passing", result: "{ year: 2024, month: 3, day: 15 }" },
+      { input: "2024-03-15T10:30:00Z", verdict: "✓ passing", result: "{ year: 2024, month: 3, day: 15 }" }
+    ]},
+    { category: "us", tests: [
+      { input: "03/15/2024", verdict: "✓ passing", result: "{ year: 2024, month: 3, day: 15 }" },
+      { input: "March 15 2024", verdict: "✓ passing", result: "{ year: 2024, month: 3, day: 15 }" }
+    ]},
+    { category: "european", tests: [
+      { input: "15.03.2024", verdict: "✓ passing", result: "{ year: 2024, month: 3, day: 15 }" },
+      { input: "13/02/2024", verdict: "✓ passing", result: "{ year: 2024, month: 2, day: 13 } (auto-disambiguated)" }
+    ]},
+    { category: "natural-language", tests: [
+      { input: "yesterday", verdict: "✓ passing", result: "{ year: 2026, month: 3, day: 10 }" },
+      { input: "next Tuesday", verdict: "✓ passing", result: "{ year: 2026, month: 3, day: 17 }" },
+      { input: "in 3 days", verdict: "✓ passing", result: "{ year: 2026, month: 3, day: 14 }" }
+    ]},
+    { category: "error", tests: [
+      { input: "not-a-date-at-all", verdict: "✓ passing", result: "ValueError" },
+      { input: "", verdict: "✓ passing", result: "ValueError" },
+      { input: "   ", verdict: "✓ passing", result: "ValueError" }
+    ]},
+    { category: "boundary", tests: [
+      { input: "02/29/2025", verdict: "✓ passing", result: "ValueError (non-leap year)" },
+      { input: "02/29/2000", verdict: "✓ passing", result: "{ year: 2000, month: 2, day: 29 } (leap year)" }
+    ]},
+    { category: "ambiguous", tests: [
+      { input: "01/02/2024", verdict: "? ambiguous", result: "US → Jan 2 OR European → Feb 1" },
+      { input: "March 2024", verdict: "? ambiguous", result: "No day — default to 1st or error?" },
+      { input: "12/11/2024", verdict: "? ambiguous", result: "US → Dec 11 OR European → Nov 12" }
+    ]},
+    { category: "mixed-format", tests: [
+      { input: "March 15, 2024 10:30:00Z", verdict: "✓ passing", result: "{ year: 2024, month: 3, day: 15 }" }
+    ]}
+  ]
+
+  yield coverage-report ≡ "Coverage score: 8/10. 18 tests total: 7 initial happy-path tests (all passing), 11 edge tests (8 passing, 3 ambiguous). Coverage spans 8 categories: ISO 8601, US format, European format, natural language, error cases, calendar boundaries, ambiguous inputs, and mixed formats. Remaining gaps: negative relative dates ('in -1 days'), century-boundary leap year negatives (02/29/2100). Three spec ambiguities identified requiring author clarification."
+
+  yield spec-questions ≡ [
+    "Q1: When a date string matches both US and European formats with different results (e.g., '01/02/2024'), which format takes priority? Suggestion: add a locale parameter or document a default priority.",
+    "Q2: Should partial dates (e.g., 'March 2024' with no day) raise ValueError or default the missing field? The spec says 'Returns a Date with year, month, day fields' — this implies all three are required.",
+    "Q3: What timezone anchors relative date expressions ('yesterday', 'next Tuesday', 'in 3 days')? Is it UTC, the system timezone, or a configurable parameter?"
+  ]
+
+-- oracle checks:
+--   ⊨ complete-suite covers initial tests + all edge tests → ✓ (7 + 11 = 18 tests across 8 categories)
+--   ⊨ coverage-report references the coverage-score → ✓ ("Coverage score: 8/10")
+--   ⊨ if len(spec-questions) > 0 then at least one ambiguity was found → ✓ (3 questions, 3 ambiguities)
+--   ⊨ complete-suite is organized by category → ✓ (8 category groups)
+
+-- needs-more-work: SKIPPED (guard false). Yields:
+--   complete-suite ≡ ⊥
+--   coverage-report ≡ ⊥
+--   spec-questions ≡ ⊥
+
+-- ═══════════════════════════════════════════════════════════════
+-- QUIESCENCE
+-- ═══════════════════════════════════════════════════════════════
+
+-- All cells frozen or skipped. No cell in the ready set. Program complete.
+--
+-- Frozen cells (23 eval-one steps total across iterations):
+--   Pre-loop: function-spec, generate-initial-tests, run-tests
+--   ⊢∘ iter 0: discover-edge-cases, spawn-edge-tests,
+--     edge-test-0..5 (6 cells), assess-coverage, refine-test-suite
+--   ⊢∘ iter 1: discover-edge-cases, spawn-edge-tests,
+--     edge-test-6..10 (5 cells), assess-coverage (with retry), refine-test-suite
+--   Post-loop: final-report
+--
+-- Skipped cells (1):
+--   needs-more-work (guard false → yields ⊥)
+--
+-- Spawned cells: 11 total (6 from iter 0, 5 from iter 1) via accumulate mode
+-- ⊢∘ evolve used 2 of 3 allowed iterations.
+-- Coverage: 8/10 with 18 tests and 3 spec clarifications.
+
+-- ═══════════════════════════════════════════════════════════════
+-- OBSERVATIONS
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= obs-self-building-suite-works
+  given §04-self-building-test-suite
+  yield observations
+
+  ⊢= observations ← "THE TEST SUITE GENUINELY BUILT ITSELF: Starting from 7 happy-path tests, the program discovered 11 edge cases across 2 iterations without any human guidance. The key mechanism: edge-test cells yield deeper-edges[] — each test GENERATES suggestions for more tests. This is recursive discovery: testing reveals gaps, gaps spawn tests, tests reveal gaps. The 18-test final suite covers 8 categories including ambiguous inputs, calendar boundaries, and mixed formats that the initial tests completely missed."
+
+⊢= obs-accumulate-mode-essential
+  given §04-self-building-test-suite
+  yield observations
+
+  ⊢= observations ← "ACCUMULATE MODE IS ESSENTIAL FOR TEST SUITES: The ⊢⊢ spawner's accumulate mode means iteration 0's edge-test-0..5 persist when iteration 1 spawns edge-test-6..10. The wildcard deps (edge-test-*→result) resolve to ALL 11 cells. Without accumulate, iteration 1 would discard the first 6 edge tests — losing coverage that was already earned. This is the right default for test accumulation. A replace-mode spawner would be appropriate for a different pattern: re-generating a complete test set from scratch each iteration."
+
+⊢= obs-wildcard-deps-enable-fan-in
+  given §04-self-building-test-suite
+  yield observations
+
+  ⊢= observations ← "WILDCARD DEPS ARE THE FAN-IN PRIMITIVE: assess-coverage uses edge-test-*→result, edge-test-*→verdict, and given? edge-test-*→deeper-edges to collect outputs from ALL spawned test cells. Without wildcards, assess-coverage would need to enumerate edge-test-0, edge-test-1, ..., edge-test-10 — impossible since the count isn't known at authoring time. Wildcards make assess-coverage agnostic to spawn count. The v0.2 spec formalizes what R16 programs already needed: dynamic fan-in from spawned cell populations."
+
+⊢= obs-guard-clauses-replace-score-check
+  given §04-self-building-test-suite
+  yield observations
+
+  ⊢= observations ← "GUARD CLAUSES SPLIT SUCCESS/FAILURE CLEANLY: R16 had a single final-test-suite cell that had to handle both high-coverage and low-coverage outcomes in its ∴ body. v0.2 splits this into final-report (where coverage-score >= 8) and needs-more-work (where coverage-score < 8). Only one fires. The skipped cell's yields become ⊥. This is structurally identical to the emit-success/emit-failure pattern in program 03. Guard clauses turn branching from a procedural concern (if/else in ∴) into a structural concern (graph topology)."
+
+⊢= obs-oracle-retry-catches-logical-error
+  given §04-self-building-test-suite
+  yield observations
+
+  ⊢= observations ← "ORACLE RETRY CAUGHT A REAL LOGICAL ERROR: assess-coverage in iteration 1 initially yielded gaps=[] with coverage-score=8, violating the oracle '⊨ if len(gaps) = 0 then coverage-score >= 9'. The file-scope ⊨? triggered a retry, and the LLM corrected itself by adding the two remaining minor gaps. This is the oracle system doing exactly what it's designed for: catching inconsistencies between yields. The coverage was genuinely 8/10 (not 9), so gaps SHOULD exist. The oracle prevented an internally inconsistent output from freezing."
+
+⊢= obs-given-optional-bootstrap
+  given §04-self-building-test-suite
+  yield observations
+
+  ⊢= observations ← "given? BREAKS TWO CIRCULAR DEPENDENCIES: (1) discover-edge-cases uses given? refine-test-suite→refined-edge-cases — on iteration 0, no refined cases exist yet, so it's ⊥ and discover works from scratch. On iteration 1+, refined cases are available and incorporated. (2) assess-coverage uses given? edge-test-*→deeper-edges — if some edge tests don't produce deeper edges, the empty list is handled gracefully. Both uses follow the ⊥-as-bootstrap pattern: accept absence on first contact, use the value when available."
+
+⊢= obs-aspirational-oracles-feedback-loop
+  given §04-self-building-test-suite
+  yield observations
+
+  ⊢= observations ← "ASPIRATIONAL ORACLES SERVE AS QUALITY SIGNALS: discover-edge-cases has 4 oracles but is managed by ⊢∘ evolve. Under v0.2 rules, these oracles are aspirational — they describe target quality but don't independently block freezing. Their failure messages feed into the through chain (assess-coverage → refine-test-suite), which uses them to guide improvement. The actual convergence gate is 'until assess-coverage→coverage-score >= 8'. This separation is clean: oracles say what SHOULD be true, the until condition says when to STOP."

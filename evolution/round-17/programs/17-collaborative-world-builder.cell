@@ -1,0 +1,173 @@
+-- 17-collaborative-world-builder.cell (R17, v0.2)
+-- Tests: co-evolution (circular deps), parallel creative generation,
+--        consistency oracle, ⊢∘ convergence loop, given? (⊥-tolerant),
+--        cross-cell reading, file-scope ⊨?
+--
+-- Seed: "a space station in the year 3000". Three creator cells work in
+-- parallel: geography (physical layout), history (backstory), culture
+-- (customs/social). Each reads the others' outputs. A consistency oracle
+-- checks for contradictions. If contradictions found, the contradicting
+-- cell rewrites. ⊢∘ co-evolve loop until consistent.
+--
+-- This demonstrates Cell's co-evolution pattern: independent cells with
+-- circular dependencies produce content, then a global oracle enforces
+-- coherence. Iteration 0 uses ⊥ for unavailable peers; iteration 1+
+-- uses frozen peer outputs from the previous round.
+--
+-- v0.2 changes from R16:
+--   - Circular deps resolved via ⊢∘ co-evolve (new in v0.2)
+--   - given → given? for peer cross-references (tolerates ⊥ on iteration 0)
+--   - Added file-scope ⊨? recovery policy (v0.2 blesses file-scope ⊨?)
+--   - ⊢∘ co-evolve label blessed by v0.2 arbitrary label rule
+--   - Oracles on geography, history, culture (⊢∘ targets) are aspirational
+--   - resolve-contradictions uses §geography, §history, §culture (quotation)
+--   - world-document uses given? check-consistency→consistent (⊥-aware)
+
+⊨? on failure:
+  retry with «oracle.failures» appended to prompt
+  max 3 attempts
+⊨? on exhaustion:
+  error-value(⊥)
+
+⊢ seed
+  given premise ≡ "A space station in the year 3000 — humanity's last outpost after Earth became uninhabitable. Population: ~50,000. Orbiting a gas giant in the Tau Ceti system, 12 light-years from Earth."
+  yield premise
+
+  ⊨ premise establishes setting, location, and scale
+
+⊢ geography
+  given seed→premise
+  given? history→backstory
+  given? culture→customs
+  yield layout, sectors[], environment
+
+  ∴ Design the physical layout of the space station described in «seed→premise».
+    If «history→backstory» is available (not ⊥), consider the backstory when
+    designing spaces. If «culture→customs» is available (not ⊥), reflect
+    cultural needs in the layout. Include:
+    - Overall shape and structure
+    - Named sectors with purposes
+    - Environmental systems (air, water, gravity, power)
+    If peer outputs are ⊥, design freely from the premise alone.
+
+  ⊨ layout describes overall structure with dimensions
+  ⊨ length(sectors) ≥ 4
+  ⊨ environment addresses life support systems
+
+⊢ history
+  given seed→premise
+  given? geography→layout
+  given? culture→customs
+  yield backstory, key-events[], founding-era
+
+  ∴ Write the backstory for the space station in «seed→premise».
+    If «geography→layout» is available (not ⊥), ensure the history explains
+    how the physical layout came to be. If «culture→customs» is available
+    (not ⊥), ensure the history is consistent with cultural development. Include:
+    - Why and when it was built
+    - Key historical events (3-5)
+    - How the founding era shaped current society
+    If peer outputs are ⊥, write freely from the premise alone.
+
+  ⊨ backstory spans at least 100 years
+  ⊨ length(key-events) ≥ 3
+  ⊨ founding-era explains origin context
+
+⊢ culture
+  given seed→premise
+  given? geography→layout
+  given? history→backstory
+  yield customs, social-structure, traditions[], taboos[]
+
+  ∴ Design the culture of the space station in «seed→premise».
+    If «geography→layout» is available (not ⊥), reflect physical constraints
+    in the culture. If «history→backstory» is available (not ⊥), ensure the
+    culture is consistent with historical context. Include:
+    - Social structure (governance, classes, roles)
+    - Traditions (3-5 unique customs shaped by station life)
+    - Taboos (what's forbidden and why)
+    If peer outputs are ⊥, design freely from the premise alone.
+
+  ⊨ social-structure describes governance
+  ⊨ length(traditions) ≥ 3
+  ⊨ length(taboos) ≥ 2
+  ⊨ customs reflect life in an enclosed space environment
+
+⊢ check-consistency
+  given geography→layout
+  given geography→sectors
+  given geography→environment
+  given history→backstory
+  given history→key-events
+  given culture→customs
+  given culture→social-structure
+  given culture→traditions
+  given culture→taboos
+  yield consistent, contradictions[], severity
+
+  ∴ Read ALL outputs from geography, history, and culture.
+    Check for contradictions:
+    1. Does the geography support the population implied by the culture?
+    2. Does the history explain how the geography came to be?
+    3. Do cultural taboos make sense given the physical constraints?
+    4. Are there timeline inconsistencies?
+    5. Do sector names/purposes match cultural and historical references?
+
+    List ALL contradictions found. Rate severity: "none", "minor", "major".
+
+  ⊨ consistent ∈ { true, false }
+  ⊨ if not consistent then contradictions is non-empty
+  ⊨ severity ∈ { "none", "minor", "major" }
+
+⊢ resolve-contradictions
+  given check-consistency→contradictions
+  given check-consistency→severity
+  given §geography
+  given §history
+  given §culture
+  yield resolution-plan, cells-to-rewrite[]
+
+  ∴ For each contradiction in «check-consistency→contradictions»,
+    determine which cell (geography, history, or culture) should
+    rewrite to fix it. The cell with the WEAKER claim yields.
+    Examine «§geography», «§history», and «§culture» to understand
+    each cell's intent. Produce a resolution plan explaining each fix.
+
+  ⊨ each contradiction maps to exactly one cell to rewrite
+  ⊨ resolution-plan explains the resolution logic
+
+⊢∘ co-evolve(geography, history, culture)
+  through check-consistency, resolve-contradictions
+  until check-consistency→consistent = true
+  max 3
+
+  -- Each iteration: all three creators generate content (iteration 0 with ⊥
+  -- for unavailable peers, iteration 1+ with peer outputs) → consistency
+  -- oracle checks for contradictions → resolve identifies which cell to
+  -- rewrite → that cell regenerates with contradiction context.
+  --
+  -- The ⊢∘ co-evolve loop rewrites the contradicting cell's ∴ output.
+  -- Interface (given/yield) is frozen. Only the content changes.
+  -- Oracles on geography, history, culture are aspirational under v0.2 —
+  -- they provide feedback but do not independently gate freezing.
+
+⊢ world-document
+  given seed→premise
+  given geography→layout
+  given geography→sectors
+  given geography→environment
+  given history→backstory
+  given history→key-events
+  given history→founding-era
+  given culture→customs
+  given culture→social-structure
+  given culture→traditions
+  given culture→taboos
+  given check-consistency→consistent
+  yield document, word-count
+
+  ∴ Assemble the final world-building document from all sources.
+    Organize as: Setting → Geography → History → Culture → Consistency Status.
+
+  ⊨ document integrates all three perspectives
+  ⊨ check-consistency→consistent = true (must be resolved before assembly)

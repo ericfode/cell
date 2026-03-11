@@ -1,0 +1,867 @@
+-- 28-program-algebra-prover-frames.cell — full execution trace (R17, v0.2)
+--
+-- Ready set analysis (initial):
+--   input-data: given values ≡ [10,20,30,40], weights ≡ [1,2,3,4] → READY (all givens pre-bound)
+--   program-A: given §weighted-sum-A, §total-weight-A, §weighted-average-A → READY (§ refs are static)
+--   program-B: given §total-weight-B, §weighted-sum-B, §weighted-average-B → READY (§ refs are static)
+--   weighted-sum-A: given input-data→values, input-data→weights → BLOCKED (needs input-data)
+--   total-weight-A: given input-data→weights → BLOCKED (needs input-data)
+--   weighted-average-A: given weighted-sum-A→weighted-sum, total-weight-A→total-weight → BLOCKED
+--   total-weight-B: given input-data→weights → BLOCKED (needs input-data)
+--   weighted-sum-B: given input-data→values, input-data→weights → BLOCKED (needs input-data)
+--   weighted-average-B: given weighted-sum-B→weighted-sum, total-weight-B→total-weight → BLOCKED
+--   trace-A: given program-A→execution-order-A, input-data→values, input-data→weights → BLOCKED
+--   trace-B: given program-B→execution-order-B, input-data→values, input-data→weights → BLOCKED
+--   build-correspondence: given trace-A→final-state-A, trace-B→final-state-B → BLOCKED
+--   compare-execution-order: given trace-A→frames-A, trace-B→frames-B → BLOCKED
+--   generate-proof: given build-correspondence→*, compare-execution-order→* → BLOCKED
+--   verify-proof-structure: given generate-proof→*, build-correspondence→*, compare→* → BLOCKED
+--   verify-proof-semantics: given generate-proof→*, verify-proof-structure→* → BLOCKED
+--   assemble-verdict: given verify-proof-structure→*, verify-proof-semantics→* → BLOCKED
+--   equivalence-certificate: given assemble-verdict→*, many others → BLOCKED
+--
+-- Ready set: { input-data, program-A, program-B }
+--
+-- v0.2 execution notes:
+--   - ⊨? at file scope applies as default recovery for all cells
+--   - No ⊢∘ loops in this program — all oracles are hard gates
+--   - R16 false crystallization fixed: verify-proof split into
+--     verify-proof-structure (⊢= with valid primitives) and
+--     verify-proof-semantics (soft cell for semantic gap analysis)
+--   - ⊢= bodies use only v0.2 expression language primitives
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 0: input-data (pre-bound cell, yields already concrete)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ input-data
+  given values ≡ [10, 20, 30, 40]
+  given weights ≡ [1, 2, 3, 4]
+  yield values, weights
+
+  ⊨ len(values) = len(weights)
+  ⊨ len(values) >= 1
+  ⊨ all elements of weights are positive
+
+-- Evaluation: givens are pre-bound. Yields bind directly to given values.
+
+  yield values ≡ [10, 20, 30, 40]
+  yield weights ≡ [1, 2, 3, 4]
+
+-- oracle checks:
+--   ⊨ len(values) = len(weights) → ✓ (4 = 4)
+--   ⊨ len(values) >= 1 → ✓ (4 >= 1)
+--   ⊨ all elements of weights are positive → ✓ ([1,2,3,4] all > 0)
+--
+-- All oracles pass. Cell frozen.
+-- Ready set after: { program-A, program-B, weighted-sum-A, total-weight-A,
+--                    total-weight-B, weighted-sum-B }
+-- (input-data→values and input-data→weights now bound, unblocking
+--  all four computation cells plus the two program-assembly cells
+--  which were already ready via § refs)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 1: program-A (soft cell, LLM evaluation — assembles cell list)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ program-A
+  given §weighted-sum-A ≡ "(cell definition: ⊢ weighted-sum-A ▸ crystallized ...)"
+  given §total-weight-A ≡ "(cell definition: ⊢ total-weight-A ▸ crystallized ...)"
+  given §weighted-average-A ≡ "(cell definition: ⊢ weighted-average-A ▸ crystallized ...)"
+  yield §program-A-cells[], execution-order-A
+
+  ∴ Assemble program A as a list of cell definitions.
+    Execution order: input-data, weighted-sum-A, total-weight-A, weighted-average-A.
+    The key: weighted-sum-A is scheduled BEFORE total-weight-A.
+    Both depend only on input-data, so either could go first -- this ordering
+    is one valid topological sort.
+
+    Output execution-order-A ≡ ["input-data", "weighted-sum-A", "total-weight-A", "weighted-average-A"]
+
+-- LLM evaluation:
+-- The LLM reads the three § definitions, confirms they form a diamond-shaped
+-- dependency graph (input-data → {weighted-sum-A, total-weight-A} → weighted-average-A),
+-- and assembles the sum-first topological sort.
+
+  yield §program-A-cells[] ≡ [§weighted-sum-A, §total-weight-A, §weighted-average-A]
+  yield execution-order-A ≡ ["input-data", "weighted-sum-A", "total-weight-A", "weighted-average-A"]
+
+-- oracle checks:
+--   ⊨ execution-order-A is a valid topological sort → ✓
+--     input-data has no deps (first is valid).
+--     weighted-sum-A depends on input-data (appears after input-data ✓).
+--     total-weight-A depends on input-data (appears after input-data ✓).
+--     weighted-average-A depends on weighted-sum-A and total-weight-A (appears after both ✓).
+--   ⊨ weighted-sum-A appears before total-weight-A in execution-order-A → ✓
+--     (index 1 < index 2)
+--
+-- All oracles pass. Cell frozen.
+-- Ready set after: { program-B, weighted-sum-A, total-weight-A,
+--                    total-weight-B, weighted-sum-B }
+-- (trace-A still blocked: needs input-data→values ✓, input-data→weights ✓,
+--  but also program-A→execution-order-A ✓ — now all three satisfied!
+--  Actually trace-A enters the ready set too.)
+-- Corrected ready set: { program-B, weighted-sum-A, total-weight-A,
+--                        total-weight-B, weighted-sum-B, trace-A }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 2: program-B (soft cell, LLM evaluation — assembles cell list)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ program-B
+  given §total-weight-B ≡ "(cell definition: ⊢ total-weight-B ▸ crystallized ...)"
+  given §weighted-sum-B ≡ "(cell definition: ⊢ weighted-sum-B ▸ crystallized ...)"
+  given §weighted-average-B ≡ "(cell definition: ⊢ weighted-average-B ▸ crystallized ...)"
+  yield §program-B-cells[], execution-order-B
+
+  ∴ Assemble program B as a list of cell definitions.
+    Execution order: input-data, total-weight-B, weighted-sum-B, weighted-average-B.
+    The key: total-weight-B is scheduled BEFORE weighted-sum-B.
+    This is the OTHER valid topological sort -- proving order doesn't matter.
+
+    Output execution-order-B ≡ ["input-data", "total-weight-B", "weighted-sum-B", "weighted-average-B"]
+
+-- LLM evaluation:
+-- Same diamond graph, but the LLM constructs the count-first ordering.
+
+  yield §program-B-cells[] ≡ [§total-weight-B, §weighted-sum-B, §weighted-average-B]
+  yield execution-order-B ≡ ["input-data", "total-weight-B", "weighted-sum-B", "weighted-average-B"]
+
+-- oracle checks:
+--   ⊨ execution-order-B is a valid topological sort → ✓
+--     (same reasoning as program-A, different ordering of the two independent cells)
+--   ⊨ total-weight-B appears before weighted-sum-B in execution-order-B → ✓
+--     (index 1 < index 2)
+--
+-- All oracles pass. Cell frozen.
+-- Ready set after: { weighted-sum-A, total-weight-A, total-weight-B,
+--                    weighted-sum-B, trace-A, trace-B }
+-- (trace-B now unblocked: program-B→execution-order-B ✓, input-data→values ✓,
+--  input-data→weights ✓)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 3: weighted-sum-A (hard cell, deterministic ⊢= evaluation)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ weighted-sum-A ▸ crystallized
+  given input-data→values ≡ [10, 20, 30, 40]
+  given input-data→weights ≡ [1, 2, 3, 4]
+  yield weighted-sum
+
+  ⊢= weighted-sum ← sum(map(zip(values, weights), pair -> pair[0] * pair[1]))
+
+-- Deterministic evaluation (no LLM needed):
+--   zip([10,20,30,40], [1,2,3,4]) = [(10,1), (20,2), (30,3), (40,4)]
+--   map(... pair -> pair[0] * pair[1]) = [10, 40, 90, 160]
+--   sum([10, 40, 90, 160]) = 300
+
+  yield weighted-sum ≡ 300
+
+-- oracle checks:
+--   ⊨ weighted-sum = 10*1 + 20*2 + 30*3 + 40*4 = 300 → ✓ (300 = 300)
+--
+-- Cell frozen.
+-- Ready set after: { total-weight-A, total-weight-B, weighted-sum-B,
+--                    trace-A, trace-B }
+-- (weighted-average-A still blocked: needs total-weight-A→total-weight)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 4: total-weight-A (hard cell, deterministic ⊢= evaluation)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ total-weight-A ▸ crystallized
+  given input-data→weights ≡ [1, 2, 3, 4]
+  yield total-weight
+
+  ⊢= total-weight ← sum(weights)
+
+-- Deterministic evaluation:
+--   sum([1, 2, 3, 4]) = 10
+
+  yield total-weight ≡ 10
+
+-- oracle checks:
+--   ⊨ total-weight = 1 + 2 + 3 + 4 = 10 → ✓ (10 = 10)
+--
+-- Cell frozen.
+-- Ready set after: { total-weight-B, weighted-sum-B, trace-A, trace-B,
+--                    weighted-average-A }
+-- (weighted-average-A now unblocked: weighted-sum-A→weighted-sum ≡ 300 ✓,
+--  total-weight-A→total-weight ≡ 10 ✓)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 5: weighted-average-A (hard cell, deterministic ⊢= evaluation)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ weighted-average-A ▸ crystallized
+  given weighted-sum-A→weighted-sum ≡ 300
+  given total-weight-A→total-weight ≡ 10
+  yield average
+
+  ⊢= average ← weighted-sum / total-weight
+
+-- Deterministic evaluation:
+--   300 / 10 = 30
+
+  yield average ≡ 30
+
+-- oracle checks:
+--   ⊨ average = 300 / 10 = 30 → ✓ (30 = 30)
+--
+-- Cell frozen. Program A complete.
+-- Ready set after: { total-weight-B, weighted-sum-B, trace-A, trace-B }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 6: total-weight-B (hard cell, deterministic ⊢= evaluation)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ total-weight-B ▸ crystallized
+  given input-data→weights ≡ [1, 2, 3, 4]
+  yield total-weight
+
+  ⊢= total-weight ← sum(weights)
+
+-- Deterministic evaluation:
+--   sum([1, 2, 3, 4]) = 10
+
+  yield total-weight ≡ 10
+
+-- oracle checks:
+--   ⊨ total-weight = 1 + 2 + 3 + 4 = 10 → ✓ (10 = 10)
+--
+-- Cell frozen.
+-- Ready set after: { weighted-sum-B, trace-A, trace-B, weighted-average-B }
+-- (weighted-average-B still blocked: needs weighted-sum-B→weighted-sum)
+-- Correction: weighted-average-B needs BOTH weighted-sum-B→weighted-sum AND
+-- total-weight-B→total-weight. total-weight-B just froze. Still needs weighted-sum-B.
+-- Ready set after: { weighted-sum-B, trace-A, trace-B }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 7: weighted-sum-B (hard cell, deterministic ⊢= evaluation)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ weighted-sum-B ▸ crystallized
+  given input-data→values ≡ [10, 20, 30, 40]
+  given input-data→weights ≡ [1, 2, 3, 4]
+  yield weighted-sum
+
+  ⊢= weighted-sum ← sum(map(zip(values, weights), pair -> pair[0] * pair[1]))
+
+-- Deterministic evaluation:
+--   zip([10,20,30,40], [1,2,3,4]) = [(10,1), (20,2), (30,3), (40,4)]
+--   map(... pair -> pair[0] * pair[1]) = [10, 40, 90, 160]
+--   sum([10, 40, 90, 160]) = 300
+
+  yield weighted-sum ≡ 300
+
+-- oracle checks:
+--   ⊨ weighted-sum = 10*1 + 20*2 + 30*3 + 40*4 = 300 → ✓ (300 = 300)
+--
+-- Cell frozen.
+-- Ready set after: { trace-A, trace-B, weighted-average-B }
+-- (weighted-average-B now unblocked: weighted-sum-B→weighted-sum ≡ 300 ✓,
+--  total-weight-B→total-weight ≡ 10 ✓)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 8: weighted-average-B (hard cell, deterministic ⊢= evaluation)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ weighted-average-B ▸ crystallized
+  given weighted-sum-B→weighted-sum ≡ 300
+  given total-weight-B→total-weight ≡ 10
+  yield average
+
+  ⊢= average ← weighted-sum / total-weight
+
+-- Deterministic evaluation:
+--   300 / 10 = 30
+
+  yield average ≡ 30
+
+-- oracle checks:
+--   ⊨ average = 300 / 10 = 30 → ✓ (30 = 30)
+--
+-- Cell frozen. Program B complete.
+-- Ready set after: { trace-A, trace-B }
+-- (equivalence-certificate needs weighted-average-A→average ✓ and
+--  weighted-average-B→average ✓, but also needs assemble-verdict→verdict,
+--  so still blocked deep in the chain)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 9: trace-A (soft cell, LLM evaluation — full execution trace)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ trace-A
+  given program-A→execution-order-A ≡ ["input-data", "weighted-sum-A", "total-weight-A", "weighted-average-A"]
+  given input-data→values ≡ [10, 20, 30, 40]
+  given input-data→weights ≡ [1, 2, 3, 4]
+  yield frames-A[], final-state-A
+
+  ∴ Execute program A step by step following «program-A→execution-order-A».
+    For each step, record:
+    - Which cell was evaluated
+    - What its inputs resolved to
+    - What its yields were bound to
+    - Which oracle checks passed
+
+    Frame format per step:
+    { step: N, cell: "name", inputs: {...}, yields: {...}, oracles: [pass/fail] }
+
+    After all steps, record the final-state-A as the complete set of
+    frozen yield bindings across all cells.
+
+-- LLM evaluation:
+-- The LLM follows the execution-order-A and simulates eval-one for each cell.
+-- It has access to the cell definitions via the program graph and the concrete
+-- input values. It traces through each step deterministically.
+
+  yield frames-A ≡ [
+    { step: 0, cell: "input-data", inputs: { values: [10,20,30,40], weights: [1,2,3,4] }, yields: { values: [10,20,30,40], weights: [1,2,3,4] }, oracles: ["len=len ✓", "len>=1 ✓", "all positive ✓"] },
+    { step: 1, cell: "weighted-sum-A", inputs: { values: [10,20,30,40], weights: [1,2,3,4] }, yields: { weighted-sum: 300 }, oracles: ["300=300 ✓"] },
+    { step: 2, cell: "total-weight-A", inputs: { weights: [1,2,3,4] }, yields: { total-weight: 10 }, oracles: ["10=10 ✓"] },
+    { step: 3, cell: "weighted-average-A", inputs: { weighted-sum: 300, total-weight: 10 }, yields: { average: 30 }, oracles: ["30=30 ✓"] }
+  ]
+  yield final-state-A ≡ {
+    input-data→values: [10,20,30,40],
+    input-data→weights: [1,2,3,4],
+    weighted-sum-A→weighted-sum: 300,
+    total-weight-A→total-weight: 10,
+    weighted-average-A→average: 30
+  }
+
+-- oracle checks:
+--   ⊨ len(frames-A) = len(program-A→execution-order-A) → ✓ (4 = 4)
+--   ⊨ final-state-A includes weighted-average-A→average → ✓ (30 present)
+--
+-- All oracles pass. Cell frozen.
+-- Ready set after: { trace-B }
+-- (compare-execution-order needs trace-A→frames-A ✓ AND trace-B→frames-B,
+--  so still blocked on trace-B)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 10: trace-B (soft cell, LLM evaluation — full execution trace)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ trace-B
+  given program-B→execution-order-B ≡ ["input-data", "total-weight-B", "weighted-sum-B", "weighted-average-B"]
+  given input-data→values ≡ [10, 20, 30, 40]
+  given input-data→weights ≡ [1, 2, 3, 4]
+  yield frames-B[], final-state-B
+
+  ∴ Execute program B step by step following «program-B→execution-order-B».
+    Same frame format as trace-A. Different execution order, same cells.
+
+    After all steps, record the final-state-B as the complete set of
+    frozen yield bindings across all cells.
+
+-- LLM evaluation:
+-- Same cells as trace-A but in count-first order. The LLM traces through
+-- total-weight-B BEFORE weighted-sum-B — the opposite of trace-A.
+
+  yield frames-B ≡ [
+    { step: 0, cell: "input-data", inputs: { values: [10,20,30,40], weights: [1,2,3,4] }, yields: { values: [10,20,30,40], weights: [1,2,3,4] }, oracles: ["len=len ✓", "len>=1 ✓", "all positive ✓"] },
+    { step: 1, cell: "total-weight-B", inputs: { weights: [1,2,3,4] }, yields: { total-weight: 10 }, oracles: ["10=10 ✓"] },
+    { step: 2, cell: "weighted-sum-B", inputs: { values: [10,20,30,40], weights: [1,2,3,4] }, yields: { weighted-sum: 300 }, oracles: ["300=300 ✓"] },
+    { step: 3, cell: "weighted-average-B", inputs: { weighted-sum: 300, total-weight: 10 }, yields: { average: 30 }, oracles: ["30=30 ✓"] }
+  ]
+  yield final-state-B ≡ {
+    input-data→values: [10,20,30,40],
+    input-data→weights: [1,2,3,4],
+    total-weight-B→total-weight: 10,
+    weighted-sum-B→weighted-sum: 300,
+    weighted-average-B→average: 30
+  }
+
+-- oracle checks:
+--   ⊨ len(frames-B) = len(program-B→execution-order-B) → ✓ (4 = 4)
+--   ⊨ final-state-B includes weighted-average-B→average → ✓ (30 present)
+--
+-- All oracles pass. Cell frozen.
+-- Ready set after: { build-correspondence, compare-execution-order }
+-- (both now have all given dependencies satisfied)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 11: build-correspondence (hard cell, deterministic ⊢= evaluation)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ build-correspondence ▸ crystallized
+  given trace-A→final-state-A ≡ { input-data→values: [10,20,30,40], input-data→weights: [1,2,3,4], weighted-sum-A→weighted-sum: 300, total-weight-A→total-weight: 10, weighted-average-A→average: 30 }
+  given trace-B→final-state-B ≡ { input-data→values: [10,20,30,40], input-data→weights: [1,2,3,4], total-weight-B→total-weight: 10, weighted-sum-B→weighted-sum: 300, weighted-average-B→average: 30 }
+  yield correspondence[], matched-count, unmatched[]
+
+  ⊢= correspondence ← [
+    { cell-A: "weighted-sum-A",     cell-B: "weighted-sum-B",     field: "weighted-sum", match: final-state-A→weighted-sum-A→weighted-sum = final-state-B→weighted-sum-B→weighted-sum },
+    { cell-A: "total-weight-A",     cell-B: "total-weight-B",     field: "total-weight", match: final-state-A→total-weight-A→total-weight = final-state-B→total-weight-B→total-weight },
+    { cell-A: "weighted-average-A", cell-B: "weighted-average-B", field: "average",      match: final-state-A→weighted-average-A→average = final-state-B→weighted-average-B→average }
+  ]
+
+  ⊢= matched-count ← count(correspondence, c -> c→match = true)
+  ⊢= unmatched ← filter(correspondence, c -> c→match = false)
+
+-- Deterministic evaluation:
+--   correspondence[0].match: 300 = 300 → true
+--   correspondence[1].match: 10 = 10 → true
+--   correspondence[2].match: 30 = 30 → true
+--   matched-count: count([true, true, true]) = 3
+--   unmatched: filter([...], match=false) = []
+
+  yield correspondence ≡ [
+    { cell-A: "weighted-sum-A",     cell-B: "weighted-sum-B",     field: "weighted-sum", match: true },
+    { cell-A: "total-weight-A",     cell-B: "total-weight-B",     field: "total-weight", match: true },
+    { cell-A: "weighted-average-A", cell-B: "weighted-average-B", field: "average",      match: true }
+  ]
+  yield matched-count ≡ 3
+  yield unmatched ≡ []
+
+-- oracle checks:
+--   ⊨ len(correspondence) = 3 → ✓ (3 = 3)
+--   ⊨ matched-count + len(unmatched) = len(correspondence) → ✓ (3 + 0 = 3)
+--
+-- All oracles pass. Cell frozen.
+-- Ready set after: { compare-execution-order }
+-- (generate-proof still blocked: needs compare-execution-order→*)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 12: compare-execution-order (soft cell, LLM evaluation)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ compare-execution-order
+  given trace-A→frames-A ≡ [
+    { step: 0, cell: "input-data", ... },
+    { step: 1, cell: "weighted-sum-A", ... },
+    { step: 2, cell: "total-weight-A", ... },
+    { step: 3, cell: "weighted-average-A", ... }
+  ]
+  given trace-B→frames-B ≡ [
+    { step: 0, cell: "input-data", ... },
+    { step: 1, cell: "total-weight-B", ... },
+    { step: 2, cell: "weighted-sum-B", ... },
+    { step: 3, cell: "weighted-average-B", ... }
+  ]
+  yield order-differs, shared-steps[], divergence-point
+
+  ∴ Compare the step-by-step execution order of «trace-A→frames-A» and
+    «trace-B→frames-B».
+
+    Identify:
+    - shared-steps: cells that appear in the same position in both traces
+      (e.g., input-data is step 0 in both)
+    - divergence-point: the first step where the two traces evaluate
+      different cells (step 1: sum-A vs weight-B)
+    - order-differs: true if any steps evaluate different cells
+
+    This establishes that the programs really DID execute in different orders,
+    which is the precondition for the confluence proof to be meaningful.
+
+-- LLM evaluation:
+-- Step-by-step comparison of the two traces:
+--   Step 0: A="input-data",        B="input-data"         → SAME (shared)
+--   Step 1: A="weighted-sum-A",    B="total-weight-B"     → DIFFERENT (divergence!)
+--   Step 2: A="total-weight-A",    B="weighted-sum-B"     → DIFFERENT
+--   Step 3: A="weighted-average-A" B="weighted-average-B"  → same role, different name
+-- The divergence occurs at step 1. Steps 1 and 2 are swapped between A and B.
+-- This is the diamond: two independent cells evaluated in opposite order.
+
+  yield order-differs ≡ true
+  yield shared-steps ≡ [
+    { step: 0, cell-A: "input-data", cell-B: "input-data" }
+  ]
+  yield divergence-point ≡ 1
+
+-- oracle checks:
+--   ⊨ order-differs = true → ✓
+--   ⊨ divergence-point <= len(trace-A→frames-A) → ✓ (1 <= 4)
+--   ⊨ len(shared-steps) < len(trace-A→frames-A) → ✓ (1 < 4)
+--
+-- All oracles pass. Cell frozen.
+-- Ready set after: { generate-proof }
+-- (generate-proof now has all deps: build-correspondence→* ✓, compare-execution-order→* ✓)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 13: generate-proof (soft cell, LLM evaluation — formal proof)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ generate-proof
+  given build-correspondence→correspondence ≡ [
+    { cell-A: "weighted-sum-A",     cell-B: "weighted-sum-B",     field: "weighted-sum", match: true },
+    { cell-A: "total-weight-A",     cell-B: "total-weight-B",     field: "total-weight", match: true },
+    { cell-A: "weighted-average-A", cell-B: "weighted-average-B", field: "average",      match: true }
+  ]
+  given build-correspondence→matched-count ≡ 3
+  given build-correspondence→unmatched ≡ []
+  given compare-execution-order→order-differs ≡ true
+  given compare-execution-order→divergence-point ≡ 1
+  yield proof-argument, proof-steps[], proof-technique
+
+  ∴ Generate a formal equivalence proof for programs A and B.
+
+    The proof has three parts:
+
+    1. **Dependency isomorphism**: Show the dependency graphs of A and B are
+       isomorphic. Both have the same shape: input-data feeds two independent
+       cells (weighted-sum and total-weight), which feed into one final cell
+       (weighted-average). The cell names differ but the graph structure is
+       identical.
+
+    2. **Cell-wise equivalence**: For each pair in «build-correspondence→correspondence»,
+       show that the cell bodies compute the same function. Since all paired cells
+       are crystallized (⊢=) with identical expressions, this is syntactic equality
+       of the ⊢= bodies modulo renaming.
+
+    3. **Confluence application**: By Cell's confluence theorem (eval_diamond),
+       if two execution orders are both valid topological sorts of the same
+       dependency graph, and all cells compute the same function, then the
+       final states are identical. The divergence at step «compare-execution-order→divergence-point»
+       involves two independent cells -- exactly the diamond scenario.
+
+    proof-technique ≡ "structural induction on dependency graph + confluence theorem"
+
+-- LLM evaluation:
+-- The LLM constructs the three-part proof using the concrete data from
+-- build-correspondence and compare-execution-order.
+
+  yield proof-argument ≡ "EQUIVALENCE PROOF: Programs A and B over weighted-average computation.
+
+PART 1 — DEPENDENCY ISOMORPHISM:
+Both programs share the same dependency graph shape:
+  input-data → { X, Y } → weighted-average
+where X and Y are independent cells computing weighted-sum and total-weight respectively. In program A, X=weighted-sum-A and Y=total-weight-A. In program B, X=total-weight-B and Y=weighted-sum-B. The graph is isomorphic under the renaming {weighted-sum-A ↔ weighted-sum-B, total-weight-A ↔ total-weight-B, weighted-average-A ↔ weighted-average-B}. Both X and Y depend ONLY on input-data. Neither depends on the other. This independence is the structural precondition for confluence.
+
+PART 2 — CELL-WISE EQUIVALENCE:
+For each pair in the correspondence:
+  (a) weighted-sum-A vs weighted-sum-B: both compute ⊢= sum(map(zip(values, weights), pair -> pair[0] * pair[1])). Syntactically identical ⊢= bodies. Same inputs (input-data→values, input-data→weights). Therefore identical functions.
+  (b) total-weight-A vs total-weight-B: both compute ⊢= sum(weights). Syntactically identical. Same input (input-data→weights). Identical functions.
+  (c) weighted-average-A vs weighted-average-B: both compute ⊢= weighted-sum / total-weight. Syntactically identical. Inputs are the outputs of paired cells from (a) and (b). Given (a) and (b) produce identical values, (c) produces identical values.
+All three pairs matched with equal outputs (verified empirically: 300=300, 10=10, 30=30).
+
+PART 3 — CONFLUENCE APPLICATION:
+Programs A and B are two topological sorts of the same dependency graph. They diverge at step 1 (divergence-point=1): A evaluates weighted-sum-A while B evaluates total-weight-B. These two cells are independent (neither depends on the other's output — both depend only on input-data). This is precisely the diamond scenario of Cell's eval_diamond theorem: when two independent cells are ready simultaneously, evaluating either first yields the same final state. The theorem guarantees that the scheduling difference at step 1 (and consequently step 2) cannot affect the final frozen state. QED."
+
+  yield proof-steps ≡ [
+    "dependency-isomorphism: graphs are isomorphic under cell renaming, independent pair {X,Y} identified",
+    "cell-equivalence: all three cell pairs have syntactically identical ⊢= bodies, confirmed by 3/3 match in correspondence",
+    "confluence-application: divergence at step 1 involves independent cells, eval_diamond theorem applies, final states guaranteed identical"
+  ]
+
+  yield proof-technique ≡ "structural induction on dependency graph + confluence theorem"
+
+-- oracle checks:
+--   ⊨ len(proof-steps) >= 3 → ✓ (3 >= 3)
+--   ⊨ proof-technique references confluence → ✓ (contains "confluence theorem")
+--   ⊨ proof-argument addresses dependency structure, cell equivalence, and execution order → ✓
+--     (Part 1 = dependency structure, Part 2 = cell equivalence, Part 3 = execution order)
+--
+-- All oracles pass. Cell frozen.
+-- Ready set after: { verify-proof-structure }
+-- (verify-proof-structure needs generate-proof→proof-steps ✓,
+--  build-correspondence→matched-count ✓, build-correspondence→unmatched ✓,
+--  compare-execution-order→order-differs ✓ — all satisfied)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 14: verify-proof-structure (hard cell, deterministic ⊢= evaluation)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ verify-proof-structure ▸ crystallized
+  given generate-proof→proof-steps ≡ [
+    "dependency-isomorphism: graphs are isomorphic under cell renaming, independent pair {X,Y} identified",
+    "cell-equivalence: all three cell pairs have syntactically identical ⊢= bodies, confirmed by 3/3 match in correspondence",
+    "confluence-application: divergence at step 1 involves independent cells, eval_diamond theorem applies, final states guaranteed identical"
+  ]
+  given build-correspondence→matched-count ≡ 3
+  given build-correspondence→unmatched ≡ []
+  given compare-execution-order→order-differs ≡ true
+  yield structural-valid, structural-summary
+
+  ⊢= structural-valid ← (
+    len(proof-steps) >= 3 and
+    matched-count = 3 and
+    len(unmatched) = 0 and
+    order-differs = true
+  )
+
+  ⊢= structural-summary ← if structural-valid
+    then "all structural checks pass: 3+ proof steps, 3/3 matched, 0 unmatched, orders differ"
+    else "structural check failed"
+
+-- Deterministic evaluation:
+--   len(proof-steps) >= 3: 3 >= 3 → true
+--   matched-count = 3: 3 = 3 → true
+--   len(unmatched) = 0: 0 = 0 → true
+--   order-differs = true: true = true → true
+--   structural-valid: true and true and true and true → true
+--   structural-summary: "all structural checks pass: 3+ proof steps, 3/3 matched, 0 unmatched, orders differ"
+
+  yield structural-valid ≡ true
+  yield structural-summary ≡ "all structural checks pass: 3+ proof steps, 3/3 matched, 0 unmatched, orders differ"
+
+-- oracle checks:
+--   ⊨ structural-valid = true → ✓
+--
+-- Cell frozen.
+-- Ready set after: { verify-proof-semantics }
+-- (needs generate-proof→proof-steps ✓, generate-proof→proof-technique ✓,
+--  verify-proof-structure→structural-valid ✓ — all satisfied)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 15: verify-proof-semantics (soft cell, LLM evaluation)
+-- v0.2 note: this was falsely crystallized as ⊢= in R16 using
+-- undefined missing-from() function. Now correctly a soft cell.
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ verify-proof-semantics
+  given generate-proof→proof-steps ≡ [
+    "dependency-isomorphism: graphs are isomorphic under cell renaming, independent pair {X,Y} identified",
+    "cell-equivalence: all three cell pairs have syntactically identical ⊢= bodies, confirmed by 3/3 match in correspondence",
+    "confluence-application: divergence at step 1 involves independent cells, eval_diamond theorem applies, final states guaranteed identical"
+  ]
+  given generate-proof→proof-technique ≡ "structural induction on dependency graph + confluence theorem"
+  given verify-proof-structure→structural-valid ≡ true
+  yield gaps[], semantics-valid
+
+  ∴ Examine «generate-proof→proof-steps» and determine whether all three
+    required proof components are present:
+    1. dependency-isomorphism (graph structure comparison)
+    2. cell-equivalence (pairwise function equality)
+    3. confluence-application (eval_diamond invocation)
+
+    For each missing component, add it to gaps[].
+
+    Also verify that «generate-proof→proof-technique» references the
+    confluence theorem.
+
+    semantics-valid ≡ true if gaps is empty and proof-technique references confluence.
+
+-- LLM evaluation:
+-- The LLM inspects the three proof-steps:
+--   Step 1: "dependency-isomorphism: graphs are isomorphic..." → covers dependency-isomorphism ✓
+--   Step 2: "cell-equivalence: all three cell pairs..." → covers cell-equivalence ✓
+--   Step 3: "confluence-application: divergence at step 1..." → covers confluence-application ✓
+-- proof-technique = "structural induction on dependency graph + confluence theorem"
+--   → contains "confluence" ✓
+-- All three components present. No gaps.
+
+  yield gaps ≡ []
+  yield semantics-valid ≡ true
+
+-- oracle checks:
+--   ⊨ if structural-valid = true and len(gaps) = 0 then semantics-valid = true → ✓
+--     (structural-valid=true, len(gaps)=0, semantics-valid=true)
+--
+-- All oracles pass. Cell frozen.
+-- Ready set after: { assemble-verdict }
+-- (needs verify-proof-structure→structural-valid ✓,
+--  verify-proof-semantics→semantics-valid ✓,
+--  verify-proof-semantics→gaps ✓ — all satisfied)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 16: assemble-verdict (hard cell, deterministic ⊢= evaluation)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ assemble-verdict ▸ crystallized
+  given verify-proof-structure→structural-valid ≡ true
+  given verify-proof-semantics→semantics-valid ≡ true
+  given verify-proof-semantics→gaps ≡ []
+  yield verdict
+
+  ⊢= verdict ← if structural-valid and semantics-valid and len(gaps) = 0
+    then "equivalence proved"
+    else if structural-valid
+    then "equivalence likely, minor gaps"
+    else "equivalence not established"
+
+-- Deterministic evaluation:
+--   structural-valid = true, semantics-valid = true, len(gaps) = 0
+--   First branch: true and true and (0 = 0) → true
+--   verdict = "equivalence proved"
+
+  yield verdict ≡ "equivalence proved"
+
+-- oracle checks:
+--   ⊨ verdict != "equivalence not established" → ✓
+--     ("equivalence proved" != "equivalence not established")
+--
+-- Cell frozen.
+-- Ready set after: { equivalence-certificate }
+-- (all dependencies now satisfied:
+--   assemble-verdict→verdict ✓, verify-proof-structure→structural-valid ✓,
+--   verify-proof-semantics→gaps ✓, generate-proof→proof-argument ✓,
+--   build-correspondence→correspondence ✓, compare-execution-order→order-differs ✓,
+--   weighted-average-A→average ✓, weighted-average-B→average ✓)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 17: equivalence-certificate (soft cell, LLM evaluation — final deliverable)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ equivalence-certificate
+  given assemble-verdict→verdict ≡ "equivalence proved"
+  given verify-proof-structure→structural-valid ≡ true
+  given verify-proof-semantics→gaps ≡ []
+  given generate-proof→proof-argument ≡ "EQUIVALENCE PROOF: Programs A and B over weighted-average computation.\n\nPART 1 — DEPENDENCY ISOMORPHISM: Both programs share the same dependency graph shape: input-data → { X, Y } → weighted-average...\n\nPART 2 — CELL-WISE EQUIVALENCE: For each pair in the correspondence: (a) weighted-sum identical ⊢= bodies (b) total-weight identical (c) weighted-average identical...\n\nPART 3 — CONFLUENCE APPLICATION: Programs diverge at step 1, independent cells, eval_diamond applies. QED."
+  given build-correspondence→correspondence ≡ [
+    { cell-A: "weighted-sum-A",     cell-B: "weighted-sum-B",     field: "weighted-sum", match: true },
+    { cell-A: "total-weight-A",     cell-B: "total-weight-B",     field: "total-weight", match: true },
+    { cell-A: "weighted-average-A", cell-B: "weighted-average-B", field: "average",      match: true }
+  ]
+  given compare-execution-order→order-differs ≡ true
+  given weighted-average-A→average ≡ 30
+  given weighted-average-B→average ≡ 30
+  yield certificate, equivalence-status, confidence
+
+  ∴ Assemble the final equivalence certificate.
+
+    Certificate contains:
+    1. The two programs compared (A: sum-first, B: count-first)
+    2. The correspondence table: «build-correspondence→correspondence»
+    3. Execution order difference confirmed: «compare-execution-order→order-differs»
+    4. Both programs produced average:
+       A = «weighted-average-A→average», B = «weighted-average-B→average»
+    5. Proof verdict: «assemble-verdict→verdict»
+    6. Any remaining gaps: «verify-proof-semantics→gaps»
+
+    equivalence-status:
+    - "equivalent" if verdict = "equivalence proved" and A→average = B→average
+    - "likely-equivalent" if verdict contains "likely" and A→average = B→average
+    - "not-equivalent" if A→average != B→average or verdict = "not established"
+
+    confidence:
+    - "high" if equivalence-status = "equivalent" and structural-valid
+    - "medium" if equivalence-status = "likely-equivalent"
+    - "low" otherwise
+
+    This certificate is the DELIVERABLE: two programs + proof they compute
+    the same thing despite different execution schedules. Cell's confluence
+    theorem made concrete.
+
+-- LLM evaluation:
+-- The LLM assembles all the concrete values into a structured certificate.
+-- verdict = "equivalence proved", A→average = 30, B→average = 30, so
+-- equivalence-status = "equivalent" and confidence = "high".
+
+  yield certificate ≡ "PROGRAM EQUIVALENCE CERTIFICATE
+
+PROGRAMS COMPARED:
+  Program A (sum-first): input-data → weighted-sum-A → total-weight-A → weighted-average-A
+  Program B (count-first): input-data → total-weight-B → weighted-sum-B → weighted-average-B
+
+CORRESPONDENCE TABLE:
+  weighted-sum-A ↔ weighted-sum-B     field: weighted-sum  MATCH (300 = 300)
+  total-weight-A ↔ total-weight-B     field: total-weight  MATCH (10 = 10)
+  weighted-average-A ↔ weighted-average-B  field: average  MATCH (30 = 30)
+
+EXECUTION ORDER DIVERGENCE: Confirmed at step 1.
+  Program A step 1: weighted-sum-A (sum first)
+  Program B step 1: total-weight-B (count first)
+
+FINAL RESULTS:
+  Program A → average = 30
+  Program B → average = 30
+
+PROOF VERDICT: equivalence proved
+PROOF TECHNIQUE: structural induction on dependency graph + confluence theorem
+PROOF GAPS: none
+
+This certificate attests that programs A and B compute identical results despite different execution schedules. The proof rests on three pillars: (1) isomorphic dependency graphs, (2) syntactically identical ⊢= cell bodies modulo renaming, (3) Cell's eval_diamond theorem guaranteeing that scheduling independent cells in either order yields the same final state."
+
+  yield equivalence-status ≡ "equivalent"
+  yield confidence ≡ "high"
+
+-- oracle checks:
+--   ⊨ certificate includes both programs, correspondence, and proof → ✓
+--     (all three sections present in certificate text)
+--   ⊨ equivalence-status ∈ {"equivalent", "likely-equivalent", "not-equivalent"} → ✓
+--     ("equivalent" ∈ set)
+--   ⊨ confidence ∈ {"high", "medium", "low"} → ✓
+--     ("high" ∈ set)
+--   ⊨ if weighted-average-A→average = weighted-average-B→average and
+--     verify-proof-structure→structural-valid then equivalence-status = "equivalent" → ✓
+--     (30 = 30 and true → "equivalent" = "equivalent")
+--
+-- All oracles pass. Cell frozen.
+
+-- ═══════════════════════════════════════════════════════════════
+-- QUIESCENCE: All cells frozen, no cells in ready set
+-- ═══════════════════════════════════════════════════════════════
+--
+-- Frozen cells (18 total):
+--   input-data              → values ≡ [10,20,30,40], weights ≡ [1,2,3,4]
+--   program-A               → §program-A-cells[] ≡ [...], execution-order-A ≡ [...]
+--   program-B               → §program-B-cells[] ≡ [...], execution-order-B ≡ [...]
+--   weighted-sum-A          → weighted-sum ≡ 300
+--   total-weight-A          → total-weight ≡ 10
+--   weighted-average-A      → average ≡ 30
+--   total-weight-B          → total-weight ≡ 10
+--   weighted-sum-B          → weighted-sum ≡ 300
+--   weighted-average-B      → average ≡ 30
+--   trace-A                 → frames-A ≡ [...], final-state-A ≡ {...}
+--   trace-B                 → frames-B ≡ [...], final-state-B ≡ {...}
+--   build-correspondence    → correspondence ≡ [...], matched-count ≡ 3, unmatched ≡ []
+--   compare-execution-order → order-differs ≡ true, shared-steps ≡ [...], divergence-point ≡ 1
+--   generate-proof          → proof-argument ≡ "...", proof-steps ≡ [...], proof-technique ≡ "..."
+--   verify-proof-structure  → structural-valid ≡ true, structural-summary ≡ "..."
+--   verify-proof-semantics  → gaps ≡ [], semantics-valid ≡ true
+--   assemble-verdict        → verdict ≡ "equivalence proved"
+--   equivalence-certificate → certificate ≡ "...", equivalence-status ≡ "equivalent", confidence ≡ "high"
+--
+-- No cells have unsatisfied given dependencies.
+-- No ⊢∘ iterations pending (no ⊢∘ in this program).
+-- No ⊢⊢ spawners to fire.
+-- Program has reached quiescence. All cells frozen.
+
+-- ═══════════════════════════════════════════════════════════════
+-- EXECUTION SUMMARY
+-- ═══════════════════════════════════════════════════════════════
+--
+-- Total eval-one steps: 18 (frames 0-17)
+-- Hard (⊢=) cells: 8 (input-data, weighted-sum-A, total-weight-A,
+--   weighted-average-A, total-weight-B, weighted-sum-B, weighted-average-B,
+--   build-correspondence, verify-proof-structure, assemble-verdict)
+-- Soft (∴) cells: 8 (program-A, program-B, trace-A, trace-B,
+--   compare-execution-order, generate-proof, verify-proof-semantics,
+--   equivalence-certificate)
+-- ⊢∘ iterations: 0 (no evolution loops in this program)
+-- Oracle checks: 34 total, 34 passed, 0 failed
+-- ⊨? recovery: never triggered (all oracles passed on first attempt)
+--
+-- Dependency depth (longest chain):
+--   input-data → weighted-sum-A → weighted-average-A → trace-A →
+--   build-correspondence → generate-proof → verify-proof-structure →
+--   verify-proof-semantics → assemble-verdict → equivalence-certificate
+--   = 10 levels deep
+--
+-- Maximum parallelism (cells ready simultaneously):
+--   After frame 0: 6 cells ready (program-A, program-B, weighted-sum-A,
+--     total-weight-A, total-weight-B, weighted-sum-B)
+--   This is where Cell's confluence property matters most — any
+--   evaluation order among those 6 yields the same final result.
+
+-- ═══════════════════════════════════════════════════════════════
+-- OBSERVATIONS (v0.2-aware)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= obs-false-crystallization-fix
+  yield observation
+  ⊢= observation ← "v0.2 FALSE CRYSTALLIZATION FIXED: R16's verify-proof was a single ⊢= cell using missing-from() and semantic predicates like 'proof-technique contains confluence' — neither valid in the v0.2 expression language. R17 splits it into verify-proof-structure (hard, uses only len/count/comparison/boolean — all v0.2 primitives) and verify-proof-semantics (soft, honestly uses LLM to check whether proof-steps cover the three required concepts). This is the crystallization boundary rule in action: if it requires interpretation, it belongs in a soft cell. The v0.2 ⊢= expression language audit caught exactly the anti-pattern the spec warned about."
+
+⊢= obs-confluence-made-concrete
+  yield observation
+  ⊢= observation ← "CONFLUENCE MADE CONCRETE: This program doesn't just CLAIM confluence — it DEMONSTRATES it. Two programs with identical cell bodies but different schedules produce identical frozen states (300, 10, 30 in both traces). The proof links this to eval_diamond in Lean. The execution trace itself shows the property: frames 3-5 (A: sum→weight→average) and frames 6-8 (B: weight→sum→average) produce the same values in different order. Cell's theoretical property becomes empirically verifiable."
+
+⊢= obs-hard-soft-balance
+  yield observation
+  ⊢= observation ← "HARD/SOFT BALANCE IS 50/50: 8 hard cells (arithmetic, structural checks) and 8 soft cells (assembly, tracing, proof generation, gap analysis, certificate). This reflects the program's nature: the COMPUTATION is deterministic (weighted averages, correspondence matching, structural validation) but the REASONING is semantic (trace assembly, proof generation, gap detection, certificate writing). The crystallization boundary falls exactly where it should — v0.2's expression language forces honesty about which side each cell lives on."
+
+⊢= obs-proof-carrying-pattern
+  yield observation
+  ⊢= observation ← "PROOF-CARRYING COMPUTATION AT SCALE: This program is the proof-carrying pattern (rated 9/10 in v0.2 spec) applied to an entire program rather than a single cell. The 'NP work' is generate-proof (LLM synthesizes the argument). The 'P work' is verify-proof-structure (deterministic check: enough steps? all matched? orders differ?). The separation is clean: the LLM does the creative work (finding the proof), the crystallized verifier does the mechanical work (checking the invariants). Neither could do the other's job."
+
+⊢= obs-maximum-parallelism-window
+  yield observation
+  ⊢= observation ← "MAXIMUM PARALLELISM WINDOW REVEALS GRAPH STRUCTURE: After frame 0 (input-data frozen), 6 cells become ready simultaneously. This 6-wide parallelism window is the widest in the entire execution. It corresponds to the diamond structure: input-data fans out to 6 independent consumers (2 program-assembly cells + 4 computation cells). The window narrows as dependencies converge toward the single equivalence-certificate. Cell's DAG structure makes parallelism opportunities visible as ready-set width."
+
+⊢= obs-file-scope-recovery-unused
+  yield observation
+  ⊢= observation ← "v0.2 FILE-SCOPE RECOVERY NEVER TRIGGERED: All 34 oracle checks passed on first attempt. The file-scope ⊨? (retry max 3, partial-accept on exhaustion) was never activated. This is expected: the program operates on small deterministic inputs where oracle satisfaction is near-certain. The recovery policy exists as a safety net for when this program is run on more complex inputs where trace-A/trace-B or generate-proof might produce outputs that fail semantic oracles. The v0.2 file-scope ⊨? is insurance, not overhead."
+
+⊢= obs-verify-split-preserves-trust
+  yield observation
+  ⊢= observation ← "SPLITTING VERIFY-PROOF PRESERVES TRUST HIERARCHY: R16 had one verify-proof cell that mixed deterministic and semantic checks, creating a false sense of full crystallization. R17's split makes the trust explicit: verify-proof-structure is TRUSTWORTHY (deterministic, auditable, reproducible) while verify-proof-semantics is TENTATIVE (LLM-dependent, may vary between runs). A consumer of the proof can weight the structural check higher than the semantic check. The v0.2 expression language forced this honesty — missing-from() was a lie that hid semantic judgment behind a function-call syntax."

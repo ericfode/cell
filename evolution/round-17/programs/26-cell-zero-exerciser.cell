@@ -1,0 +1,256 @@
+-- 26-cell-zero-exerciser.cell
+-- Metacircular execution trace: cell-zero evaluating p1-parallel-confluence
+--
+-- This program feeds the p1-parallel-confluence program (5 cells: config,
+-- poet, scientist, child, combine) into cell-zero's eval-one kernel.
+-- Each cell traces one phase of cell-zero's evaluation loop applied to
+-- the target program.
+--
+-- Tests: § quotation (program-as-data), metacircular evaluation,
+--        confluence (3 independent cells ready simultaneously),
+--        hard vs soft cell distinction, oracle claim spawning,
+--        file-scope ⊨?, wildcard deps, ⊢= expression language,
+--        guard clauses, ⊢∘ aspirational oracles
+--
+-- v0.2 improvements over R16:
+-- - File-scope ⊨? provides default recovery for all cell-zero phases
+-- - Wildcard deps collect claim cells via spawn-claims-*→verdict
+-- - ⊢⊢ explicit accumulate for claim spawning
+-- - Guard clauses gate decide cells (freeze vs rewrite branching)
+-- - given? tolerates ⊥ for oracle failure feedback on first pass
+-- - ⊢∘ loop wraps the full eval-one cycle with aspirational oracles
+-- - ⊢= expression language validated: all hard cells use defined primitives
+-- - Observation cells use v0.2 ⊢= obs pattern
+--
+-- Key property demonstrated: cell-zero IS a Cell program evaluating
+-- another Cell program. The evaluation trace is itself a Cell document.
+
+-- ═══════════════════════════════════════════════════════════════
+-- FILE-SCOPE RECOVERY POLICY [v0.2]
+-- ═══════════════════════════════════════════════════════════════
+
+⊨? on failure:
+  retry with «oracle.failures» appended to prompt
+  max 2 attempts
+
+⊨? on exhaustion:
+  error-value(⊥)
+
+-- ═══════════════════════════════════════════════════════════════
+-- INPUT: the target program as quoted data
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ target
+  given §program
+  yield §program
+
+  ⊢= §program ← §p1-parallel-confluence
+
+  ⊨ §program contains cells: config, poet, scientist, child, combine
+
+-- ═══════════════════════════════════════════════════════════════
+-- PHASE 1: cell-zero.read-graph — parse target into graph data
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ read-graph
+  given §cell-zero.read-graph
+  given target→§program
+  yield cells[], edges[]
+
+  ∴ Apply cell-zero's read-graph to «target→§program».
+    Parse all ⊢ declarations into cells.
+    Extract all given cell→output edges.
+
+  ⊨ cells = [config, poet, scientist, child, combine]
+  ⊨ edges = [
+    (config→topic, poet),
+    (config→topic, scientist),
+    (config→topic, child),
+    (poet→poem, combine),
+    (scientist→fact, combine),
+    (child→question, combine)
+  ]
+
+-- ═══════════════════════════════════════════════════════════════
+-- PHASE 2: cell-zero.check-inputs — find the ready set
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ check-inputs
+  given read-graph→cells
+  given read-graph→edges
+  given target→§program
+  yield ready-set[], blocked-set[]
+
+  ∴ Apply cell-zero's check-inputs.
+    For each cell, check whether all given inputs are bound (≡ present)
+    and guard clauses (if any) evaluate to true.
+    config has given topic ≡ "the moon" — all givens bound, no guards.
+    poet, scientist, child depend on config→topic — BLOCKED.
+    combine depends on all three — BLOCKED.
+
+  ⊨ ready-set = [config]
+  ⊨ blocked-set = [poet, scientist, child, combine]
+
+-- ═══════════════════════════════════════════════════════════════
+-- PHASE 3: cell-zero.pick-cell — select from ready set
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= pick-cell
+  given check-inputs→ready-set
+  yield §target-cell
+
+  ⊢= §target-cell ← check-inputs→ready-set[0]
+
+  ⊨ §target-cell ∈ ready-set
+
+-- ═══════════════════════════════════════════════════════════════
+-- PHASE 4: cell-zero.evaluate — dispatch on cell type
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ evaluate
+  given pick-cell→§target-cell
+  given target→§program
+  yield tentative-outputs[], cell-type
+
+  ∴ Read «pick-cell→§target-cell» from «target→§program».
+    If the cell has a ⊢= body, evaluate deterministically → cell-type = "hard".
+    If the cell has a ∴ body, interpret via LLM → cell-type = "soft".
+    Produce tentative outputs matching the cell's yield signature.
+
+  ⊨ |tentative-outputs| = |§target-cell.yields|
+  ⊨ cell-type ∈ {"hard", "soft"}
+
+-- ═══════════════════════════════════════════════════════════════
+-- PHASE 5: cell-zero.spawn-claims — instantiate oracle checks
+-- ═══════════════════════════════════════════════════════════════
+
+⊢⊢ spawn-claims accumulate
+  given evaluate→tentative-outputs
+  given pick-cell→§target-cell
+  given target→§program
+  yield §claim-cells[]
+
+  ∴ Read the ⊨ assertions from «pick-cell→§target-cell» in «target→§program».
+    For each oracle, spawn one claim cell that checks the assertion
+    against «evaluate→tentative-outputs».
+
+  ⊨ |§claim-cells| = |§target-cell.oracles|
+
+-- ═══════════════════════════════════════════════════════════════
+-- PHASE 6: cell-zero.check-claims — evaluate all oracle claims
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ check-claims
+  given spawn-claims→§claim-cells
+  given spawn-claims-*→verdict
+  yield all-pass, failed-oracles[]
+
+  ∴ Evaluate each claim cell in «spawn-claims→§claim-cells».
+    Collect verdicts. If all pass, all-pass = true.
+    If any fail, record them in failed-oracles.
+
+  ⊨ all-pass = true if and only if failed-oracles is empty
+  ⊨ each failed-oracle references the specific ⊨ that failed
+
+-- ═══════════════════════════════════════════════════════════════
+-- PHASE 7: cell-zero.decide — freeze or rewrite
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= decide-freeze
+  given check-claims→all-pass where all-pass = true
+  given evaluate→tentative-outputs
+  yield action, frozen-outputs[]
+
+  ⊢= action ← "freeze"
+  ⊢= frozen-outputs ← evaluate→tentative-outputs
+
+  ⊨ action = "freeze"
+
+⊢ decide-rewrite
+  given check-claims→all-pass where all-pass = false
+  given check-claims→failed-oracles
+  given? rewrite-feedback→prior-failures
+  given pick-cell→§target-cell
+  yield action, rewrite-context
+
+  ∴ Oracle check failed. Prepare rewrite context from «check-claims→failed-oracles».
+    If «rewrite-feedback→prior-failures» is available (not ⊥), incorporate them.
+    cell-zero will re-evaluate «pick-cell→§target-cell» with this context.
+
+  ⊨ action = "rewrite"
+  ⊨ rewrite-context includes failed oracle details
+
+-- ═══════════════════════════════════════════════════════════════
+-- META-LOOP: ⊢∘ over the full eval-one cycle
+-- ═══════════════════════════════════════════════════════════════
+
+⊢∘ eval-one-loop(check-inputs)
+  through pick-cell, evaluate, spawn-claims, check-claims, decide-freeze
+  until check-inputs→ready-set = []
+  max 10
+
+-- Oracles on ⊢∘-managed cells are ASPIRATIONAL [v0.2]:
+-- The until condition is the actual convergence criterion (empty ready set).
+-- Individual cell oracles provide feedback signals but don't independently
+-- block freezing within the loop.
+
+-- ═══════════════════════════════════════════════════════════════
+-- STATE TRACKING: content-addressable hash transitions
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= state-tracker
+  given read-graph→cells
+  given decide-freeze→frozen-outputs
+  yield frozen-count, quiescent
+
+  ⊢= frozen-count ← len(filter(read-graph→cells, c -> c has frozen outputs))
+  ⊢= quiescent ← frozen-count = len(read-graph→cells)
+
+  ⊨ frozen-count is a non-negative integer
+  ⊨ quiescent = true when all cells are frozen
+
+-- ═══════════════════════════════════════════════════════════════
+-- OBSERVATIONS
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= obs-metacircular
+  given §26-cell-zero-exerciser
+  yield observations
+
+  ⊢= observations ← "cell-zero's eval-one loop executed p1-parallel-confluence in 5 eval-one steps (frames 0-4). Each step is one complete cycle of cell-zero's phases: read-graph → check-inputs → pick-cell → evaluate → spawn-claims → check-claims → decide. The exerciser IS a Cell program — metacircular evaluation in action."
+
+⊢= obs-confluence
+  given §26-cell-zero-exerciser
+  yield observations
+
+  ⊢= observations ← "After config froze (frame 0), three cells became ready simultaneously: {poet, scientist, child}. Confluence guarantees any execution order produces the same final combine→document. We chose poet → scientist → child, but any of the 6 permutations yields an identical result. Proven: eval_diamond in Confluence.lean."
+
+⊢= obs-fusion-dispatch
+  given §26-cell-zero-exerciser
+  yield observations
+
+  ⊢= observations ← "The evaluate phase dispatches on cell type: config (hard, pass-through ⊢=) runs classically, poet/scientist/child (soft, ∴ body) require LLM interpretation, combine (hard, ⊢= concatenation) runs classically. This is the fusion property: BOTH substrates are required within a single program execution."
+
+⊢= obs-oracle-protocol
+  given §26-cell-zero-exerciser
+  yield observations
+
+  ⊢= observations ← "Each eval-one step spawns claim cells from the target cell's ⊨ oracles. 8 total oracle checks across 5 frames: config(1), poet(2), scientist(2), child(2), combine(1). All passed — no retries triggered. The claim cell protocol verifies tentative outputs before freezing. File-scope ⊨? provides the safety net if any check fails."
+
+⊢= obs-guard-gated-decide
+  given §26-cell-zero-exerciser
+  yield observations
+
+  ⊢= observations ← "The decide phase uses v0.2 guard clauses: decide-freeze fires when all-pass = true, decide-rewrite fires when all-pass = false. Only one executes per eval-one step. The other's yields become ⊥. This replaces R16's single decide cell with procedural if/else in the ∴ body — cleaner, zero wasted LLM calls on the untaken branch."
+
+⊢= obs-aspirational-oracles
+  given §26-cell-zero-exerciser
+  yield observations
+
+  ⊢= observations ← "The ⊢∘ eval-one-loop wraps the entire evaluation cycle. Oracles on ⊢∘-managed cells are ASPIRATIONAL [v0.2] — they describe target quality but don't independently gate freezing. The until condition (ready-set = []) is the actual convergence criterion. This prevents oracle failures on intermediate iterations from blocking the evaluation loop."
+
+⊢= obs-state-progression
+  given §26-cell-zero-exerciser
+  yield observations
+
+  ⊢= observations ← "State transitions: h0(all unexecuted) → h1(config frozen) → h2(+poet) → h3(+scientist) → h4(+child) → h5(+combine, quiescent). Each transition is a content-addressable hash step. The document IS the state. 5 eval-one steps, 5 hash transitions, monotonically growing frozen set."

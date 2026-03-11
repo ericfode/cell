@@ -1,0 +1,272 @@
+-- 24-proof-carrying-code.cell (R17, v0.2)
+-- Merge two sorted lists. Generate code + formal correctness argument.
+-- Validate argument structure. If gap: regenerate that part. Code + proof
+-- ship together as a proof-carrying certificate.
+--
+-- Tests: proof-carrying computation, ⊢∘ evolution loop on proof gaps,
+--        ⊢= crystallized verifiers, oracle-gated correctness, § quotation,
+--        guard clauses (v0.2), file-scope ⊨? (v0.2)
+--
+-- Cell's killer pattern: LLM generates code+proof (NP), crystallized
+-- verifier structurally checks the proof (P). Gaps trigger regeneration.
+--
+-- v0.2 changes from R16:
+--   - Added file-scope ⊨? recovery policy (moved from bottom-of-file to top,
+--     v0.2 blesses file-scope ⊨? as default for all cells without local ⊨?)
+--   - ⊢∘ evolve naming explicitly blessed (v0.2 arbitrary label rule)
+--   - Oracles on generate-proof (⊢∘ target) are aspirational (v0.2 rule:
+--     ⊢∘-managed cells' ⊨ are feedback signals, not hard gates)
+--   - verify-proof ⊢= bodies AUDITED against v0.2 expression language:
+--     R16 used undefined functions (proof-covers, has-loop-invariant, etc).
+--     These require semantic judgment → HONESTLY reclassified as ∴ (soft).
+--     Structural checks rewritten using v0.2 ⊢= primitives (contains, all,
+--     any, len). verify-proof is now a TWO-CELL split: structural checks
+--     (⊢= valid) + semantic gap-finding (∴ honest).
+--   - fill-gaps: guard clause (v0.2) gates on verdict ≠ "proof complete" —
+--     if proof is already complete, fill-gaps is skipped (yields ⊥)
+--   - assemble-certificate: given? fill-gaps→proof-patch tolerates ⊥
+--     when fill-gaps is skipped by guard
+--   - ⊨? on exhaustion: partial-accept(best) unchanged (v0.2 blesses predicates)
+
+⊨? on failure:
+  retry with «oracle.failures» appended to prompt
+  max 3 attempts
+⊨? on exhaustion:
+  partial-accept(best)
+
+⊢ spec
+  given description ≡ "merge two sorted lists into one sorted list"
+  given signature ≡ "merge_sorted(a: int[], b: int[]) -> int[]"
+  given preconditions ≡ "a is sorted ascending, b is sorted ascending"
+  given postconditions ≡ "result is sorted ascending, result is a permutation of a ++ b"
+  yield description, signature, preconditions, postconditions
+
+  ⊨ description specifies the algorithm, inputs, and output
+  ⊨ signature has typed parameters and return type
+  ⊨ preconditions constrain both input lists
+  ⊨ postconditions specify sortedness and permutation properties
+
+⊢ generate-code
+  given spec→description
+  given spec→signature
+  given spec→preconditions
+  yield §implementation, code-text
+
+  ∴ Write a correct implementation of «spec→signature» that satisfies:
+    «spec→description»
+    Preconditions: «spec→preconditions»
+
+    Use a two-pointer merge algorithm. Walk both lists simultaneously,
+    always appending the smaller head element. When one list is exhausted,
+    append the remainder of the other. The implementation must:
+    - Maintain two indices i, j starting at 0
+    - Compare a[i] vs b[j], append the smaller, advance that pointer
+    - Handle exhaustion of either list
+    - Return the merged result
+
+    Output the code as a Cell ⊢= expression.
+
+  ⊨ code-text contains a loop or iterative structure
+  ⊨ code-text compares elements from both lists
+  ⊨ code-text handles the case when one list is exhausted before the other
+
+⊢ generate-tests
+  given spec→signature
+  given spec→preconditions
+  given spec→postconditions
+  yield test-cases[], properties[]
+
+  ∴ Generate test cases for «spec→signature».
+
+    Properties to test:
+    1. Sorted output: result must be in ascending order
+    2. Permutation: result contains exactly the elements of a ++ b
+    3. Length: len(result) = len(a) + len(b)
+    4. Empty left: merge([], b) = b
+    5. Empty right: merge(a, []) = a
+    6. Both empty: merge([], []) = []
+    7. Interleaved: elements from a and b alternate in result
+    8. Duplicates: repeated values across lists handled correctly
+
+    For each property, generate 2-3 concrete test cases with
+    { input-a, input-b, expected-output }.
+
+  ⊨ length(test-cases) ≥ 12
+  ⊨ properties covers sorted, permutation, empty, and duplicate cases
+  ⊨ each test-case has input-a (sorted), input-b (sorted), and expected-output (sorted)
+
+⊢ run-tests
+  given generate-code→code-text
+  given generate-tests→test-cases
+  yield results[], pass-count, fail-count, failure-details[]
+
+  ∴ Simulate executing «generate-code→code-text» on each test case
+    in «generate-tests→test-cases». For each test:
+    - Trace through the merge with the given inputs
+    - Record the actual output
+    - Compare to expected-output
+    - If mismatch: record failure with pointer positions showing divergence
+
+  ⊨ length(results) = length(generate-tests→test-cases)
+  ⊨ pass-count + fail-count = length(results)
+  ⊨ if fail-count > 0 then length(failure-details) = fail-count
+
+⊢ generate-proof
+  given generate-code→code-text
+  given spec→preconditions
+  given spec→postconditions
+  given run-tests→pass-count
+  yield proof-argument, invariants[], termination-argument, properties-proved[]
+
+  ∴ Given the code «generate-code→code-text» that passes «run-tests→pass-count»
+    tests, generate a formal correctness argument.
+
+    The proof must establish:
+    1. **Loop invariant**: At each step, result[0..k] is sorted and contains
+       exactly the elements taken so far from a[0..i] and b[0..j].
+    2. **Sortedness preservation**: Since a[i] ≤ a[i+1] and b[j] ≤ b[j+1],
+       appending min(a[i], b[j]) maintains sorted order in result.
+    3. **Permutation**: Every element of a and b appears exactly once in result.
+       i + j = k at each step; final k = len(a) + len(b).
+    4. **Termination**: i + j increases by 1 each iteration, bounded by
+       len(a) + len(b). Loop terminates when both lists exhausted.
+    5. **Postcondition**: At termination, result is sorted ∧ result is
+       permutation of a ++ b. Follows from invariant + termination.
+
+    Express each step as a logical proposition with justification.
+
+  -- v0.2: these oracles are ASPIRATIONAL — generate-proof is ⊢∘ target.
+  -- They serve as feedback signals for the evolution loop, not hard gates.
+  ⊨ proof-argument contains at least 5 logical steps
+  ⊨ invariants includes a loop invariant referencing i, j, and result
+  ⊨ termination-argument identifies a quantity that increases monotonically
+  ⊨ properties-proved includes "sortedness" and "permutation"
+
+⊢ verify-proof-structure ▸ crystallized
+  given generate-proof→proof-argument
+  given generate-proof→invariants
+  given generate-proof→termination-argument
+  given generate-proof→properties-proved
+  yield struct-valid, step-count, has-invariant, has-termination, covers-required
+
+  -- v0.2: ⊢= bodies use ONLY valid primitives (contains, any, all, len).
+  -- R16's verify-proof used undefined functions (proof-covers, has-loop-invariant,
+  -- invariant-references, has-monotone-quantity, has-upper-bound, missing-from).
+  -- Those require semantic judgment → split into structural (here) + semantic (below).
+
+  ⊢= step-count ← len(split(proof-argument, "**"))  / 2
+  ⊢= has-invariant ← any(invariants, fn(inv) → contains(inv, "i") and contains(inv, "j") and contains(inv, "result"))
+  ⊢= has-termination ← contains(termination-argument, "increase") or contains(termination-argument, "monoton") or contains(termination-argument, "decrease") or contains(termination-argument, "bound")
+  ⊢= covers-required ← any(properties-proved, fn(p) → contains(lower(p), "sorted")) and any(properties-proved, fn(p) → contains(lower(p), "permutation"))
+  ⊢= struct-valid ← step-count >= 5 and has-invariant and has-termination and covers-required
+
+  ⊨ struct-valid = true or struct-valid = false
+
+⊢ verify-proof-gaps
+  given generate-proof→proof-argument
+  given generate-code→code-text
+  given verify-proof-structure→struct-valid
+  yield gaps[], verdict
+
+  -- v0.2: semantic gap-finding HONESTLY marked as soft (∴).
+  -- R16 pretended this was ⊢= with undefined functions like missing-from().
+  -- Finding gaps in a proof requires reading and understanding the argument.
+
+  ∴ Examine «generate-proof→proof-argument» for completeness.
+    Check whether each of these required proof components is present AND
+    well-argued (not just mentioned):
+    1. loop-invariant — stated and justified
+    2. sortedness-preservation — shows why appending min preserves order
+    3. permutation — shows every element appears exactly once
+    4. termination — identifies decreasing/increasing measure with bound
+    5. postcondition-discharge — connects invariant + termination to spec
+
+    For each component that is missing or inadequately argued, add it to gaps.
+
+    If «verify-proof-structure→struct-valid» is false AND gaps is empty,
+    add "structural-deficiency" to gaps.
+
+    verdict:
+    - "proof complete" if struct-valid = true and gaps = []
+    - "proof valid with gaps" if struct-valid = true and len(gaps) > 0
+    - "proof incomplete" if struct-valid = false
+
+  ⊨ verdict ∈ {"proof complete", "proof valid with gaps", "proof incomplete"}
+  ⊨ if verdict = "proof complete" then len(gaps) = 0
+  ⊨ if verdict = "proof incomplete" then len(gaps) ≥ 1
+
+⊢ fill-gaps
+  given verify-proof-gaps→gaps
+  given verify-proof-gaps→verdict where verdict != "proof complete"
+  given generate-proof→proof-argument
+  given generate-code→code-text
+  given spec→preconditions
+  yield proof-patch, patched-steps[]
+
+  -- v0.2: guard clause on verdict. If verdict = "proof complete", this cell
+  -- is SKIPPED and yields ⊥. assemble-certificate uses given? to tolerate this.
+
+  ∴ For each gap in «verify-proof-gaps→gaps»:
+    - Identify what the proof is missing
+    - Write the missing argument step, referencing «generate-code→code-text»
+      and «spec→preconditions»
+    - Each patched step must be a self-contained logical argument
+
+    The patch is ADDITIVE — it supplements the existing proof, not replaces it.
+
+  ⊨ length(patched-steps) = length(verify-proof-gaps→gaps)
+  ⊨ each patched-step references the specific gap it addresses
+
+⊢∘ evolve(generate-proof, spec→preconditions ≡ spec→preconditions)
+  through verify-proof-structure, verify-proof-gaps, fill-gaps
+  until verify-proof-gaps→verdict = "proof complete"
+  max 3
+
+  -- Each iteration: generate proof → verify structure → find gaps → fill gaps.
+  -- The gap-fills feed back into the proof for re-verification.
+  --
+  -- Interface frozen: generate-proof always takes code-text,
+  -- preconditions, postconditions, pass-count. Only the argument evolves.
+  --
+  -- Termination: when proof is complete (no gaps) or max 3 iterations.
+  --
+  -- v0.2: generate-proof's ⊨ oracles are aspirational under ⊢∘ management.
+  -- fill-gaps guard clause: if proof already complete, fill-gaps is skipped
+  -- (yields ⊥) and the loop terminates via the until condition.
+
+⊢ assemble-certificate
+  given generate-code→code-text
+  given? fill-gaps→proof-patch
+  given generate-proof→proof-argument
+  given generate-proof→properties-proved
+  given verify-proof-gaps→verdict
+  given verify-proof-gaps→gaps
+  given run-tests→pass-count
+  yield certificate, confidence-level
+
+  -- v0.2: given? fill-gaps→proof-patch tolerates ⊥.
+  -- When proof is complete on first pass, fill-gaps is guard-skipped (yields ⊥).
+  -- assemble-certificate handles this: proof-patch = ⊥ means "no patches needed".
+
+  ∴ Assemble a proof-carrying certificate for «generate-code→code-text»:
+
+    Certificate contains:
+    1. The verified merge implementation
+    2. The correctness argument (original + patches if «fill-gaps→proof-patch» ≠ ⊥)
+    3. Test results: «run-tests→pass-count» tests passing
+    4. Proof verification verdict: «verify-proof-gaps→verdict»
+    5. Remaining gaps (if any): «verify-proof-gaps→gaps»
+    6. Properties proved: «generate-proof→properties-proved»
+
+    Confidence level:
+    - "high" if verdict = "proof complete" and pass-count ≥ 12
+    - "medium" if verdict = "proof valid with gaps" and pass-count ≥ 8
+    - "low" if verdict = "proof incomplete" or pass-count < 8
+
+    This certificate is the deliverable: code + proof ship together.
+    The LLM generated the solution (NP). The crystallized verifier
+    checked the proof structure (P). Tests provide empirical evidence.
+
+  ⊨ certificate includes code, proof, test-count, verdict, and properties-proved
+  ⊨ confidence-level ∈ {"high", "medium", "low"}
+  ⊨ if verify-proof-gaps→verdict = "proof complete" and run-tests→pass-count ≥ 12 then confidence-level = "high"

@@ -1,0 +1,224 @@
+-- 27-self-optimizing-cell.cell (R17, v0.2)
+-- Tests: ⊢∘ as critic-redesign loop, §-quotation for program-as-data,
+--        ⊢= crystallized comparison, oracle-driven semantic preservation,
+--        self-referential program analysis, ⊢= expression language compliance
+--
+-- Takes p2-spawner-cascade.cell from R15. Analyzes for redundant cells,
+-- tautological oracles, unnecessary deps. Removes them. Re-executes
+-- optimized version. Compares output. If different: revert, try different
+-- optimization. ⊢∘ loop until semantics-preserving optimization found.
+--
+-- v0.2 changes from R16:
+--   - Added file-scope ⊨? recovery policy [v0.2 blesses file-scope ⊨?]
+--   - ⊢∘ optimize naming explicitly blessed [v0.2 arbitrary label rule]
+--   - Oracles on propose-optimization (⊢∘ target) are aspirational [v0.2]
+--   - compare cell: fixed false crystallization — semantic-equivalence
+--     judgment moved from ⊢= to ∴ (soft). ⊢= bodies now use only valid
+--     expression language primitives [v0.2 ⊢= expression language]
+--   - ⊢⊢ in quoted program: explicit accumulate [v0.2 accumulate/replace]
+--   - Wildcard deps in quoted program already compliant (cell-*→field)
+--   - Guard clauses not applicable (no conditional dispatch needed)
+--   - given? not applicable (no ⊥-tolerant cells needed)
+
+⊨? on failure:
+  retry with «oracle.failures» appended to prompt
+  max 3 attempts
+⊨? on exhaustion:
+  error-value(⊥)
+
+⊢ source-program
+  yield §program, program-text
+
+  ⊢= §program ← §p2-spawner-cascade
+  ⊢= program-text ← "
+    ⊢ topic
+      given subject ≡ \"Why do cats purr?\"
+      yield subject, depth
+      ⊢= depth ← 1
+      ⊨ depth = 1
+
+    ⊢⊢ decompose
+      given topic→subject
+      given topic→depth
+      yield sub-questions[]
+      until len(sub-questions) ≥ 3
+      max 5
+      accumulate
+      ∴ Break «topic→subject» into 3 independent sub-questions.
+        Each sub-question should be answerable on its own.
+        Each sub-question should cover a different aspect.
+      ⊨ len(sub-questions) ≥ 3
+      ⊨ each sub-question is a complete question
+
+    ⊢ synthesize
+      given decompose→sub-questions
+      given answer-*→response
+      yield summary
+      ∴ Given these sub-answers about «topic→subject»:
+        «answer-*→response»
+        Synthesize into a single coherent 3-sentence explanation.
+      ⊨ summary is 3 sentences
+      ⊨ summary addresses the original question
+      ⊨? on failure:
+        retry with \"Be more concise — exactly 3 sentences\" appended
+        max 2
+      ⊨? on exhaustion:
+        partial-accept(best)
+  "
+
+  ⊨ contains(program-text, "⊢")
+  ⊨ §program is a valid Cell program
+
+⊢ analyze-redundancy
+  given §source-program→§program
+  given source-program→program-text
+  yield redundancies[], tautologies[], unnecessary-deps[], analysis
+
+  ∴ Read «source-program→program-text» carefully. Identify:
+
+    1. REDUNDANT CELLS: cells whose output could be inlined or eliminated
+       without changing the program's semantics. Look for cells that just
+       pass through a value without transformation.
+
+    2. TAUTOLOGICAL ORACLES: ⊨ assertions that are trivially true given
+       the cell's own definition. Example: ⊢= depth ← 1 followed by
+       ⊨ depth = 1 — the oracle just restates the binding.
+
+    3. UNNECESSARY DEPENDENCIES: given clauses that reference values
+       the cell body never uses, or dependencies that are redundant
+       because they're already transitively available.
+
+    For each finding, explain:
+    - What it is and where it occurs
+    - Why it is redundant/tautological/unnecessary
+    - What the safe removal looks like
+
+  ⊨ analysis explains each finding with specific references to cells
+  ⊨ each redundancy has a proposed removal that preserves semantics
+
+⊢ propose-optimization
+  given source-program→program-text
+  given analyze-redundancy→redundancies
+  given analyze-redundancy→tautologies
+  given analyze-redundancy→unnecessary-deps
+  given analyze-redundancy→analysis
+  yield §optimized, optimized-text, changes[]
+
+  ∴ Using the analysis from «analyze-redundancy→analysis», produce an
+    optimized version of the program. Apply these optimizations:
+
+    - Remove tautological oracles (they add no verification value)
+    - Remove unnecessary dependencies (they add false scheduling constraints)
+    - Inline or merge redundant cells (reduce graph complexity)
+
+    The optimized version MUST preserve:
+    - The same external behavior (same final outputs)
+    - The same spawner semantics (⊢⊢ still spawns the same pattern)
+    - All non-tautological oracles
+    - The same ⊨? recovery policies
+
+    Output the full optimized program text and a list of changes made.
+
+  -- Under ⊢∘ management, these oracles are aspirational [v0.2]:
+  ⊨ optimized-text is valid Cell syntax
+  ⊨ length(optimized-text) < length(«source-program→program-text»)
+  ⊨ changes describes each modification made
+
+⊢ execute-original
+  given source-program→program-text
+  yield original-output, original-steps
+
+  ∴ Simulate eval-one on the original program «source-program→program-text».
+    Walk through the Kahn's algorithm execution:
+    1. Find ready cells (all givens bound)
+    2. Evaluate one
+    3. Check oracles
+    4. Freeze yields
+    Track: final synthesize→summary output and total eval-one steps taken.
+
+  ⊨ original-output is the final summary from synthesize
+  ⊨ original-steps counts each eval-one step
+
+⊢ execute-optimized
+  given propose-optimization→optimized-text
+  yield optimized-output, optimized-steps
+
+  ∴ Simulate eval-one on the optimized program «propose-optimization→optimized-text».
+    Same procedure as execute-original.
+    Track: final output and total eval-one steps taken.
+
+  ⊨ optimized-output is the final summary from the optimized program
+  ⊨ optimized-steps counts each eval-one step
+
+⊢ compare-semantics
+  given execute-original→original-output
+  given execute-optimized→optimized-output
+  yield semantics-preserved
+
+  ∴ Compare «execute-original→original-output» and «execute-optimized→optimized-output».
+    Do they address the same question with equivalent factual content?
+    Are the same topics covered? Is the information consistent?
+    Yield true if the outputs are semantically equivalent, false otherwise.
+
+  ⊨ semantics-preserved is true or false
+
+⊢ compare-steps ▸ crystallized
+  given execute-original→original-steps
+  given execute-optimized→optimized-steps
+  yield step-delta
+
+  ⊢= step-delta ← execute-original→original-steps - execute-optimized→optimized-steps
+
+⊢ verdict ▸ crystallized
+  given compare-semantics→semantics-preserved
+  given compare-steps→step-delta
+  yield judgment
+
+  ⊢= judgment ← if compare-semantics→semantics-preserved and compare-steps→step-delta > 0
+       then "optimization valid: fewer steps, same semantics"
+       else if compare-semantics→semantics-preserved and compare-steps→step-delta = 0
+       then "optimization valid: cleaner code, same steps"
+       else if not compare-semantics→semantics-preserved
+       then "optimization invalid: semantics changed"
+       else "optimization neutral: no improvement"
+
+  ⊨ judgment != ""
+
+⊢∘ optimize(propose-optimization, source-program→program-text)
+  through analyze-redundancy, propose-optimization, execute-original, execute-optimized, compare-semantics, compare-steps, verdict
+  until compare-semantics→semantics-preserved and compare-steps→step-delta >= 0
+  max 3
+
+  -- On each iteration:
+  --   If semantics changed: revert, try less aggressive optimization
+  --   If step-delta < 0: revert, optimization made things worse
+  --   Feed verdict→judgment back to analyze-redundancy as context
+
+  ⊨? on failure:
+    retry with "Previous optimization changed semantics: «verdict→judgment».
+      Try a more conservative set of changes." appended
+    max 2
+  ⊨? on exhaustion:
+    partial-accept(best where compare-semantics→semantics-preserved = true)
+
+⊢ report
+  given source-program→program-text
+  given propose-optimization→optimized-text
+  given propose-optimization→changes
+  given verdict→judgment
+  given compare-steps→step-delta
+  given compare-semantics→semantics-preserved
+  yield summary, optimized-program
+
+  ∴ Summarize the self-optimization process:
+    - What redundancies were found in the original program
+    - What changes were applied: «propose-optimization→changes»
+    - Whether semantics were preserved: «compare-semantics→semantics-preserved»
+    - Step reduction: «compare-steps→step-delta»
+    - Final verdict: «verdict→judgment»
+
+    If the optimization was valid, output the final optimized program.
+    If not, output the original with annotations of what cannot be safely removed.
+
+  ⊨ summary references specific cells and oracles by name
+  ⊨ optimized-program is valid Cell syntax

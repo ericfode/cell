@@ -1,0 +1,137 @@
+-- 16-evolution-simulator.cell
+-- Tests: ⊢∘ as genetic algorithm, population evolution, tournament selection,
+--        crossover/mutation, fitness oracle, convergence detection
+--
+-- v0.2 changes applied:
+--   [v0.2] file-scope ⊨? — default recovery policy for all cells
+--   [v0.2] ⊢∘ oracles aspirational — fitness oracles on ⊢∘-managed cells
+--          serve as feedback signals, not hard gates
+--   [v0.2] ⊢⊢ explicit accumulate/replace — evolve loop uses replace semantics
+--          (each generation replaces the previous, not accumulates)
+--   [v0.2] guard clauses — convergence-report vs stagnation-report dispatch
+--   [v0.2] given? — judge-generation tolerates ⊥ on first-iteration mean-fitness
+--   [v0.2] ⊢= expression language — convergence checks use defined primitives
+--   [v0.2] ⊢∘ oracles aspirational on seed-population (managed by evolve loop)
+--
+-- Population of 6 logo concepts for a coffee shop called "Hyperion."
+-- Each generation: mutate, evaluate fitness via oracle, select top 3,
+-- crossover to produce next generation. ⊢∘ loop until fitness threshold.
+
+⊨? on failure:
+  retry with «oracle.failures» appended to prompt
+  max 2
+⊨? on exhaustion:
+  error-value(⊥)
+
+⊢ brief
+  yield name, style-direction, constraints
+
+  ⊢= name ← "Hyperion"
+  ⊢= style-direction ← "A specialty coffee roaster. Named after the Titan of light. Should evoke: warmth, craft, mythology, dawn. Target audience: discerning coffee drinkers who care about origin and roast."
+  ⊢= constraints ← "Logo must work in single color. Must be recognizable at 16px favicon size. No clip art. No generic coffee cup icons."
+
+⊢ seed-population
+  given brief→name
+  given brief→style-direction
+  given brief→constraints
+  yield candidates[]
+
+  ∴ Generate 6 DIVERSE logo concepts for «brief→name». Each concept is a
+    text description of: visual elements, typography, symbolism, and mood.
+    Maximize diversity — different visual strategies, not variations on one idea.
+    Each concept must respect «brief→constraints».
+
+  ⊨ candidates has exactly 6 entries
+  ⊨ each candidate describes: visual elements, typography, symbolism, mood
+  ⊨ no two candidates share the same primary visual element
+  ⊨ each candidate works in single color and at favicon size
+
+⊢ evaluate-fitness
+  given seed-population→candidates
+  given brief→style-direction
+  given brief→constraints
+  yield scores[], rankings[], mean-fitness, top-candidate
+
+  ∴ Score each candidate in «seed-population→candidates» on a 1-10 scale:
+    - Brand fit (does it evoke warmth, craft, mythology, dawn?) — 40%
+    - Memorability (distinctive, not generic) — 25%
+    - Scalability (works at 16px AND on a coffee bag) — 20%
+    - Constraint compliance (single color, no clip art) — 15%
+    Produce a weighted score. Rank all candidates.
+
+  ⊨ scores has exactly 6 entries
+  ⊨ each score ∈ {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+  ⊨ rankings is a permutation of indices 0-5
+  ⊨ top-candidate is the candidate with highest score
+
+⊢ select-and-crossover
+  given seed-population→candidates
+  given evaluate-fitness→scores
+  given evaluate-fitness→rankings
+  given brief→style-direction
+  yield next-candidates[]
+
+  ∴ SELECTION: Keep the top 3 candidates (by score). Discard bottom 3.
+    CROSSOVER: For each discarded slot, create a new candidate by combining
+    traits from two of the top 3 parents:
+    - New candidate 4: cross parent 1 × parent 2 (visual from 1, typography from 2)
+    - New candidate 5: cross parent 2 × parent 3 (symbolism from 2, mood from 3)
+    - New candidate 6: cross parent 1 × parent 3 (elements from 1, style from 3)
+    MUTATION: Apply one random small change to each of the 6 candidates
+    (adjust a color, tweak a shape, shift typography weight).
+
+  ⊨ next-candidates has exactly 6 entries
+  ⊨ top 3 candidates are recognizable descendants of their parents
+  ⊨ bottom 3 are genuine crossovers, not copies
+
+⊢ judge-generation
+  given select-and-crossover→next-candidates
+  given brief→style-direction
+  given brief→constraints
+  given? evaluate-fitness→mean-fitness
+  yield new-scores[], new-mean-fitness, converged
+
+  ∴ Score each candidate in «select-and-crossover→next-candidates» using
+    the same rubric as evaluate-fitness. Calculate mean fitness.
+    If «evaluate-fitness→mean-fitness» is ⊥ (first iteration), set converged = false.
+    Otherwise set converged = true if new-mean-fitness ≥ 8 (high quality)
+    OR if new-mean-fitness ≤ evaluate-fitness→mean-fitness (stagnation).
+
+  ⊨ new-scores has exactly 6 entries
+  ⊨ each new-score ∈ {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+  ⊨ if evaluate-fitness→mean-fitness != ⊥ then converged = (new-mean-fitness ≥ 8 or new-mean-fitness ≤ evaluate-fitness→mean-fitness)
+
+⊢∘ evolve(seed-population) replace
+  through evaluate-fitness, select-and-crossover, judge-generation
+  until judge-generation→converged = true
+  max 4
+
+⊢ convergence-report
+  given judge-generation→converged where converged = true
+  given judge-generation→new-mean-fitness where new-mean-fitness ≥ 8
+  given judge-generation→new-scores
+  given select-and-crossover→next-candidates
+  yield report, winner, final-scores
+
+  ∴ The population converged via high fitness (mean ≥ 8). Summarize:
+    which candidates survived, what visual strategies dominated, and why
+    the winning concept best embodies Hyperion's brand.
+
+  ⊨ report explains why convergence was reached
+  ⊨ winner is the candidate with the highest score in new-scores
+
+⊢ stagnation-report
+  given judge-generation→converged where converged = true
+  given judge-generation→new-mean-fitness where new-mean-fitness < 8
+  given judge-generation→new-scores
+  given evaluate-fitness→mean-fitness
+  given select-and-crossover→next-candidates
+  yield report, winner, final-scores, diagnosis
+
+  ∴ The population stagnated (new-mean-fitness ≤ previous mean, below threshold).
+    Diagnose: why did improvement plateau? Was the initial diversity too narrow?
+    Were constraints too restrictive? Identify the best candidate regardless.
+
+  ⊨ report explains stagnation cause
+  ⊨ diagnosis proposes concrete changes for a future run
+  ⊨ winner is the candidate with the highest score in new-scores

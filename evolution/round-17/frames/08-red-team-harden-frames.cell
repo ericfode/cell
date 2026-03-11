@@ -1,0 +1,1178 @@
+-- 08-red-team-harden-frames.cell (R17, v0.2)
+-- Execution trace of 08-red-team-harden.cell via eval-one
+--
+-- v0.2 execution notes:
+--   - File-scope ⊨? active: all cells get retry-3 + error-value(⊥) default
+--   - verify-patch overrides with its own ⊨? (retry max 2)
+--   - ⊢⊢ spawn-regression-test uses `accumulate` mode — spawned cells persist
+--   - Guard clauses on harden, verify-patch, spawn-regression-test, security-report
+--     prevent evaluation when red-team→vulnerability = "none"
+--   - given? on regression-test wildcards: tolerates ⊥ / empty set
+--   - Oracles on ⊢∘-managed cells (red-team, harden) are aspirational
+--   - ⊢∘ label is "harden-loop" (v0.2 blesses arbitrary labels)
+--
+-- Code under test: naive Python login function
+--   def login(username, password):
+--       if users[username] == password:
+--           return create_session(username)
+
+-- ═══════════════════════════════════════════════════════════════
+-- READY SET ANALYSIS (initial state)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready: { target-code }
+--   target-code has given code ≡ "..." (pre-bound), no upstream deps.
+-- Blocked:
+--   red-team: needs target-code→code (not yet frozen)
+--   harden: needs red-team→vulnerability (not yet frozen) + guard
+--   verify-patch: needs harden→patched-code (not yet frozen) + guard
+--   spawn-regression-test: needs red-team→vulnerability (not yet frozen) + guard
+--   security-report: needs red-team→vulnerability (not yet frozen) + guard
+--   regression-test-template: is a §-quoted template, never directly ready
+-- Quiescent: { regression-test-template } (template only, activated by ⊢⊢)
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 0: evaluate target-code (trivial pass-through)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { target-code }
+
+⊢ target-code
+  given code ≡ "def login(username, password):
+    if users[username] == password:
+        return create_session(username)"
+  yield code
+
+-- eval-one: pass-through. code already bound via given ≡.
+
+  yield code ≡ "def login(username, password):
+    if users[username] == password:
+        return create_session(username)"
+
+-- oracle checks:
+--   ⊨ code is a callable function definition → ✓
+--   ⊨ code handles authentication logic → ✓
+
+-- state after frame 0: target-code frozen.
+-- Ready set: { red-team }
+--   red-team: target-code→code now frozen. given? regression-test-*→passes
+--   resolves to [] (no regression test cells exist yet). given? tolerates this.
+-- Blocked: harden, verify-patch, spawn-regression-test, security-report
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 1: evaluate red-team (soft cell, LLM) — ⊢∘ ITERATION 1
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { red-team }
+-- ⊢∘ harden-loop iteration 1 begins.
+
+⊢ red-team
+  given target-code→code ≡ "def login(username, password):
+    if users[username] == password:
+        return create_session(username)"
+  given? regression-test-*→passes ≡ []
+  given? regression-test-*→explanation ≡ []
+  yield vulnerability, exploit, severity, category
+
+  ∴ You are a security red-teamer. Examine the code for the SINGLE
+    most critical vulnerability...
+
+-- LLM evaluation:
+
+  yield vulnerability ≡ "KeyError on nonexistent username: the dictionary lookup users[username] raises KeyError if the username does not exist, leaking that the user is not registered and crashing the function with an unhandled exception."
+
+  yield exploit ≡ "An attacker sends login('nonexistent_user', 'anything'). The function crashes with KeyError, producing a 500 error. The attacker learns the username doesn't exist (information leak) and can enumerate valid usernames by distinguishing KeyError responses from password-mismatch responses. This also enables a denial-of-service by sending many requests with random usernames."
+
+  yield severity ≡ "critical"
+
+  yield category ≡ "auth-bypass"
+
+-- oracle checks (ASPIRATIONAL under ⊢∘):
+--   ⊨ vulnerability describes a specific security flaw or is "none" → ✓
+--     (KeyError on nonexistent username is specific)
+--   ⊨ exploit is a concrete attack scenario → ✓
+--     (specific function call with expected crash behavior)
+--   ⊨ severity ∈ { "critical", "high", "medium", "low" } → ✓ ("critical")
+--   ⊨ category ∈ { "injection", "auth-bypass", "info-leak", "dos", "logic" } → ✓ ("auth-bypass")
+
+-- state after frame 1: red-team frozen.
+-- Guard evaluation:
+--   harden: given red-team→vulnerability where vulnerability != "none"
+--     → "KeyError on nonexistent username..." != "none" → TRUE → enters ready set
+--   verify-patch: guard also checks vulnerability != "none" → TRUE
+--     but still blocked on harden→patched-code
+--   spawn-regression-test: guard checks vulnerability != "none" → TRUE
+--     but still blocked on harden→patched-code
+--   security-report: guard checks vulnerability = "none" → FALSE → SKIPPED (for now)
+--     (security-report will re-evaluate its guard on each ⊢∘ iteration)
+-- Ready set: { harden }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 2: evaluate harden (soft cell, LLM) — ⊢∘ ITERATION 1
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { harden }
+
+⊢ harden
+  given red-team→vulnerability ≡ "KeyError on nonexistent username: the dictionary lookup users[username] raises KeyError if the username does not exist..."
+  given red-team→exploit ≡ "An attacker sends login('nonexistent_user', 'anything')..."
+  given red-team→category ≡ "auth-bypass"
+  given target-code→code ≡ "def login(username, password):
+    if users[username] == password:
+        return create_session(username)"
+  given? regression-test-*→passes ≡ []
+  given? regression-test-*→explanation ≡ []
+  yield patched-code, patch-description
+
+  ∴ Read the vulnerability. Produce a patched version that fixes THIS
+    vulnerability WITHOUT breaking existing regression tests...
+
+-- LLM evaluation:
+
+  yield patched-code ≡ "def login(username, password):
+    if username not in users:
+        return None
+    if users[username] == password:
+        return create_session(username)
+    return None"
+
+  yield patch-description ≡ "Added explicit membership check (username not in users) before dictionary access. Returns None for both nonexistent users and wrong passwords, eliminating the KeyError crash and preventing username enumeration by making both failure modes indistinguishable. Added explicit return None for password mismatch to avoid implicit None return ambiguity."
+
+-- oracle checks (ASPIRATIONAL under ⊢∘):
+--   ⊨ patched-code is valid Python → ✓
+--   ⊨ patched-code fixes the identified vulnerability → ✓ (membership check before access)
+--   ⊨ patch-description explains what changed and why → ✓
+--   ⊨ patched-code preserves correct login behavior → ✓ (valid credentials still work)
+
+-- state after frame 2: harden frozen.
+-- Ready set: { verify-patch, spawn-regression-test }
+--   Both now have all required deps frozen and guards passed.
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 3: evaluate verify-patch (soft cell, LLM) — ⊢∘ ITERATION 1
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { verify-patch, spawn-regression-test }
+-- Pick: verify-patch (verify before spawning regression test)
+
+⊢ verify-patch
+  given harden→patched-code ≡ "def login(username, password):
+    if username not in users:
+        return None
+    if users[username] == password:
+        return create_session(username)
+    return None"
+  given red-team→exploit ≡ "An attacker sends login('nonexistent_user', 'anything')..."
+  given red-team→vulnerability ≡ "KeyError on nonexistent username..."
+  given? regression-test-*→passes ≡ []
+  given? regression-test-*→explanation ≡ []
+  yield exploit-blocked, regressions-pass, new-issues[]
+
+  ∴ Test the patched code against the exploit, regression tests, and new issues...
+
+-- LLM evaluation:
+
+  yield exploit-blocked ≡ true
+
+  yield regressions-pass ≡ true
+
+  yield new-issues ≡ []
+
+-- oracle checks (cell-level ⊨? overrides file-scope: retry max 2):
+--   ⊨ exploit-blocked ∈ { true, false } → ✓ (true)
+--   ⊨ regressions-pass ∈ { true, false } → ✓ (true)
+--   ⊨ if not exploit-blocked then patch is insufficient → ✓ (vacuous, exploit IS blocked)
+--   ⊨ if not regressions-pass then patch introduces regression → ✓ (vacuous, regressions pass)
+
+-- state after frame 3: verify-patch frozen.
+-- Ready set: { spawn-regression-test }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 4: evaluate spawn-regression-test (⊢⊢ spawner) — ⊢∘ ITERATION 1
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { spawn-regression-test }
+
+⊢⊢ spawn-regression-test
+  given red-team→vulnerability ≡ "KeyError on nonexistent username..."
+  given red-team→exploit ≡ "An attacker sends login('nonexistent_user', 'anything')..."
+  given red-team→category ≡ "auth-bypass"
+  given harden→patched-code ≡ "def login(username, password):
+    if username not in users: ..."
+  given §regression-test-template
+  yield §new-regression-test
+  until length(new-regression-test) = 1
+  max 1
+  accumulate
+
+-- ⊢⊢ spawner fires: instantiates §regression-test-template with bindings:
+--   vulnerability-desc ← red-team→vulnerability
+--   exploit-scenario ← red-team→exploit
+--   category ← red-team→category
+--   code-to-test ← harden→patched-code
+-- Spawns: regression-test-0
+
+-- Spawned cell (added to graph):
+⊢ regression-test-0
+  given vulnerability-desc ≡ "KeyError on nonexistent username: the dictionary lookup users[username] raises KeyError if the username does not exist..."
+  given exploit-scenario ≡ "An attacker sends login('nonexistent_user', 'anything'). The function crashes with KeyError..."
+  given category ≡ "auth-bypass"
+  given code-to-test ≡ "def login(username, password):
+    if username not in users:
+        return None
+    if users[username] == password:
+        return create_session(username)
+    return None"
+  yield passes, explanation
+
+-- spawner check: length(new-regression-test) = 1 → ✓ → spawner complete.
+-- state after frame 4: spawn-regression-test frozen. regression-test-0 added to graph.
+-- Ready set: { regression-test-0 }
+--   regression-test-0 has all givens pre-bound (spawned with concrete values).
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 5: evaluate regression-test-0 (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { regression-test-0 }
+
+⊢ regression-test-0
+  given vulnerability-desc ≡ "KeyError on nonexistent username..."
+  given exploit-scenario ≡ "An attacker sends login('nonexistent_user', 'anything')..."
+  given category ≡ "auth-bypass"
+  given code-to-test ≡ "def login(username, password):
+    if username not in users:
+        return None
+    if users[username] == password:
+        return create_session(username)
+    return None"
+  yield passes, explanation
+
+  ∴ Test the code against the vulnerability using the exploit scenario...
+
+-- LLM evaluation:
+
+  yield passes ≡ true
+
+  yield explanation ≡ "Tested: login('nonexistent_user', 'anything'). The patched code checks 'username not in users' first and returns None without accessing the dictionary. No KeyError raised. The attacker receives the same None response for nonexistent users as for wrong passwords, preventing username enumeration. The vulnerability is mitigated."
+
+-- oracle checks:
+--   ⊨ passes ∈ { true, false } → ✓ (true)
+--   ⊨ explanation describes what was tested and the result → ✓
+
+-- state after frame 5: regression-test-0 frozen.
+-- ⊢∘ iteration 1 complete. All cells in `through` chain evaluated.
+-- ⊢∘ CHECK: red-team→vulnerability = "KeyError..." ≠ "none" → CONTINUE.
+-- ⊢∘ rewrites: target-code→code ← harden→patched-code (the patched version
+--   becomes the new code under test). Unfreezes red-team for next iteration.
+-- Wildcard regression-test-*→passes now resolves to [true] (1 test).
+-- Wildcard regression-test-*→explanation now resolves to ["Tested: login('nonexistent_user'...)..."] (1 test).
+-- Ready set: { red-team }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 6: evaluate red-team (soft cell, LLM) — ⊢∘ ITERATION 2
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { red-team }
+-- ⊢∘ harden-loop iteration 2 begins. Code under test is now the patched version.
+-- regression-test-0 is accumulated (persists from iteration 1).
+
+⊢ red-team
+  given target-code→code ≡ "def login(username, password):
+    if username not in users:
+        return None
+    if users[username] == password:
+        return create_session(username)
+    return None"
+  given? regression-test-*→passes ≡ [true]
+  given? regression-test-*→explanation ≡ ["Tested: login('nonexistent_user', 'anything'). No KeyError..."]
+  yield vulnerability, exploit, severity, category
+
+  ∴ You are a security red-teamer. Examine the code for the SINGLE
+    most critical vulnerability NOT already covered by regression tests...
+
+-- LLM evaluation:
+
+  yield vulnerability ≡ "Plaintext password comparison: passwords are stored and compared in plaintext via direct equality (users[username] == password). An attacker who gains read access to the users dictionary (via SQL injection, log exposure, backup leak, or memory dump) obtains every user's password in cleartext."
+
+  yield exploit ≡ "The attacker exploits any data exposure vector (e.g., a debug endpoint that dumps variables, a database backup, or a log file that accidentally includes the users dict) to read users['admin']. The password is stored in cleartext, so the attacker immediately has the admin password. No cracking needed — the password is usable as-is for login and likely reused on other services."
+
+  yield severity ≡ "critical"
+
+  yield category ≡ "info-leak"
+
+-- oracle checks (ASPIRATIONAL):
+--   ⊨ vulnerability describes a specific security flaw → ✓ (plaintext password storage)
+--   ⊨ exploit is a concrete attack scenario → ✓ (data exposure + direct read)
+--   ⊨ severity ∈ { "critical", "high", "medium", "low" } → ✓ ("critical")
+--   ⊨ category ∈ { "injection", "auth-bypass", "info-leak", "dos", "logic" } → ✓ ("info-leak")
+
+-- state after frame 6: red-team frozen (iteration 2).
+-- Guard evaluation:
+--   harden: vulnerability != "none" → TRUE → ready
+--   verify-patch: blocked on harden→patched-code
+--   spawn-regression-test: blocked on harden→patched-code
+--   security-report: vulnerability = "none" → FALSE → SKIPPED
+-- Ready set: { harden }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 7: evaluate harden (soft cell, LLM) — ⊢∘ ITERATION 2
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { harden }
+
+⊢ harden
+  given red-team→vulnerability ≡ "Plaintext password comparison: passwords are stored and compared in plaintext..."
+  given red-team→exploit ≡ "The attacker exploits any data exposure vector..."
+  given red-team→category ≡ "info-leak"
+  given target-code→code ≡ "def login(username, password):
+    if username not in users:
+        return None
+    if users[username] == password:
+        return create_session(username)
+    return None"
+  given? regression-test-*→passes ≡ [true]
+  given? regression-test-*→explanation ≡ ["Tested: login('nonexistent_user', 'anything'). No KeyError..."]
+  yield patched-code, patch-description
+
+  ∴ Produce a patched version that fixes the plaintext password vulnerability
+    without breaking the existing regression test...
+
+-- LLM evaluation:
+
+  yield patched-code ≡ "import hashlib
+import secrets
+
+def login(username, password):
+    if username not in users:
+        return None
+    stored_hash, salt = users[username]
+    password_hash = hashlib.pbkdf2_hmac('sha256', password.encode(), salt, 100000)
+    if secrets.compare_digest(stored_hash, password_hash):
+        return create_session(username)
+    return None"
+
+  yield patch-description ≡ "Replaced plaintext password comparison with PBKDF2-HMAC-SHA256 hashed comparison. The users dictionary now stores (hash, salt) tuples instead of plaintext passwords. Uses secrets.compare_digest for constant-time comparison to prevent timing attacks. The membership check from the previous patch is preserved. The salt and 100,000 iterations make rainbow table attacks infeasible."
+
+-- oracle checks (ASPIRATIONAL):
+--   ⊨ patched-code is valid Python → ✓
+--   ⊨ patched-code fixes the identified vulnerability → ✓ (hashed passwords)
+--   ⊨ patch-description explains what changed and why → ✓
+--   ⊨ patched-code preserves correct login behavior → ✓ (valid credentials still work with hashed store)
+
+-- state after frame 7: harden frozen (iteration 2).
+-- Ready set: { verify-patch, spawn-regression-test }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 8: evaluate verify-patch (soft cell, LLM) — ⊢∘ ITERATION 2
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { verify-patch, spawn-regression-test }
+-- Pick: verify-patch
+
+⊢ verify-patch
+  given harden→patched-code ≡ "import hashlib
+import secrets
+
+def login(username, password):
+    if username not in users:
+        return None
+    stored_hash, salt = users[username]
+    password_hash = hashlib.pbkdf2_hmac('sha256', password.encode(), salt, 100000)
+    if secrets.compare_digest(stored_hash, password_hash):
+        return create_session(username)
+    return None"
+  given red-team→exploit ≡ "The attacker exploits any data exposure vector..."
+  given red-team→vulnerability ≡ "Plaintext password comparison..."
+  given? regression-test-*→passes ≡ [true]
+  given? regression-test-*→explanation ≡ ["Tested: login('nonexistent_user', 'anything'). No KeyError..."]
+  yield exploit-blocked, regressions-pass, new-issues[]
+
+-- LLM evaluation:
+
+  yield exploit-blocked ≡ true
+
+  yield regressions-pass ≡ true
+
+  yield new-issues ≡ []
+
+-- oracle checks (cell-level ⊨? retry max 2):
+--   ⊨ exploit-blocked ∈ { true, false } → ✓ (true)
+--   ⊨ regressions-pass ∈ { true, false } → ✓ (true)
+--   ⊨ if not exploit-blocked then insufficient → ✓ (vacuous)
+--   ⊨ if not regressions-pass then regression → ✓ (vacuous)
+
+-- state after frame 8: verify-patch frozen (iteration 2).
+-- Ready set: { spawn-regression-test }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 9: evaluate spawn-regression-test (⊢⊢ spawner) — ⊢∘ ITERATION 2
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { spawn-regression-test }
+-- accumulate mode: regression-test-0 persists. New spawn adds regression-test-1.
+
+⊢⊢ spawn-regression-test
+  given red-team→vulnerability ≡ "Plaintext password comparison..."
+  given red-team→exploit ≡ "The attacker exploits any data exposure vector..."
+  given red-team→category ≡ "info-leak"
+  given harden→patched-code ≡ "import hashlib\nimport secrets\n\ndef login(username, password):..."
+  given §regression-test-template
+  yield §new-regression-test
+  until length(new-regression-test) = 1
+  max 1
+  accumulate
+
+-- Spawns: regression-test-1
+
+⊢ regression-test-1
+  given vulnerability-desc ≡ "Plaintext password comparison: passwords are stored and compared in plaintext via direct equality..."
+  given exploit-scenario ≡ "The attacker exploits any data exposure vector to read users['admin']. The password is stored in cleartext..."
+  given category ≡ "info-leak"
+  given code-to-test ≡ "import hashlib
+import secrets
+
+def login(username, password):
+    if username not in users:
+        return None
+    stored_hash, salt = users[username]
+    password_hash = hashlib.pbkdf2_hmac('sha256', password.encode(), salt, 100000)
+    if secrets.compare_digest(stored_hash, password_hash):
+        return create_session(username)
+    return None"
+  yield passes, explanation
+
+-- spawner check: length(new-regression-test) = 1 → ✓
+-- state after frame 9: spawn-regression-test frozen. regression-test-1 added to graph.
+-- Ready set: { regression-test-1 }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 10: evaluate regression-test-1 (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { regression-test-1 }
+
+⊢ regression-test-1
+  given vulnerability-desc ≡ "Plaintext password comparison..."
+  given exploit-scenario ≡ "The attacker exploits any data exposure vector..."
+  given category ≡ "info-leak"
+  given code-to-test ≡ "import hashlib\nimport secrets\n\ndef login(username, password):..."
+  yield passes, explanation
+
+  ∴ Test the code against the plaintext password vulnerability...
+
+-- LLM evaluation:
+
+  yield passes ≡ true
+
+  yield explanation ≡ "Tested: does the code store or compare passwords in plaintext? No — users[username] returns a (hash, salt) tuple. The password is hashed with PBKDF2-HMAC-SHA256 using the stored salt before comparison. Even if an attacker reads the users dictionary, they obtain only hashed values with per-user salts. Constant-time comparison via secrets.compare_digest prevents timing attacks. The vulnerability is mitigated."
+
+-- oracle checks:
+--   ⊨ passes ∈ { true, false } → ✓ (true)
+--   ⊨ explanation describes what was tested and the result → ✓
+
+-- state after frame 10: regression-test-1 frozen.
+-- ⊢∘ iteration 2 complete.
+-- ⊢∘ CHECK: red-team→vulnerability = "Plaintext password comparison..." ≠ "none" → CONTINUE.
+-- ⊢∘ rewrites: target-code→code ← harden→patched-code (hashed version).
+-- Wildcard regression-test-*→passes now resolves to [true, true] (2 tests).
+-- Wildcard regression-test-*→explanation now resolves to 2 explanations.
+-- Ready set: { red-team }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 11: evaluate red-team (soft cell, LLM) — ⊢∘ ITERATION 3
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { red-team }
+-- 2 regression tests accumulated. Code is now hashed version.
+
+⊢ red-team
+  given target-code→code ≡ "import hashlib
+import secrets
+
+def login(username, password):
+    if username not in users:
+        return None
+    stored_hash, salt = users[username]
+    password_hash = hashlib.pbkdf2_hmac('sha256', password.encode(), salt, 100000)
+    if secrets.compare_digest(stored_hash, password_hash):
+        return create_session(username)
+    return None"
+  given? regression-test-*→passes ≡ [true, true]
+  given? regression-test-*→explanation ≡ [
+    "Tested: login('nonexistent_user', 'anything'). No KeyError...",
+    "Tested: does the code store or compare passwords in plaintext? No..."
+  ]
+  yield vulnerability, exploit, severity, category
+
+  ∴ Find the SINGLE most critical vulnerability not covered by existing tests...
+
+-- LLM evaluation:
+
+  yield vulnerability ≡ "No rate limiting or account lockout: the login function can be called unlimited times with no delay, penalty, or lockout. An attacker can perform an unrestricted brute-force attack against any known username."
+
+  yield exploit ≡ "The attacker targets a known username (e.g., 'admin') and calls login('admin', candidate) in a tight loop, iterating through a dictionary of common passwords. PBKDF2 with 100,000 iterations slows each attempt to ~100ms server-side, but the attacker can parallelize across many connections. With 10,000 common passwords and 100 parallel connections, a brute-force attack completes in ~100 seconds. No lockout, no CAPTCHA, no rate limit stops them."
+
+  yield severity ≡ "high"
+
+  yield category ≡ "auth-bypass"
+
+-- oracle checks (ASPIRATIONAL):
+--   ⊨ vulnerability describes a specific flaw → ✓ (no rate limiting)
+--   ⊨ exploit is concrete → ✓ (specific timing analysis, parallelization math)
+--   ⊨ severity ∈ set → ✓ ("high")
+--   ⊨ category ∈ set → ✓ ("auth-bypass")
+
+-- state after frame 11: red-team frozen (iteration 3).
+-- Guards: harden, verify-patch, spawn-regression-test all pass (vulnerability != "none").
+-- security-report: vulnerability = "none" → FALSE → SKIPPED.
+-- Ready set: { harden }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 12: evaluate harden (soft cell, LLM) — ⊢∘ ITERATION 3
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { harden }
+
+⊢ harden
+  given red-team→vulnerability ≡ "No rate limiting or account lockout..."
+  given red-team→exploit ≡ "The attacker targets a known username..."
+  given red-team→category ≡ "auth-bypass"
+  given target-code→code ≡ "import hashlib\nimport secrets\n\ndef login(username, password):..."
+  given? regression-test-*→passes ≡ [true, true]
+  given? regression-test-*→explanation ≡ [
+    "Tested: login('nonexistent_user'...). No KeyError...",
+    "Tested: does the code store passwords in plaintext? No..."
+  ]
+  yield patched-code, patch-description
+
+-- LLM evaluation:
+
+  yield patched-code ≡ "import hashlib
+import secrets
+import time
+
+_failed_attempts = {}
+MAX_ATTEMPTS = 5
+LOCKOUT_SECONDS = 300
+
+def login(username, password):
+    if username not in users:
+        return None
+    lockout_until = _failed_attempts.get(username, {}).get('until', 0)
+    if time.time() < lockout_until:
+        return None
+    stored_hash, salt = users[username]
+    password_hash = hashlib.pbkdf2_hmac('sha256', password.encode(), salt, 100000)
+    if secrets.compare_digest(stored_hash, password_hash):
+        _failed_attempts.pop(username, None)
+        return create_session(username)
+    record = _failed_attempts.setdefault(username, {'count': 0, 'until': 0})
+    record['count'] += 1
+    if record['count'] >= MAX_ATTEMPTS:
+        record['until'] = time.time() + LOCKOUT_SECONDS
+        record['count'] = 0
+    return None"
+
+  yield patch-description ≡ "Added account lockout mechanism: after 5 consecutive failed attempts, the account is locked for 300 seconds (5 minutes). Uses a module-level dictionary to track failed attempts per username. Successful login resets the counter. Locked accounts return None indistinguishably from wrong-password, preventing information leakage about lockout status. Previous patches preserved: membership check and hashed comparison intact."
+
+-- oracle checks (ASPIRATIONAL):
+--   ⊨ patched-code is valid Python → ✓
+--   ⊨ patched-code fixes the vulnerability → ✓ (rate limiting via lockout)
+--   ⊨ patch-description explains changes → ✓
+--   ⊨ patched-code preserves correct login → ✓ (valid credentials work when not locked out)
+
+-- state after frame 12: harden frozen (iteration 3).
+-- Ready set: { verify-patch, spawn-regression-test }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 13: evaluate verify-patch (soft cell, LLM) — ⊢∘ ITERATION 3
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { verify-patch, spawn-regression-test }
+-- Pick: verify-patch
+
+⊢ verify-patch
+  given harden→patched-code ≡ "import hashlib\nimport secrets\nimport time\n\n_failed_attempts = {}..."
+  given red-team→exploit ≡ "The attacker targets a known username in a tight loop..."
+  given red-team→vulnerability ≡ "No rate limiting or account lockout..."
+  given? regression-test-*→passes ≡ [true, true]
+  given? regression-test-*→explanation ≡ [
+    "Tested: login('nonexistent_user'...). No KeyError...",
+    "Tested: does the code store passwords in plaintext? No..."
+  ]
+  yield exploit-blocked, regressions-pass, new-issues[]
+
+-- LLM evaluation:
+
+  yield exploit-blocked ≡ true
+
+  yield regressions-pass ≡ true
+
+  yield new-issues ≡ ["The lockout state is stored in a module-level dictionary (_failed_attempts). In a multi-process deployment (e.g., gunicorn with multiple workers), each process has its own dictionary — the lockout is not shared. An attacker could rotate across workers to circumvent the limit. This is a deployment concern rather than a code bug; a production fix would use Redis or a shared store."]
+
+-- oracle checks (cell-level ⊨? retry max 2):
+--   ⊨ exploit-blocked ∈ { true, false } → ✓ (true)
+--   ⊨ regressions-pass ∈ { true, false } → ✓ (true)
+--   ⊨ if not exploit-blocked then insufficient → ✓ (vacuous)
+--   ⊨ if not regressions-pass then regression → ✓ (vacuous)
+
+-- state after frame 13: verify-patch frozen (iteration 3).
+-- Ready set: { spawn-regression-test }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 14: evaluate spawn-regression-test (⊢⊢ spawner) — ⊢∘ ITERATION 3
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { spawn-regression-test }
+-- accumulate: regression-test-0, regression-test-1 persist. Spawns regression-test-2.
+
+⊢⊢ spawn-regression-test
+  given red-team→vulnerability ≡ "No rate limiting or account lockout..."
+  given red-team→exploit ≡ "The attacker targets a known username in a tight loop..."
+  given red-team→category ≡ "auth-bypass"
+  given harden→patched-code ≡ "import hashlib\nimport secrets\nimport time\n..."
+  given §regression-test-template
+  yield §new-regression-test
+  until length(new-regression-test) = 1
+  max 1
+  accumulate
+
+-- Spawns: regression-test-2
+
+⊢ regression-test-2
+  given vulnerability-desc ≡ "No rate limiting or account lockout: the login function can be called unlimited times..."
+  given exploit-scenario ≡ "The attacker targets a known username and calls login('admin', candidate) in a tight loop..."
+  given category ≡ "auth-bypass"
+  given code-to-test ≡ "import hashlib
+import secrets
+import time
+
+_failed_attempts = {}
+MAX_ATTEMPTS = 5
+LOCKOUT_SECONDS = 300
+
+def login(username, password):
+    if username not in users:
+        return None
+    lockout_until = _failed_attempts.get(username, {}).get('until', 0)
+    if time.time() < lockout_until:
+        return None
+    stored_hash, salt = users[username]
+    password_hash = hashlib.pbkdf2_hmac('sha256', password.encode(), salt, 100000)
+    if secrets.compare_digest(stored_hash, password_hash):
+        _failed_attempts.pop(username, None)
+        return create_session(username)
+    record = _failed_attempts.setdefault(username, {'count': 0, 'until': 0})
+    record['count'] += 1
+    if record['count'] >= MAX_ATTEMPTS:
+        record['until'] = time.time() + LOCKOUT_SECONDS
+        record['count'] = 0
+    return None"
+  yield passes, explanation
+
+-- spawner check: length(new-regression-test) = 1 → ✓
+-- state after frame 14: spawn-regression-test frozen. regression-test-2 added.
+-- Ready set: { regression-test-2 }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 15: evaluate regression-test-2 (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { regression-test-2 }
+
+⊢ regression-test-2
+  given vulnerability-desc ≡ "No rate limiting or account lockout..."
+  given exploit-scenario ≡ "The attacker targets a known username in a tight loop..."
+  given category ≡ "auth-bypass"
+  given code-to-test ≡ "import hashlib\nimport secrets\nimport time\n..."
+  yield passes, explanation
+
+  ∴ Test the code against the brute-force vulnerability...
+
+-- LLM evaluation:
+
+  yield passes ≡ true
+
+  yield explanation ≡ "Tested: can an attacker call login() unlimited times? No — after 5 consecutive failed attempts for the same username, the _failed_attempts dictionary records a lockout timestamp 300 seconds in the future. Subsequent calls for that username return None immediately without even checking the password. After lockout expires, the counter resets, allowing the legitimate user to try again. A brute-force attack is limited to 5 guesses per 5-minute window per account. The vulnerability is mitigated."
+
+-- oracle checks:
+--   ⊨ passes ∈ { true, false } → ✓ (true)
+--   ⊨ explanation describes what was tested → ✓
+
+-- state after frame 15: regression-test-2 frozen.
+-- ⊢∘ iteration 3 complete.
+-- ⊢∘ CHECK: red-team→vulnerability = "No rate limiting..." ≠ "none" → CONTINUE.
+-- ⊢∘ rewrites: target-code→code ← harden→patched-code (lockout version).
+-- Wildcard regression-test-*→passes now resolves to [true, true, true] (3 tests).
+-- Ready set: { red-team }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 16: evaluate red-team (soft cell, LLM) — ⊢∘ ITERATION 4
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { red-team }
+-- 3 regression tests accumulated. Code now has: membership check, hashing, lockout.
+
+⊢ red-team
+  given target-code→code ≡ "import hashlib
+import secrets
+import time
+
+_failed_attempts = {}
+MAX_ATTEMPTS = 5
+LOCKOUT_SECONDS = 300
+
+def login(username, password):
+    if username not in users:
+        return None
+    lockout_until = _failed_attempts.get(username, {}).get('until', 0)
+    if time.time() < lockout_until:
+        return None
+    stored_hash, salt = users[username]
+    password_hash = hashlib.pbkdf2_hmac('sha256', password.encode(), salt, 100000)
+    if secrets.compare_digest(stored_hash, password_hash):
+        _failed_attempts.pop(username, None)
+        return create_session(username)
+    record = _failed_attempts.setdefault(username, {'count': 0, 'until': 0})
+    record['count'] += 1
+    if record['count'] >= MAX_ATTEMPTS:
+        record['until'] = time.time() + LOCKOUT_SECONDS
+        record['count'] = 0
+    return None"
+  given? regression-test-*→passes ≡ [true, true, true]
+  given? regression-test-*→explanation ≡ [
+    "Tested: login('nonexistent_user'...). No KeyError...",
+    "Tested: does the code store passwords in plaintext? No...",
+    "Tested: can an attacker call login() unlimited times? No — lockout after 5..."
+  ]
+  yield vulnerability, exploit, severity, category
+
+  ∴ Find the SINGLE most critical vulnerability not covered by existing 3 tests...
+
+-- LLM evaluation:
+
+  yield vulnerability ≡ "Timing side-channel on username existence: although both nonexistent-user and wrong-password paths return None, the nonexistent-user path returns immediately (before the PBKDF2 computation) while the wrong-password path takes ~100ms for the hash. An attacker can distinguish these by measuring response time, enabling username enumeration despite identical return values."
+
+  yield exploit ≡ "The attacker sends login('candidate_username', 'x') and measures response time. If the response takes <1ms, the username does not exist (early return before hashing). If the response takes ~100ms, the username exists (PBKDF2 computation occurred). By testing thousands of candidate usernames, the attacker builds a list of valid usernames, then focuses brute-force attempts on those accounts."
+
+  yield severity ≡ "medium"
+
+  yield category ≡ "info-leak"
+
+-- oracle checks (ASPIRATIONAL):
+--   ⊨ vulnerability describes a specific flaw → ✓ (timing side-channel)
+--   ⊨ exploit is concrete → ✓ (specific timing measurements)
+--   ⊨ severity ∈ set → ✓ ("medium")
+--   ⊨ category ∈ set → ✓ ("info-leak")
+
+-- state after frame 16: red-team frozen (iteration 4).
+-- Guards pass for harden, verify-patch, spawn-regression-test.
+-- security-report guard fails (vulnerability != "none").
+-- Ready set: { harden }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 17: evaluate harden (soft cell, LLM) — ⊢∘ ITERATION 4
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { harden }
+
+⊢ harden
+  given red-team→vulnerability ≡ "Timing side-channel on username existence..."
+  given red-team→exploit ≡ "The attacker sends login('candidate_username', 'x') and measures response time..."
+  given red-team→category ≡ "info-leak"
+  given target-code→code ≡ "import hashlib\nimport secrets\nimport time\n\n_failed_attempts = {}..."
+  given? regression-test-*→passes ≡ [true, true, true]
+  given? regression-test-*→explanation ≡ [...]
+  yield patched-code, patch-description
+
+-- LLM evaluation:
+
+  yield patched-code ≡ "import hashlib
+import secrets
+import time
+
+_failed_attempts = {}
+MAX_ATTEMPTS = 5
+LOCKOUT_SECONDS = 300
+_DUMMY_SALT = secrets.token_bytes(16)
+_DUMMY_HASH = hashlib.pbkdf2_hmac('sha256', b'dummy', _DUMMY_SALT, 100000)
+
+def login(username, password):
+    if username not in users:
+        hashlib.pbkdf2_hmac('sha256', password.encode(), _DUMMY_SALT, 100000)
+        return None
+    lockout_until = _failed_attempts.get(username, {}).get('until', 0)
+    if time.time() < lockout_until:
+        return None
+    stored_hash, salt = users[username]
+    password_hash = hashlib.pbkdf2_hmac('sha256', password.encode(), salt, 100000)
+    if secrets.compare_digest(stored_hash, password_hash):
+        _failed_attempts.pop(username, None)
+        return create_session(username)
+    record = _failed_attempts.setdefault(username, {'count': 0, 'until': 0})
+    record['count'] += 1
+    if record['count'] >= MAX_ATTEMPTS:
+        record['until'] = time.time() + LOCKOUT_SECONDS
+        record['count'] = 0
+    return None"
+
+  yield patch-description ≡ "Added dummy PBKDF2 computation on the nonexistent-username path so both paths take the same ~100ms. Uses a pre-computed dummy salt (generated once at module load). The attacker can no longer distinguish 'user does not exist' from 'wrong password' by timing. Previous patches preserved: membership check returns None (unchanged), hashed comparison intact, lockout mechanism intact."
+
+-- oracle checks (ASPIRATIONAL):
+--   ⊨ patched-code is valid Python → ✓
+--   ⊨ patched-code fixes the vulnerability → ✓ (constant-time for both paths)
+--   ⊨ patch-description explains changes → ✓
+--   ⊨ patched-code preserves correct login → ✓
+
+-- state after frame 17: harden frozen (iteration 4).
+-- Ready set: { verify-patch, spawn-regression-test }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 18: evaluate verify-patch (soft cell, LLM) — ⊢∘ ITERATION 4
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { verify-patch, spawn-regression-test }
+-- Pick: verify-patch
+
+⊢ verify-patch
+  given harden→patched-code ≡ "import hashlib\nimport secrets\nimport time\n\n_failed_attempts = {}..._DUMMY_SALT..."
+  given red-team→exploit ≡ "The attacker measures response time..."
+  given red-team→vulnerability ≡ "Timing side-channel on username existence..."
+  given? regression-test-*→passes ≡ [true, true, true]
+  given? regression-test-*→explanation ≡ [...]
+  yield exploit-blocked, regressions-pass, new-issues[]
+
+-- LLM evaluation:
+
+  yield exploit-blocked ≡ true
+
+  yield regressions-pass ≡ true
+
+  yield new-issues ≡ []
+
+-- oracle checks (cell-level ⊨? retry max 2):
+--   ⊨ exploit-blocked ∈ { true, false } → ✓ (true)
+--   ⊨ regressions-pass ∈ { true, false } → ✓ (true)
+--   ⊨ if not exploit-blocked then insufficient → ✓ (vacuous)
+--   ⊨ if not regressions-pass then regression → ✓ (vacuous)
+
+-- state after frame 18: verify-patch frozen (iteration 4).
+-- Ready set: { spawn-regression-test }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 19: evaluate spawn-regression-test (⊢⊢ spawner) — ⊢∘ ITERATION 4
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { spawn-regression-test }
+-- accumulate: regression-test-0, -1, -2 persist. Spawns regression-test-3.
+
+⊢⊢ spawn-regression-test
+  given red-team→vulnerability ≡ "Timing side-channel on username existence..."
+  given red-team→exploit ≡ "The attacker measures response time..."
+  given red-team→category ≡ "info-leak"
+  given harden→patched-code ≡ "import hashlib\nimport secrets\nimport time\n..._DUMMY_SALT..."
+  given §regression-test-template
+  yield §new-regression-test
+  until length(new-regression-test) = 1
+  max 1
+  accumulate
+
+-- Spawns: regression-test-3
+
+⊢ regression-test-3
+  given vulnerability-desc ≡ "Timing side-channel on username existence: the nonexistent-user path returned immediately while the wrong-password path took ~100ms..."
+  given exploit-scenario ≡ "The attacker sends login('candidate_username', 'x') and measures response time to distinguish existent from nonexistent users..."
+  given category ≡ "info-leak"
+  given code-to-test ≡ "import hashlib
+import secrets
+import time
+
+_failed_attempts = {}
+MAX_ATTEMPTS = 5
+LOCKOUT_SECONDS = 300
+_DUMMY_SALT = secrets.token_bytes(16)
+_DUMMY_HASH = hashlib.pbkdf2_hmac('sha256', b'dummy', _DUMMY_SALT, 100000)
+
+def login(username, password):
+    if username not in users:
+        hashlib.pbkdf2_hmac('sha256', password.encode(), _DUMMY_SALT, 100000)
+        return None
+    ..."
+  yield passes, explanation
+
+-- spawner check: length(new-regression-test) = 1 → ✓
+-- state after frame 19: spawn-regression-test frozen. regression-test-3 added.
+-- Ready set: { regression-test-3 }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 20: evaluate regression-test-3 (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { regression-test-3 }
+
+⊢ regression-test-3
+  given vulnerability-desc ≡ "Timing side-channel on username existence..."
+  given exploit-scenario ≡ "The attacker measures response time..."
+  given category ≡ "info-leak"
+  given code-to-test ≡ "import hashlib\nimport secrets\nimport time\n..._DUMMY_SALT..."
+  yield passes, explanation
+
+  ∴ Test the code against the timing side-channel vulnerability...
+
+-- LLM evaluation:
+
+  yield passes ≡ true
+
+  yield explanation ≡ "Tested: does the nonexistent-username path take a measurably different time than the wrong-password path? No — both paths now perform a PBKDF2 computation with 100,000 iterations. The nonexistent-user path hashes against _DUMMY_SALT, taking the same ~100ms as the real hash comparison. An attacker measuring response time sees no difference. Username enumeration via timing is mitigated."
+
+-- oracle checks:
+--   ⊨ passes ∈ { true, false } → ✓ (true)
+--   ⊨ explanation describes what was tested → ✓
+
+-- state after frame 20: regression-test-3 frozen.
+-- ⊢∘ iteration 4 complete.
+-- ⊢∘ CHECK: red-team→vulnerability = "Timing side-channel..." ≠ "none" → CONTINUE.
+-- ⊢∘ rewrites: target-code→code ← harden→patched-code (timing-safe version).
+-- Wildcard regression-test-*→passes now resolves to [true, true, true, true] (4 tests).
+-- Ready set: { red-team }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 21: evaluate red-team (soft cell, LLM) — ⊢∘ ITERATION 5 (FINAL)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { red-team }
+-- 4 regression tests accumulated. Code now has: membership check, hashing,
+-- lockout, timing-safe dummy hash. This is the max iteration.
+
+⊢ red-team
+  given target-code→code ≡ "import hashlib
+import secrets
+import time
+
+_failed_attempts = {}
+MAX_ATTEMPTS = 5
+LOCKOUT_SECONDS = 300
+_DUMMY_SALT = secrets.token_bytes(16)
+_DUMMY_HASH = hashlib.pbkdf2_hmac('sha256', b'dummy', _DUMMY_SALT, 100000)
+
+def login(username, password):
+    if username not in users:
+        hashlib.pbkdf2_hmac('sha256', password.encode(), _DUMMY_SALT, 100000)
+        return None
+    lockout_until = _failed_attempts.get(username, {}).get('until', 0)
+    if time.time() < lockout_until:
+        return None
+    stored_hash, salt = users[username]
+    password_hash = hashlib.pbkdf2_hmac('sha256', password.encode(), salt, 100000)
+    if secrets.compare_digest(stored_hash, password_hash):
+        _failed_attempts.pop(username, None)
+        return create_session(username)
+    record = _failed_attempts.setdefault(username, {'count': 0, 'until': 0})
+    record['count'] += 1
+    if record['count'] >= MAX_ATTEMPTS:
+        record['until'] = time.time() + LOCKOUT_SECONDS
+        record['count'] = 0
+    return None"
+  given? regression-test-*→passes ≡ [true, true, true, true]
+  given? regression-test-*→explanation ≡ [
+    "Tested: login('nonexistent_user'...). No KeyError...",
+    "Tested: does the code store passwords in plaintext? No...",
+    "Tested: can an attacker call login() unlimited times? No — lockout after 5...",
+    "Tested: does the nonexistent-username path take different time? No — dummy hash..."
+  ]
+  yield vulnerability, exploit, severity, category
+
+  ∴ Find the SINGLE most critical vulnerability not covered by existing 4 tests...
+
+-- LLM evaluation:
+
+  yield vulnerability ≡ "none"
+
+  yield exploit ≡ "N/A — no new vulnerability found. The function handles: nonexistent users (returns None without dictionary crash), password storage (hashed with PBKDF2+salt), brute force (account lockout after 5 attempts), and timing attacks (dummy hash on nonexistent user path). Remaining concerns (in-memory lockout state, session token generation) are outside the scope of this function."
+
+  yield severity ≡ "low"
+
+  yield category ≡ "logic"
+
+-- oracle checks (ASPIRATIONAL):
+--   ⊨ vulnerability describes a specific flaw or is "none" → ✓ ("none")
+--   ⊨ exploit is a concrete attack scenario → ✓ (N/A — vacuously valid since vulnerability is "none")
+--   ⊨ severity ∈ set → ✓ ("low")
+--   ⊨ category ∈ set → ✓ ("logic")
+
+-- state after frame 21: red-team frozen (iteration 5).
+-- ⊢∘ CHECK: red-team→vulnerability = "none" → CONVERGED. Exit evolution loop.
+-- ⊢∘ harden-loop completed in 5 iterations (4 vulnerabilities found and fixed,
+--   5th iteration found nothing new).
+--
+-- Guard evaluation (post-convergence):
+--   harden: vulnerability != "none" → FALSE → SKIPPED. yields ≡ ⊥
+--   verify-patch: vulnerability != "none" → FALSE → SKIPPED. yields ≡ ⊥
+--   spawn-regression-test: vulnerability != "none" → FALSE → SKIPPED. yields ≡ ⊥
+--   security-report: vulnerability = "none" → TRUE → ENTERS READY SET
+--     security-report also needs harden→patched-code. But harden is skipped (⊥)
+--     in THIS iteration. However, harden→patched-code from the LAST iteration
+--     (the timing-safe version) is the value the ⊢∘ loop froze as the final
+--     target-code→code. security-report reads the last-frozen harden output.
+--   security-report also needs regression-test-*→passes: [true, true, true, true]
+--     and regression-test-*→explanation: all 4 explanations. All frozen.
+-- Ready set: { security-report }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 22: evaluate security-report (soft cell, LLM) — FINAL OUTPUT
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { security-report }
+-- All upstream cells frozen. This is the terminal cell.
+
+⊢ security-report
+  given red-team→vulnerability ≡ "none"
+  given harden→patched-code ≡ "import hashlib
+import secrets
+import time
+
+_failed_attempts = {}
+MAX_ATTEMPTS = 5
+LOCKOUT_SECONDS = 300
+_DUMMY_SALT = secrets.token_bytes(16)
+_DUMMY_HASH = hashlib.pbkdf2_hmac('sha256', b'dummy', _DUMMY_SALT, 100000)
+
+def login(username, password):
+    if username not in users:
+        hashlib.pbkdf2_hmac('sha256', password.encode(), _DUMMY_SALT, 100000)
+        return None
+    lockout_until = _failed_attempts.get(username, {}).get('until', 0)
+    if time.time() < lockout_until:
+        return None
+    stored_hash, salt = users[username]
+    password_hash = hashlib.pbkdf2_hmac('sha256', password.encode(), salt, 100000)
+    if secrets.compare_digest(stored_hash, password_hash):
+        _failed_attempts.pop(username, None)
+        return create_session(username)
+    record = _failed_attempts.setdefault(username, {'count': 0, 'until': 0})
+    record['count'] += 1
+    if record['count'] >= MAX_ATTEMPTS:
+        record['until'] = time.time() + LOCKOUT_SECONDS
+        record['count'] = 0
+    return None"
+  given regression-test-*→passes ≡ [true, true, true, true]
+  given regression-test-*→explanation ≡ [
+    "Tested: login('nonexistent_user', 'anything'). No KeyError. Returns None. Vulnerability mitigated.",
+    "Tested: does the code store or compare passwords in plaintext? No — PBKDF2-HMAC-SHA256 with per-user salt. Vulnerability mitigated.",
+    "Tested: can an attacker call login() unlimited times? No — lockout after 5 failed attempts for 300 seconds. Vulnerability mitigated.",
+    "Tested: does the nonexistent-username path take a measurably different time? No — dummy PBKDF2 computation equalizes timing. Vulnerability mitigated."
+  ]
+  yield final-code, vulnerabilities-found, tests-accumulated, hardening-summary
+
+  ∴ Produce the final security report...
+
+-- LLM evaluation:
+
+  yield final-code ≡ "import hashlib
+import secrets
+import time
+
+_failed_attempts = {}
+MAX_ATTEMPTS = 5
+LOCKOUT_SECONDS = 300
+_DUMMY_SALT = secrets.token_bytes(16)
+_DUMMY_HASH = hashlib.pbkdf2_hmac('sha256', b'dummy', _DUMMY_SALT, 100000)
+
+def login(username, password):
+    if username not in users:
+        hashlib.pbkdf2_hmac('sha256', password.encode(), _DUMMY_SALT, 100000)
+        return None
+    lockout_until = _failed_attempts.get(username, {}).get('until', 0)
+    if time.time() < lockout_until:
+        return None
+    stored_hash, salt = users[username]
+    password_hash = hashlib.pbkdf2_hmac('sha256', password.encode(), salt, 100000)
+    if secrets.compare_digest(stored_hash, password_hash):
+        _failed_attempts.pop(username, None)
+        return create_session(username)
+    record = _failed_attempts.setdefault(username, {'count': 0, 'until': 0})
+    record['count'] += 1
+    if record['count'] >= MAX_ATTEMPTS:
+        record['until'] = time.time() + LOCKOUT_SECONDS
+        record['count'] = 0
+    return None"
+
+  yield vulnerabilities-found ≡ [
+    "Round 1 (CRITICAL, auth-bypass): KeyError on nonexistent username — dictionary access crashes without membership check, enabling username enumeration and DoS.",
+    "Round 2 (CRITICAL, info-leak): Plaintext password comparison — passwords stored and compared in cleartext, trivially extractable via any data exposure.",
+    "Round 3 (HIGH, auth-bypass): No rate limiting or account lockout — unlimited brute-force attempts with no delay or penalty.",
+    "Round 4 (MEDIUM, info-leak): Timing side-channel on username existence — nonexistent-user path returned instantly while wrong-password path took ~100ms for PBKDF2."
+  ]
+
+  yield tests-accumulated ≡ 4
+
+  yield hardening-summary ≡ "The adversarial hardening loop ran 5 iterations across 4 vulnerability-fix cycles. Starting from a 3-line naive login function, the code evolved into a 24-line hardened implementation covering: (1) safe dictionary access preventing KeyError crashes, (2) PBKDF2-HMAC-SHA256 password hashing with per-user salts, (3) account lockout after 5 failed attempts with 5-minute cooldown, and (4) constant-time response via dummy hash on nonexistent-user path. Each patch was verified against the specific exploit AND all previously accumulated regression tests, ensuring no fix re-introduced a previous vulnerability. The red-team found vulnerabilities in decreasing severity order (critical, critical, high, medium), demonstrating the adversarial loop's natural triage behavior. On iteration 5, the red-team yielded 'none' — no new in-scope vulnerability found."
+
+-- oracle checks:
+--   ⊨ final-code is the last patched version → ✓
+--   ⊨ vulnerabilities-found lists every vulnerability from every round → ✓ (4 vulnerabilities)
+--   ⊨ tests-accumulated = number of regression test cells spawned → ✓ (4)
+--   ⊨ hardening-summary describes the adversarial evolution arc → ✓
+
+-- state after frame 22: security-report frozen.
+-- No more ready cells. Program quiescent.
+
+-- ═══════════════════════════════════════════════════════════════
+-- EXECUTION SUMMARY
+-- ═══════════════════════════════════════════════════════════════
+--
+-- Total frames: 23 (0-22)
+-- ⊢∘ iterations: 5 (converged when red-team→vulnerability = "none")
+-- ⊢∘ max was 5, used 5 — red-team found 4 vulnerabilities before exhaustion
+-- ⊢⊢ spawner fired 4 times (accumulate mode): regression-test-0 through -3
+-- File-scope ⊨? active but never triggered (no oracle failures)
+-- verify-patch cell-level ⊨? (retry max 2) active but never triggered
+-- Guard clauses evaluated every iteration:
+--   - Iterations 1-4: harden/verify-patch/spawn guards TRUE, security-report FALSE
+--   - Iteration 5: harden/verify-patch/spawn guards FALSE (⊥), security-report TRUE
+--
+-- Cells evaluated:
+--   target-code (×1), red-team (×5), harden (×4), verify-patch (×4),
+--   spawn-regression-test (×4), regression-test-0 (×1), regression-test-1 (×1),
+--   regression-test-2 (×1), regression-test-3 (×1), security-report (×1)
+--
+-- Total cell evaluations: 23
+-- Total LLM calls: 22 (all cells except target-code are soft)
+--
+-- Key observations:
+--
+-- ⊢= Observation 1: ⊢⊢ accumulate mode enables monotonic artifact growth
+--   Each iteration adds one regression test cell that persists across all future
+--   iterations. The wildcard regression-test-*→passes resolves to an ever-growing
+--   array: [] → [true] → [true, true] → [true, true, true] → [true, true, true, true].
+--   This is the core mechanic: the adversarial loop accumulates constraints. The
+--   red-team must find vulnerabilities NOT already tested. The harden step must
+--   not break ANY accumulated test. Monotonicity is structural, not aspirational.
+--
+-- ⊢= Observation 2: guard clauses provide clean ⊢∘ termination
+--   When red-team yields vulnerability = "none", the guard `where vulnerability
+--   != "none"` on harden, verify-patch, and spawn-regression-test prevents those
+--   cells from evaluating. Simultaneously, the guard `where vulnerability = "none"`
+--   on security-report enables it. In R16, this gating was implicit in the ⊢∘
+--   semantics. In v0.2, guards make it explicit and composable — other cells
+--   downstream of security-report could further dispatch on guard conditions.
+--
+-- ⊢= Observation 3: given? tolerates empty regression test set on iteration 1
+--   On the first iteration, no regression-test-* cells exist. Without given?,
+--   red-team and harden would block forever on a wildcard that matches nothing.
+--   given? resolves ⊥ / empty set to a concrete empty array, allowing iteration 1
+--   to proceed. This is the v0.2 pattern for bootstrapping accumulation loops:
+--   given? on the first iteration, given on subsequent ones (where at least one
+--   match exists). The optional dependency is a seed enabler.
+--
+-- ⊢= Observation 4: aspirational oracles on ⊢∘-managed cells provide feedback without gating
+--   Red-team and harden have multiple ⊨ assertions. Under v0.2, these are
+--   aspirational — their failure feeds into the ⊢∘ improvement cycle but does
+--   not independently block freezing. This is correct for this program: if
+--   red-team's vulnerability description is slightly malformed, the ⊢∘ loop
+--   will still proceed, and the next iteration can refine. The until condition
+--   (vulnerability = "none") is the true convergence gate, not oracle perfection.
+--
+-- ⊢= Observation 5: adversarial triage is emergent, not programmed
+--   The red-team found vulnerabilities in decreasing severity: critical (KeyError),
+--   critical (plaintext passwords), high (no rate limiting), medium (timing
+--   side-channel). Nobody told the red-team to prioritize by severity — the
+--   prompt says "SINGLE most critical." This natural triage behavior means the
+--   most dangerous flaws are fixed first. The 4-round progression from crash
+--   bugs to side-channels mirrors real security audits.
+--
+-- ⊢= Observation 6: verify-patch new-issues[] is a discovery channel
+--   In frame 13, verify-patch identified a new issue (in-memory lockout state
+--   not shared across processes) that the red-team hadn't found. This is an
+--   emergent property of the verify step: it exercises the code differently
+--   than the red-team, producing insights the adversarial model missed. In a
+--   production Cell runtime, new-issues could feed into a secondary spawner
+--   that creates non-blocking advisory cells. The current program doesn't
+--   consume new-issues, but the dataflow path exists.
+--
+-- ⊢= Observation 7: v0.2 features are structurally load-bearing in this program
+--   Unlike program 09 (negotiation) where v0.2 was mostly a compliance upgrade,
+--   this program genuinely needs v0.2 features: (a) given? is essential for
+--   bootstrapping the accumulation loop; (b) guard clauses provide clean
+--   bidirectional termination gating (suppress harden when done, enable report
+--   when done); (c) accumulate mode on ⊢⊢ is the core mechanism for growing
+--   the regression set; (d) wildcard deps are the collection mechanism for
+--   spawned test cells. Without v0.2, this program would require ad-hoc
+--   workarounds for each of these patterns.

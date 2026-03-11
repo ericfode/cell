@@ -1,0 +1,791 @@
+-- 22-fact-checked-article-frames.cell (v0.2)
+-- Execution trace of 22-fact-checked-article.cell via eval-one
+--
+-- v0.2 execution notes:
+--   - File-scope ⊨? active: retry max 3 with failure context, then ⊥
+--   - rewrite-article has guard: `where all-pass = false` (skipped when all pass)
+--   - final-article has guard: `where all-pass = true` (fires only on success)
+--   - incomplete-article has guard: `where all-pass = false` (fires only on failure)
+--   - ⊢∘ fact-check-loop: custom label, blessed by v0.2 naming convention
+--   - Oracles on generate-article (⊢∘ target) are aspirational under v0.2
+--   - ⊢⊢ spawn-fact-checkers: replace mode — each iteration discards prior checkers
+--   - Wildcard deps (fact-check-*→field) are v0.2 compliant
+--   - aggregate-results is ⊢= (hard cell) — deterministic, no LLM
+--
+-- Meta: A fact-checked article pipeline. The ⊢∘ loop drives article
+-- quality by spawning per-claim fact-checkers, aggregating verdicts,
+-- and rewriting failures. Converges when all claims pass.
+
+-- ═══════════════════════════════════════════════════════════════
+-- READY-SET ANALYSIS (initial state)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready: { topic } — no givens, always ready (⊢= hard cell)
+-- Blocked: { generate-article } — needs topic→title, topic→scope
+-- Blocked: { spawn-fact-checkers } — needs generate-article→claims
+-- Blocked: { aggregate-results } — needs fact-check-*→verdict (no fact-check cells exist)
+-- Blocked: { rewrite-article } — needs aggregate-results→failed-claims + guard
+-- Blocked: { final-article } — needs aggregate-results→all-pass + guard
+-- Blocked: { incomplete-article } — needs aggregate-results→all-pass + guard
+-- Not spawned: fact-check-template (template, not directly evaluated)
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 0: evaluate topic (hard cell, ⊢=)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { topic } — no givens, always ready
+-- Blocked: all others (transitive)
+
+⊢ topic
+  yield title, scope
+
+  ⊢= title ← "The History of Version Control Systems"
+  ⊢= scope ← "From early mainframe source management through distributed version control. Cover SCCS, RCS, CVS, Subversion, BitKeeper, Git, and Mercurial. Focus on factual milestones: creation dates, creators, key technical innovations."
+
+-- eval-one: topic is a hard cell (⊢=). Deterministic evaluation.
+-- Both yields bound directly. No LLM needed.
+
+  yield title ≡ "The History of Version Control Systems"
+  yield scope ≡ "From early mainframe source management through distributed version control. Cover SCCS, RCS, CVS, Subversion, BitKeeper, Git, and Mercurial. Focus on factual milestones: creation dates, creators, key technical innovations."
+
+-- No oracles on topic. Frozen immediately.
+
+-- state after frame 0: topic frozen.
+-- Ready set: { generate-article } — topic→title + topic→scope now available
+-- ⊢∘ fact-check-loop begins: iteration 0
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ FACT-CHECK-LOOP — ITERATION 0
+-- ═══════════════════════════════════════════════════════════════
+-- Target: generate-article
+-- Through: spawn-fact-checkers → aggregate-results → rewrite-article
+-- Until: aggregate-results→all-pass = true
+-- Max: 3
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 1: evaluate generate-article (soft cell, LLM) [iteration 0]
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { generate-article } — topic→title, topic→scope available
+-- Blocked: { spawn-fact-checkers } — needs generate-article→claims
+-- Blocked: all downstream (transitive)
+
+⊢ generate-article
+  given topic→title ≡ "The History of Version Control Systems"
+  given topic→scope ≡ "From early mainframe source management through distributed version control..."
+  yield article-text, claims[]
+
+  ∴ Write a concise article (6-8 paragraphs) titled «topic→title»...
+
+-- LLM evaluation:
+
+  yield article-text ≡ "The History of Version Control Systems
+
+Version control systems have been fundamental to software engineering since the earliest days of collaborative programming. The need to track changes, manage concurrent edits, and maintain a history of modifications drove the creation of increasingly sophisticated tools over five decades.
+
+The earliest version control system was SCCS (Source Code Control System), created by Marc Rochkind at Bell Labs in 1972. SCCS introduced the concept of deltas — storing only the differences between file versions rather than complete copies. It operated on individual files and was designed for the Unix operating system. SCCS remained the dominant version control tool in Unix environments throughout the 1970s.
+
+RCS (Revision Control System) was developed by Walter Tichy at Purdue University in 1982. RCS improved on SCCS by using reverse deltas — storing the most recent version in full and reconstructing older versions by applying patches backwards. This made accessing the latest version faster, which matched typical developer workflows. Like SCCS, RCS tracked individual files rather than project-wide changes.
+
+CVS (Concurrent Versions System) was created by Dick Grune in 1986 and later rewritten by Brian Berliner in 1989. CVS was the first version control system to support concurrent editing by multiple developers on the same codebase. It introduced the copy-modify-merge workflow that would become standard. CVS used a central server architecture and operated on entire directory trees rather than individual files.
+
+Subversion (SVN) was created by CollabNet in 2000 as an explicit replacement for CVS. The project was led by Karl Fogel and Jim Blandy. Subversion addressed CVS limitations by supporting atomic commits, directory versioning, and efficient branching through copy-on-write. Subversion 1.0 was released in February 2004.
+
+BitKeeper was a proprietary distributed version control system created by Larry McVoy in 1998. It was notably used by the Linux kernel project from 2002 to 2005. BitKeeper pioneered distributed version control concepts including local commits and peer-to-peer synchronization. The revocation of BitKeeper's free license for Linux development in April 2005 directly precipitated the creation of Git.
+
+Git was created by Linus Torvalds in April 2005 after the BitKeeper controversy. Git was designed for speed, data integrity, and support for distributed workflows. Its content-addressable storage model uses SHA-1 hashes to identify every object. Git achieved dominance in open-source development and became the most widely used version control system worldwide.
+
+Mercurial was created by Matt Mackall and first released on April 19, 2005 — the same month as Git. Both projects were responses to the BitKeeper situation. Mercurial was designed with a focus on simplicity and performance for large repositories. While Mercurial gained significant adoption (notably by Mozilla and Facebook), Git ultimately achieved broader market dominance."
+
+  yield claims ≡ [
+    "SCCS was created by Marc Rochkind at Bell Labs in 1972.",
+    "SCCS introduced the concept of deltas for storing file version differences.",
+    "RCS was developed by Walter Tichy at Purdue University in 1982.",
+    "RCS used reverse deltas, storing the most recent version in full.",
+    "CVS was created by Dick Grune in 1986.",
+    "CVS was rewritten by Brian Berliner in 1989.",
+    "CVS was the first version control system to support concurrent editing by multiple developers.",
+    "Subversion was created by CollabNet in 2000.",
+    "The Subversion project was led by Karl Fogel and Jim Blandy.",
+    "Subversion 1.0 was released in February 2004.",
+    "BitKeeper was created by Larry McVoy in 1998.",
+    "BitKeeper was used by the Linux kernel project from 2002 to 2005.",
+    "The revocation of BitKeeper's free license occurred in April 2005.",
+    "Git was created by Linus Torvalds in April 2005.",
+    "Git uses SHA-1 hashes for content-addressable storage.",
+    "Mercurial was created by Matt Mackall and first released on April 19, 2005."
+  ]
+
+-- oracle checks (aspirational under ⊢∘ — feedback only, do not block):
+--   ⊨ len(claims) >= 12 → ✓ (16 claims)
+--   ⊨ each claim is a single declarative sentence with a verifiable fact → ✓
+--   ⊨ article-text contains all claims embedded in prose → ✓
+--   ⊨ article-text has between 6 and 8 paragraphs → ✓ (8 paragraphs)
+
+-- state after frame 1: generate-article frozen (iteration 0).
+-- Ready set: { spawn-fact-checkers } — generate-article→claims available
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 2: evaluate spawn-fact-checkers (⊢⊢ spawner, LLM) [iteration 0]
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { spawn-fact-checkers } — generate-article→claims available
+-- Spawner mode: replace (discard previous fact-check cells on re-fire)
+-- This is iteration 0 — no previous cells to discard.
+
+⊢⊢ spawn-fact-checkers
+  given generate-article→claims ≡ ["SCCS was created by Marc Rochkind at Bell Labs in 1972.", ...(16 claims)]
+  given §fact-check-template
+  yield §fact-check-cells[]
+
+-- LLM evaluation: spawns 16 fact-check cells, one per claim.
+-- Each cell is instantiated from §fact-check-template with claim bound.
+
+-- Spawned cells:
+--   fact-check-0: claim ≡ "SCCS was created by Marc Rochkind at Bell Labs in 1972."
+--   fact-check-1: claim ≡ "SCCS introduced the concept of deltas for storing file version differences."
+--   fact-check-2: claim ≡ "RCS was developed by Walter Tichy at Purdue University in 1982."
+--   fact-check-3: claim ≡ "RCS used reverse deltas, storing the most recent version in full."
+--   fact-check-4: claim ≡ "CVS was created by Dick Grune in 1986."
+--   fact-check-5: claim ≡ "CVS was rewritten by Brian Berliner in 1989."
+--   fact-check-6: claim ≡ "CVS was the first version control system to support concurrent editing by multiple developers."
+--   fact-check-7: claim ≡ "Subversion was created by CollabNet in 2000."
+--   fact-check-8: claim ≡ "The Subversion project was led by Karl Fogel and Jim Blandy."
+--   fact-check-9: claim ≡ "Subversion 1.0 was released in February 2004."
+--   fact-check-10: claim ≡ "BitKeeper was created by Larry McVoy in 1998."
+--   fact-check-11: claim ≡ "BitKeeper was used by the Linux kernel project from 2002 to 2005."
+--   fact-check-12: claim ≡ "The revocation of BitKeeper's free license occurred in April 2005."
+--   fact-check-13: claim ≡ "Git was created by Linus Torvalds in April 2005."
+--   fact-check-14: claim ≡ "Git uses SHA-1 hashes for content-addressable storage."
+--   fact-check-15: claim ≡ "Mercurial was created by Matt Mackall and first released on April 19, 2005."
+
+-- oracle checks:
+--   ⊨ len(fact-check-cells) = len(generate-article→claims) → ✓ (16 = 16)
+--   ⊨ each spawned cell targets exactly one claim → ✓
+
+-- state after frame 2: spawn-fact-checkers frozen (iteration 0).
+-- 16 new cells in ready set: { fact-check-0 .. fact-check-15 }
+-- All have their claim given bound. All ready simultaneously.
+-- (Confluence: order doesn't matter. We evaluate them sequentially for trace clarity.)
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAMES 3-18: evaluate fact-check-0 through fact-check-15 (soft, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { fact-check-0, ..., fact-check-15 } — all claims bound
+-- These are independent — confluence guarantees any order is valid.
+-- Evaluating in spawn order for trace readability.
+
+-- FRAME 3: fact-check-0
+⊢ fact-check-0
+  given claim ≡ "SCCS was created by Marc Rochkind at Bell Labs in 1972."
+  yield verdict, correction, confidence
+
+  ∴ Evaluate whether «claim» is factually accurate...
+
+-- LLM evaluation:
+  yield verdict ≡ "pass"
+  yield correction ≡ ""
+  yield confidence ≡ "high"
+
+-- oracle checks:
+--   ⊨ verdict ∈ {"pass", "fail", "uncertain"} → ✓
+--   ⊨ if verdict = "fail" then correction != "" → ✓ (vacuously: verdict ≠ "fail")
+--   ⊨ if verdict = "pass" then correction = "" → ✓
+
+-- FRAME 4: fact-check-1
+⊢ fact-check-1
+  given claim ≡ "SCCS introduced the concept of deltas for storing file version differences."
+  yield verdict, correction, confidence
+
+-- LLM evaluation:
+  yield verdict ≡ "pass"
+  yield correction ≡ ""
+  yield confidence ≡ "medium"
+
+-- oracle checks: all ✓
+
+-- FRAME 5: fact-check-2
+⊢ fact-check-2
+  given claim ≡ "RCS was developed by Walter Tichy at Purdue University in 1982."
+  yield verdict, correction, confidence
+
+-- LLM evaluation:
+  yield verdict ≡ "pass"
+  yield correction ≡ ""
+  yield confidence ≡ "high"
+
+-- oracle checks: all ✓
+
+-- FRAME 6: fact-check-3
+⊢ fact-check-3
+  given claim ≡ "RCS used reverse deltas, storing the most recent version in full."
+  yield verdict, correction, confidence
+
+-- LLM evaluation:
+  yield verdict ≡ "pass"
+  yield correction ≡ ""
+  yield confidence ≡ "high"
+
+-- oracle checks: all ✓
+
+-- FRAME 7: fact-check-4
+⊢ fact-check-4
+  given claim ≡ "CVS was created by Dick Grune in 1986."
+  yield verdict, correction, confidence
+
+-- LLM evaluation:
+  yield verdict ≡ "fail"
+  yield correction ≡ "CVS was created by Dick Grune in 1986 as a series of shell scripts wrapping RCS."
+  yield confidence ≡ "medium"
+
+-- oracle checks:
+--   ⊨ verdict ∈ {"pass", "fail", "uncertain"} → ✓
+--   ⊨ if verdict = "fail" then correction != "" → ✓
+--   ⊨ if verdict = "pass" then correction = "" → ✓ (vacuously: verdict ≠ "pass")
+--
+-- Note: The checker flags the original claim as imprecise — 1986 is debated
+-- (Grune released scripts in 1984-1986). The correction adds context. This is
+-- a borderline call; the checker chooses "fail" to be conservative.
+
+-- FRAME 8: fact-check-5
+⊢ fact-check-5
+  given claim ≡ "CVS was rewritten by Brian Berliner in 1989."
+  yield verdict, correction, confidence
+
+-- LLM evaluation:
+  yield verdict ≡ "pass"
+  yield correction ≡ ""
+  yield confidence ≡ "high"
+
+-- oracle checks: all ✓
+
+-- FRAME 9: fact-check-6
+⊢ fact-check-6
+  given claim ≡ "CVS was the first version control system to support concurrent editing by multiple developers."
+  yield verdict, correction, confidence
+
+-- LLM evaluation:
+  yield verdict ≡ "pass"
+  yield correction ≡ ""
+  yield confidence ≡ "medium"
+
+-- oracle checks: all ✓
+
+-- FRAME 10: fact-check-7
+⊢ fact-check-7
+  given claim ≡ "Subversion was created by CollabNet in 2000."
+  yield verdict, correction, confidence
+
+-- LLM evaluation:
+  yield verdict ≡ "pass"
+  yield correction ≡ ""
+  yield confidence ≡ "high"
+
+-- oracle checks: all ✓
+
+-- FRAME 11: fact-check-8
+⊢ fact-check-8
+  given claim ≡ "The Subversion project was led by Karl Fogel and Jim Blandy."
+  yield verdict, correction, confidence
+
+-- LLM evaluation:
+  yield verdict ≡ "pass"
+  yield correction ≡ ""
+  yield confidence ≡ "medium"
+
+-- oracle checks: all ✓
+-- Note: Fogel and Blandy were key figures. Ben Collins-Sussman was also a
+-- lead developer, but the claim doesn't say "only" — it says "led by".
+
+-- FRAME 12: fact-check-9
+⊢ fact-check-9
+  given claim ≡ "Subversion 1.0 was released in February 2004."
+  yield verdict, correction, confidence
+
+-- LLM evaluation:
+  yield verdict ≡ "pass"
+  yield correction ≡ ""
+  yield confidence ≡ "high"
+
+-- oracle checks: all ✓
+
+-- FRAME 13: fact-check-10
+⊢ fact-check-10
+  given claim ≡ "BitKeeper was created by Larry McVoy in 1998."
+  yield verdict, correction, confidence
+
+-- LLM evaluation:
+  yield verdict ≡ "fail"
+  yield correction ≡ "BitKeeper was created by Larry McVoy and first released in 2000."
+  yield confidence ≡ "medium"
+
+-- oracle checks:
+--   ⊨ verdict ∈ {"pass", "fail", "uncertain"} → ✓
+--   ⊨ if verdict = "fail" then correction != "" → ✓
+--   ⊨ if verdict = "pass" then correction = "" → ✓ (vacuously)
+--
+-- Note: BitMover (McVoy's company) was founded in 1998, but BitKeeper's
+-- first public release was 2000. The checker flags the date as inaccurate.
+
+-- FRAME 14: fact-check-11
+⊢ fact-check-11
+  given claim ≡ "BitKeeper was used by the Linux kernel project from 2002 to 2005."
+  yield verdict, correction, confidence
+
+-- LLM evaluation:
+  yield verdict ≡ "pass"
+  yield correction ≡ ""
+  yield confidence ≡ "high"
+
+-- oracle checks: all ✓
+
+-- FRAME 15: fact-check-12
+⊢ fact-check-12
+  given claim ≡ "The revocation of BitKeeper's free license occurred in April 2005."
+  yield verdict, correction, confidence
+
+-- LLM evaluation:
+  yield verdict ≡ "pass"
+  yield correction ≡ ""
+  yield confidence ≡ "high"
+
+-- oracle checks: all ✓
+
+-- FRAME 16: fact-check-13
+⊢ fact-check-13
+  given claim ≡ "Git was created by Linus Torvalds in April 2005."
+  yield verdict, correction, confidence
+
+-- LLM evaluation:
+  yield verdict ≡ "pass"
+  yield correction ≡ ""
+  yield confidence ≡ "high"
+
+-- oracle checks: all ✓
+
+-- FRAME 17: fact-check-14
+⊢ fact-check-14
+  given claim ≡ "Git uses SHA-1 hashes for content-addressable storage."
+  yield verdict, correction, confidence
+
+-- LLM evaluation:
+  yield verdict ≡ "pass"
+  yield correction ≡ ""
+  yield confidence ≡ "high"
+
+-- oracle checks: all ✓
+
+-- FRAME 18: fact-check-15
+⊢ fact-check-15
+  given claim ≡ "Mercurial was created by Matt Mackall and first released on April 19, 2005."
+  yield verdict, correction, confidence
+
+-- LLM evaluation:
+  yield verdict ≡ "pass"
+  yield correction ≡ ""
+  yield confidence ≡ "high"
+
+-- oracle checks: all ✓
+-- Note: Mackall announced Mercurial on April 19, 2005 on the Linux kernel
+-- mailing list. The date is precise and verifiable.
+
+-- state after frames 3-18: all 16 fact-check cells frozen.
+-- Ready set: { aggregate-results } — all fact-check-*→verdict/correction/confidence available
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 19: evaluate aggregate-results (hard cell, ⊢=) [iteration 0]
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { aggregate-results } — all wildcard deps resolved
+-- This is a ⊢= hard cell — deterministic evaluation, no LLM.
+
+⊢ aggregate-results
+  given fact-check-*→verdict ≡ ["pass", "pass", "pass", "pass", "fail", "pass", "pass", "pass", "pass", "pass", "fail", "pass", "pass", "pass", "pass", "pass"]
+  given fact-check-*→correction ≡ ["", "", "", "", "CVS was created by Dick Grune in 1986 as a series of shell scripts wrapping RCS.", "", "", "", "", "", "BitKeeper was created by Larry McVoy and first released in 2000.", "", "", "", "", ""]
+  given fact-check-*→confidence ≡ ["high", "medium", "high", "high", "medium", "high", "medium", "high", "medium", "high", "medium", "high", "high", "high", "high", "high"]
+  given generate-article→claims ≡ [...(16 claims)]
+  yield pass-count, fail-count, uncertain-count, failed-claims[], all-pass
+
+-- Deterministic evaluation (⊢=):
+  ⊢= pass-count ← count(fact-check-*→verdict, v -> v = "pass")  -- 14
+  ⊢= fail-count ← count(fact-check-*→verdict, v -> v = "fail")  -- 2
+  ⊢= uncertain-count ← count(fact-check-*→verdict, v -> v = "uncertain")  -- 0
+  ⊢= failed-claims ← filter(zip(...), entry -> entry[1] = "fail")
+  ⊢= all-pass ← if 2 = 0 and 0 = 0 then true else false  -- false
+
+  yield pass-count ≡ 14
+  yield fail-count ≡ 2
+  yield uncertain-count ≡ 0
+  yield failed-claims ≡ [
+    { claim: "CVS was created by Dick Grune in 1986.", correction: "CVS was created by Dick Grune in 1986 as a series of shell scripts wrapping RCS." },
+    { claim: "BitKeeper was created by Larry McVoy in 1998.", correction: "BitKeeper was created by Larry McVoy and first released in 2000." }
+  ]
+  yield all-pass ≡ false
+
+-- oracle checks:
+--   ⊨ pass-count + fail-count + uncertain-count = len(fact-check-*→verdict) → ✓ (14+2+0=16)
+--   ⊨ len(failed-claims) = fail-count → ✓ (2=2)
+--   ⊨ if fail-count = 0 and uncertain-count = 0 then all-pass = true → ✓ (vacuously: fail-count ≠ 0)
+--   ⊨ if fail-count > 0 or uncertain-count > 0 then all-pass = false → ✓ (fail-count=2 > 0, all-pass=false)
+
+-- state after frame 19: aggregate-results frozen (iteration 0).
+-- Guard evaluation:
+--   rewrite-article: `where all-pass = false` → all-pass ≡ false → guard TRUE → enters ready set
+--   final-article: `where all-pass = true` → all-pass ≡ false → guard FALSE → SKIPPED
+--   incomplete-article: `where all-pass = false` → all-pass ≡ false → guard TRUE
+--     BUT: incomplete-article is NOT in the ⊢∘ through chain. It only fires
+--     after ⊢∘ terminates without convergence. For now it remains blocked.
+-- Ready set: { rewrite-article }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 20: evaluate rewrite-article (soft cell, LLM) [iteration 0]
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { rewrite-article } — guard passed (all-pass = false)
+-- 2 failed claims to correct.
+
+⊢ rewrite-article
+  given generate-article→article-text ≡ "The History of Version Control Systems\n\n...CVS was created by Dick Grune in 1986...BitKeeper was created by Larry McVoy in 1998..."
+  given generate-article→claims ≡ [...(16 claims)]
+  given aggregate-results→failed-claims ≡ [{ claim: "CVS was created by Dick Grune in 1986.", correction: "CVS was created by Dick Grune in 1986 as a series of shell scripts wrapping RCS." }, { claim: "BitKeeper was created by Larry McVoy in 1998.", correction: "BitKeeper was created by Larry McVoy and first released in 2000." }]
+  given aggregate-results→all-pass ≡ false  -- guard: where all-pass = false → TRUE
+  given? aggregate-results→uncertain-count ≡ 0
+  yield article-text', claims'[], changes-made
+
+  ∴ For each entry in «aggregate-results→failed-claims», find the
+    corresponding sentence and replace it with the corrected version...
+
+-- LLM evaluation:
+
+  yield article-text' ≡ "The History of Version Control Systems
+
+Version control systems have been fundamental to software engineering since the earliest days of collaborative programming. The need to track changes, manage concurrent edits, and maintain a history of modifications drove the creation of increasingly sophisticated tools over five decades.
+
+The earliest version control system was SCCS (Source Code Control System), created by Marc Rochkind at Bell Labs in 1972. SCCS introduced the concept of deltas — storing only the differences between file versions rather than complete copies. It operated on individual files and was designed for the Unix operating system. SCCS remained the dominant version control tool in Unix environments throughout the 1970s.
+
+RCS (Revision Control System) was developed by Walter Tichy at Purdue University in 1982. RCS improved on SCCS by using reverse deltas — storing the most recent version in full and reconstructing older versions by applying patches backwards. This made accessing the latest version faster, which matched typical developer workflows. Like SCCS, RCS tracked individual files rather than project-wide changes.
+
+CVS (Concurrent Versions System) was created by Dick Grune in 1986 as a series of shell scripts wrapping RCS, and later rewritten by Brian Berliner in 1989. CVS was the first version control system to support concurrent editing by multiple developers on the same codebase. It introduced the copy-modify-merge workflow that would become standard. CVS used a central server architecture and operated on entire directory trees rather than individual files.
+
+Subversion (SVN) was created by CollabNet in 2000 as an explicit replacement for CVS. The project was led by Karl Fogel and Jim Blandy. Subversion addressed CVS limitations by supporting atomic commits, directory versioning, and efficient branching through copy-on-write. Subversion 1.0 was released in February 2004.
+
+BitKeeper was a proprietary distributed version control system created by Larry McVoy and first released in 2000. It was notably used by the Linux kernel project from 2002 to 2005. BitKeeper pioneered distributed version control concepts including local commits and peer-to-peer synchronization. The revocation of BitKeeper's free license for Linux development in April 2005 directly precipitated the creation of Git.
+
+Git was created by Linus Torvalds in April 2005 after the BitKeeper controversy. Git was designed for speed, data integrity, and support for distributed workflows. Its content-addressable storage model uses SHA-1 hashes to identify every object. Git achieved dominance in open-source development and became the most widely used version control system worldwide.
+
+Mercurial was created by Matt Mackall and first released on April 19, 2005 — the same month as Git. Both projects were responses to the BitKeeper situation. Mercurial was designed with a focus on simplicity and performance for large repositories. While Mercurial gained significant adoption (notably by Mozilla and Facebook), Git ultimately achieved broader market dominance."
+
+  yield claims' ≡ [
+    "SCCS was created by Marc Rochkind at Bell Labs in 1972.",
+    "SCCS introduced the concept of deltas for storing file version differences.",
+    "RCS was developed by Walter Tichy at Purdue University in 1982.",
+    "RCS used reverse deltas, storing the most recent version in full.",
+    "CVS was created by Dick Grune in 1986 as a series of shell scripts wrapping RCS.",
+    "CVS was rewritten by Brian Berliner in 1989.",
+    "CVS was the first version control system to support concurrent editing by multiple developers.",
+    "Subversion was created by CollabNet in 2000.",
+    "The Subversion project was led by Karl Fogel and Jim Blandy.",
+    "Subversion 1.0 was released in February 2004.",
+    "BitKeeper was created by Larry McVoy and first released in 2000.",
+    "BitKeeper was used by the Linux kernel project from 2002 to 2005.",
+    "The revocation of BitKeeper's free license occurred in April 2005.",
+    "Git was created by Linus Torvalds in April 2005.",
+    "Git uses SHA-1 hashes for content-addressable storage.",
+    "Mercurial was created by Matt Mackall and first released on April 19, 2005."
+  ]
+
+  yield changes-made ≡ 2
+
+-- oracle checks:
+--   ⊨ changes-made > 0 → ✓ (2 > 0)
+--   ⊨ len(claims') = len(generate-article→claims) → ✓ (16 = 16)
+--   ⊨ article-text' preserves uncorrected portions → ✓
+--     (only CVS paragraph and BitKeeper paragraph surgically modified)
+
+-- state after frame 20: rewrite-article frozen (iteration 0).
+-- ⊢∘ fact-check-loop: check convergence — aggregate-results→all-pass = true?
+-- aggregate-results→all-pass ≡ false → NOT converged
+-- iteration 0 complete. generate-article ← rewritten version:
+--   article-text ← rewrite-article→article-text'
+--   claims ← rewrite-article→claims'
+-- Unfreeze spawn-fact-checkers, aggregate-results, rewrite-article.
+-- ⊢⊢ replace mode: discard fact-check-0 through fact-check-15.
+-- Begin iteration 1.
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ FACT-CHECK-LOOP — ITERATION 1
+-- ═══════════════════════════════════════════════════════════════
+-- Target: generate-article (article-text/claims updated to corrected version)
+-- Previous fact-check cells discarded (replace mode).
+-- Through chain unfrozen. Re-evaluate from spawn-fact-checkers.
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 21: evaluate spawn-fact-checkers (⊢⊢ spawner, LLM) [iteration 1]
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { spawn-fact-checkers } — generate-article→claims updated
+-- Replace mode: previous fact-check-0..15 discarded. Spawning fresh set.
+
+⊢⊢ spawn-fact-checkers
+  given generate-article→claims ≡ ["SCCS was created by Marc Rochkind at Bell Labs in 1972.", ..., "CVS was created by Dick Grune in 1986 as a series of shell scripts wrapping RCS.", ..., "BitKeeper was created by Larry McVoy and first released in 2000.", ...(16 corrected claims)]
+  given §fact-check-template
+  yield §fact-check-cells[]
+
+-- LLM evaluation: spawns 16 fresh fact-check cells for corrected claims.
+-- Spawned cells: fact-check-0 through fact-check-15 (fresh instances).
+
+-- oracle checks:
+--   ⊨ len(fact-check-cells) = len(generate-article→claims) → ✓ (16 = 16)
+--   ⊨ each spawned cell targets exactly one claim → ✓
+
+-- state after frame 21: spawn-fact-checkers frozen (iteration 1).
+-- Ready set: { fact-check-0 .. fact-check-15 } (fresh set)
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAMES 22-37: evaluate fact-check-0 through fact-check-15 (soft, LLM) [iteration 1]
+-- ═══════════════════════════════════════════════════════════════
+-- All 16 fact-check cells independent. Evaluating in spawn order.
+-- The two previously-failed claims (4 and 10) now have corrected text.
+
+-- FRAME 22: fact-check-0
+⊢ fact-check-0
+  given claim ≡ "SCCS was created by Marc Rochkind at Bell Labs in 1972."
+  yield verdict ≡ "pass", correction ≡ "", confidence ≡ "high"
+-- oracle checks: all ✓
+
+-- FRAME 23: fact-check-1
+⊢ fact-check-1
+  given claim ≡ "SCCS introduced the concept of deltas for storing file version differences."
+  yield verdict ≡ "pass", correction ≡ "", confidence ≡ "medium"
+-- oracle checks: all ✓
+
+-- FRAME 24: fact-check-2
+⊢ fact-check-2
+  given claim ≡ "RCS was developed by Walter Tichy at Purdue University in 1982."
+  yield verdict ≡ "pass", correction ≡ "", confidence ≡ "high"
+-- oracle checks: all ✓
+
+-- FRAME 25: fact-check-3
+⊢ fact-check-3
+  given claim ≡ "RCS used reverse deltas, storing the most recent version in full."
+  yield verdict ≡ "pass", correction ≡ "", confidence ≡ "high"
+-- oracle checks: all ✓
+
+-- FRAME 26: fact-check-4 (previously failed — now corrected)
+⊢ fact-check-4
+  given claim ≡ "CVS was created by Dick Grune in 1986 as a series of shell scripts wrapping RCS."
+  yield verdict ≡ "pass", correction ≡ "", confidence ≡ "high"
+-- oracle checks: all ✓
+-- The corrected claim now passes. Adding "as a series of shell scripts
+-- wrapping RCS" provides sufficient precision.
+
+-- FRAME 27: fact-check-5
+⊢ fact-check-5
+  given claim ≡ "CVS was rewritten by Brian Berliner in 1989."
+  yield verdict ≡ "pass", correction ≡ "", confidence ≡ "high"
+-- oracle checks: all ✓
+
+-- FRAME 28: fact-check-6
+⊢ fact-check-6
+  given claim ≡ "CVS was the first version control system to support concurrent editing by multiple developers."
+  yield verdict ≡ "pass", correction ≡ "", confidence ≡ "medium"
+-- oracle checks: all ✓
+
+-- FRAME 29: fact-check-7
+⊢ fact-check-7
+  given claim ≡ "Subversion was created by CollabNet in 2000."
+  yield verdict ≡ "pass", correction ≡ "", confidence ≡ "high"
+-- oracle checks: all ✓
+
+-- FRAME 30: fact-check-8
+⊢ fact-check-8
+  given claim ≡ "The Subversion project was led by Karl Fogel and Jim Blandy."
+  yield verdict ≡ "pass", correction ≡ "", confidence ≡ "medium"
+-- oracle checks: all ✓
+
+-- FRAME 31: fact-check-9
+⊢ fact-check-9
+  given claim ≡ "Subversion 1.0 was released in February 2004."
+  yield verdict ≡ "pass", correction ≡ "", confidence ≡ "high"
+-- oracle checks: all ✓
+
+-- FRAME 32: fact-check-10 (previously failed — now corrected)
+⊢ fact-check-10
+  given claim ≡ "BitKeeper was created by Larry McVoy and first released in 2000."
+  yield verdict ≡ "pass", correction ≡ "", confidence ≡ "high"
+-- oracle checks: all ✓
+-- The corrected claim now passes. "First released in 2000" is accurate.
+
+-- FRAME 33: fact-check-11
+⊢ fact-check-11
+  given claim ≡ "BitKeeper was used by the Linux kernel project from 2002 to 2005."
+  yield verdict ≡ "pass", correction ≡ "", confidence ≡ "high"
+-- oracle checks: all ✓
+
+-- FRAME 34: fact-check-12
+⊢ fact-check-12
+  given claim ≡ "The revocation of BitKeeper's free license occurred in April 2005."
+  yield verdict ≡ "pass", correction ≡ "", confidence ≡ "high"
+-- oracle checks: all ✓
+
+-- FRAME 35: fact-check-13
+⊢ fact-check-13
+  given claim ≡ "Git was created by Linus Torvalds in April 2005."
+  yield verdict ≡ "pass", correction ≡ "", confidence ≡ "high"
+-- oracle checks: all ✓
+
+-- FRAME 36: fact-check-14
+⊢ fact-check-14
+  given claim ≡ "Git uses SHA-1 hashes for content-addressable storage."
+  yield verdict ≡ "pass", correction ≡ "", confidence ≡ "high"
+-- oracle checks: all ✓
+
+-- FRAME 37: fact-check-15
+⊢ fact-check-15
+  given claim ≡ "Mercurial was created by Matt Mackall and first released on April 19, 2005."
+  yield verdict ≡ "pass", correction ≡ "", confidence ≡ "high"
+-- oracle checks: all ✓
+
+-- state after frames 22-37: all 16 fact-check cells frozen (iteration 1).
+-- All verdicts: "pass". No failures, no uncertains.
+-- Ready set: { aggregate-results }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 38: evaluate aggregate-results (hard cell, ⊢=) [iteration 1]
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { aggregate-results } — all wildcard deps resolved
+
+⊢ aggregate-results
+  given fact-check-*→verdict ≡ ["pass", "pass", "pass", "pass", "pass", "pass", "pass", "pass", "pass", "pass", "pass", "pass", "pass", "pass", "pass", "pass"]
+  given fact-check-*→correction ≡ ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""]
+  given fact-check-*→confidence ≡ ["high", "medium", "high", "high", "high", "high", "medium", "high", "medium", "high", "high", "high", "high", "high", "high", "high"]
+  given generate-article→claims ≡ [...(16 corrected claims)]
+  yield pass-count, fail-count, uncertain-count, failed-claims[], all-pass
+
+-- Deterministic evaluation (⊢=):
+  yield pass-count ≡ 16
+  yield fail-count ≡ 0
+  yield uncertain-count ≡ 0
+  yield failed-claims ≡ []
+  yield all-pass ≡ true
+
+-- oracle checks:
+--   ⊨ pass-count + fail-count + uncertain-count = len(fact-check-*→verdict) → ✓ (16+0+0=16)
+--   ⊨ len(failed-claims) = fail-count → ✓ (0=0)
+--   ⊨ if fail-count = 0 and uncertain-count = 0 then all-pass = true → ✓
+--   ⊨ if fail-count > 0 or uncertain-count > 0 then all-pass = false → ✓ (vacuously: neither > 0)
+
+-- state after frame 38: aggregate-results frozen (iteration 1).
+-- Guard evaluation:
+--   rewrite-article: `where all-pass = false` → all-pass ≡ true → guard FALSE → SKIPPED
+--     rewrite-article yields all ⊥ (guard-induced bottom). Not needed — no failures.
+-- ⊢∘ fact-check-loop: check convergence — aggregate-results→all-pass = true?
+-- aggregate-results→all-pass ≡ true → CONVERGED
+--
+-- ⊢∘ fact-check-loop terminates after 2 iterations (0, 1).
+-- rewrite-article is NOT evaluated this iteration — guard prevents it.
+-- generate-article's frozen output is the corrected version from iteration 0.
+
+-- ═══════════════════════════════════════════════════════════════
+-- POST-LOOP: guard evaluation for terminal cells
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ converged. Now evaluate cells outside the loop.
+-- Guard checks:
+--   final-article: `where all-pass = true` → all-pass ≡ true → guard TRUE → enters ready set
+--   incomplete-article: `where all-pass = false` → all-pass ≡ true → guard FALSE → SKIPPED
+--     incomplete-article yields all ⊥ (guard-induced bottom). Correct — loop succeeded.
+-- Ready set: { final-article }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 39: evaluate final-article (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { final-article } — guard passed (all-pass = true)
+-- All inputs available from converged ⊢∘ loop.
+
+⊢ final-article
+  given aggregate-results→all-pass ≡ true  -- guard: where all-pass = true → TRUE
+  given generate-article→article-text ≡ "The History of Version Control Systems\n\n...(corrected 8-paragraph article)..."
+  given generate-article→claims ≡ [...(16 corrected claims)]
+  given aggregate-results→pass-count ≡ 16
+  given aggregate-results→fail-count ≡ 0
+  given aggregate-results→uncertain-count ≡ 0
+  yield verified-article, fact-check-summary
+
+  ∴ Produce the final verified article from «generate-article→article-text»...
+
+-- LLM evaluation:
+
+  yield verified-article ≡ "The History of Version Control Systems
+
+Version control systems have been fundamental to software engineering since the earliest days of collaborative programming. The need to track changes, manage concurrent edits, and maintain a history of modifications drove the creation of increasingly sophisticated tools over five decades.
+
+The earliest version control system was SCCS (Source Code Control System), created by Marc Rochkind at Bell Labs in 1972. SCCS introduced the concept of deltas — storing only the differences between file versions rather than complete copies. It operated on individual files and was designed for the Unix operating system. SCCS remained the dominant version control tool in Unix environments throughout the 1970s.
+
+RCS (Revision Control System) was developed by Walter Tichy at Purdue University in 1982. RCS improved on SCCS by using reverse deltas — storing the most recent version in full and reconstructing older versions by applying patches backwards. This made accessing the latest version faster, which matched typical developer workflows. Like SCCS, RCS tracked individual files rather than project-wide changes.
+
+CVS (Concurrent Versions System) was created by Dick Grune in 1986 as a series of shell scripts wrapping RCS, and later rewritten by Brian Berliner in 1989. CVS was the first version control system to support concurrent editing by multiple developers on the same codebase. It introduced the copy-modify-merge workflow that would become standard. CVS used a central server architecture and operated on entire directory trees rather than individual files.
+
+Subversion (SVN) was created by CollabNet in 2000 as an explicit replacement for CVS. The project was led by Karl Fogel and Jim Blandy. Subversion addressed CVS limitations by supporting atomic commits, directory versioning, and efficient branching through copy-on-write. Subversion 1.0 was released in February 2004.
+
+BitKeeper was a proprietary distributed version control system created by Larry McVoy and first released in 2000. It was notably used by the Linux kernel project from 2002 to 2005. BitKeeper pioneered distributed version control concepts including local commits and peer-to-peer synchronization. The revocation of BitKeeper's free license for Linux development in April 2005 directly precipitated the creation of Git.
+
+Git was created by Linus Torvalds in April 2005 after the BitKeeper controversy. Git was designed for speed, data integrity, and support for distributed workflows. Its content-addressable storage model uses SHA-1 hashes to identify every object. Git achieved dominance in open-source development and became the most widely used version control system worldwide.
+
+Mercurial was created by Matt Mackall and first released on April 19, 2005 — the same month as Git. Both projects were responses to the BitKeeper situation. Mercurial was designed with a focus on simplicity and performance for large repositories. While Mercurial gained significant adoption (notably by Mozilla and Facebook), Git ultimately achieved broader market dominance.
+
+---
+Fact-Check Summary: 16 claims checked. Passed: 16. Failed (corrected): 0. Uncertain: 0. All claims verified."
+
+  yield fact-check-summary ≡ "16 claims checked. Passed: 16. Failed (corrected): 0. Uncertain: 0. All claims verified."
+
+-- oracle checks:
+--   ⊨ verified-article contains the full article text → ✓
+--   ⊨ fact-check-summary includes total, passed, failed, and uncertain counts → ✓
+--   ⊨ if aggregate-results→fail-count = 0 then fact-check-summary states "all claims verified" → ✓
+
+-- state after frame 39: final-article frozen.
+
+-- ═══════════════════════════════════════════════════════════════
+-- QUIESCENCE
+-- ═══════════════════════════════════════════════════════════════
+-- All cells frozen. No cells in ready set.
+-- ⊢∘ fact-check-loop converged (all-pass = true) at iteration 1.
+--
+-- Final state:
+--   topic: frozen (hard cell, title + scope)
+--   generate-article: frozen (corrected article after ⊢∘ iteration 0 rewrite)
+--   spawn-fact-checkers: frozen (iteration 1, replace mode — 16 fresh cells)
+--   fact-check-0..15: frozen (iteration 1, all "pass")
+--   aggregate-results: frozen (iteration 1, all-pass = true)
+--   rewrite-article: SKIPPED at iteration 1 (guard: all-pass = false, but all-pass = true)
+--     yields ⊥ — not needed, no downstream consumers
+--   final-article: frozen (verified article with summary)
+--   incomplete-article: SKIPPED (guard: all-pass = false, but all-pass = true)
+--     yields ⊥ — correct, loop succeeded
+--   fact-check-template: template cell, never directly evaluated
+--
+-- v0.2 observations:
+--
+-- ⊢= aggregate-results demonstrates the ⊢= expression language with v0.2
+--   primitives (count, filter, zip, if-then-else). No LLM needed. The hard/soft
+--   boundary is clean: fact-checking is soft (requires world knowledge), but
+--   aggregating verdicts is pure deterministic computation.
+--
+-- Guard clauses enable clean dispatch:
+--   - rewrite-article fires only when corrections needed (all-pass = false)
+--   - final-article fires only on success (all-pass = true)
+--   - incomplete-article fires only on failure (all-pass = false)
+--   Without guards (R16), rewrite-article ran even when all-pass = true
+--   and had to include "if all-pass, output unchanged" logic in its ∴ body.
+--   Guards move this dispatch to the deterministic layer.
+--
+-- Replace mode on ⊢⊢ spawn-fact-checkers is essential: each iteration needs
+--   FRESH verdicts on possibly-corrected claims. Accumulating old fact-check
+--   cells would mix stale verdicts with current ones. This is the opposite of
+--   program 08 (red-team-harden) where regression tests ACCUMULATE — there,
+--   old tests must persist to prevent regression. Here, old verdicts are invalid
+--   after rewriting.
+--
+-- Aspirational oracles on generate-article (under ⊢∘) meant the article was
+--   frozen immediately despite being ⊢∘-managed. The loop's convergence
+--   criterion (all-pass) is the real quality gate, not the cell's own oracles.
+--
+-- Total frames: 40 (frame 0 through frame 39)
+-- ⊢∘ iterations: 2 (0, 1) out of max 3
+-- Oracle retries: 0 (no oracle failures in this trace)
+-- Claims checked: 32 total (16 per iteration x 2 iterations)
+-- Corrections made: 2 (CVS creation context, BitKeeper release date)
+-- Guard skips: 3 (rewrite-article at iter 1, final-article at iter 0, incomplete-article)

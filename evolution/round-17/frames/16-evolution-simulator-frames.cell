@@ -1,0 +1,530 @@
+-- 16-evolution-simulator-frames.cell — full eval-one execution trace
+--
+-- Ready set analysis:
+--   brief: all yields are ⊢= (no givens needed) → READY
+--   seed-population: needs brief→name, brief→style-direction, brief→constraints → BLOCKED
+--   evaluate-fitness: needs seed-population→candidates, brief→style-direction, brief→constraints → BLOCKED
+--   select-and-crossover: needs seed-population→candidates, evaluate-fitness→scores, evaluate-fitness→rankings → BLOCKED
+--   judge-generation: needs select-and-crossover→next-candidates, brief→style-direction, brief→constraints; given? evaluate-fitness→mean-fitness (⊥ OK) → BLOCKED
+--   convergence-report: needs judge-generation→converged (where true), judge-generation→new-mean-fitness (where ≥8), etc → BLOCKED
+--   stagnation-report: needs judge-generation→converged (where true), judge-generation→new-mean-fitness (where <8), etc → BLOCKED
+--
+-- Ready set: { brief }
+-- Pre-loop chain: brief → seed-population → evaluate-fitness
+-- ⊢∘ evolve loop: evaluate-fitness → select-and-crossover → judge-generation (max 4, replace)
+-- Post-loop: convergence-report XOR stagnation-report (guard-gated)
+--
+-- File-scope ⊨? applies to all cells without local ⊨?:
+--   retry with failure feedback, max 2; on exhaustion → error-value(⊥)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 0: brief
+-- ═══════════════════════════════════════════════════════════════
+
+-- brief is a data cell — all yields are ⊢= expressions. No LLM needed.
+-- Freezes immediately via classical evaluation.
+
+⊢ brief
+  yield name, style-direction, constraints
+
+  ⊢= name ← "Hyperion"
+  ⊢= style-direction ← "A specialty coffee roaster. Named after the Titan of light. Should evoke: warmth, craft, mythology, dawn. Target audience: discerning coffee drinkers who care about origin and roast."
+  ⊢= constraints ← "Logo must work in single color. Must be recognizable at 16px favicon size. No clip art. No generic coffee cup icons."
+
+  yield name ≡ "Hyperion"
+  yield style-direction ≡ "A specialty coffee roaster. Named after the Titan of light. Should evoke: warmth, craft, mythology, dawn. Target audience: discerning coffee drinkers who care about origin and roast."
+  yield constraints ≡ "Logo must work in single color. Must be recognizable at 16px favicon size. No clip art. No generic coffee cup icons."
+
+-- No oracles on brief. Pure data cell. Frozen.
+
+-- Ready set after frame 0: { seed-population }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 1: seed-population
+-- ═══════════════════════════════════════════════════════════════
+
+-- seed-population is ⊢ (soft). The LLM interprets the ∴ body.
+-- This cell is the TARGET of ⊢∘ evolve — its oracles are ASPIRATIONAL.
+-- They provide feedback but do not independently block freezing.
+
+⊢ seed-population
+  given brief→name ≡ "Hyperion"
+  given brief→style-direction ≡ "A specialty coffee roaster. Named after the Titan of light. Should evoke: warmth, craft, mythology, dawn. Target audience: discerning coffee drinkers who care about origin and roast."
+  given brief→constraints ≡ "Logo must work in single color. Must be recognizable at 16px favicon size. No clip art. No generic coffee cup icons."
+  yield candidates[]
+
+  ∴ Generate 6 DIVERSE logo concepts for «brief→name». Each concept is a
+    text description of: visual elements, typography, symbolism, and mood.
+    Maximize diversity — different visual strategies, not variations on one idea.
+    Each concept must respect «brief→constraints».
+
+-- LLM evaluation:
+-- The LLM generates 6 diverse logo concepts for a specialty coffee roaster
+-- named Hyperion. Each must work in single color, at 16px, no clip art,
+-- no generic cup icons. Must evoke warmth, craft, mythology, dawn.
+--
+-- Strategy: maximize diversity across visual elements, typography, symbolism.
+--
+-- Concept 0: Sun-disk monogram
+--   Visual: The letter H with rays extending from the crossbar, forming a
+--   stylized sunrise. Clean geometric construction.
+--   Typography: Custom sans-serif H, integrated with the sun motif.
+--   Symbolism: Hyperion as Titan of light, the crossbar as horizon line.
+--   Mood: Bold, architectural, dawn breaking.
+--
+-- Concept 1: Coffee cherry branch
+--   Visual: A single coffee branch with three cherries, stem curving into
+--   a subtle H shape. Botanical line drawing.
+--   Typography: Hand-lettered serif beneath, "HYPERION" with ink-trap details.
+--   Symbolism: Origin, craft, the plant itself — celebrating the source.
+--   Mood: Organic, artisanal, warm.
+--
+-- Concept 2: Titan silhouette
+--   Visual: Abstract standing figure with arms raised, reminiscent of Atlas
+--   but holding a sun disc above. Minimal — 7 strokes maximum.
+--   Typography: All-caps geometric sans-serif below the figure.
+--   Symbolism: The Titan Hyperion literally bearing light to the world.
+--   Mood: Mythic, powerful, aspirational.
+--
+-- Concept 3: Roast gradient ring
+--   Visual: Concentric circles suggesting a coffee roast cross-section,
+--   from light outer ring to dark center. Works as a seal/stamp.
+--   Typography: "HYPERION" arced along the outer ring, letterspaced wide.
+--   Symbolism: The roasting process, layers of flavor, the sun as disc.
+--   Mood: Technical, precise, craft-focused.
+--
+-- Concept 4: Dawn horizon wordmark
+--   Visual: Pure wordmark where the dot of the I in HYPERION is replaced
+--   by a small circle (sun) sitting on the baseline (horizon).
+--   Typography: Modified transitional serif, medium weight.
+--   Symbolism: Dawn — the sun just cresting the line. Understated.
+--   Mood: Quiet confidence, warmth, sophistication.
+--
+-- Concept 5: Phoenix feather
+--   Visual: A single curved feather with barbs suggesting flame licks.
+--   The quill end tapers to a point — doubles as a pen nib for "craft."
+--   Typography: Italic script beneath, "Hyperion" with a long tail on the n.
+--   Symbolism: Phoenix rising, mythological fire bird, transformation (roasting).
+--   Mood: Dynamic, fiery, elegant.
+
+  yield candidates ≡ [
+    {name: "Sun-Disk Monogram", visual: "Letter H with rays extending from crossbar forming stylized sunrise, clean geometric construction", typography: "Custom sans-serif H integrated with sun motif", symbolism: "Hyperion as Titan of light, crossbar as horizon line", mood: "Bold, architectural, dawn breaking"},
+    {name: "Coffee Cherry Branch", visual: "Single coffee branch with three cherries, stem curving into subtle H shape, botanical line drawing", typography: "Hand-lettered serif, HYPERION with ink-trap details", symbolism: "Origin, craft, celebrating the source plant", mood: "Organic, artisanal, warm"},
+    {name: "Titan Silhouette", visual: "Abstract standing figure with arms raised holding sun disc above, minimal 7 strokes", typography: "All-caps geometric sans-serif below figure", symbolism: "Titan Hyperion bearing light to the world", mood: "Mythic, powerful, aspirational"},
+    {name: "Roast Gradient Ring", visual: "Concentric circles suggesting coffee roast cross-section, light outer ring to dark center, seal/stamp format", typography: "HYPERION arced along outer ring, wide letterspacing", symbolism: "Roasting process, layers of flavor, sun as disc", mood: "Technical, precise, craft-focused"},
+    {name: "Dawn Horizon Wordmark", visual: "Pure wordmark, dot of I replaced by small circle (sun) on baseline (horizon)", typography: "Modified transitional serif, medium weight", symbolism: "Dawn, sun cresting the horizon line, understated", mood: "Quiet confidence, warmth, sophistication"},
+    {name: "Phoenix Feather", visual: "Single curved feather with barbs suggesting flame licks, quill end tapers to pen nib", typography: "Italic script, Hyperion with long tail on n", symbolism: "Phoenix rising, mythological fire, transformation via roasting", mood: "Dynamic, fiery, elegant"}
+  ]
+
+-- oracle checks (ASPIRATIONAL — ⊢∘-managed cell):
+--   ⊨ candidates has exactly 6 entries → ✓ (6 entries)
+--   ⊨ each candidate describes: visual elements, typography, symbolism, mood → ✓ (all 4 fields present in each)
+--   ⊨ no two candidates share the same primary visual element → ✓
+--       0: H with rays, 1: coffee branch, 2: standing figure, 3: concentric circles,
+--       4: wordmark with sun dot, 5: feather — all distinct
+--   ⊨ each candidate works in single color and at favicon size → ✓
+--       0: geometric H — scales well, 1: line drawing — workable, 2: 7 strokes — minimal,
+--       3: concentric circles — clear at small size, 4: wordmark — needs width but I-dot is icon,
+--       5: single feather — reads at small size
+
+-- Ready set after frame 1: { evaluate-fitness }
+-- ⊢∘ evolve loop begins. Target: seed-population. Through: evaluate-fitness,
+-- select-and-crossover, judge-generation. Until: converged = true. Max 4. Replace semantics.
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ evolve — ITERATION 0
+-- ═══════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 2: evaluate-fitness (iteration 0)
+-- ═══════════════════════════════════════════════════════════════
+
+-- evaluate-fitness scores the initial population.
+-- Rubric: brand fit 40%, memorability 25%, scalability 20%, constraint compliance 15%.
+
+⊢ evaluate-fitness
+  given seed-population→candidates ≡ [
+    {name: "Sun-Disk Monogram", visual: "Letter H with rays extending from crossbar forming stylized sunrise, clean geometric construction", typography: "Custom sans-serif H integrated with sun motif", symbolism: "Hyperion as Titan of light, crossbar as horizon line", mood: "Bold, architectural, dawn breaking"},
+    {name: "Coffee Cherry Branch", visual: "Single coffee branch with three cherries, stem curving into subtle H shape, botanical line drawing", typography: "Hand-lettered serif, HYPERION with ink-trap details", symbolism: "Origin, craft, celebrating the source plant", mood: "Organic, artisanal, warm"},
+    {name: "Titan Silhouette", visual: "Abstract standing figure with arms raised holding sun disc above, minimal 7 strokes", typography: "All-caps geometric sans-serif below figure", symbolism: "Titan Hyperion bearing light to the world", mood: "Mythic, powerful, aspirational"},
+    {name: "Roast Gradient Ring", visual: "Concentric circles suggesting coffee roast cross-section, light outer ring to dark center, seal/stamp format", typography: "HYPERION arced along outer ring, wide letterspacing", symbolism: "Roasting process, layers of flavor, sun as disc", mood: "Technical, precise, craft-focused"},
+    {name: "Dawn Horizon Wordmark", visual: "Pure wordmark, dot of I replaced by small circle (sun) on baseline (horizon)", typography: "Modified transitional serif, medium weight", symbolism: "Dawn, sun cresting the horizon line, understated", mood: "Quiet confidence, warmth, sophistication"},
+    {name: "Phoenix Feather", visual: "Single curved feather with barbs suggesting flame licks, quill end tapers to pen nib", typography: "Italic script, Hyperion with long tail on n", symbolism: "Phoenix rising, mythological fire, transformation via roasting", mood: "Dynamic, fiery, elegant"}
+  ]
+  given brief→style-direction ≡ "A specialty coffee roaster. Named after the Titan of light. Should evoke: warmth, craft, mythology, dawn. Target audience: discerning coffee drinkers who care about origin and roast."
+  given brief→constraints ≡ "Logo must work in single color. Must be recognizable at 16px favicon size. No clip art. No generic coffee cup icons."
+  yield scores[], rankings[], mean-fitness, top-candidate
+
+  ∴ Score each candidate in «seed-population→candidates» on a 1-10 scale:
+    - Brand fit (does it evoke warmth, craft, mythology, dawn?) — 40%
+    - Memorability (distinctive, not generic) — 25%
+    - Scalability (works at 16px AND on a coffee bag) — 20%
+    - Constraint compliance (single color, no clip art) — 15%
+    Produce a weighted score. Rank all candidates.
+
+-- LLM evaluation:
+--
+-- Candidate 0: Sun-Disk Monogram
+--   Brand fit: 8 (dawn, light — strong mythology; warmth moderate; craft implicit)
+--   Memorability: 7 (monogram logos are common but H-as-sunrise is distinctive)
+--   Scalability: 9 (geometric, reads clearly at 16px — rays simplify to star)
+--   Constraint: 10 (single color, no clip art, no cup)
+--   Weighted: 8×0.4 + 7×0.25 + 9×0.2 + 10×0.15 = 3.2 + 1.75 + 1.8 + 1.5 = 8.25 → 8
+--
+-- Candidate 1: Coffee Cherry Branch
+--   Brand fit: 7 (craft, origin — strong; mythology — weak; dawn — absent)
+--   Memorability: 6 (botanical coffee logos exist, but H-shaped stem is clever)
+--   Scalability: 5 (line drawing with cherries gets muddy at 16px)
+--   Constraint: 9 (single color fine, no clip art, no cup; botanical is borderline)
+--   Weighted: 7×0.4 + 6×0.25 + 5×0.2 + 9×0.15 = 2.8 + 1.5 + 1.0 + 1.35 = 6.65 → 7
+--
+-- Candidate 2: Titan Silhouette
+--   Brand fit: 9 (mythology — peak; warmth via light-bearing; dawn — implied)
+--   Memorability: 8 (distinctive figure mark, not common in coffee branding)
+--   Scalability: 8 (7 strokes — extremely minimal, reads well small)
+--   Constraint: 10 (abstract figure, no clip art, no cup)
+--   Weighted: 9×0.4 + 8×0.25 + 8×0.2 + 10×0.15 = 3.6 + 2.0 + 1.6 + 1.5 = 8.7 → 9
+--
+-- Candidate 3: Roast Gradient Ring
+--   Brand fit: 6 (craft — strong; roasting — strong; mythology — weak; dawn — absent)
+--   Memorability: 5 (concentric circle seals are generic across industries)
+--   Scalability: 7 (seal works small but "gradient" in single color = concentric lines)
+--   Constraint: 8 (single color works, no clip art; but "gradient" is tricky)
+--   Weighted: 6×0.4 + 5×0.25 + 7×0.2 + 8×0.15 = 2.4 + 1.25 + 1.4 + 1.2 = 6.25 → 6
+--
+-- Candidate 4: Dawn Horizon Wordmark
+--   Brand fit: 8 (dawn — literally; warmth — implied; mythology — via name; craft — subtle)
+--   Memorability: 7 (clever I-dot replacement; understated but distinctive)
+--   Scalability: 6 (wordmark needs width; the I-dot icon is tiny at 16px)
+--   Constraint: 10 (single color, no clip art, no cup — just type)
+--   Weighted: 8×0.4 + 7×0.25 + 6×0.2 + 10×0.15 = 3.2 + 1.75 + 1.2 + 1.5 = 7.65 → 8
+--
+-- Candidate 5: Phoenix Feather
+--   Brand fit: 7 (mythology — strong via phoenix; warmth — fire; dawn — transformation; craft — pen nib)
+--   Memorability: 8 (feather-as-flame is uncommon, pen-nib double meaning is clever)
+--   Scalability: 7 (single feather reads at small size, but barb detail may blur)
+--   Constraint: 9 (single color fine, no clip art, no cup)
+--   Weighted: 7×0.4 + 8×0.25 + 7×0.2 + 9×0.15 = 2.8 + 2.0 + 1.4 + 1.35 = 7.55 → 8
+
+  yield scores ≡ [8, 7, 9, 6, 8, 8]
+  yield rankings ≡ [2, 0, 4, 5, 1, 3]
+  yield mean-fitness ≡ 7.67
+  yield top-candidate ≡ {name: "Titan Silhouette", visual: "Abstract standing figure with arms raised holding sun disc above, minimal 7 strokes", typography: "All-caps geometric sans-serif below figure", symbolism: "Titan Hyperion bearing light to the world", mood: "Mythic, powerful, aspirational"}
+
+-- oracle checks:
+--   ⊨ scores has exactly 6 entries → ✓ (6 entries)
+--   ⊨ each score ∈ {1, 2, 3, 4, 5, 6, 7, 8, 9, 10} → ✓ (8, 7, 9, 6, 8, 8)
+--   ⊨ rankings is a permutation of indices 0-5 → ✓ ([2, 0, 4, 5, 1, 3])
+--   ⊨ top-candidate is the candidate with highest score → ✓ (index 2, score 9)
+
+-- Ready set after frame 2: { select-and-crossover }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 3: select-and-crossover (iteration 0)
+-- ═══════════════════════════════════════════════════════════════
+
+-- Top 3 by score: Titan Silhouette (9), Sun-Disk Monogram (8), Dawn Horizon Wordmark (8)
+-- (tie at 8 between indices 0, 4, 5 — rankings break tie: 0 ranked 2nd, 4 ranked 3rd)
+-- Bottom 3 to discard: Phoenix Feather (8 but ranked 4th), Coffee Cherry Branch (7), Roast Gradient Ring (6)
+
+⊢ select-and-crossover
+  given seed-population→candidates ≡ [
+    {name: "Sun-Disk Monogram", visual: "Letter H with rays extending from crossbar forming stylized sunrise, clean geometric construction", typography: "Custom sans-serif H integrated with sun motif", symbolism: "Hyperion as Titan of light, crossbar as horizon line", mood: "Bold, architectural, dawn breaking"},
+    {name: "Coffee Cherry Branch", visual: "Single coffee branch with three cherries, stem curving into subtle H shape, botanical line drawing", typography: "Hand-lettered serif, HYPERION with ink-trap details", symbolism: "Origin, craft, celebrating the source plant", mood: "Organic, artisanal, warm"},
+    {name: "Titan Silhouette", visual: "Abstract standing figure with arms raised holding sun disc above, minimal 7 strokes", typography: "All-caps geometric sans-serif below figure", symbolism: "Titan Hyperion bearing light to the world", mood: "Mythic, powerful, aspirational"},
+    {name: "Roast Gradient Ring", visual: "Concentric circles suggesting coffee roast cross-section, light outer ring to dark center, seal/stamp format", typography: "HYPERION arced along outer ring, wide letterspacing", symbolism: "Roasting process, layers of flavor, sun as disc", mood: "Technical, precise, craft-focused"},
+    {name: "Dawn Horizon Wordmark", visual: "Pure wordmark, dot of I replaced by small circle (sun) on baseline (horizon)", typography: "Modified transitional serif, medium weight", symbolism: "Dawn, sun cresting the horizon line, understated", mood: "Quiet confidence, warmth, sophistication"},
+    {name: "Phoenix Feather", visual: "Single curved feather with barbs suggesting flame licks, quill end tapers to pen nib", typography: "Italic script, Hyperion with long tail on n", symbolism: "Phoenix rising, mythological fire, transformation via roasting", mood: "Dynamic, fiery, elegant"}
+  ]
+  given evaluate-fitness→scores ≡ [8, 7, 9, 6, 8, 8]
+  given evaluate-fitness→rankings ≡ [2, 0, 4, 5, 1, 3]
+  given brief→style-direction ≡ "A specialty coffee roaster. Named after the Titan of light. Should evoke: warmth, craft, mythology, dawn. Target audience: discerning coffee drinkers who care about origin and roast."
+  yield next-candidates[]
+
+  ∴ SELECTION: Keep the top 3 candidates (by score). Discard bottom 3.
+    CROSSOVER: For each discarded slot, create a new candidate by combining
+    traits from two of the top 3 parents:
+    - New candidate 4: cross parent 1 × parent 2 (visual from 1, typography from 2)
+    - New candidate 5: cross parent 2 × parent 3 (symbolism from 2, mood from 3)
+    - New candidate 6: cross parent 1 × parent 3 (elements from 1, style from 3)
+    MUTATION: Apply one random small change to each of the 6 candidates
+    (adjust a color, tweak a shape, shift typography weight).
+
+-- LLM evaluation:
+--
+-- Top 3 parents (by rankings):
+--   Parent 1: Titan Silhouette (rank 1, score 9)
+--   Parent 2: Sun-Disk Monogram (rank 2, score 8)
+--   Parent 3: Dawn Horizon Wordmark (rank 3, score 8)
+--
+-- Survivors (with mutations):
+--   0: Titan Silhouette → mutation: figure holding a crescent instead of full disc (more dynamic)
+--   1: Sun-Disk Monogram → mutation: rays asymmetric (longer on right = dawn breaking east)
+--   2: Dawn Horizon Wordmark → mutation: the sun-dot on I rises slightly above baseline
+--
+-- Crossovers:
+--   3: Titan × Monogram (visual from Titan, typography from Monogram)
+--      Visual: Standing figure in geometric construction
+--      Typography: Custom sans-serif integrated with figure
+--      Result: "Geometric Titan" — figure rendered as pure geometry, H emerges from body
+--   4: Monogram × Wordmark (symbolism from Monogram, mood from Wordmark)
+--      Symbolism: Titan of light, crossbar as horizon
+--      Mood: Quiet confidence, sophistication
+--      Result: "Horizon Monogram" — H with single horizontal ray, minimal and refined
+--   5: Titan × Wordmark (elements from Titan, style from Wordmark)
+--      Elements: Figure with raised arms, sun disc
+--      Style: Transitional serif, understated
+--      Result: "Titan Serif" — abstract figure rendered in serif line weight, sun as period
+
+  yield next-candidates ≡ [
+    {name: "Titan Crescent", visual: "Abstract standing figure with arms raised holding crescent moon/sun above, minimal 7 strokes, crescent suggests dawn transition", typography: "All-caps geometric sans-serif below figure", symbolism: "Titan Hyperion bearing light, crescent as dawn-not-yet-full", mood: "Mythic, dynamic, anticipatory"},
+    {name: "Asymmetric Sun-Disk", visual: "Letter H with asymmetric rays — longer on right side suggesting dawn breaking eastward, clean geometric", typography: "Custom sans-serif H integrated with sun motif", symbolism: "Hyperion as directional light, dawn has a direction", mood: "Bold, architectural, kinetic"},
+    {name: "Rising Dawn Wordmark", visual: "Pure wordmark, dot of I replaced by small circle (sun) floating slightly above baseline, suggesting rise", typography: "Modified transitional serif, medium weight", symbolism: "Dawn actively happening, sun in motion, not static", mood: "Quiet confidence, warmth, momentum"},
+    {name: "Geometric Titan", visual: "Standing figure constructed from pure geometric shapes — triangles and circles, H letterform emerges from torso and arms", typography: "Custom sans-serif where figure IS the H", symbolism: "Titan as architecture, mythology as structure", mood: "Modern, constructed, monumental"},
+    {name: "Horizon Monogram", visual: "Letter H with single thin horizontal ray extending from crossbar, extreme minimalism", typography: "Refined sans-serif, generous letterspacing", symbolism: "Crossbar as horizon line, single ray as first light", mood: "Quiet confidence, sophistication, restraint"},
+    {name: "Titan Serif", visual: "Abstract figure with raised arms rendered in serif stroke weights — thick verticals, thin diagonals, sun as a period dot", typography: "Transitional serif where figure integrates with type baseline", symbolism: "Mythology expressed through typographic tradition, titan as letterform", mood: "Understated, classical, warm"}
+  ]
+
+-- oracle checks:
+--   ⊨ next-candidates has exactly 6 entries → ✓ (6 entries)
+--   ⊨ top 3 candidates are recognizable descendants of their parents → ✓
+--       0: Titan Crescent ← Titan Silhouette (same figure, crescent mutation)
+--       1: Asymmetric Sun-Disk ← Sun-Disk Monogram (same H+rays, asymmetry mutation)
+--       2: Rising Dawn Wordmark ← Dawn Horizon Wordmark (same I-dot concept, position mutation)
+--   ⊨ bottom 3 are genuine crossovers, not copies → ✓
+--       3: Geometric Titan = Titan visual + Monogram typography (new hybrid)
+--       4: Horizon Monogram = Monogram symbolism + Wordmark mood (new hybrid)
+--       5: Titan Serif = Titan elements + Wordmark style (new hybrid)
+
+-- Ready set after frame 3: { judge-generation }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 4: judge-generation (iteration 0)
+-- ═══════════════════════════════════════════════════════════════
+
+-- given? evaluate-fitness→mean-fitness: this is the FIRST iteration of the ⊢∘ loop.
+-- evaluate-fitness→mean-fitness was frozen in frame 2 (≡ 7.67) as part of
+-- the pre-loop chain, so it IS available. given? here means the cell can
+-- tolerate ⊥ if the loop had started without a prior evaluation, but in this
+-- program the pre-loop chain provides the value.
+
+⊢ judge-generation
+  given select-and-crossover→next-candidates ≡ [
+    {name: "Titan Crescent", visual: "Abstract standing figure with arms raised holding crescent moon/sun above, minimal 7 strokes, crescent suggests dawn transition", typography: "All-caps geometric sans-serif below figure", symbolism: "Titan Hyperion bearing light, crescent as dawn-not-yet-full", mood: "Mythic, dynamic, anticipatory"},
+    {name: "Asymmetric Sun-Disk", visual: "Letter H with asymmetric rays — longer on right side suggesting dawn breaking eastward, clean geometric", typography: "Custom sans-serif H integrated with sun motif", symbolism: "Hyperion as directional light, dawn has a direction", mood: "Bold, architectural, kinetic"},
+    {name: "Rising Dawn Wordmark", visual: "Pure wordmark, dot of I replaced by small circle (sun) floating slightly above baseline, suggesting rise", typography: "Modified transitional serif, medium weight", symbolism: "Dawn actively happening, sun in motion, not static", mood: "Quiet confidence, warmth, momentum"},
+    {name: "Geometric Titan", visual: "Standing figure constructed from pure geometric shapes — triangles and circles, H letterform emerges from torso and arms", typography: "Custom sans-serif where figure IS the H", symbolism: "Titan as architecture, mythology as structure", mood: "Modern, constructed, monumental"},
+    {name: "Horizon Monogram", visual: "Letter H with single thin horizontal ray extending from crossbar, extreme minimalism", typography: "Refined sans-serif, generous letterspacing", symbolism: "Crossbar as horizon line, single ray as first light", mood: "Quiet confidence, sophistication, restraint"},
+    {name: "Titan Serif", visual: "Abstract figure with raised arms rendered in serif stroke weights — thick verticals, thin diagonals, sun as a period dot", typography: "Transitional serif where figure integrates with type baseline", symbolism: "Mythology expressed through typographic tradition, titan as letterform", mood: "Understated, classical, warm"}
+  ]
+  given brief→style-direction ≡ "A specialty coffee roaster. Named after the Titan of light. Should evoke: warmth, craft, mythology, dawn. Target audience: discerning coffee drinkers who care about origin and roast."
+  given brief→constraints ≡ "Logo must work in single color. Must be recognizable at 16px favicon size. No clip art. No generic coffee cup icons."
+  given? evaluate-fitness→mean-fitness ≡ 7.67
+  yield new-scores[], new-mean-fitness, converged
+
+  ∴ Score each candidate in «select-and-crossover→next-candidates» using
+    the same rubric as evaluate-fitness. Calculate mean fitness.
+    If «evaluate-fitness→mean-fitness» is ⊥ (first iteration), set converged = false.
+    Otherwise set converged = true if new-mean-fitness ≥ 8 (high quality)
+    OR if new-mean-fitness ≤ evaluate-fitness→mean-fitness (stagnation).
+
+-- LLM evaluation:
+--
+-- Candidate 0: Titan Crescent
+--   Brand fit: 9 (mythology peak, crescent adds dawn-transition nuance)
+--   Memorability: 9 (crescent-bearing titan is highly distinctive)
+--   Scalability: 8 (7 strokes, reads well small; crescent slightly more complex than disc)
+--   Constraint: 10 (single color, abstract, no clip art)
+--   Weighted: 9×0.4 + 9×0.25 + 8×0.2 + 10×0.15 = 3.6 + 2.25 + 1.6 + 1.5 = 8.95 → 9
+--
+-- Candidate 1: Asymmetric Sun-Disk
+--   Brand fit: 8 (dawn direction is a nice touch, same strong H+sun base)
+--   Memorability: 8 (asymmetric rays more dynamic than symmetric original)
+--   Scalability: 9 (still geometric, still clean at 16px)
+--   Constraint: 10 (same compliance as original)
+--   Weighted: 8×0.4 + 8×0.25 + 9×0.2 + 10×0.15 = 3.2 + 2.0 + 1.8 + 1.5 = 8.5 → 9
+--
+-- Candidate 2: Rising Dawn Wordmark
+--   Brand fit: 8 (dawn in motion — stronger than static original)
+--   Memorability: 7 (floating dot is subtle, might be mistaken for accident)
+--   Scalability: 6 (wordmark still needs width; floating dot harder to see at 16px)
+--   Constraint: 10 (pure type)
+--   Weighted: 8×0.4 + 7×0.25 + 6×0.2 + 10×0.15 = 3.2 + 1.75 + 1.2 + 1.5 = 7.65 → 8
+--
+-- Candidate 3: Geometric Titan
+--   Brand fit: 8 (mythology through geometry, warmth — moderate)
+--   Memorability: 9 (figure-as-letter is a memorable concept)
+--   Scalability: 7 (geometry helps but figure-as-H requires detail to read)
+--   Constraint: 10 (abstract geometry, no clip art)
+--   Weighted: 8×0.4 + 9×0.25 + 7×0.2 + 10×0.15 = 3.2 + 2.25 + 1.4 + 1.5 = 8.35 → 8
+--
+-- Candidate 4: Horizon Monogram
+--   Brand fit: 7 (dawn implied, warmth — minimal, mythology — absent, too restrained)
+--   Memorability: 6 (extreme minimalism risks being forgettable)
+--   Scalability: 9 (dead simple, reads at any size)
+--   Constraint: 10 (single color, minimal)
+--   Weighted: 7×0.4 + 6×0.25 + 9×0.2 + 10×0.15 = 2.8 + 1.5 + 1.8 + 1.5 = 7.6 → 8
+--
+-- Candidate 5: Titan Serif
+--   Brand fit: 8 (mythology through type tradition, warm and classical)
+--   Memorability: 8 (figure-in-serif-weight is unusual, cross-domain concept)
+--   Scalability: 6 (thin diagonals may disappear at 16px)
+--   Constraint: 9 (single color fine, but stroke-weight variation needs care)
+--   Weighted: 8×0.4 + 8×0.25 + 6×0.2 + 9×0.15 = 3.2 + 2.0 + 1.2 + 1.35 = 7.75 → 8
+--
+-- Mean fitness: (9 + 9 + 8 + 8 + 8 + 8) / 6 = 50 / 6 = 8.33
+-- Previous mean: 7.67
+-- 8.33 ≥ 8 → converged = true (HIGH QUALITY threshold met)
+
+  yield new-scores ≡ [9, 9, 8, 8, 8, 8]
+  yield new-mean-fitness ≡ 8.33
+  yield converged ≡ true
+
+-- oracle checks:
+--   ⊨ new-scores has exactly 6 entries → ✓ (6 entries)
+--   ⊨ each new-score ∈ {1, 2, 3, 4, 5, 6, 7, 8, 9, 10} → ✓ (9, 9, 8, 8, 8, 8)
+--   ⊨ if evaluate-fitness→mean-fitness != ⊥ then converged = (new-mean-fitness ≥ 8 or new-mean-fitness ≤ evaluate-fitness→mean-fitness)
+--       → evaluate-fitness→mean-fitness ≡ 7.67 (not ⊥)
+--       → new-mean-fitness = 8.33 ≥ 8 → converged should be true → ✓
+
+-- ⊢∘ evolve: check until condition
+-- judge-generation→converged = true → condition MET → EXIT LOOP
+-- Loop completed in 1 iteration (iteration 0 only).
+-- The initial seed-population was already strong (mean 7.67) and one round
+-- of selection + crossover + mutation pushed it above 8.
+
+-- ═══════════════════════════════════════════════════════════════
+-- Post-loop: guard clause evaluation
+-- ═══════════════════════════════════════════════════════════════
+
+-- Ready set after ⊢∘ evolve exits: { convergence-report, stagnation-report }
+-- Both have all given inputs frozen. Guard evaluation determines dispatch.
+--
+-- convergence-report:
+--   given judge-generation→converged where converged = true
+--     → converged ≡ true, guard evaluates to true → PASS
+--   given judge-generation→new-mean-fitness where new-mean-fitness ≥ 8
+--     → new-mean-fitness ≡ 8.33, 8.33 ≥ 8 → PASS
+--   → ALL guards true → ENTERS READY SET
+--
+-- stagnation-report:
+--   given judge-generation→converged where converged = true
+--     → converged ≡ true, guard evaluates to true → PASS
+--   given judge-generation→new-mean-fitness where new-mean-fitness < 8
+--     → new-mean-fitness ≡ 8.33, 8.33 < 8 → false → GUARD FAILS
+--   → guard false → SKIPPED
+--   → all yields of stagnation-report become ⊥
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 5: convergence-report
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ convergence-report
+  given judge-generation→converged ≡ true
+  given judge-generation→new-mean-fitness ≡ 8.33
+  given judge-generation→new-scores ≡ [9, 9, 8, 8, 8, 8]
+  given select-and-crossover→next-candidates ≡ [
+    {name: "Titan Crescent", visual: "Abstract standing figure with arms raised holding crescent moon/sun above, minimal 7 strokes, crescent suggests dawn transition", typography: "All-caps geometric sans-serif below figure", symbolism: "Titan Hyperion bearing light, crescent as dawn-not-yet-full", mood: "Mythic, dynamic, anticipatory"},
+    {name: "Asymmetric Sun-Disk", visual: "Letter H with asymmetric rays — longer on right side suggesting dawn breaking eastward, clean geometric", typography: "Custom sans-serif H integrated with sun motif", symbolism: "Hyperion as directional light, dawn has a direction", mood: "Bold, architectural, kinetic"},
+    {name: "Rising Dawn Wordmark", visual: "Pure wordmark, dot of I replaced by small circle (sun) floating slightly above baseline, suggesting rise", typography: "Modified transitional serif, medium weight", symbolism: "Dawn actively happening, sun in motion, not static", mood: "Quiet confidence, warmth, momentum"},
+    {name: "Geometric Titan", visual: "Standing figure constructed from pure geometric shapes — triangles and circles, H letterform emerges from torso and arms", typography: "Custom sans-serif where figure IS the H", symbolism: "Titan as architecture, mythology as structure", mood: "Modern, constructed, monumental"},
+    {name: "Horizon Monogram", visual: "Letter H with single thin horizontal ray extending from crossbar, extreme minimalism", typography: "Refined sans-serif, generous letterspacing", symbolism: "Crossbar as horizon line, single ray as first light", mood: "Quiet confidence, sophistication, restraint"},
+    {name: "Titan Serif", visual: "Abstract figure with raised arms rendered in serif stroke weights — thick verticals, thin diagonals, sun as a period dot", typography: "Transitional serif where figure integrates with type baseline", symbolism: "Mythology expressed through typographic tradition, titan as letterform", mood: "Understated, classical, warm"}
+  ]
+  yield report, winner, final-scores
+
+  ∴ The population converged via high fitness (mean ≥ 8). Summarize:
+    which candidates survived, what visual strategies dominated, and why
+    the winning concept best embodies Hyperion's brand.
+
+-- LLM evaluation:
+-- Two candidates scored 9 (Titan Crescent, Asymmetric Sun-Disk), four scored 8.
+-- The population is uniformly strong. Mythology + geometric approaches dominate.
+-- The weakest original concepts (Coffee Cherry Branch, Roast Gradient Ring) were
+-- eliminated in selection. Their visual strategies (botanical, seal format) didn't
+-- survive — mythology and letterform-integration won.
+--
+-- Winner: tie between Titan Crescent and Asymmetric Sun-Disk (both 9).
+-- Titan Crescent slightly stronger on brand fit (9 vs 8) — the crescent
+-- adds temporal narrative (dawn not yet full) that the sun-disk lacks.
+
+  yield report ≡ "CONVERGENCE ACHIEVED in 1 generation (mean fitness 7.67 → 8.33). The population evolved from 6 diverse strategies to a uniformly strong set dominated by two approaches: (1) Mythological figure marks — the Titan Silhouette lineage (Titan Crescent, Geometric Titan, Titan Serif) carried the strongest mythology scores. (2) Letterform integration — the Sun-Disk Monogram lineage (Asymmetric Sun-Disk, Horizon Monogram) built brand identity into the typography itself. Eliminated strategies: botanical (Coffee Cherry Branch) lacked mythology and scaled poorly; seal format (Roast Gradient Ring) was too generic and lacked dawn association. The winning approach combines the Titan myth with minimal geometric execution — mythology made structural."
+
+  yield winner ≡ {name: "Titan Crescent", visual: "Abstract standing figure with arms raised holding crescent moon/sun above, minimal 7 strokes, crescent suggests dawn transition", typography: "All-caps geometric sans-serif below figure", symbolism: "Titan Hyperion bearing light, crescent as dawn-not-yet-full", mood: "Mythic, dynamic, anticipatory", score: 9, reason: "Highest brand-fit score (9). The crescent adds temporal narrative — dawn in progress, not a static sun. The 7-stroke constraint ensures scalability. Mythology is not decorative but structural: the figure IS the brand."}
+
+  yield final-scores ≡ [9, 9, 8, 8, 8, 8]
+
+-- oracle checks:
+--   ⊨ report explains why convergence was reached → ✓ (mean 7.67 → 8.33 ≥ 8, explains strategies)
+--   ⊨ winner is the candidate with the highest score in new-scores → ✓ (Titan Crescent, score 9,
+--       selected as winner from the two tied-at-9 candidates)
+
+-- stagnation-report: SKIPPED (guard false — new-mean-fitness 8.33 is not < 8). Yields:
+--   report ≡ ⊥
+--   winner ≡ ⊥
+--   final-scores ≡ ⊥
+--   diagnosis ≡ ⊥
+
+-- ═══════════════════════════════════════════════════════════════
+-- QUIESCENCE
+-- ═══════════════════════════════════════════════════════════════
+
+-- All cells frozen or skipped. No cell in the ready set. Program complete.
+--
+-- Frozen cells (6):
+--   brief (frame 0), seed-population (frame 1), evaluate-fitness (frame 2),
+--   select-and-crossover (frame 3), judge-generation (frame 4),
+--   convergence-report (frame 5)
+-- Skipped cells (1):
+--   stagnation-report (guard false → yields ⊥)
+--
+-- 6 eval-one steps total (frames 0-5).
+-- ⊢∘ evolve used 1 of 4 allowed iterations.
+-- Convergence: high quality (mean fitness 8.33 ≥ 8 threshold).
+-- Winner: Titan Crescent (score 9/10).
+
+-- ═══════════════════════════════════════════════════════════════
+-- OBSERVATIONS
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= obs-fast-convergence
+  given §16-evolution-simulator
+  yield observations
+
+  ⊢= observations ← "SINGLE-GENERATION CONVERGENCE REVEALS STRONG SEEDING: The ⊢∘ evolve loop exited after just 1 iteration (of 4 allowed). The initial seed-population had mean fitness 7.67 — already high because the ∴ prompt was well-specified (name, audience, constraints, emotional targets). One round of tournament selection + crossover + mutation pushed the mean to 8.33, clearing the ≥8 threshold. This is NOT a failure of the evolution mechanism — it's evidence that the brief cell provided enough constraint to guide the LLM toward strong initial candidates. In a weaker brief (e.g., 'make a coffee logo'), more iterations would be needed."
+
+⊢= obs-replace-semantics
+  given §16-evolution-simulator
+  yield observations
+
+  ⊢= observations ← "REPLACE SEMANTICS ARE CORRECT FOR GENETIC ALGORITHMS: The ⊢∘ evolve loop uses 'replace' (not 'accumulate'). Each generation REPLACES the previous population — you don't want generation N's candidates competing with generation N+1's in the fitness evaluation. This is the standard GA model: a fixed-size population where selection pressure drives improvement. Accumulate semantics would produce a growing candidate pool, which is the wrong model for tournament selection. The v0.2 explicit accumulate/replace annotation makes this intention visible in the program text."
+
+⊢= obs-guard-dispatch-clean
+  given §16-evolution-simulator
+  yield observations
+
+  ⊢= observations ← "GUARD CLAUSES ENABLE PROPER CONVERGENCE VS STAGNATION DISPATCH: R16 had a single ⊢∘ loop that exited on EITHER high fitness OR stagnation, with no way to distinguish the two exit conditions downstream. v0.2 guard clauses split the post-loop handling: convergence-report (where new-mean-fitness ≥ 8) celebrates the winner, stagnation-report (where new-mean-fitness < 8) diagnoses failure. Both share 'where converged = true' — they only activate after the loop exits. Exactly one fires. The other's yields become ⊥. No wasted LLM evaluation on the irrelevant path."
+
+⊢= obs-aspirational-oracles
+  given §16-evolution-simulator
+  yield observations
+
+  ⊢= observations ← "ASPIRATIONAL ORACLES ON seed-population ARE THE RIGHT CALL: The seed-population cell has 4 oracles (count, description fields, uniqueness, constraints). Under v0.2, these are ASPIRATIONAL because seed-population is ⊢∘-managed. If the LLM generates only 5 candidates instead of 6, the oracle '⊨ candidates has exactly 6 entries' fails — but the cell still freezes and the evolution loop continues. The oracle failure feeds back through evaluate-fitness → select-and-crossover → judge-generation, creating pressure toward the right output without hard-blocking the loop. The loop's 'until converged = true' is the actual gate."
+
+⊢= obs-given-optional-bootstrap
+  given §16-evolution-simulator
+  yield observations
+
+  ⊢= observations ← "given? ON mean-fitness HANDLES THE BOOTSTRAP EDGE: judge-generation uses 'given? evaluate-fitness→mean-fitness' because in a hypothetical alternate wiring where evaluate-fitness runs INSIDE the loop (not as a pre-loop step), the first iteration would have no prior mean-fitness. The given? makes judge-generation tolerant of that ⊥ case — it would set converged=false and let the loop continue. In THIS execution, evaluate-fitness ran pre-loop so the value was available, but the given? makes the cell robust to rewiring."
+
+⊢= obs-crossover-is-semantic
+  given §16-evolution-simulator
+  yield observations
+
+  ⊢= observations ← "CROSSOVER IS SEMANTIC, NOT SYNTACTIC: The select-and-crossover cell performs genetic crossover via natural language instruction — 'visual from parent 1, typography from parent 2'. This is fundamentally different from traditional GA crossover (bit-flipping, subtree swap). The LLM understands the MEANING of each trait and combines them coherently. The result (Geometric Titan = Titan's figure + Monogram's typography) is a genuine synthesis, not a random splice. This is the semantic computation substrate earning its keep — crossover that understands what it's crossing."
+
+⊢= obs-file-scope-recovery-net
+  given §16-evolution-simulator
+  yield observations
+
+  ⊢= observations ← "FILE-SCOPE ⊨? PROVIDES DEFENSE IN DEPTH: The file-scope recovery policy (retry max 2, exhaustion → error-value(⊥)) applies to any cell without its own ⊨?. If evaluate-fitness produces rankings that aren't a valid permutation, the file-scope ⊨? catches it and retries with feedback. Inside the ⊢∘ loop, oracles are aspirational so the file-scope policy doesn't override — but for pre-loop and post-loop cells (brief, convergence-report), the file-scope ⊨? is the only safety net. One declaration covers the whole file. Defense in depth."

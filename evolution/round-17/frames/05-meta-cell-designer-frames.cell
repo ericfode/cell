@@ -1,0 +1,856 @@
+-- 05-meta-cell-designer-frames.cell (v0.2)
+-- Execution trace of 05-meta-cell-designer.cell via eval-one
+--
+-- v0.2 execution notes:
+--   - File-scope ⊨? active: retry max 3 with failure context, then ⊥
+--   - critique has guard clause: only enters ready set if len(awkward-spots) > 0
+--   - redesign uses given? for critique outputs (tolerates ⊥ from guard skip)
+--   - design-cells oracles are aspirational under ⊢∘ management
+--   - ⊢∘ until condition: len(critique→problems) = 0 or critique→problems = ⊥
+--
+-- Domain: "An automated code review system that checks for security
+-- vulnerabilities, suggests fixes, and verifies the fixes don't break
+-- existing tests."
+
+-- ═══════════════════════════════════════════════════════════════
+-- READY-SET ANALYSIS (initial graph)
+-- ═══════════════════════════════════════════════════════════════
+--
+-- Cells in the program:
+--   domain              — given: description ≡ (literal)         → READY
+--   cell-spec           — given: spec-path ≡ (literal)           → READY
+--   decompose           — given: domain→description              → BLOCKED (needs domain)
+--   design-cells        — given: decompose→*, cell-spec→*        → BLOCKED (needs decompose, cell-spec)
+--   trace-readiness     — given: §program                        → BLOCKED (needs design-cells)
+--   simulate-oracles    — given: §program, trace→ready-order     → BLOCKED (needs design-cells, trace)
+--   critique            — given: §program, oracles→awkward-spots → BLOCKED (needs design-cells, oracles)
+--                          GUARD: len(awkward-spots) > 0
+--   redesign            — given: §program, critique→* (given?)   → BLOCKED (needs design-cells, critique)
+--   emit-program        — given: redesign→§program', domain→desc → BLOCKED (needs redesign, domain)
+--
+-- ⊢∘ evolve manages: design-cells through critique, redesign
+-- Convergence: len(critique→problems) = 0 or critique→problems = ⊥
+--
+-- Ready set: { domain, cell-spec } — both have literal bindings
+-- Pick: domain (arbitrary — confluence guarantees order doesn't matter)
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 0: evaluate domain (trivial pass-through)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { domain, cell-spec }
+-- Pick: domain
+
+⊢ domain
+  given description ≡ "An automated code review system that checks for security vulnerabilities, suggests fixes, and verifies the fixes don't break existing tests."
+  yield description
+
+-- eval-one: domain is a pass-through. description is already bound via given ≡.
+-- No ∴ body, no ⊢= body. Yield inherits from given.
+
+  yield description ≡ "An automated code review system that checks for security vulnerabilities, suggests fixes, and verifies the fixes don't break existing tests."
+
+-- oracle check:
+--   ⊨ description is a clear problem domain → ✓
+--     (describes inputs: code; processing: check/suggest/verify; outputs: security reports)
+
+-- state after frame 0: domain frozen.
+-- Ready set: { cell-spec }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 1: evaluate cell-spec (⊢= hard cell, deterministic)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { cell-spec }
+-- Blocked: { decompose } — needs domain→description (now available!)
+--   decompose will join ready set next.
+
+⊢ cell-spec
+  given spec-path ≡ "docs/design/cell-v0.2-spec.md"
+  yield symbols, execution-model, patterns
+
+-- eval-one: all three yields are ⊢= hard bodies. Deterministic evaluation.
+
+  yield symbols ≡ "⊢ (declare cell), ∴ (soft body), ⊢= (hard body), ⊨ (oracle), ⊨? (recovery), § (quotation), «» (interpolation), ≡ (binding), → (output access), ▸ (refinement), ⊢∘ (evolution), ⊢⊢ (spawner), ⊥ (bottom), given? (optional dep), where (guard clause)"
+
+  yield execution-model ≡ "eval-one via Kahn's algorithm: find cells with all givens bound and guards true, evaluate one, check oracles, freeze yields. Monotonic — yields only get bound. Document IS the state. Guards skip cells cleanly (yields → ⊥). given? tolerates ⊥."
+
+  yield patterns ≡ "proof-carrying computation (LLM finds, code verifies), self-crystallization (∴ → ⊢=), evolution loops (⊢∘ rewrites soft cells), spawners (⊢⊢ grows frontier, accumulate or replace), cell-as-agent (inbox → dispatch → act), guard-based dispatch (given x where cond)"
+
+-- oracle: none on cell-spec. Pure ⊢= cells need no runtime oracle.
+
+-- state after frame 1: cell-spec frozen.
+-- Ready set: { decompose } — domain→description and cell-spec→* all available
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 2: evaluate decompose (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { decompose }
+-- Blocked: { design-cells } — needs decompose→components, decompose→dataflow
+
+⊢ decompose
+  given domain→description ≡ "An automated code review system that checks for security vulnerabilities, suggests fixes, and verifies the fixes don't break existing tests."
+  yield components[], dataflow[]
+
+  ∴ Analyze the domain and decompose into logical components...
+
+-- LLM evaluation:
+
+  yield components ≡ [
+    "parse-diff: Parse the incoming code diff to extract changed files, hunks, and line ranges. Input: raw diff. Output: structured file list with change regions.",
+    "classify-changes: Classify each changed region by risk level (high: auth/crypto/input-handling, medium: data flow, low: UI/logging). Input: parsed diff. Output: risk-classified regions.",
+    "scan-vulnerabilities: For each high/medium-risk region, scan for known vulnerability patterns (SQL injection, XSS, buffer overflow, insecure deserialization, hardcoded secrets). Input: risk regions. Output: vulnerability findings with severity and location.",
+    "suggest-fixes: For each vulnerability found, generate a concrete code fix. Input: vulnerability + surrounding code context. Output: patch suggestion with explanation.",
+    "run-tests: Execute the existing test suite against the proposed fixes to verify nothing breaks. Input: original code + patches. Output: test results (pass/fail per test).",
+    "compile-report: Aggregate all findings, fixes, and test results into a final review report. Input: vulnerabilities, fixes, test results. Output: structured review report."
+  ]
+
+  yield dataflow ≡ [
+    "parse-diff→file-list, parse-diff→change-regions → classify-changes",
+    "classify-changes→risk-regions → scan-vulnerabilities",
+    "scan-vulnerabilities→findings → suggest-fixes",
+    "suggest-fixes→patches, parse-diff→file-list → run-tests",
+    "scan-vulnerabilities→findings, suggest-fixes→patches, run-tests→test-results → compile-report"
+  ]
+
+-- oracle checks:
+--   ⊨ length(components) ≥ 4 → ✓ (6 components)
+--   ⊨ each component has a clear single responsibility → ✓
+--     parse-diff: parsing only. classify-changes: risk assessment only.
+--     scan-vulnerabilities: detection only. suggest-fixes: remediation only.
+--     run-tests: verification only. compile-report: aggregation only.
+--   ⊨ dataflow forms a DAG → ✓ (linear chain with one fan-in at compile-report)
+--   ⊨ dataflow covers every component → ✓ (all 6 components appear)
+
+-- state after frame 2: decompose frozen.
+-- Ready set: { design-cells } — decompose→components and decompose→dataflow now available
+--   (cell-spec→symbols and cell-spec→execution-model already frozen)
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 3: evaluate design-cells (soft cell, LLM) — ⊢∘ managed, iteration 1
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { design-cells }
+-- Blocked: { trace-readiness } — needs design-cells→§program
+-- NOTE: design-cells is managed by ⊢∘ evolve. Its oracles are ASPIRATIONAL.
+
+⊢ design-cells
+  given decompose→components ≡ ["parse-diff: Parse the incoming code diff...", "classify-changes: Classify each changed region...", "scan-vulnerabilities: For each high/medium-risk region...", "suggest-fixes: For each vulnerability found...", "run-tests: Execute the existing test suite...", "compile-report: Aggregate all findings..."]
+  given decompose→dataflow ≡ ["parse-diff→... → classify-changes", "classify-changes→... → scan-vulnerabilities", "scan-vulnerabilities→... → suggest-fixes", "suggest-fixes→..., parse-diff→... → run-tests", "...→ compile-report"]
+  given cell-spec→symbols ≡ "⊢, ∴, ⊢=, ⊨, ⊨?, §, «», ≡, →, ▸, ⊢∘, ⊢⊢, ⊥, given?, where"
+  given cell-spec→execution-model ≡ "eval-one via Kahn's..."
+  yield §program
+
+  ∴ Translate the components and dataflow into a valid Cell program...
+
+-- LLM evaluation:
+
+  yield §program ≡ §«
+    ⊢ diff-input
+      given raw-diff
+      yield raw-diff
+      ⊨ raw-diff is a valid unified diff format
+
+    ⊢ parse-diff ▸ crystallized
+      given diff-input→raw-diff
+      yield file-list[], change-regions[]
+      ⊢= parse unified diff into structured file list and change regions
+      ⊨ length(file-list) ≥ 1
+      ⊨ each change-region maps to a file in file-list
+
+    ⊢ classify-changes
+      given parse-diff→change-regions
+      yield risk-regions[]
+      ∴ Classify each change region in «parse-diff→change-regions» by risk:
+        high (auth, crypto, input handling), medium (data flow, API boundaries),
+        low (UI, logging, comments). Tag each region with its risk level.
+      ⊨ each region has a risk level ∈ { "high", "medium", "low" }
+      ⊨ risk-regions covers all change-regions
+
+    ⊢⊢ spawn-scanners
+      given classify-changes→risk-regions where any(risk-regions, r -> r→risk != "low")
+      given §vuln-scan-template
+      yield §scan-cells[]
+      until length(scan-cells) = count(classify-changes→risk-regions, r -> r→risk != "low")
+      max 20
+      accumulate
+      ∴ For each high or medium risk region, spawn a vulnerability scanner cell.
+        Low-risk regions are skipped (no security scan needed).
+      ⊨ each scan-cell targets exactly one risk region
+
+    ⊢ vuln-scan-template
+      given region
+      given risk-level
+      yield findings[], severity
+      ∴ Scan «region» for vulnerability patterns appropriate to its «risk-level»:
+        - high: SQL injection, XSS, CSRF, buffer overflow, insecure deserialization,
+          hardcoded secrets, authentication bypass
+        - medium: data leakage, insecure defaults, missing rate limiting,
+          unvalidated redirects
+        Report each finding with type, location, severity, and evidence.
+      ⊨ each finding has type, location, severity, and evidence
+      ⊨ severity ∈ { "critical", "high", "medium", "low", "info" }
+
+    ⊢ collect-findings
+      given vuln-scan-*→findings
+      given vuln-scan-*→severity
+      yield all-findings[], has-vulnerabilities
+      ⊢= all-findings ← flatten(vuln-scan-*→findings)
+      ⊢= has-vulnerabilities ← len(all-findings) > 0
+
+    ⊢ suggest-fixes
+      given collect-findings→all-findings where collect-findings→has-vulnerabilities = true
+      given parse-diff→file-list
+      yield patches[], explanations[]
+      ∴ For each vulnerability in «collect-findings→all-findings», generate a
+        concrete code fix. Use the file context from «parse-diff→file-list»
+        to ensure the patch applies cleanly. Include an explanation of what
+        the fix does and why.
+      ⊨ length(patches) = length(collect-findings→all-findings)
+      ⊨ each patch is syntactically valid code
+      ⊨ each explanation describes the vulnerability and the fix
+
+    ⊢ run-tests
+      given suggest-fixes→patches
+      given parse-diff→file-list
+      yield test-results[], all-pass
+      ∴ Simulate running the existing test suite after applying «suggest-fixes→patches»
+        to «parse-diff→file-list». Report pass/fail for each test, noting any
+        regressions introduced by the security fixes.
+      ⊨ test-results covers the full test suite
+      ⊢= all-pass ← all(test-results, t -> t→status = "pass")
+
+    ⊢ compile-report
+      given collect-findings→all-findings
+      given suggest-fixes→patches
+      given suggest-fixes→explanations
+      given run-tests→test-results
+      given run-tests→all-pass
+      yield review-report
+      ∴ Compile a final security review report:
+        - Summary: number of vulnerabilities found, by severity
+        - For each finding: description, location, suggested fix, test impact
+        - Overall verdict: safe to merge (all-pass and all fixes applied)
+          or needs attention (test regressions or unresolved vulnerabilities)
+      ⊨ review-report is structured with summary, findings, and verdict
+      ⊨ if all-pass = true then verdict recommends merge
+      ⊨ if all-pass = false then verdict flags regressions
+  »
+
+-- oracle checks (ASPIRATIONAL — ⊢∘ managed):
+--   ⊨ §program contains only valid Cell syntax → ✓ (all cells use valid v0.2 syntax)
+--   ⊨ every component has a corresponding ⊢ cell → ✓
+--     parse-diff ↔ parse-diff. classify-changes ↔ classify-changes.
+--     scan-vulnerabilities ↔ vuln-scan-template + spawn-scanners + collect-findings.
+--     suggest-fixes ↔ suggest-fixes. run-tests ↔ run-tests.
+--     compile-report ↔ compile-report.
+--   ⊨ every dataflow edge expressed via given/→ → ✓ (checked all connections)
+--   ⊨ at least one cell uses ⊢= → ✓ (parse-diff ▸ crystallized, collect-findings ⊢=, run-tests partial ⊢=)
+--   ⊨ at least one cell has ⊨ oracles → ✓ (multiple cells)
+-- NOTE: aspirational oracles all pass in iteration 1. Good starting quality.
+
+-- state after frame 3: design-cells frozen (iteration 1).
+-- Ready set: { trace-readiness }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 4: evaluate trace-readiness (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { trace-readiness }
+-- Blocked: { simulate-oracles } — needs trace-readiness→ready-order
+
+⊢ trace-readiness
+  given §program ≡ §«...the full program from design-cells...»
+  yield ready-order[], blocking-map
+
+  ∴ Simulate eval-one scheduling on the program...
+
+-- LLM evaluation:
+
+  yield ready-order ≡ [
+    "diff-input (given ≡ literal — ready immediately)",
+    "parse-diff (needs diff-input→raw-diff)",
+    "classify-changes (needs parse-diff→change-regions)",
+    "spawn-scanners (needs classify-changes→risk-regions, guard: any non-low risk)",
+    "vuln-scan-0..N (spawned, each needs region + risk-level — ready on spawn)",
+    "collect-findings (needs vuln-scan-*→findings — wildcard, waits for all)",
+    "suggest-fixes (needs collect-findings→all-findings, guard: has-vulnerabilities = true)",
+    "run-tests (needs suggest-fixes→patches)",
+    "compile-report (needs collect-findings, suggest-fixes, run-tests)"
+  ]
+
+  yield blocking-map ≡ {
+    "parse-diff": ["diff-input→raw-diff"],
+    "classify-changes": ["parse-diff→change-regions"],
+    "spawn-scanners": ["classify-changes→risk-regions", "GUARD: any(risk-regions, r→risk != 'low')"],
+    "vuln-scan-*": ["spawned by spawn-scanners — blocked until spawner fires"],
+    "collect-findings": ["vuln-scan-*→findings (wildcard — all matches must freeze)"],
+    "suggest-fixes": ["collect-findings→all-findings", "GUARD: has-vulnerabilities = true"],
+    "run-tests": ["suggest-fixes→patches"],
+    "compile-report": ["collect-findings→all-findings", "suggest-fixes→patches", "suggest-fixes→explanations", "run-tests→test-results", "run-tests→all-pass"]
+  }
+
+-- oracle checks:
+--   ⊨ ready-order is a valid topological sort → ✓ (each cell listed after its deps)
+--   ⊨ every cell appears exactly once → ✓ (9 cells + spawned vuln-scan-* as group)
+--   ⊨ no cell permanently blocked → ✓
+--     Note: suggest-fixes has a guard (has-vulnerabilities = true). If guard is false,
+--     suggest-fixes yields ⊥. run-tests depends on suggest-fixes→patches — blocked by ⊥.
+--     compile-report depends on run-tests — also blocked. But compile-report also
+--     depends on collect-findings directly. This is a design issue: if no vulnerabilities
+--     are found, the report should still emit (clean bill of health). Awkward spot.
+
+-- state after frame 4: trace-readiness frozen.
+-- Ready set: { simulate-oracles }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 5: evaluate simulate-oracles (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { simulate-oracles }
+-- Blocked: { critique } — needs simulate-oracles→awkward-spots + guard
+
+⊢ simulate-oracles
+  given §program ≡ §«...»
+  given trace-readiness→ready-order ≡ [...]
+  yield oracle-results[], awkward-spots[]
+
+  ∴ Classify every ⊨ oracle in the program...
+
+-- LLM evaluation:
+
+  yield oracle-results ≡ [
+    { cell: "diff-input", oracle: "raw-diff is a valid unified diff format", type: "structural", note: "Checkable by regex for @@, +/-, file headers" },
+    { cell: "parse-diff", oracle: "length(file-list) ≥ 1", type: "deterministic", note: "Pure length check" },
+    { cell: "parse-diff", oracle: "each change-region maps to a file in file-list", type: "structural", note: "Cross-reference check, could be ⊢=" },
+    { cell: "classify-changes", oracle: "each region has risk ∈ {high, medium, low}", type: "deterministic", note: "Enum membership check" },
+    { cell: "classify-changes", oracle: "risk-regions covers all change-regions", type: "deterministic", note: "Length comparison" },
+    { cell: "spawn-scanners", oracle: "each scan-cell targets one region", type: "structural", note: "1:1 mapping check" },
+    { cell: "vuln-scan-template", oracle: "each finding has type/location/severity/evidence", type: "structural", note: "Schema check" },
+    { cell: "vuln-scan-template", oracle: "severity ∈ {critical, high, medium, low, info}", type: "deterministic", note: "Enum check" },
+    { cell: "suggest-fixes", oracle: "length(patches) = length(all-findings)", type: "deterministic", note: "1:1 correspondence" },
+    { cell: "suggest-fixes", oracle: "each patch is syntactically valid code", type: "semantic", note: "Requires parsing or LLM judgment — NOT deterministic" },
+    { cell: "suggest-fixes", oracle: "each explanation describes the vuln and fix", type: "semantic", note: "Requires LLM judgment" },
+    { cell: "run-tests", oracle: "test-results covers the full test suite", type: "ambiguous", note: "What is 'the full test suite'? Not defined in this program. The program has no given for the test suite itself — it just says 'existing test suite'. Where does it come from?" },
+    { cell: "compile-report", oracle: "if all-pass then verdict recommends merge", type: "deterministic", note: "Conditional oracle — if all-pass is false, vacuously satisfied" },
+    { cell: "compile-report", oracle: "if not all-pass then verdict flags regressions", type: "deterministic", note: "Conditional oracle" },
+    { cell: "compile-report", oracle: "report is structured with summary/findings/verdict", type: "semantic", note: "Schema check — could be tightened to structural" }
+  ]
+
+  yield awkward-spots ≡ [
+    "AWKWARD-1: run-tests oracle 'covers the full test suite' is AMBIGUOUS. The test suite is never provided as an input. run-tests says 'simulate running the existing test suite' but there is no given for the test suite. How can we verify coverage of something undefined?",
+    "AWKWARD-2: suggest-fixes has a guard (has-vulnerabilities = true) but run-tests depends on suggest-fixes→patches. If no vulnerabilities are found, suggest-fixes is SKIPPED, patches = ⊥, run-tests is blocked by ⊥, compile-report is blocked. The clean-bill-of-health path is broken — the program hangs when there are zero vulnerabilities.",
+    "AWKWARD-3: vuln-scan-template oracle 'each finding has type, location, severity, and evidence' is STRUCTURAL but tested only at the template level. When spawn-scanners creates vuln-scan-0, vuln-scan-1, etc., each inherits this oracle. But the template itself is never evaluated (used as §-data only). The oracle only fires on spawned instances — which is correct, but should be noted.",
+    "AWKWARD-4: compile-report's oracle 'report is structured with summary, findings, and verdict' is SEMANTIC but could be tightened to a STRUCTURAL check (e.g., report contains sections named 'Summary', 'Findings', 'Verdict'). Vagueness invites LLM judgment where determinism would suffice."
+  ]
+
+-- oracle checks:
+--   ⊨ oracle-results covers every ⊨ → ✓ (15 oracles across 7 cells, all classified)
+--   ⊨ each result classifies the oracle type → ✓
+--   ⊨ awkward-spots identifies genuine design weaknesses → ✓
+--     AWKWARD-1: real problem (undefined input)
+--     AWKWARD-2: real problem (broken ⊥ propagation path)
+--     AWKWARD-3: valid observation (not a bug, but worth noting)
+--     AWKWARD-4: real improvement opportunity (semantic → structural)
+
+-- state after frame 5: simulate-oracles frozen.
+-- Ready set: evaluating guard on critique...
+--   critique guard: len(awkward-spots) > 0 → len(4) > 0 → true → critique enters ready set
+-- Ready set: { critique }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 6: evaluate critique (soft cell, LLM) — guard passed
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { critique }
+-- Guard: len(awkward-spots) > 0 → ✓ (4 awkward spots found)
+-- Blocked: { redesign } — needs critique→problems (given?)
+
+⊢ critique
+  given §program ≡ §«...»
+  given simulate-oracles→awkward-spots ≡ ["AWKWARD-1...", "AWKWARD-2...", "AWKWARD-3...", "AWKWARD-4..."]
+    where len(awkward-spots) > 0 → ✓ (guard satisfied, 4 items)
+  given trace-readiness→blocking-map ≡ {...}
+  yield problems[], suggestions[]
+
+  ∴ Review the program for design problems...
+
+-- LLM evaluation:
+
+  yield problems ≡ [
+    "P1 (from AWKWARD-2, CRITICAL): The zero-vulnerability path is broken. suggest-fixes guard (has-vulnerabilities = true) means clean code produces ⊥ for patches. run-tests depends on patches → blocked by ⊥. compile-report depends on run-tests → blocked by ⊥. The program HANGS when the code has no security issues — the most common case.",
+    "P2 (from AWKWARD-1): run-tests references 'the existing test suite' but no cell provides it as input. The test suite should be a given on the root input cell (like diff-input), or run-tests should declare what tests it simulates.",
+    "P3 (from AWKWARD-4): compile-report's structure oracle is too vague. 'Structured with summary, findings, and verdict' should be a structural check, not a semantic one.",
+    "P4 (new, from dataflow review): compile-report depends on both suggest-fixes AND collect-findings. If suggest-fixes is skipped (no vulnerabilities), compile-report should still be reachable via collect-findings. But compile-report also requires run-tests→test-results. This compounds P1."
+  ]
+
+  yield suggestions ≡ [
+    "S1 (fixes P1+P4): Use given? on compile-report for suggest-fixes and run-tests outputs. If no vulnerabilities: suggest-fixes is skipped (⊥), run-tests is blocked (⊥), compile-report receives ⊥ for those fields via given? and generates a 'no vulnerabilities found' report. Also add given? on run-tests for suggest-fixes→patches so run-tests can skip cleanly when there are no patches.",
+    "S2 (fixes P2): Add a test-suite input to diff-input. Change 'given raw-diff' to 'given raw-diff' plus 'given test-manifest' that describes the test suite. Pass test-manifest to run-tests.",
+    "S3 (fixes P3): Replace 'report is structured with summary, findings, and verdict' with 'contains(review-report, \"Summary\") and contains(review-report, \"Findings\") and contains(review-report, \"Verdict\")' — a pure ⊢= structural check.",
+    "S4 (improvement): Add a conditional oracle on compile-report: '⊨ if has-vulnerabilities = false then verdict = \"clean\"'. This makes the zero-vulnerability case explicit."
+  ]
+
+-- oracle checks:
+--   ⊨ length(problems) ≥ 1 → ✓ (4 problems)
+--   ⊨ each problem has a corresponding suggestion → ✓ (S1→P1+P4, S2→P2, S3→P3, S4→new)
+--   ⊨ suggestions are actionable Cell syntax changes → ✓ (all specify concrete given?/⊢= rewrites)
+
+-- state after frame 6: critique frozen.
+-- Ready set: { redesign } — critique→problems available via given?
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 7: evaluate redesign (soft cell, LLM) — iteration 1
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { redesign }
+-- critique→problems is not ⊥ (critique was not skipped — guard passed)
+-- given? tolerates ⊥ but receives actual values here.
+
+⊢ redesign
+  given §program ≡ §«...»
+  given? critique→problems ≡ ["P1...", "P2...", "P3...", "P4..."]
+  given? critique→suggestions ≡ ["S1...", "S2...", "S3...", "S4..."]
+  yield §program'
+
+  ∴ Apply suggestions to fix the problems in the program...
+
+-- LLM evaluation:
+-- Applying S1 (given? for zero-vuln path), S2 (test-manifest input),
+-- S3 (structural oracle), S4 (conditional clean verdict):
+
+  yield §program' ≡ §«
+    ⊢ diff-input
+      given raw-diff
+      given test-manifest
+      yield raw-diff, test-manifest
+      ⊨ raw-diff is a valid unified diff format
+      ⊨ test-manifest lists test names and expected outcomes
+
+    ⊢ parse-diff ▸ crystallized
+      given diff-input→raw-diff
+      yield file-list[], change-regions[]
+      ⊢= parse unified diff into structured file list and change regions
+      ⊨ length(file-list) ≥ 1
+      ⊨ each change-region maps to a file in file-list
+
+    ⊢ classify-changes
+      given parse-diff→change-regions
+      yield risk-regions[]
+      ∴ Classify each change region in «parse-diff→change-regions» by risk:
+        high (auth, crypto, input handling), medium (data flow, API boundaries),
+        low (UI, logging, comments). Tag each region with its risk level.
+      ⊨ each region has a risk level ∈ { "high", "medium", "low" }
+      ⊨ risk-regions covers all change-regions
+
+    ⊢⊢ spawn-scanners
+      given classify-changes→risk-regions where any(risk-regions, r -> r→risk != "low")
+      given §vuln-scan-template
+      yield §scan-cells[]
+      until length(scan-cells) = count(classify-changes→risk-regions, r -> r→risk != "low")
+      max 20
+      accumulate
+      ∴ For each high or medium risk region, spawn a vulnerability scanner cell.
+      ⊨ each scan-cell targets exactly one risk region
+
+    ⊢ vuln-scan-template
+      given region
+      given risk-level
+      yield findings[], severity
+      ∴ Scan «region» for vulnerability patterns appropriate to its «risk-level»:
+        - high: SQL injection, XSS, CSRF, buffer overflow, insecure deserialization,
+          hardcoded secrets, authentication bypass
+        - medium: data leakage, insecure defaults, missing rate limiting,
+          unvalidated redirects
+        Report each finding with type, location, severity, and evidence.
+      ⊨ each finding has type, location, severity, and evidence
+      ⊨ severity ∈ { "critical", "high", "medium", "low", "info" }
+
+    ⊢ collect-findings
+      given vuln-scan-*→findings
+      given vuln-scan-*→severity
+      yield all-findings[], has-vulnerabilities
+      ⊢= all-findings ← flatten(vuln-scan-*→findings)
+      ⊢= has-vulnerabilities ← len(all-findings) > 0
+
+    ⊢ suggest-fixes
+      given collect-findings→all-findings where collect-findings→has-vulnerabilities = true
+      given parse-diff→file-list
+      yield patches[], explanations[]
+      ∴ For each vulnerability in «collect-findings→all-findings», generate a
+        concrete code fix with explanation.
+      ⊨ length(patches) = length(collect-findings→all-findings)
+      ⊨ each patch is syntactically valid code
+      ⊨ each explanation describes the vulnerability and the fix
+
+    ⊢ run-tests
+      given? suggest-fixes→patches
+      given diff-input→test-manifest
+      given parse-diff→file-list
+      yield test-results[], all-pass
+      ∴ If «suggest-fixes→patches» is ⊥ (no vulnerabilities found, no patches),
+        run the test suite against the original code to confirm it passes.
+        Otherwise, apply «suggest-fixes→patches» to «parse-diff→file-list» and
+        run «diff-input→test-manifest» tests. Report pass/fail per test.
+      ⊨ test-results covers every test in test-manifest
+      ⊢= all-pass ← all(test-results, t -> t→status = "pass")
+
+    ⊢ compile-report
+      given collect-findings→all-findings
+      given collect-findings→has-vulnerabilities
+      given? suggest-fixes→patches
+      given? suggest-fixes→explanations
+      given run-tests→test-results
+      given run-tests→all-pass
+      yield review-report
+      ∴ Compile a final security review report:
+        - If «collect-findings→has-vulnerabilities» is false: report "No
+          vulnerabilities found" with clean verdict.
+        - Otherwise: summary of findings by severity, each finding with fix
+          and test impact, overall verdict based on all-pass.
+      ⊨ contains(review-report, "Summary") and contains(review-report, "Findings") and contains(review-report, "Verdict")
+      ⊨ if has-vulnerabilities = false then contains(review-report, "clean")
+      ⊨ if all-pass = true and has-vulnerabilities = true then contains(review-report, "safe to merge")
+      ⊨ if all-pass = false then contains(review-report, "regressions")
+  »
+
+-- oracle checks (ASPIRATIONAL):
+--   ⊨ §program' has same top-level cell names as §program → ✓
+--     (diff-input, parse-diff, classify-changes, spawn-scanners, vuln-scan-template,
+--      collect-findings, suggest-fixes, run-tests, compile-report — all preserved)
+--   ⊨ if critique→problems is not ⊥ then every problem addressed → ✓
+--     P1 addressed: suggest-fixes guard + given? on run-tests + given? on compile-report
+--     P2 addressed: test-manifest added to diff-input, passed to run-tests
+--     P3 addressed: compile-report oracle now uses contains() — structural
+--     P4 addressed: compile-report uses given? for suggest-fixes outputs
+--   ⊨ §program' contains only valid Cell syntax → ✓
+
+-- ⊢∘ CHECK: len(critique→problems) = 4 ≠ 0, and critique→problems ≠ ⊥.
+-- NOT CONVERGED. Evolution loop iteration 2 begins.
+-- redesign→§program' replaces design-cells output.
+-- Downstream cells (trace-readiness, simulate-oracles, critique, redesign) unfrozen.
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ ITERATION 2: EVOLUTION LOOP RESTARTS
+-- ═══════════════════════════════════════════════════════════════
+-- design-cells is rewritten: output is now §program' (the redesigned version).
+-- Interface (given/yield) preserved. Only yield ≡ values change.
+-- Downstream cells unfrozen: trace-readiness, simulate-oracles, critique, redesign.
+-- Ready set: { trace-readiness } — §program (now §program') is available.
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 8: evaluate trace-readiness (iteration 2)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { trace-readiness }
+
+⊢ trace-readiness
+  given §program ≡ §«...redesigned program with given?, test-manifest, structural oracles...»
+  yield ready-order[], blocking-map
+
+-- LLM evaluation:
+
+  yield ready-order ≡ [
+    "diff-input (given ≡ literals — ready immediately)",
+    "parse-diff (needs diff-input→raw-diff)",
+    "classify-changes (needs parse-diff→change-regions)",
+    "spawn-scanners (needs classify-changes→risk-regions, guard: any non-low risk)",
+    "vuln-scan-0..N (spawned — ready on spawn)",
+    "collect-findings (needs vuln-scan-*→findings — wildcard)",
+    "suggest-fixes (needs collect-findings, guard: has-vulnerabilities = true — may be SKIPPED)",
+    "run-tests (needs given? suggest-fixes→patches [tolerates ⊥], test-manifest, file-list — ALWAYS reachable)",
+    "compile-report (needs collect-findings, given? suggest-fixes [tolerates ⊥], run-tests — ALWAYS reachable)"
+  ]
+
+  yield blocking-map ≡ {
+    "parse-diff": ["diff-input→raw-diff"],
+    "classify-changes": ["parse-diff→change-regions"],
+    "spawn-scanners": ["classify-changes→risk-regions", "GUARD: any non-low risk"],
+    "vuln-scan-*": ["spawned by spawn-scanners"],
+    "collect-findings": ["vuln-scan-*→findings"],
+    "suggest-fixes": ["collect-findings→all-findings", "GUARD: has-vulnerabilities = true"],
+    "run-tests": ["given? suggest-fixes→patches (tolerates ⊥)", "diff-input→test-manifest", "parse-diff→file-list"],
+    "compile-report": ["collect-findings→*", "given? suggest-fixes→*", "run-tests→*"]
+  }
+
+-- oracle checks:
+--   ⊨ valid topological sort → ✓
+--   ⊨ every cell appears once → ✓
+--   ⊨ no cell permanently blocked → ✓
+--     KEY FIX VERIFIED: run-tests now uses given? for patches, so it's reachable
+--     even when suggest-fixes is skipped. compile-report uses given? for
+--     suggest-fixes outputs. The zero-vulnerability path works: diff-input →
+--     parse-diff → classify-changes → spawn-scanners → vuln-scan-* →
+--     collect-findings (has-vulnerabilities=false) → suggest-fixes SKIPPED (⊥) →
+--     run-tests (patches=⊥, runs tests against original code) →
+--     compile-report (no-vuln report). No more hanging.
+
+-- state after frame 8: trace-readiness frozen (iteration 2).
+-- Ready set: { simulate-oracles }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 9: evaluate simulate-oracles (iteration 2)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { simulate-oracles }
+
+⊢ simulate-oracles
+  given §program ≡ §«...redesigned program...»
+  given trace-readiness→ready-order ≡ [...]
+  yield oracle-results[], awkward-spots[]
+
+-- LLM evaluation:
+
+  yield oracle-results ≡ [
+    { cell: "diff-input", oracle: "raw-diff is valid unified diff", type: "structural" },
+    { cell: "diff-input", oracle: "test-manifest lists tests", type: "structural", note: "NEW — from S2 fix" },
+    { cell: "parse-diff", oracle: "length(file-list) ≥ 1", type: "deterministic" },
+    { cell: "parse-diff", oracle: "each region maps to file", type: "structural" },
+    { cell: "classify-changes", oracle: "risk ∈ {high, medium, low}", type: "deterministic" },
+    { cell: "classify-changes", oracle: "regions covers all change-regions", type: "deterministic" },
+    { cell: "spawn-scanners", oracle: "each scan-cell targets one region", type: "structural" },
+    { cell: "vuln-scan-template", oracle: "finding has type/loc/sev/evidence", type: "structural" },
+    { cell: "vuln-scan-template", oracle: "severity ∈ enum", type: "deterministic" },
+    { cell: "suggest-fixes", oracle: "length(patches) = length(findings)", type: "deterministic" },
+    { cell: "suggest-fixes", oracle: "each patch is syntactically valid", type: "semantic" },
+    { cell: "suggest-fixes", oracle: "each explanation describes vuln+fix", type: "semantic" },
+    { cell: "run-tests", oracle: "covers every test in manifest", type: "deterministic", note: "NOW WELL-DEFINED — manifest provides the test list" },
+    { cell: "compile-report", oracle: "contains(report, 'Summary') and contains(report, 'Findings') and contains(report, 'Verdict')", type: "deterministic", note: "UPGRADED from semantic to structural (S3 fix)" },
+    { cell: "compile-report", oracle: "if not has-vuln then contains(report, 'clean')", type: "deterministic", note: "NEW — from S4" },
+    { cell: "compile-report", oracle: "if all-pass and has-vuln then contains(report, 'safe to merge')", type: "deterministic" },
+    { cell: "compile-report", oracle: "if not all-pass then contains(report, 'regressions')", type: "deterministic" }
+  ]
+
+  yield awkward-spots ≡ []
+
+-- oracle checks:
+--   ⊨ oracle-results covers every ⊨ → ✓ (17 oracles, all classified)
+--   ⊨ each result classifies oracle type → ✓
+--   ⊨ awkward-spots identifies genuine design weaknesses → ✓ (empty — no weaknesses remain)
+--
+-- All 4 original awkward spots resolved:
+--   AWKWARD-1 (undefined test suite) → RESOLVED by test-manifest input
+--   AWKWARD-2 (broken zero-vuln path) → RESOLVED by given? on run-tests and compile-report
+--   AWKWARD-3 (template oracle note) → ACKNOWLEDGED, not a bug
+--   AWKWARD-4 (vague structural oracle) → RESOLVED by contains() checks
+
+-- state after frame 9: simulate-oracles frozen (iteration 2).
+-- Evaluating guard on critique: len(awkward-spots) > 0 → len(0) > 0 → FALSE
+-- Guard FAILS. critique is SKIPPED.
+-- critique yields: problems ≡ ⊥, suggestions ≡ ⊥
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 10: critique SKIPPED (guard clause: len(awkward-spots) > 0 → false)
+-- ═══════════════════════════════════════════════════════════════
+-- critique guard evaluates to false.
+-- All critique yields become ⊥ (guard-induced bottom, v0.2 spec).
+-- critique→problems ≡ ⊥
+-- critique→suggestions ≡ ⊥
+--
+-- No eval-one step needed — skip is immediate.
+-- Ready set: { redesign } — given? accepts ⊥ from critique
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 11: evaluate redesign (iteration 2) — critique outputs are ⊥
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { redesign }
+-- critique→problems ≡ ⊥ (guard-induced)
+-- critique→suggestions ≡ ⊥ (guard-induced)
+-- redesign uses given? — accepts ⊥ gracefully.
+
+⊢ redesign
+  given §program ≡ §«...redesigned program from iteration 1...»
+  given? critique→problems ≡ ⊥
+  given? critique→suggestions ≡ ⊥
+  yield §program'
+
+  ∴ critique→problems is ⊥ (no critique — no awkward spots). Return §program unchanged.
+
+-- LLM evaluation:
+-- No changes needed. Pass through.
+
+  yield §program' ≡ §«...unchanged from iteration 1's redesign...»
+
+-- oracle checks:
+--   ⊨ §program' has same top-level cell names → ✓ (unchanged)
+--   ⊨ if critique→problems is not ⊥ then every problem addressed → vacuously true (problems IS ⊥)
+--   ⊨ §program' contains only valid Cell syntax → ✓
+
+-- ⊢∘ CHECK: critique→problems = ⊥. Until condition: "len(problems) = 0 or problems = ⊥"
+-- problems = ⊥ → second disjunct is TRUE. CONVERGED.
+-- Evolution loop exits after 2 iterations.
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ CONVERGED: evolution loop exits
+-- ═══════════════════════════════════════════════════════════════
+-- Iteration 1: 4 problems found and fixed (zero-vuln path, test-manifest,
+--   structural oracle, clean-verdict oracle)
+-- Iteration 2: 0 awkward spots → critique guard fails → critique skipped →
+--   problems ≡ ⊥ → until condition satisfied
+--
+-- Ready set: { emit-program } — redesign→§program' and domain→description both frozen
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 12: evaluate emit-program (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { emit-program }
+-- This is the final cell. After this, all cells are frozen → quiescence.
+
+⊢ emit-program
+  given redesign→§program' ≡ §«...the fully redesigned program...»
+  given domain→description ≡ "An automated code review system that checks for security vulnerabilities, suggests fixes, and verifies the fixes don't break existing tests."
+  yield final-cell-file
+
+  ∴ Format the redesigned program as a complete .cell file...
+
+-- LLM evaluation:
+
+  yield final-cell-file ≡ "-- security-review.cell
+-- An automated code review system that checks for security vulnerabilities,
+-- suggests fixes, and verifies the fixes don't break existing tests.
+--
+-- Architecture: parse diff → classify risk regions → spawn per-region scanners →
+-- collect findings → suggest fixes (if any) → run tests → compile report.
+-- Zero-vulnerability path handled via given? and guard-induced ⊥.
+
+⊨? on failure:
+  retry with «oracle.failures» appended to prompt
+  max 3 attempts
+⊨? on exhaustion:
+  error-value(⊥)
+
+⊢ diff-input
+  given raw-diff
+  given test-manifest
+  yield raw-diff, test-manifest
+  ⊨ raw-diff is a valid unified diff format
+  ⊨ test-manifest lists test names and expected outcomes
+
+⊢ parse-diff ▸ crystallized
+  given diff-input→raw-diff
+  yield file-list[], change-regions[]
+  ⊢= parse unified diff into structured file list and change regions
+  ⊨ length(file-list) ≥ 1
+  ⊨ each change-region maps to a file in file-list
+
+⊢ classify-changes
+  given parse-diff→change-regions
+  yield risk-regions[]
+  ∴ Classify each change region by risk level:
+    high (auth, crypto, input handling), medium (data flow, API),
+    low (UI, logging, comments).
+  ⊨ each region has a risk level ∈ { \"high\", \"medium\", \"low\" }
+  ⊨ risk-regions covers all change-regions
+
+⊢⊢ spawn-scanners
+  given classify-changes→risk-regions where any(risk-regions, r -> r→risk != \"low\")
+  given §vuln-scan-template
+  yield §scan-cells[]
+  until length(scan-cells) = count(risk-regions, r -> r→risk != \"low\")
+  max 20
+  accumulate
+
+⊢ vuln-scan-template
+  given region
+  given risk-level
+  yield findings[], severity
+  ∴ Scan «region» for vulnerability patterns appropriate to «risk-level».
+  ⊨ each finding has type, location, severity, and evidence
+  ⊨ severity ∈ { \"critical\", \"high\", \"medium\", \"low\", \"info\" }
+
+⊢ collect-findings
+  given vuln-scan-*→findings
+  given vuln-scan-*→severity
+  yield all-findings[], has-vulnerabilities
+  ⊢= all-findings ← flatten(vuln-scan-*→findings)
+  ⊢= has-vulnerabilities ← len(all-findings) > 0
+
+⊢ suggest-fixes
+  given collect-findings→all-findings where collect-findings→has-vulnerabilities = true
+  given parse-diff→file-list
+  yield patches[], explanations[]
+  ∴ For each vulnerability, generate a concrete code fix with explanation.
+  ⊨ length(patches) = length(collect-findings→all-findings)
+  ⊨ each patch is syntactically valid code
+  ⊨ each explanation describes the vulnerability and the fix
+
+⊢ run-tests
+  given? suggest-fixes→patches
+  given diff-input→test-manifest
+  given parse-diff→file-list
+  yield test-results[], all-pass
+  ∴ If «suggest-fixes→patches» is ⊥, run tests against original code.
+    Otherwise, apply patches and run tests. Report pass/fail per test.
+  ⊨ test-results covers every test in test-manifest
+  ⊢= all-pass ← all(test-results, t -> t→status = \"pass\")
+
+⊢ compile-report
+  given collect-findings→all-findings
+  given collect-findings→has-vulnerabilities
+  given? suggest-fixes→patches
+  given? suggest-fixes→explanations
+  given run-tests→test-results
+  given run-tests→all-pass
+  yield review-report
+  ∴ Compile final security review report. If no vulnerabilities, report clean.
+    Otherwise: summary by severity, findings with fixes, test impact, verdict.
+  ⊨ contains(review-report, \"Summary\") and contains(review-report, \"Findings\") and contains(review-report, \"Verdict\")
+  ⊨ if has-vulnerabilities = false then contains(review-report, \"clean\")
+  ⊨ if all-pass = true and has-vulnerabilities = true then contains(review-report, \"safe to merge\")
+  ⊨ if all-pass = false then contains(review-report, \"regressions\")"
+
+-- oracle checks:
+--   ⊨ final-cell-file is valid Cell syntax → ✓
+--     (all cells use v0.2 syntax: ⊢, ∴, ⊢=, ⊨, ⊨?, §, «», ≡, →, ⊢⊢, given?, where)
+--   ⊨ final-cell-file has a descriptive header comment → ✓
+--     (domain description, architecture summary, zero-vuln note)
+--   ⊨ final-cell-file addresses the complete domain description → ✓
+--     (security vulnerability detection ✓, fix suggestion ✓, test verification ✓)
+
+-- ═══════════════════════════════════════════════════════════════
+-- QUIESCENCE: ALL CELLS FROZEN
+-- ═══════════════════════════════════════════════════════════════
+--
+-- Total cells: 9 (domain, cell-spec, decompose, design-cells, trace-readiness,
+--   simulate-oracles, critique, redesign, emit-program)
+-- Total eval-one steps: 12 (frames 0-11, excluding frame 10 which is a skip)
+--   Frame 10 is a guard-induced skip, not a true eval-one step.
+-- ⊢∘ iterations: 2
+--   Iteration 1: 4 problems found, all fixed
+--   Iteration 2: 0 awkward spots, critique guard fails, converged via ⊥
+-- ⊢⊢ spawner fires: 0 (spawn-scanners exists in §program but the meta-program
+--   doesn't execute it — it only designs and verifies it)
+-- ⊨? file-scope recovery: never triggered (all oracles passed first attempt)
+-- ⊥ produced: 1 instance (critique→problems in iteration 2, from guard skip)
+--
+-- Final graph at quiescence:
+--   FROZEN: domain, cell-spec, decompose, design-cells, trace-readiness,
+--           simulate-oracles, redesign, emit-program
+--   SKIPPED (guard-induced ⊥): critique (iteration 2 — len(awkward-spots) = 0)
+--   FROZEN IN ITERATION 1: critique (first run, with 4 problems)
+--
+-- Ready set: {} (empty — no unfrozen cells with satisfied givens)
+-- Program reached quiescence. Natural completion.
+
+-- ═══════════════════════════════════════════════════════════════
+-- OBSERVATIONS
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= obs-guard-clause-convergence
+  given §05-meta-cell-designer
+  yield observations ≡ "GUARD CLAUSE AS CONVERGENCE SIGNAL: The v0.2 guard clause on critique (len(awkward-spots) > 0) creates a clean convergence mechanism for the ⊢∘ loop. In iteration 1, the guard passes (4 awkward spots) and critique produces problems. In iteration 2, the guard fails (0 awkward spots) and critique is SKIPPED, yielding ⊥ for problems. The ⊢∘ until condition 'len(problems) = 0 or problems = ⊥' catches this ⊥ as convergence. This is more elegant than the R16 version which used 'length(critique→problems) = 0' alone — the guard clause prevents critique from even executing when there's nothing to critique, saving an LLM call. The guard + ⊥ + given? chain is a v0.2-native convergence pattern."
+
+⊢= obs-given-question-mark-resilience
+  given §05-meta-cell-designer
+  yield observations ≡ "GIVEN? ENABLES GRACEFUL DEGRADATION: redesign uses given? for critique→problems and critique→suggestions. In iteration 2, when critique is skipped (guard false), these resolve to ⊥. The ∴ body checks for ⊥ and passes the program through unchanged. This is the v0.2 'optional dependency' pattern working exactly as designed — the cell adapts its behavior based on whether upstream data is available. In the generated §program, the same pattern appears: run-tests uses given? suggest-fixes→patches to handle the zero-vulnerability case. The pattern composes: meta-program and designed program both use given? for the same reason (graceful handling of conditional paths)."
+
+⊢= obs-aspirational-oracles
+  given §05-meta-cell-designer
+  yield observations ≡ "ASPIRATIONAL ORACLES UNDER ⊢∘: design-cells has 5 oracles that describe ideal output quality (valid syntax, complete coverage, dataflow correctness, uses ⊢=, uses ⊨). Under ⊢∘ management, these are aspirational — they provide feedback but don't independently block freezing. In iteration 1, all 5 aspirational oracles pass on the first attempt. This means the distinction between aspirational and hard oracles is invisible in THIS execution. The distinction would matter if design-cells produced a program missing ⊢= cells (aspirational oracle fails but ⊢∘ still proceeds to critique/redesign, where the issue would be caught). The safety net is there even though it wasn't needed."
+
+⊢= obs-meta-program-design-quality
+  given §05-meta-cell-designer
+  yield observations ≡ "DESIGN EVOLUTION ARC: The generated §program went through a genuine improvement cycle. Iteration 1 produced a working but flawed design (4 problems: broken zero-vuln path, undefined test suite, vague oracle, blocked compile-report). Iteration 2's redesign fixed all 4 with v0.2 features: given? for optional paths, test-manifest as explicit input, contains() for structural oracles, conditional oracle for clean verdict. The critique identified a REAL bug (zero-vuln hang) that would be missed without systematic trace-readiness and oracle simulation. This validates the meta-cell-designer's architecture: decompose → design → trace → simulate → critique → redesign catches genuine design errors."
+
+⊢= obs-quotation-depth
+  given §05-meta-cell-designer
+  yield observations ≡ "NESTED § QUOTATION: This program operates at two levels of quotation. The outer program (meta-cell-designer) yields §program which is a Cell program containing its own §vuln-scan-template. This is § inside §. The outer program reasons ABOUT the inner program's cells without executing them. The inner program's ⊢⊢ spawn-scanners would execute vuln-scan-template at runtime, but the meta-level only inspects it. This is the v0.2 open question #9 (nested quotation depth) in action. The meta-cell-designer works because it treats §program as opaque text — it never tries to evaluate the inner § references. Two levels of quotation is the practical maximum for LLM comprehension."
+
+⊢= obs-zero-vuln-path-discovery
+  given §05-meta-cell-designer
+  yield observations ≡ "⊥ PROPAGATION BUG FOUND AND FIXED: The most significant finding is AWKWARD-2: the original design hangs on clean code (no vulnerabilities). This is a class of bug unique to Cell — guard-induced ⊥ creating unintended blockages in downstream cells. The fix (given? on run-tests and compile-report) is the canonical v0.2 pattern for handling optional data paths. This bug would be nearly invisible in traditional programming (you'd just have an if/else) but in Cell's dataflow model, a skipped cell produces ⊥ that propagates and blocks. The trace-readiness + simulate-oracles + critique pipeline caught this systematically. Cell programs need ⊥-propagation analysis as a standard quality gate."
+
+⊢= obs-frame-count-efficiency
+  given §05-meta-cell-designer
+  yield observations ≡ "EXECUTION BUDGET: 12 eval-one steps (plus 1 guard skip) for a program that designs, traces, simulates, critiques, and redesigns another program. The ⊢∘ loop adds 5 extra frames (frames 8-12 for iteration 2). Without the evolution loop, the program would complete in 7 frames but produce a flawed design. The 5-frame overhead buys 4 concrete bug fixes. The evolution loop cost is proportional to the number of problems found, not the program size — a well-designed initial program could converge in 1 iteration (0 extra frames). The guard clause on critique means iteration 2 skips 1 LLM call (critique itself), so the actual LLM cost of iteration 2 is 4 calls, not 5."
