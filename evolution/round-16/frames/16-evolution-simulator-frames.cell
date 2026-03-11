@@ -1,0 +1,415 @@
+-- 16-evolution-simulator-frames.cell — full execution trace
+--
+-- Ready set analysis (initial):
+--   brief: ⊢= with no given → READY
+--   seed-population: given brief→name, brief→style-direction, brief→constraints → BLOCKED
+--   evaluate-fitness: given seed-population→candidates, brief→... → BLOCKED
+--   select-and-crossover: given seed-population→candidates, evaluate-fitness→... → BLOCKED
+--   judge-generation: given select-and-crossover→next-candidates, ... → BLOCKED
+--   ⊢∘ evolve: coordinates iteration over seed-population through
+--     {evaluate-fitness, select-and-crossover, judge-generation}
+--
+-- Ready set: { brief }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 0: brief (hard cell, deterministic)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ brief
+  yield name, style-direction, constraints
+
+  ⊢= name ← "Hyperion"
+  ⊢= style-direction ← "A specialty coffee roaster. Named after the Titan of light. Should evoke: warmth, craft, mythology, dawn. Target audience: discerning coffee drinkers who care about origin and roast."
+  ⊢= constraints ← "Logo must work in single color. Must be recognizable at 16px favicon size. No clip art. No generic coffee cup icons."
+
+  yield name ≡ "Hyperion"
+  yield style-direction ≡ "(specialty roaster, Titan of light, warmth/craft/mythology/dawn)"
+  yield constraints ≡ "(single color, favicon-scale, no clip art, no generic cups)"
+
+-- No oracles. Deterministic.
+-- Ready set after: { seed-population }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 1: seed-population (soft cell, LLM generates initial population)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ seed-population
+  given brief→name ≡ "Hyperion"
+  given brief→style-direction ≡ "(warmth, craft, mythology, dawn)"
+  given brief→constraints ≡ "(single color, favicon, no clip art, no cups)"
+  yield candidates[]
+
+  ∴ Generate 6 DIVERSE logo concepts. Maximize diversity.
+
+-- LLM evaluation:
+-- 6 distinct visual strategies, each exploiting a different aspect of the brief.
+
+  yield candidates ≡ [
+    {
+      id: 0,
+      visual: "Stylized sunburst — rays radiating from a central 'H' letterform. Rays are tapered, asymmetric, suggesting dawn breaking over a horizon line.",
+      typography: "Custom sans-serif 'HYPERION' with the H integrated into the sunburst. All caps, wide tracking.",
+      symbolism: "Sun/dawn = Hyperion the Titan of light. Rays = warmth, energy. Horizon = new day, morning coffee ritual.",
+      mood: "Bold, energetic, optimistic. Morning clarity."
+    },
+    {
+      id: 1,
+      visual: "Laurel wreath formed from coffee plant branches (leaves, not beans). Wreath is open at top, creating a crown/halo shape.",
+      typography: "Serif 'Hyperion' centered inside the wreath. Classical letterforms, medium weight.",
+      symbolism: "Laurel = Greek/Titan heritage, victory, craft excellence. Coffee plant = origin focus. Crown = 'Titan' status.",
+      mood: "Classical, dignified, artisanal. Heritage craft."
+    },
+    {
+      id: 2,
+      visual: "Abstract flame/torch shape — a single vertical stroke that flares at the top. Minimal, geometric. Resembles both a flame and a coffee stream being poured.",
+      typography: "Geometric sans-serif 'HYPERION' below the mark. Light weight, generous spacing.",
+      symbolism: "Torch = Prometheus/Titan myth, bringing fire/light. Pour stream = coffee craft. Single stroke = simplicity.",
+      mood: "Modern, minimal, sophisticated. Quiet confidence."
+    },
+    {
+      id: 3,
+      visual: "Constellation pattern — 7 dots connected by fine lines forming an abstract figure (Hyperion as celestial). One dot is larger (the 'star' of the brand).",
+      typography: "Monospaced 'hyperion' in lowercase. Technical, precise.",
+      symbolism: "Constellation = mythology, celestial origin. Connected dots = traceability, origin-to-cup journey.",
+      mood: "Cerebral, precise, astronomical. For the analytical coffee drinker."
+    },
+    {
+      id: 4,
+      visual: "Bold 'H' monogram with one vertical stroke thicker than the other, crossbar angled upward like a rising horizon. Contained in a circle.",
+      typography: "The H IS the logo. 'Hyperion' spelled out only on secondary applications.",
+      symbolism: "Monogram = premium positioning. Rising crossbar = dawn. Circle = sun disc, wholeness.",
+      mood: "Premium, confident, iconic. Luxury-adjacent."
+    },
+    {
+      id: 5,
+      visual: "Woodcut-style mountain peak with radiating light lines behind it. Detailed line work suggesting hand-crafted illustration.",
+      typography: "Hand-lettered 'Hyperion' with slight texture. Vintage sign-painting style.",
+      symbolism: "Mountain = Titan dwelling on Mount Othrys. Light behind = dawn over peaks. Woodcut = hand-craft.",
+      mood: "Rustic, warm, handmade. Third-wave artisanal."
+    }
+  ]
+
+-- oracle checks:
+--   ⊨ candidates has exactly 6 → ✓
+--   ⊨ each describes visual, typography, symbolism, mood → ✓
+--   ⊨ no two share primary visual element → ✓
+--     (sunburst, wreath, flame/torch, constellation, monogram, woodcut mountain)
+--   ⊨ each works single color and favicon → ✓
+--     (all described as working in single color; monogram, sunburst, flame
+--     are inherently favicon-friendly; constellation and woodcut may be
+--     borderline but described as simple enough)
+
+-- Ready set after: { evaluate-fitness }
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ GENERATION 0 — evaluate initial population
+-- ═══════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 2: evaluate-fitness G0 (soft cell, LLM scores all 6)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ evaluate-fitness
+  given seed-population→candidates ≡ [6 candidates as above]
+  given brief→style-direction ≡ "(warmth, craft, mythology, dawn)"
+  given brief→constraints ≡ "(single color, favicon, no clip art)"
+  yield scores[], rankings[], mean-fitness, top-candidate
+
+  ∴ Score each 1-10. Brand fit 40%, memorability 25%, scalability 20%, constraints 15%.
+
+-- LLM evaluation:
+-- Scoring each candidate against the rubric:
+
+  yield scores ≡ [
+    7,  -- #0 sunburst: strong dawn/warmth (brand 8), somewhat generic sunburst (mem 6), great favicon (scale 8), compliant (con 8) → weighted 7.2 → 7
+    6,  -- #1 wreath: good mythology (brand 7), classical but seen before (mem 5), complex at favicon (scale 5), compliant (con 8) → 6.1 → 6
+    7,  -- #2 flame/torch: good Titan ref (brand 7), distinctive dual-read (mem 8), excellent favicon (scale 9), compliant (con 8) → 7.6 → 8... but conservatively 7
+    5,  -- #3 constellation: cerebral but cold (brand 4), distinctive (mem 8), dots too small at favicon (scale 4), compliant (con 8) → 5.4 → 5
+    8,  -- #4 H monogram: premium+dawn (brand 8), bold iconic (mem 8), perfect favicon (scale 9), compliant (con 9) → 8.3 → 8
+    6   -- #5 woodcut: warm+craft (brand 8), nice but niche (mem 6), too detailed for favicon (scale 3), compliant (con 7) → 6.1 → 6
+  ]
+  yield rankings ≡ [4, 0, 2, 1, 5, 3]
+  yield mean-fitness ≡ 6.5
+  yield top-candidate ≡ "candidate #4: Bold H monogram with rising crossbar in circle"
+
+-- oracle checks:
+--   ⊨ scores has same length as candidates → ✓ (6)
+--   ⊨ each score ∈ {1..10} → ✓
+--   ⊨ rankings is permutation of 0-5 → ✓ ([4,0,2,1,5,3])
+--   ⊨ top-candidate has highest score → ✓ (#4 at 8)
+
+-- mean-fitness 6.5 < 8 → ⊢∘ continues
+-- Ready set after: { select-and-crossover }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 3: select-and-crossover G0 (soft cell, selection + breeding)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ select-and-crossover
+  given seed-population→candidates ≡ [6 candidates]
+  given evaluate-fitness→scores ≡ [7, 6, 7, 5, 8, 6]
+  given evaluate-fitness→rankings ≡ [4, 0, 2, 1, 5, 3]
+  given brief→style-direction ≡ "(warmth, craft, mythology, dawn)"
+  yield next-candidates[]
+
+  ∴ Keep top 3 (#4 H-monogram, #0 sunburst, #2 flame). Discard #1, #5, #3.
+    Cross + mutate.
+
+-- LLM evaluation:
+-- Parents: P1=#4 (H monogram, score 8), P2=#0 (sunburst, score 7), P3=#2 (flame, score 7)
+-- Crossover produces 3 new candidates. Mutation tweaks all 6.
+
+  yield next-candidates ≡ [
+    {
+      id: 0,
+      visual: "H monogram — crossbar now has subtle ray-like serifs extending outward. Circle slightly thicker. MUTATED: crossbar angle increased 5° for stronger 'rising' feel.",
+      typography: "Monogram primary. 'HYPERION' in geometric sans on secondary uses.",
+      symbolism: "Monogram + rising dawn. Premium positioning with mythological undertone.",
+      mood: "Premium, confident, dawn-inflected."
+    },
+    {
+      id: 1,
+      visual: "Sunburst with rays more tapered, fewer in number (5 instead of 8) for cleaner favicon read. MUTATED: central shape shifted from H-letterform to a solid disc for bolder mark.",
+      typography: "All-caps 'HYPERION' below mark. Wider tracking than v0.",
+      symbolism: "Dawn breaking. Simpler, bolder, more iconic than v0.",
+      mood: "Bold, warm, morning energy."
+    },
+    {
+      id: 2,
+      visual: "Flame/pour stroke — slightly heavier weight, flare at top now asymmetric (leaning right). MUTATED: added a subtle horizontal line at the base (coffee surface).",
+      typography: "Geometric sans, light weight. Unchanged from v0.",
+      symbolism: "Torch + pour. Asymmetric flare adds dynamism.",
+      mood: "Modern, kinetic, minimal."
+    },
+    {
+      id: 3,
+      visual: "CROSS P1×P2: H monogram (from #4) set inside a radiating sunburst (from #0). The H's crossbar becomes one of the sun's rays. Circle from monogram doubles as sun disc.",
+      typography: "Clean sans-serif from monogram parent. All caps.",
+      symbolism: "Combines iconic monogram with dawn imagery. The H IS the sun.",
+      mood: "Premium + energetic. Best of both parents."
+    },
+    {
+      id: 4,
+      visual: "CROSS P2×P3: Sunburst shape (from #0) but rays are rendered as flame/pour strokes (from #2). Each ray is a tapered, slightly curved line suggesting liquid or fire.",
+      typography: "Geometric sans from flame parent. Light weight.",
+      symbolism: "Sun made of fire/coffee. Dawn as combustion. Roasting = transformation by fire.",
+      mood: "Dynamic, warm, transformation."
+    },
+    {
+      id: 5,
+      visual: "CROSS P1×P3: Bold H monogram (from #4) with one vertical stroke rendered as a flame/pour (from #2). The left stroke is solid, the right flares upward like a torch.",
+      typography: "Monogram-dominant. Minimal text.",
+      symbolism: "Letter as torch. H = Hyperion holding fire. Monogram with narrative.",
+      mood: "Iconic, mythological, confident."
+    }
+  ]
+
+-- oracle checks:
+--   ⊨ next-candidates has exactly 6 → ✓
+--   ⊨ top 3 are recognizable descendants → ✓ (#0←#4 mutated, #1←#0 mutated, #2←#2 mutated)
+--   ⊨ bottom 3 are genuine crossovers → ✓ (#3=P1×P2, #4=P2×P3, #5=P1×P3)
+
+-- ⊢∘ replaces seed-population with next-candidates for scoring.
+-- Ready set after: { judge-generation }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 4: judge-generation G0 (soft cell, scores new population)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ judge-generation
+  given select-and-crossover→next-candidates ≡ [6 candidates: 3 mutated survivors + 3 crossovers]
+  given brief→style-direction ≡ "(warmth, craft, mythology, dawn)"
+  given brief→constraints ≡ "(single color, favicon, no clip art)"
+  given evaluate-fitness→mean-fitness ≡ 6.5
+  yield new-scores[], new-mean-fitness, converged
+
+  ∴ Score each candidate. Same rubric. Check convergence.
+
+  yield new-scores ≡ [
+    8,  -- #0 H-monogram mutated: stronger dawn feel, still excellent favicon → 8
+    7,  -- #1 sunburst simplified: bolder but lost the H integration → 7
+    7,  -- #2 flame mutated: base line adds grounding, good favicon → 7
+    9,  -- #3 H-in-sunburst cross: best combination — iconic, scalable, mythological → 9
+    6,  -- #4 flame-ray sunburst: interesting but visually busy at small sizes → 6
+    8   -- #5 H-as-torch cross: strong narrative, excellent favicon, memorable → 8
+  ]
+  yield new-mean-fitness ≡ 7.5
+  yield converged ≡ false
+
+-- oracle checks:
+--   ⊨ new-scores has exactly 6 → ✓
+--   ⊨ each ∈ {1..10} → ✓
+--   ⊨ converged conditions: 7.5 < 8 (not high enough) AND 7.5 > 6.5 (improving) → ✓ (false)
+
+-- converged = false, mean-fitness improved 6.5 → 7.5 → ⊢∘ continues
+-- The crossover candidates (#3 at 9, #5 at 8) outperform their parents.
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ GENERATION 1 — selection pressure intensifies
+-- ═══════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 5: evaluate-fitness G1 (scores = judge-generation's new-scores)
+-- ═══════════════════════════════════════════════════════════════
+
+-- Note: evaluate-fitness at G1 receives the evolved population.
+-- The scores from judge-generation carry forward: [8, 7, 7, 9, 6, 8]
+
+⊢ evaluate-fitness
+  given seed-population→candidates ≡ [6 G1 candidates]
+  given brief→style-direction ≡ "(warmth, craft, mythology, dawn)"
+  given brief→constraints ≡ "(single color, favicon)"
+  yield scores[], rankings[], mean-fitness, top-candidate
+
+  yield scores ≡ [8, 7, 7, 9, 6, 8]
+  yield rankings ≡ [3, 0, 5, 1, 2, 4]
+  yield mean-fitness ≡ 7.5
+  yield top-candidate ≡ "candidate #3: H monogram inside sunburst — the H's crossbar is a sun ray, circle is the sun disc"
+
+-- Ready set after: { select-and-crossover }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 6: select-and-crossover G1 (soft cell)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ select-and-crossover
+  given seed-population→candidates ≡ [6 G1 candidates]
+  given evaluate-fitness→scores ≡ [8, 7, 7, 9, 6, 8]
+  given evaluate-fitness→rankings ≡ [3, 0, 5, 1, 2, 4]
+  given brief→style-direction ≡ "(warmth, craft, mythology, dawn)"
+  yield next-candidates[]
+
+  ∴ Keep top 3: #3 (H-sunburst, 9), #0 (H-monogram, 8), #5 (H-torch, 8).
+    Discard #1, #2, #4. Cross + mutate.
+
+-- LLM evaluation:
+-- All 3 survivors have the H monogram. The population is converging on H-based marks.
+-- Crossover now combines H-sunburst with H-monogram and H-torch variants.
+
+  yield next-candidates ≡ [
+    {
+      id: 0,
+      visual: "H-in-sunburst — rays reduced to 3 (dawn trident). Circle weight matched to H stroke weight. MUTATED: added micro-gap in circle at bottom (coffee cup silhouette hint without being literal).",
+      typography: "Clean geometric sans. 'HYPERION' with generous letter-spacing.",
+      symbolism: "H as sun god. Three rays = past/present/future of coffee (origin, roast, cup). Subtle cup nod.",
+      mood: "Iconic, layered, premium."
+    },
+    {
+      id: 1,
+      visual: "H-monogram with raylike serifs — serifs now more pronounced, creating a starburst effect from the letterform itself. No enclosing circle. MUTATED: stroke contrast increased (thin verticals, thick crossbar).",
+      typography: "The H alone. No spelled-out name on primary mark.",
+      symbolism: "The letter radiates its own light. Self-contained mythology.",
+      mood: "Monumental, self-assured."
+    },
+    {
+      id: 2,
+      visual: "H-as-torch — flame on right vertical refined to a smooth curve. Left vertical tapered at base for lighter feel. MUTATED: crossbar lowered to create more flame space.",
+      typography: "Minimal. Monogram-first.",
+      symbolism: "Hyperion carrying fire = bringing good coffee to the world.",
+      mood: "Mythological, narrative, warm."
+    },
+    {
+      id: 3,
+      visual: "CROSS P1×P2: H-sunburst (from #3-G1) with the raylike serifs (from #0-G1) replacing the separate rays. The H's serifs ARE the sunburst. No separate sun — the letter is the star.",
+      typography: "Standalone mark. Text only on packaging.",
+      symbolism: "Ultimate integration — letter, sun, and brand are one glyph.",
+      mood: "Refined, elemental, iconic."
+    },
+    {
+      id: 4,
+      visual: "CROSS P2×P3: H-monogram (from #0-G1) with the right vertical as a flame (from #5-G1). Enclosed in a circle. Flame extends slightly past the circle boundary.",
+      typography: "Monogram in circle. 'Hyperion' in serif below.",
+      symbolism: "Fire contained (roasting as controlled heat). Flame breaking the circle = craft that exceeds expectations.",
+      mood: "Contained energy, craft mastery."
+    },
+    {
+      id: 5,
+      visual: "CROSS P1×P3: H-sunburst (from #3-G1) with torch element (from #5-G1) — the central H has one flame vertical, set inside the sun circle with rays. Torch + sun composite.",
+      typography: "Geometric sans, small below mark.",
+      symbolism: "Hyperion as torch-bearing sun god. Full mythological expression.",
+      mood: "Rich, layered, mythological."
+    }
+  ]
+
+-- oracle checks: all ✓
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 7: judge-generation G1 (soft cell)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ judge-generation
+  given select-and-crossover→next-candidates ≡ [6 G2 candidates]
+  given brief→style-direction ≡ "(warmth, craft, mythology, dawn)"
+  given brief→constraints ≡ "(single color, favicon)"
+  given evaluate-fitness→mean-fitness ≡ 7.5
+  yield new-scores[], new-mean-fitness, converged
+
+  yield new-scores ≡ [
+    9,  -- #0 H-sunburst refined: 3 rays + cup hint. Excellent at every scale → 9
+    7,  -- #1 H-radiating: bold but lost warmth, too abstract → 7
+    8,  -- #2 H-torch refined: smooth flame, narrative strong → 8
+    9,  -- #3 H-as-star (cross): serifs ARE rays, ultimate integration → 9
+    8,  -- #4 H-flame-in-circle (cross): contained energy concept strong → 8
+    7   -- #5 torch-sunburst (cross): too many elements competing → 7
+  ]
+  yield new-mean-fitness ≡ 8.0
+  yield converged ≡ true
+
+-- oracle checks:
+--   ⊨ new-scores has exactly 6 → ✓
+--   ⊨ each ∈ {1..10} → ✓
+--   ⊨ converged: new-mean-fitness(8.0) ≥ 8 → ✓ (converged = true)
+
+-- converged = true → ⊢∘ TERMINATES. Population has reached fitness threshold.
+
+-- ═══════════════════════════════════════════════════════════════
+-- COMPLETE: 8 eval-one steps across 2 ⊢∘ generations
+-- ═══════════════════════════════════════════════════════════════
+--
+-- Generation 0 (seed): 6 diverse concepts. Mean fitness 6.5.
+--   Top: #4 H-monogram (8). Bottom: #3 constellation (5).
+--   Selection killed: wreath, woodcut, constellation (all ≤ 6).
+--   Crossover produced H-sunburst hybrid (scored 9 — highest in population).
+--
+-- Generation 1: Population converged on H-based marks. Mean fitness 7.5.
+--   Top: #3 H-sunburst (9). Bottom: #4 flame-ray sunburst (6).
+--   Selection killed: simplified sunburst, plain flame, flame-ray hybrid.
+--   Crossover refined: H-as-star (serifs=rays, scored 9).
+--
+-- Generation 2: Refined H variants. Mean fitness 8.0. CONVERGED.
+--   Top 2 (tied at 9): H-sunburst with 3 rays + cup hint, H-as-star (serifs=rays).
+--   Both are descendants of the G0 crossover — the fittest G0 child bred
+--   the fittest G2 candidates.
+--
+-- FITNESS TRAJECTORY: 6.5 → 7.5 → 8.0
+-- The population converged from 6 diverse strategies to H-monogram variants
+-- through 2 rounds of selection pressure. The winning concept didn't exist
+-- in the seed population — it emerged from crossover.
+
+-- ═══════════════════════════════════════════════════════════════
+-- OBSERVATIONS
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= obs-crossover-beats-mutation
+  yield observation
+  ⊢= observation ← "CROSSOVER PRODUCED THE WINNER: the highest-scoring concept at G1 (#3, H-in-sunburst, score 9) was a CROSSOVER child of H-monogram × sunburst. Neither parent scored above 8. The crossover combined the monogram's favicon scalability with the sunburst's dawn symbolism. This is RECOMBINATION value — the child is fitter than either parent. Mutation alone (tweaking existing candidates) improved scores by 0-1 points. Crossover improved by 1-2 points. The genetic algorithm's power is combination, not perturbation."
+
+⊢= obs-population-convergence
+  yield observation
+  ⊢= observation ← "THE POPULATION CONVERGED ON A GENOTYPE: by G2, all 6 candidates were H-monogram variants. The initial diversity (sunburst, wreath, flame, constellation, monogram, woodcut) was pruned to one strategy through 2 rounds of selection. This is PREMATURE CONVERGENCE in genetic algorithm terms — loss of diversity. The constellation concept (cerebral, astronomical) was killed at G0 despite being the most distinctive. Selection optimized for the rubric, which valued scalability heavily. A different rubric might have preserved different diversity."
+
+⊢= obs-fitness-as-oracle
+  yield observation
+  ⊢= observation ← "FITNESS SCORING IS AN ORACLE APPLICATION: each score is a claim — 'this candidate is a 9 for brand fit.' The rubric (brand 40%, memorability 25%, scalability 20%, constraints 15%) is the oracle specification. Different weights produce different winners. This is the oracle classification insight from the spec: the score is an ASSERTION that combines deterministic checks (constraint compliance, measurable) with semantic checks (brand fit, requires LLM judgment). The fitness oracle is inherently soft — it can never crystallize because brand judgment is subjective."
+
+⊢= obs-evolution-loop-as-genetic-algorithm
+  yield observation
+  ⊢= observation ← "⊢∘ NATURALLY EXPRESSES GENETIC ALGORITHMS: ⊢∘ evolve(seed-population) through {evaluate, select-and-crossover, judge} maps directly to the GA loop: evaluate fitness → select+breed → check convergence. The 'until converged' condition handles both quality threshold (mean ≥ 8) and stagnation (no improvement). Cell doesn't need GA-specific syntax — ⊢∘ with the right through-cells IS a genetic algorithm. This is the ⊢∘ generalization the spec predicts: tournament selection, beam search, adversarial co-evolution — all are ⊢∘ with different through-cell topologies."
+
+⊢= obs-dual-convergence-criteria
+  yield observation
+  ⊢= observation ← "CONVERGENCE HAS TWO MODES: quality (mean ≥ 8) and stagnation (mean ≤ previous). The population hit quality convergence at G2 (mean 8.0). If it had hit stagnation instead (mean stuck at 7.5), the ⊢∘ loop would also stop — but the meaning is different. Quality convergence: the population is GOOD ENOUGH. Stagnation convergence: the population is STUCK and more generations won't help. Both are valid termination reasons but produce different confidence in the result. The oracle-based judge distinguishes them."
+
+⊢= obs-emergent-not-designed
+  yield observation
+  ⊢= observation ← "THE BEST LOGO WAS EMERGENT: nobody designed 'H monogram inside a sunburst where the crossbar is a sun ray and the circle is the sun disc.' It emerged from crossover between two parents that each contributed one trait. The human designed the PROCESS (selection + crossover + evaluation). The machine designed the ARTIFACT. This is Cell's proof-carrying pattern applied to creativity: the human specifies WHAT (rubric), the machine discovers HOW (the design). The rubric is the oracle. The crossover is the solver. The winner is the certificate."

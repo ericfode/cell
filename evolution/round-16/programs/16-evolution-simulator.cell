@@ -1,0 +1,89 @@
+-- 16-evolution-simulator.cell
+-- Tests: ⊢∘ as genetic algorithm, population evolution, tournament selection,
+--        crossover/mutation, fitness oracle, convergence detection
+--
+-- Population of 6 logo concepts for a coffee shop called "Hyperion."
+-- Each generation: mutate, evaluate fitness via oracle, select top 3,
+-- crossover to produce next generation. ⊢∘ loop until fitness threshold.
+
+⊢ brief
+  yield name, style-direction, constraints
+
+  ⊢= name ← "Hyperion"
+  ⊢= style-direction ← "A specialty coffee roaster. Named after the Titan of light. Should evoke: warmth, craft, mythology, dawn. Target audience: discerning coffee drinkers who care about origin and roast."
+  ⊢= constraints ← "Logo must work in single color. Must be recognizable at 16px favicon size. No clip art. No generic coffee cup icons."
+
+⊢ seed-population
+  given brief→name
+  given brief→style-direction
+  given brief→constraints
+  yield candidates[]
+
+  ∴ Generate 6 DIVERSE logo concepts for «brief→name». Each concept is a
+    text description of: visual elements, typography, symbolism, and mood.
+    Maximize diversity — different visual strategies, not variations on one idea.
+    Each concept must respect «brief→constraints».
+
+  ⊨ candidates has exactly 6 entries
+  ⊨ each candidate describes: visual elements, typography, symbolism, mood
+  ⊨ no two candidates share the same primary visual element
+  ⊨ each candidate works in single color and at favicon size
+
+⊢ evaluate-fitness
+  given seed-population→candidates
+  given brief→style-direction
+  given brief→constraints
+  yield scores[], rankings[], mean-fitness, top-candidate
+
+  ∴ Score each candidate in «seed-population→candidates» on a 1-10 scale:
+    - Brand fit (does it evoke warmth, craft, mythology, dawn?) — 40%
+    - Memorability (distinctive, not generic) — 25%
+    - Scalability (works at 16px AND on a coffee bag) — 20%
+    - Constraint compliance (single color, no clip art) — 15%
+    Produce a weighted score. Rank all candidates.
+
+  ⊨ scores has same length as candidates
+  ⊨ each score ∈ {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+  ⊨ rankings is a permutation of indices 0-5
+  ⊨ top-candidate is the candidate with highest score
+
+⊢ select-and-crossover
+  given seed-population→candidates
+  given evaluate-fitness→scores
+  given evaluate-fitness→rankings
+  given brief→style-direction
+  yield next-candidates[]
+
+  ∴ SELECTION: Keep the top 3 candidates (by score). Discard bottom 3.
+    CROSSOVER: For each discarded slot, create a new candidate by combining
+    traits from two of the top 3 parents:
+    - New candidate 4: cross parent 1 × parent 2 (visual from 1, typography from 2)
+    - New candidate 5: cross parent 2 × parent 3 (symbolism from 2, mood from 3)
+    - New candidate 6: cross parent 1 × parent 3 (elements from 1, style from 3)
+    MUTATION: Apply one random small change to each of the 6 candidates
+    (adjust a color, tweak a shape, shift typography weight).
+
+  ⊨ next-candidates has exactly 6 entries
+  ⊨ top 3 candidates are recognizable descendants of their parents
+  ⊨ bottom 3 are genuine crossovers, not copies
+
+⊢ judge-generation
+  given select-and-crossover→next-candidates
+  given brief→style-direction
+  given brief→constraints
+  given evaluate-fitness→mean-fitness
+  yield new-scores[], new-mean-fitness, converged
+
+  ∴ Score each candidate in «select-and-crossover→next-candidates» using
+    the same rubric as evaluate-fitness. Calculate mean fitness.
+    Set converged = true if new-mean-fitness ≥ 8 (high quality population)
+    OR if new-mean-fitness ≤ mean-fitness (no improvement — stagnation).
+
+  ⊨ new-scores has exactly 6 entries
+  ⊨ each new-score ∈ {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+  ⊨ converged = true if new-mean-fitness ≥ 8 or new-mean-fitness ≤ mean-fitness
+
+⊢∘ evolve(seed-population)
+  through evaluate-fitness, select-and-crossover, judge-generation
+  until judge-generation→converged = true
+  max 4
