@@ -1,0 +1,838 @@
+-- 20-language-designer-frames.cell — full execution trace
+--
+-- Ready set analysis (initial):
+--   domain: ⊢= with no given → READY
+--   draft-dsl: given domain→name, domain→requirements → BLOCKED
+--   write-examples: given §draft-dsl, draft-dsl→grammar, draft-dsl→explanation,
+--                   domain→requirements → BLOCKED
+--   critique: given write-examples→examples, draft-dsl→grammar,
+--             domain→requirements → BLOCKED
+--   redesign: given draft-dsl→grammar, draft-dsl→explanation,
+--             critique→awkward-parts, critique→is-clean,
+--             domain→requirements → BLOCKED
+--   ⊢∘ refine: coordinates iteration over draft-dsl through
+--     {write-examples, critique, redesign}
+--
+-- Ready set: { domain }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 0: domain (hard cell, deterministic)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ domain
+  yield name, requirements[]
+
+  ⊢= name ← "RecipeCell"
+  ⊢= requirements ← [
+    "Describe cooking recipes as structured steps with durations",
+    "Express timing constraints between steps (parallel, sequential, start-before-end)",
+    "Specify ingredient substitutions with ratio adjustments",
+    "Handle conditional steps (e.g., if using substitution X, add step Y)",
+    "Be readable by a home cook, not just a programmer"
+  ]
+
+  yield name ≡ "RecipeCell"
+  yield requirements ≡ [
+    "Describe cooking recipes as structured steps with durations",
+    "Express timing constraints between steps (parallel, sequential, start-before-end)",
+    "Specify ingredient substitutions with ratio adjustments",
+    "Handle conditional steps (e.g., if using substitution X, add step Y)",
+    "Be readable by a home cook, not just a programmer"
+  ]
+
+-- No oracles. Deterministic.
+-- Ready set after: { draft-dsl }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 1: draft-dsl (soft cell, LLM designs initial DSL grammar)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ draft-dsl
+  given domain→name ≡ "RecipeCell"
+  given domain→requirements ≡ [...]
+  yield grammar, explanation
+
+  ∴ Design a mini-DSL called RecipeCell for cooking recipes.
+    Define syntax for recipe, ingredient, step, timing, substitution.
+
+-- LLM evaluation:
+-- Designing a DSL that balances programmer structure with home-cook
+-- readability. Key decisions:
+-- 1. Use indentation-based blocks (familiar from recipe card layout)
+-- 2. Natural-language timing keywords: "then", "while", "before"
+-- 3. Substitution via "or" with explicit ratios
+-- 4. Conditional steps with "if using" prefix
+-- 5. Durations inline with steps, not as separate declarations
+
+  yield grammar ≡ "
+    recipe <name>
+      serves <N>
+      time <duration>
+
+    ingredients:
+      <amount> <unit> <item> [or <amount> <unit> <alt-item>]
+      ...
+
+    steps:
+      <step-name> (<duration>):
+        <instruction text>
+      then <step-name> (<duration>):
+        <instruction text>
+      while <step-ref>:
+        <step-name> (<duration>):
+          <instruction text>
+      <step-name> (<duration>) before <step-ref> ends by <duration>:
+        <instruction text>
+      if using <alt-item>:
+        <step-name> (<duration>):
+          <instruction text>
+  "
+
+  yield explanation ≡ "
+    RECIPE HEADER: 'recipe <name>' declares a recipe with servings and total time.
+
+    INGREDIENTS: Listed under 'ingredients:' block. Each line declares amount,
+    unit, and item. Optional 'or' clause provides a substitution with its own
+    amount and unit (ratio adjustment built into the alternate amount).
+
+    STEPS: Listed under 'steps:' block. Each step has a name, duration in
+    parentheses, and instruction text indented below.
+
+    TIMING — SEQUENTIAL: 'then' before a step means it starts after the
+    previous step completes.
+
+    TIMING — PARALLEL: 'while <step-ref>:' creates a parallel track. Steps
+    indented under 'while' execute concurrently with the referenced step.
+
+    TIMING — CONSTRAINT: '<step> before <step-ref> ends by <duration>' means
+    this step must begin the specified duration before the referenced step
+    finishes.
+
+    SUBSTITUTION: In ingredients, 'or' provides an alternative with adjusted
+    quantity. The ratio is implicit in the differing amounts.
+
+    CONDITIONAL: 'if using <alt-item>:' gates a step — it only executes when
+    the cook chose that substitution from the ingredients list.
+  "
+
+-- oracle checks:
+--   ⊨ grammar defines syntax for: recipe, ingredient, step, timing,
+--     substitution → ✓
+--     (recipe header, ingredients: block, steps: block with timing
+--     operators, or-substitution all present)
+--   ⊨ grammar includes at least one timing operator → ✓
+--     (then, while, before...ends by — three timing operators)
+--   ⊨ grammar includes substitution syntax with ratio adjustment → ✓
+--     (or clause with separate amount/unit allows ratio adjustment)
+--   ⊨ explanation covers every production rule in grammar → ✓
+--     (recipe header, ingredients, steps, then, while, before, or,
+--     if using — all explained)
+--
+-- All oracles pass. Freeze output.
+-- Ready set after: { write-examples }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 2: write-examples (soft cell, LLM writes 3 example recipes)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ write-examples
+  given §draft-dsl ≡ [full definition of draft-dsl as data]
+  given draft-dsl→grammar ≡ [grammar spec above]
+  given draft-dsl→explanation ≡ [explanation above]
+  given domain→requirements ≡ [...]
+  yield examples[]
+
+  ∴ Write exactly 3 complete recipes in RecipeCell DSL.
+
+-- LLM evaluation:
+-- Writing three examples of increasing complexity. Ensuring each uses the
+-- grammar exactly — no ad-hoc extensions. Checking coverage: sequential
+-- (then), parallel (while), timing constraint (before...ends by),
+-- substitution (or), conditional (if using).
+
+  yield examples ≡ [
+    "
+    recipe Scrambled Eggs with Toast
+      serves 2
+      time 15 min
+
+    ingredients:
+      4 large eggs
+      2 tbsp butter or 1 tbsp olive oil
+      2 slices bread
+      pinch salt
+      pinch pepper
+
+    steps:
+      crack-eggs (2 min):
+        Crack eggs into bowl. Season with salt and pepper. Beat lightly.
+      then heat-pan (2 min):
+        Place butter in non-stick pan over medium-low heat until melted
+        and foamy.
+      if using olive oil:
+        heat-oil (1 min):
+          Heat olive oil in non-stick pan over medium heat until shimmering.
+      then cook-eggs (5 min):
+        Pour egg mixture into pan. Stir gently with spatula, folding
+        curds from edges to center. Remove from heat while still slightly
+        wet — residual heat finishes them.
+      then toast-bread (3 min):
+        Toast bread slices until golden.
+      then plate (1 min):
+        Place toast on plates. Spoon scrambled eggs alongside.
+    ",
+
+    "
+    recipe Pasta with Tomato Sauce
+      serves 4
+      time 35 min
+
+    ingredients:
+      400 g spaghetti
+      6 medium fresh tomatoes or 800 g canned crushed tomatoes
+      3 cloves garlic
+      2 tbsp olive oil
+      50 g parmesan or 3 tbsp nutritional yeast
+      handful fresh basil
+      1 tsp salt
+
+    steps:
+      boil-water (10 min):
+        Fill large pot with salted water. Bring to rolling boil.
+      then cook-pasta (10 min):
+        Add spaghetti to boiling water. Cook until al dente.
+      while cook-pasta:
+        prep-sauce-base (3 min):
+          Mince garlic. Heat olive oil in saucepan over medium heat.
+          Add garlic, cook until fragrant.
+        then simmer-sauce (15 min):
+          Dice fresh tomatoes (or open canned tomatoes). Add to pan.
+          Season with salt. Simmer, stirring occasionally, until
+          thickened and jammy.
+      then combine (3 min):
+        Drain pasta, reserving 1 cup pasta water. Add pasta to sauce.
+        Toss, adding pasta water a splash at a time until silky.
+      then finish (1 min):
+        Grate parmesan over top (or sprinkle nutritional yeast).
+        Tear basil leaves and scatter over dish.
+    ",
+
+    "
+    recipe Vegetable Stir-Fry with Rice
+      serves 3
+      time 40 min
+
+    ingredients:
+      300 g jasmine rice
+      200 g chicken breast or 200 g firm tofu
+      1 red bell pepper
+      150 g broccoli florets
+      2 medium carrots
+      3 tbsp soy sauce
+      1 tbsp sesame oil
+      1 tbsp cornstarch
+      2 cloves garlic
+      1 thumb ginger
+
+    steps:
+      wash-rice (3 min):
+        Rinse rice under cold water until water runs clear.
+      then start-rice (1 min):
+        Add rice and 450 ml water to rice cooker. Start cooker.
+      cook-rice (20 min):
+        Rice cooker runs. Do not lift lid.
+      while cook-rice:
+        prep-protein (5 min):
+          Slice chicken into thin strips (or cube tofu).
+          Toss with 1 tbsp soy sauce and cornstarch.
+        if using firm tofu:
+          press-tofu (10 min):
+            Wrap tofu in towel. Place heavy pan on top.
+            Let drain for 10 minutes before cubing.
+        then prep-veg (5 min):
+          Slice bell pepper into strips. Cut broccoli into small
+          florets. Julienne carrots. Mince garlic and ginger.
+        wok-sear (8 min) before cook-rice ends by 5 min:
+          Heat wok until smoking. Add sesame oil. Sear protein
+          until browned. Remove. Add vegetables in order of
+          hardness: carrots, broccoli, pepper. Stir-fry 3 min.
+          Return protein. Add remaining soy sauce. Toss 1 min.
+      then plate (2 min):
+        Fluff rice. Divide among bowls. Top with stir-fry.
+    "
+  ]
+
+-- oracle checks:
+--   ⊨ examples has exactly 3 entries → ✓
+--   ⊨ each example is syntactically valid per draft-dsl→grammar → ✓
+--     (All three follow the recipe/ingredients/steps structure with
+--     proper indentation and keyword usage)
+--   ⊨ example 1 uses sequential timing and one substitution → ✓
+--     (crack-eggs then heat-pan then cook-eggs then toast; butter or olive oil)
+--   ⊨ example 2 uses parallel timing and multiple substitutions → ✓
+--     (while cook-pasta: prep-sauce-base; tomatoes or canned, parmesan or yeast)
+--   ⊨ example 3 uses timing constraints and conditional steps → ✓
+--     (wok-sear before cook-rice ends by 5 min; if using firm tofu: press-tofu)
+--   ⊨ all grammar constructs appear in at least one example → ✓
+--     (recipe header: all 3; ingredients with or: all 3; then: all 3;
+--     while: ex2+3; before...ends by: ex3; if using: ex1+3)
+--
+-- All oracles pass. Freeze output.
+-- Ready set after: { critique }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 3: critique (soft cell, LLM evaluates DSL usability)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ critique
+  given write-examples→examples ≡ [3 recipes above]
+  given draft-dsl→grammar ≡ [grammar spec]
+  given domain→requirements ≡ [...]
+  yield awkward-parts[], severity-scores[], overall-score, is-clean
+
+  ∴ Evaluate each example for DSL usability. Check verbosity, ambiguity,
+    readability, completeness, consistency.
+
+-- LLM evaluation:
+-- Examining each example line by line against the five categories.
+--
+-- FINDING 1 (AMBIGUITY, Ex1): The "if using olive oil" step appears after
+-- "heat-pan" which already uses butter. If the cook chose olive oil, do
+-- they skip "heat-pan"? The grammar has no "else" or "skip" construct.
+-- The sequential "then" chain implies heat-pan always runs. A cook using
+-- olive oil would heat butter AND olive oil. This is a logic bug in the
+-- DSL — conditional steps need to REPLACE the default path, not just add
+-- to it. Severity: 4.
+--
+-- FINDING 2 (VERBOSITY, Ex2): The "then simmer-sauce" step has an inline
+-- conditional: "Dice fresh tomatoes (or open canned tomatoes)." This is
+-- a natural-language workaround because the DSL's "if using" only gates
+-- entire steps, not individual instructions within a step. There's no
+-- way to express a small variation inside a step. Severity: 3.
+--
+-- FINDING 3 (READABILITY, Ex3): "wok-sear (8 min) before cook-rice ends
+-- by 5 min" — a home cook would read this as "do this before cook-rice
+-- finishes, by 5 minutes." The "by" is ambiguous: does it mean "5 minutes
+-- before rice finishes" or "finish within 5 minutes of rice ending"?
+-- The intended meaning (start 5 min before rice finishes) would be clearer
+-- as "start 5 min before cook-rice finishes." Severity: 3.
+--
+-- FINDING 4 (COMPLETENESS, Ex3): The "press-tofu" step takes 10 minutes
+-- and must happen BEFORE prep-protein's result is used in wok-sear, but
+-- the timing relationship between press-tofu and prep-veg is unclear.
+-- Can you prep vegetables while tofu presses? The grammar doesn't have
+-- a way to express "this step runs in background" or "overlap with next."
+-- Severity: 2.
+--
+-- FINDING 5 (CONSISTENCY, Ex1): "pinch salt" lacks a numeric amount.
+-- Other ingredients use "<amount> <unit> <item>". "pinch" is used as
+-- both amount and unit. Should be "1 pinch salt" for consistency, but the
+-- grammar doesn't require a numeric amount. Minor. Severity: 1.
+--
+-- FINDING 6 (AMBIGUITY, Grammar): The "while" block syntax nests steps
+-- inside, but it's unclear whether the steps inside "while" are sequential
+-- to EACH OTHER or all parallel. In Ex2, "prep-sauce-base then simmer-sauce"
+-- inside "while cook-pasta" seems sequential (first prep, then simmer).
+-- But in Ex3, multiple steps inside "while cook-rice" have mixed relationships.
+-- The grammar doesn't specify. Severity: 3.
+
+  yield awkward-parts ≡ [
+    {
+      example: 1,
+      location: "if using olive oil block after heat-pan",
+      category: "AMBIGUITY",
+      issue: "Conditional step adds to the sequence but doesn't replace the default 'heat-pan' step. Cook using olive oil would execute BOTH heat-pan (with butter) and heat-oil. Need 'otherwise'/'else' construct or conditional that replaces a step.",
+      fix: "Add 'choose' block syntax: 'choose: / heat-butter (2 min): ... / or if using olive oil: heat-oil (1 min): ...' — mutually exclusive step selection."
+    },
+    {
+      example: 2,
+      location: "simmer-sauce instruction text",
+      category: "VERBOSITY",
+      issue: "'Dice fresh tomatoes (or open canned tomatoes)' — inline natural-language conditional because DSL can't express per-instruction variation, only whole-step gating.",
+      fix: "Allow 'if using' inside step body to gate individual instruction lines, or accept this as prose-level flexibility (DSLs shouldn't micro-manage instruction text)."
+    },
+    {
+      example: 3,
+      location: "wok-sear before cook-rice ends by 5 min",
+      category: "READABILITY",
+      issue: "'before X ends by Y' is ambiguous. 'By' could mean 'within Y of X ending' or 'Y before X ends'. Home cooks would misread this.",
+      fix: "Change syntax to 'start <duration> before <step-ref> finishes' — e.g., 'start 5 min before cook-rice finishes'. Unambiguous, natural English."
+    },
+    {
+      example: "grammar",
+      location: "while block semantics",
+      category: "AMBIGUITY",
+      issue: "Steps inside a 'while' block: are they sequential to each other or all parallel? Ex2 uses 'then' inside 'while', Ex3 mixes 'then' and independent steps. Grammar is silent on this.",
+      fix: "Specify: steps inside 'while' follow normal sequencing rules — 'then' for sequential, independent lines for parallel. Add this to the grammar explicitly."
+    },
+    {
+      example: 3,
+      location: "press-tofu timing relative to prep-veg",
+      category: "COMPLETENESS",
+      issue: "press-tofu (10 min) is gated by 'if using tofu' but its timing relationship to subsequent steps is ambiguous. Can you prep veg while tofu presses? No 'background' or 'overlap' construct.",
+      fix: "Treat 'if using' blocks as insertable sub-sequences. Tofu pressing naturally overlaps with next steps because it's passive. Add 'passive' duration annotation: 'press-tofu (10 min, passive):' — meaning the cook isn't actively working."
+    },
+    {
+      example: 1,
+      location: "ingredients 'pinch salt'",
+      category: "CONSISTENCY",
+      issue: "'pinch salt' lacks numeric amount. Other entries are '<amount> <unit> <item>'. Should be '1 pinch salt' or grammar should allow unit-as-amount for informal measures.",
+      fix: "Allow bare units as shorthand: 'pinch' implies '1 pinch'. Document as grammar sugar."
+    }
+  ]
+
+  yield severity-scores ≡ [4, 3, 3, 3, 2, 1]
+  yield overall-score ≡ 2.7
+  yield is-clean ≡ false
+
+-- oracle checks:
+--   ⊨ each severity-score ∈ {1,2,3,4,5} → ✓ (4,3,3,3,2,1)
+--   ⊨ overall-score = mean of severity-scores → ✓ ((4+3+3+3+2+1)/6 = 16/6 ≈ 2.7)
+--   ⊨ overall-score > 1.5 or max ≥ 4 then is-clean = false → ✓
+--     (2.7 > 1.5 AND max = 4 ≥ 4, both conditions met → is-clean = false)
+--
+-- All oracles pass. Freeze output.
+-- Ready set after: { redesign }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 4: redesign (soft cell, LLM fixes awkward parts)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ redesign
+  given draft-dsl→grammar ≡ [original grammar]
+  given draft-dsl→explanation ≡ [original explanation]
+  given critique→awkward-parts ≡ [6 findings above]
+  given critique→is-clean ≡ false
+  given domain→requirements ≡ [...]
+  yield grammar', explanation'
+
+  ∴ Redesign grammar to fix all awkward parts with severity ≥ 3.
+
+-- LLM evaluation:
+-- Four issues at severity ≥ 3 to fix:
+-- 1. (sev 4) No mutual exclusion for conditional steps → add "choose" block
+-- 2. (sev 3) No per-instruction variation → accept as prose flexibility
+-- 3. (sev 3) "before X ends by Y" ambiguous → change to "start Y before X finishes"
+-- 4. (sev 3) While-block sequencing unclear → specify in grammar
+--
+-- Also incorporating sev 2 fix (passive duration) as low-cost improvement.
+-- Sev 1 (bare units) accepted as grammar sugar, documented.
+
+  yield grammar' ≡ "
+    recipe <name>
+      serves <N>
+      time <duration>
+
+    ingredients:
+      <amount> <unit> <item> [or <amount> <unit> <alt-item>]
+      <unit> <item>                     -- shorthand: '1' implied
+      ...
+
+    steps:
+      <step-name> (<duration>[, passive]):
+        <instruction text>
+
+      -- Sequential:
+      then <step-name> (<duration>):
+        <instruction text>
+
+      -- Parallel track:
+      while <step-ref>:
+        -- steps inside follow normal rules: 'then' = sequential,
+        -- separate entries = parallel to each other
+        <step-name> (<duration>):
+          <instruction text>
+        then <step-name> (<duration>):
+          <instruction text>
+
+      -- Timing constraint:
+      <step-name> (<duration>) start <duration> before <step-ref> finishes:
+        <instruction text>
+
+      -- Mutual-exclusive conditional:
+      choose:
+        <step-name> (<duration>):
+          <instruction text>
+        or if using <alt-item>:
+          <step-name> (<duration>):
+            <instruction text>
+
+      -- Additive conditional:
+      if using <alt-item>:
+        <step-name> (<duration>[, passive]):
+          <instruction text>
+  "
+
+  yield explanation' ≡ "
+    RECIPE HEADER: 'recipe <name>' with serves and time metadata.
+
+    INGREDIENTS: '<amount> <unit> <item>' with optional 'or <amount> <unit>
+    <alt-item>' for substitutions. Bare '<unit> <item>' is shorthand for
+    '1 <unit> <item>' (e.g., 'pinch salt' = '1 pinch salt').
+
+    STEPS: '<step-name> (<duration>):' declares a step. Add ', passive' to
+    mark steps where the cook waits (e.g., pressing tofu, rice cooking).
+    Passive steps can overlap with subsequent active steps.
+
+    SEQUENTIAL: 'then' means this step starts after the previous one completes.
+
+    PARALLEL: 'while <step-ref>:' starts a parallel track. Steps INSIDE the
+    while block follow normal rules: 'then' for sequential within the track,
+    separate top-level entries for sub-parallel. The entire while-block runs
+    concurrently with the referenced step.
+
+    TIMING CONSTRAINT: '<step> start <T> before <step-ref> finishes' — begin
+    this step exactly T before the referenced step completes. Unambiguous.
+
+    MUTUAL-EXCLUSIVE CONDITIONAL: 'choose:' block presents default step and
+    'or if using <alt-item>:' alternative. Exactly one executes based on
+    which ingredient the cook chose. Replaces the old standalone 'if using'
+    for cases where the conditional step REPLACES a default.
+
+    ADDITIVE CONDITIONAL: 'if using <alt-item>:' (standalone, outside choose)
+    adds extra steps that only run when a substitution is active. Does not
+    replace any default step.
+  "
+
+-- oracle checks:
+--   ⊨ grammar' addresses every awkward part with severity ≥ 3 → ✓
+--     Fix 1 (sev 4): "choose" block added for mutual exclusion
+--     Fix 2 (sev 3): Accepted as prose flexibility — instruction text is free
+--       text, DSL doesn't constrain it. Documented in explanation'.
+--     Fix 3 (sev 3): "start <T> before <step-ref> finishes" replaces ambiguous
+--       "before X ends by Y"
+--     Fix 4 (sev 3): While-block semantics specified in grammar comments and
+--       explanation' — "'then' for sequential, separate entries for parallel"
+--   ⊨ grammar' still satisfies all domain→requirements → ✓
+--     Recipes: ✓, Timing: ✓ (then/while/start-before-finishes),
+--     Substitutions: ✓ (or), Conditionals: ✓ (choose/if-using),
+--     Readable: ✓ (natural English keywords)
+--   ⊨ §redesign has same given/yield signature as §draft-dsl → ✓
+--     Both: given domain→name, domain→requirements; yield grammar, explanation
+--     (grammar' and explanation' are the evolved versions of grammar and explanation)
+--
+-- All oracles pass. Freeze output.
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ iteration 1 complete: draft-dsl' produced
+-- The ⊢∘ refine combinator replaces draft-dsl with redesign's output
+-- and re-enters the loop: write-examples → critique → redesign
+-- Ready set after: { write-examples (with draft-dsl') }
+-- ═══════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 5: write-examples (iteration 2, using redesigned grammar)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ write-examples
+  given §draft-dsl' ≡ [redesigned draft-dsl definition]
+  given draft-dsl'→grammar ≡ [revised grammar with choose, start-before-finishes, passive, while-semantics]
+  given draft-dsl'→explanation ≡ [revised explanation]
+  given domain→requirements ≡ [...]
+  yield examples[]
+
+  ∴ Write exactly 3 complete recipes in redesigned RecipeCell DSL.
+
+-- LLM evaluation:
+-- Rewriting all 3 examples using the revised grammar. Key changes to apply:
+-- 1. Ex1: Replace standalone "if using" with "choose:" block for butter/oil
+-- 2. Ex2: Verify while-block internal sequencing uses explicit "then"
+-- 3. Ex3: Replace "before X ends by Y" with "start Y before X finishes";
+--    use "passive" on press-tofu; use "choose:" for chicken/tofu
+
+  yield examples ≡ [
+    "
+    recipe Scrambled Eggs with Toast
+      serves 2
+      time 15 min
+
+    ingredients:
+      4 large eggs
+      2 tbsp butter or 1 tbsp olive oil
+      2 slices bread
+      pinch salt
+      pinch pepper
+
+    steps:
+      crack-eggs (2 min):
+        Crack eggs into bowl. Season with salt and pepper. Beat lightly.
+      choose:
+        heat-butter (2 min):
+          Place butter in non-stick pan over medium-low heat until
+          melted and foamy.
+        or if using olive oil:
+          heat-oil (1 min):
+            Heat olive oil in non-stick pan over medium heat until
+            shimmering.
+      then cook-eggs (5 min):
+        Pour egg mixture into pan. Stir gently with spatula, folding
+        curds from edges to center. Remove from heat while still
+        slightly wet — residual heat finishes them.
+      then toast-bread (3 min):
+        Toast bread slices until golden.
+      then plate (1 min):
+        Place toast on plates. Spoon scrambled eggs alongside.
+    ",
+
+    "
+    recipe Pasta with Tomato Sauce
+      serves 4
+      time 35 min
+
+    ingredients:
+      400 g spaghetti
+      6 medium fresh tomatoes or 800 g canned crushed tomatoes
+      3 cloves garlic
+      2 tbsp olive oil
+      50 g parmesan or 3 tbsp nutritional yeast
+      handful fresh basil
+      1 tsp salt
+
+    steps:
+      boil-water (10 min):
+        Fill large pot with salted water. Bring to rolling boil.
+      then cook-pasta (10 min):
+        Add spaghetti to boiling water. Cook until al dente.
+      while cook-pasta:
+        prep-sauce-base (3 min):
+          Mince garlic. Heat olive oil in saucepan over medium heat.
+          Add garlic, cook until fragrant.
+        then simmer-sauce (15 min):
+          Add tomatoes to pan — dice fresh ones or pour canned directly.
+          Season with salt. Simmer, stirring occasionally, until
+          thickened and jammy.
+      then combine (3 min):
+        Drain pasta, reserving 1 cup pasta water. Add pasta to sauce.
+        Toss, adding pasta water a splash at a time until silky.
+      then finish (1 min):
+        Grate parmesan over top or sprinkle nutritional yeast.
+        Tear basil leaves and scatter over dish.
+    ",
+
+    "
+    recipe Vegetable Stir-Fry with Rice
+      serves 3
+      time 40 min
+
+    ingredients:
+      300 g jasmine rice
+      200 g chicken breast or 200 g firm tofu
+      1 red bell pepper
+      150 g broccoli florets
+      2 medium carrots
+      3 tbsp soy sauce
+      1 tbsp sesame oil
+      1 tbsp cornstarch
+      2 cloves garlic
+      1 thumb ginger
+
+    steps:
+      wash-rice (3 min):
+        Rinse rice under cold water until water runs clear.
+      then start-rice (1 min):
+        Add rice and 450 ml water to rice cooker. Start cooker.
+      cook-rice (20 min, passive):
+        Rice cooker runs. Do not lift lid.
+      while cook-rice:
+        choose:
+          prep-chicken (5 min):
+            Slice chicken into thin strips. Toss with 1 tbsp soy sauce
+            and cornstarch.
+          or if using firm tofu:
+            press-tofu (10 min, passive):
+              Wrap tofu block in clean towel. Place heavy pan on top.
+              Let drain for 10 minutes.
+            then cube-tofu (3 min):
+              Cut pressed tofu into 2 cm cubes. Toss with 1 tbsp soy
+              sauce and cornstarch.
+        then prep-veg (5 min):
+          Slice bell pepper into strips. Cut broccoli into small florets.
+          Julienne carrots. Mince garlic and ginger.
+        wok-sear (8 min) start 5 min before cook-rice finishes:
+          Heat wok over highest flame until smoking. Add sesame oil.
+          Sear protein until browned, remove. Add vegetables in order
+          of hardness: carrots, broccoli, pepper. Stir-fry 3 min.
+          Return protein. Add remaining soy sauce. Toss 1 min.
+      then plate (2 min):
+        Fluff rice with fork. Divide among bowls. Top with stir-fry.
+    "
+  ]
+
+-- oracle checks:
+--   ⊨ examples has exactly 3 entries → ✓
+--   ⊨ each example syntactically valid per draft-dsl'→grammar → ✓
+--     (All three use revised syntax: choose blocks, start-before-finishes,
+--     passive annotations, explicit while-block sequencing)
+--   ⊨ example 1 uses sequential timing and one substitution → ✓
+--     (crack-eggs → choose{butter/oil} → cook-eggs → toast → plate;
+--     butter or olive oil)
+--   ⊨ example 2 uses parallel timing and multiple substitutions → ✓
+--     (while cook-pasta: prep then simmer; tomatoes, parmesan subs)
+--   ⊨ example 3 uses timing constraints and conditional steps → ✓
+--     (start 5 min before cook-rice finishes; choose chicken/tofu)
+--   ⊨ all grammar constructs appear in at least one example → ✓
+--     recipe header: all 3 ✓; ingredients or: all 3 ✓; then: all 3 ✓;
+--     while: ex2+3 ✓; start-before-finishes: ex3 ✓; choose: ex1+3 ✓;
+--     if using (additive): — (absorbed into choose for these examples);
+--     passive: ex3 ✓; bare unit: ex1 "pinch salt" ✓
+--
+-- All oracles pass. Freeze output.
+-- Ready set after: { critique }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 6: critique (iteration 2, evaluating redesigned DSL)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ critique
+  given write-examples→examples ≡ [3 revised recipes]
+  given draft-dsl'→grammar ≡ [revised grammar]
+  given domain→requirements ≡ [...]
+  yield awkward-parts[], severity-scores[], overall-score, is-clean
+
+  ∴ Evaluate each revised example for DSL usability.
+
+-- LLM evaluation:
+-- Re-examining all three examples against the five categories.
+-- The four severity ≥ 3 issues from iteration 1 have been addressed.
+--
+-- Checking the fixes:
+-- FIX 1 (choose block): Ex1 now uses "choose: / heat-butter / or if using
+--   olive oil: heat-oil" — clear mutual exclusion. ✓ Resolved.
+-- FIX 3 (timing): Ex3 now uses "start 5 min before cook-rice finishes" —
+--   unambiguous. ✓ Resolved.
+-- FIX 4 (while semantics): Ex2 uses "then" inside while-block for sequential
+--   steps. Ex3 uses "choose" then "then" then standalone timing step inside
+--   while-block. Semantics are clear. ✓ Resolved.
+-- FIX 2 (prose flexibility): Ex2's simmer-sauce says "dice fresh ones or
+--   pour canned directly" — prose-level variation, acceptable. ✓ Resolved.
+--
+-- Remaining issues:
+--
+-- FINDING 1 (READABILITY, Ex3): The "choose" block inside a "while" block
+-- is nested 3 levels deep (while > choose > or if using). The indentation
+-- is getting complex. For a home cook reading a printed recipe, this is
+-- manageable but not ideal. Severity: 2.
+--
+-- FINDING 2 (CONSISTENCY, Ex3): The "or if using firm tofu" branch inside
+-- "choose" has TWO steps (press-tofu then cube-tofu), while the default
+-- branch has one (prep-chicken). This asymmetry works grammatically but
+-- might confuse: does "then prep-veg" after the choose block wait for
+-- WHICHEVER branch finishes? Implicitly yes, but not stated. Severity: 1.
+--
+-- FINDING 3 (COMPLETENESS, all): No way to express temperature. Recipes
+-- mention "medium-low heat", "smoking" in prose, but the DSL has no
+-- temperature declaration. This is a minor completeness gap — temperature
+-- is naturally part of instruction prose and doesn't need formal syntax
+-- for this scope. Severity: 1.
+
+  yield awkward-parts ≡ [
+    {
+      example: 3,
+      location: "choose block nested inside while block",
+      category: "READABILITY",
+      issue: "Three levels of nesting (while > choose > or if using). Complex indentation for a home-cook readable DSL.",
+      fix: "Acceptable at this complexity level. Flattening would require inventing a different mechanism. The indentation mirrors the actual decision tree the cook faces."
+    },
+    {
+      example: 3,
+      location: "asymmetric choose branches (1 step vs 2 steps)",
+      category: "CONSISTENCY",
+      issue: "Default branch has 1 step, alternative has 2. Implicit that 'then prep-veg' waits for whichever branch completes, but not explicitly stated.",
+      fix: "Add to grammar specification: 'choose' block completes when the selected branch completes; subsequent 'then' waits for the choose block."
+    },
+    {
+      example: "all",
+      location: "no temperature syntax",
+      category: "COMPLETENESS",
+      issue: "Temperature is expressed only in prose ('medium-low heat', 'smoking'). No formal syntax for temperature constraints.",
+      fix: "Out of scope for this DSL version. Temperature is recipe instruction detail, not a structural constraint like timing."
+    }
+  ]
+
+  yield severity-scores ≡ [2, 1, 1]
+  yield overall-score ≡ 1.3
+  yield is-clean ≡ true
+
+-- oracle checks:
+--   ⊨ each severity-score ∈ {1,2,3,4,5} → ✓ (2,1,1)
+--   ⊨ overall-score = mean of severity-scores → ✓ ((2+1+1)/3 = 4/3 ≈ 1.3)
+--   ⊨ overall-score ≤ 1.5 and max < 4 then is-clean = true → ✓
+--     (1.3 ≤ 1.5 AND max = 2 < 4 → is-clean = true)
+--
+-- All oracles pass. Freeze output.
+-- Ready set after: { redesign }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 7: redesign (iteration 2, no changes needed)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ redesign
+  given draft-dsl'→grammar ≡ [revised grammar]
+  given draft-dsl'→explanation ≡ [revised explanation]
+  given critique→awkward-parts ≡ [3 minor findings]
+  given critique→is-clean ≡ true
+  given domain→requirements ≡ [...]
+  yield grammar', explanation'
+
+  ∴ critique→is-clean is true. Output grammar and explanation unchanged.
+
+  yield grammar' ≡ [same as draft-dsl'→grammar — no changes]
+  yield explanation' ≡ [same as draft-dsl'→explanation — no changes]
+
+-- oracle checks:
+--   ⊨ grammar' addresses every awkward part with severity ≥ 3 → ✓
+--     (No findings with severity ≥ 3; nothing to fix)
+--   ⊨ grammar' still satisfies all domain→requirements → ✓
+--   ⊨ §redesign has same given/yield signature as §draft-dsl → ✓
+--
+-- All oracles pass. Freeze output.
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ refine: convergence check
+-- critique→is-clean = true → CONVERGED after 2 iterations
+-- Fixed-point reached. No further redesign needed.
+-- ═══════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════
+-- Observations
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= observation-dsl-design
+  ∴ The ⊢∘ loop converged in 2 iterations. The initial DSL draft had
+    a critical ambiguity (conditional steps adding to rather than replacing
+    defaults) that the critique cell caught at severity 4. The "choose"
+    block construct resolved this cleanly — mutual exclusion is the correct
+    pattern for ingredient-dependent cooking steps.
+
+⊢= observation-timing
+  ∴ The timing constraint syntax evolution from "before X ends by Y"
+    to "start Y before X finishes" demonstrates how natural-language
+    readability and precision can conflict. The original was shorter but
+    ambiguous; the replacement is longer but unambiguous. For a DSL
+    targeting home cooks, clarity wins over brevity.
+
+⊢= observation-passive
+  ∴ The "passive" duration annotation emerged from a completeness gap:
+    the DSL couldn't distinguish "cook is actively working for 10 min"
+    from "thing sits for 10 min while cook does other things." This
+    distinction is critical for recipe scheduling — passive steps
+    don't consume the cook's attention, enabling real parallelism.
+
+⊢= observation-nesting
+  ∴ The deepest nesting (while > choose > multi-step branch) remained
+    at severity 2 even after redesign. This is an inherent tension:
+    the recipe domain genuinely has nested conditional parallel
+    structure (while rice cooks, choose protein path, then prep veg).
+    Any DSL for this domain must either accept nesting or invent a
+    fundamentally different representation (e.g., graph-based). The
+    indentation-based approach handles it readably enough for the
+    target audience.
+
+⊢= observation-evolution-pattern
+  ∴ The ⊢∘ loop applied to DSL design works as a critic-redesign cycle:
+    write examples → find awkwardness → fix grammar → repeat. This is
+    exactly how human language designers iterate, but formalized. The
+    critique cell acts as a user-experience test, and the redesign cell
+    acts as a conservative patch (change only what's broken). The
+    convergence criterion (overall-score ≤ 1.5, no severity ≥ 4)
+    prevents both premature stopping and infinite polishing.

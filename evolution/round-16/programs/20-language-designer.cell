@@ -1,0 +1,139 @@
+-- 20-language-designer.cell
+-- Tests: ⊢∘ as design iteration loop, §-quotation for DSL-as-data,
+--        oracle-driven critique, multi-example validation, convergence
+--        via awkwardness minimization
+--
+-- Domain: cooking recipes with timing constraints and ingredient substitutions.
+-- Designs a mini-DSL. Writes 3 examples. Evals each for awkwardness.
+-- Redesigns. ⊢∘ loop until clean.
+
+⊢ domain
+  yield name, requirements[]
+
+  ⊢= name ← "RecipeCell"
+  ⊢= requirements ← [
+    "Describe cooking recipes as structured steps with durations",
+    "Express timing constraints between steps (parallel, sequential, start-before-end)",
+    "Specify ingredient substitutions with ratio adjustments",
+    "Handle conditional steps (e.g., if using substitution X, add step Y)",
+    "Be readable by a home cook, not just a programmer"
+  ]
+
+⊢ draft-dsl
+  given domain→name
+  given domain→requirements
+  yield grammar, explanation
+
+  ∴ Design a mini-DSL called «domain→name» for cooking recipes.
+    The DSL must address ALL requirements in «domain→requirements».
+
+    Define the syntax for:
+    - Recipe header (name, servings, total-time)
+    - Ingredient declarations with optional substitutions
+    - Step declarations with durations and timing constraints
+    - Timing operators: sequential (then), parallel (while), wait-until
+    - Substitution blocks: "or" clauses with ratio adjustments
+    - Conditional steps tied to substitution choices
+
+    Output the grammar as a concise BNF-like specification.
+    Output explanation as a plain-English walkthrough of each construct.
+
+  ⊨ grammar defines syntax for: recipe, ingredient, step, timing, substitution
+  ⊨ grammar includes at least one timing operator
+  ⊨ grammar includes substitution syntax with ratio adjustment
+  ⊨ explanation covers every production rule in grammar
+
+⊢ write-examples
+  given §draft-dsl
+  given draft-dsl→grammar
+  given draft-dsl→explanation
+  given domain→requirements
+  yield examples[]
+
+  ∴ Using the grammar from «draft-dsl→grammar», write exactly 3 complete
+    recipes in the «domain→name» DSL:
+
+    Example 1: Simple — scrambled eggs with toast. Sequential timing.
+      One substitution (butter → olive oil).
+
+    Example 2: Medium — pasta with tomato sauce. Parallel timing
+      (boil pasta WHILE sauce simmers). Multiple substitutions
+      (fresh tomatoes → canned, parmesan → nutritional yeast).
+
+    Example 3: Complex — stir-fry with rice. Three parallel tracks
+      (rice cooker, vegetable prep, wok cooking). Timing constraint:
+      wok step must start 5 minutes before rice finishes. Conditional
+      step: if using tofu instead of chicken, press tofu first.
+
+    Each example MUST use every syntax construct at least once across
+    the three examples. Follow the grammar exactly — no ad-hoc extensions.
+
+  ⊨ examples has exactly 3 entries
+  ⊨ each example is syntactically valid per draft-dsl→grammar
+  ⊨ example 1 uses sequential timing and one substitution
+  ⊨ example 2 uses parallel timing and multiple substitutions
+  ⊨ example 3 uses timing constraints and conditional steps
+  ⊨ all grammar constructs appear in at least one example
+
+⊢ critique
+  given write-examples→examples
+  given draft-dsl→grammar
+  given domain→requirements
+  yield awkward-parts[], severity-scores[], overall-score, is-clean
+
+  ∴ Evaluate each example in «write-examples→examples» for DSL usability:
+
+    For each awkward part found, record:
+    - Which example and which line
+    - What is awkward (verbose, ambiguous, unreadable, missing construct)
+    - Suggested fix (syntax change, new operator, removed redundancy)
+    - Severity: 1 (minor annoyance) to 5 (fundamentally broken)
+
+    Categories to check:
+    - VERBOSITY: Does expressing a simple idea require too many tokens?
+    - AMBIGUITY: Could a line be parsed two ways?
+    - READABILITY: Would a home cook understand this without a manual?
+    - COMPLETENESS: Is there a common recipe pattern the DSL can't express?
+    - CONSISTENCY: Do similar operations use similar syntax?
+
+    Calculate overall-score as the mean severity across all awkward parts.
+    Set is-clean = true if overall-score ≤ 1.5 AND no single issue has
+    severity ≥ 4.
+
+  ⊨ each severity-score ∈ {1, 2, 3, 4, 5}
+  ⊨ overall-score = mean of severity-scores (or 0 if no awkward parts)
+  ⊨ if overall-score ≤ 1.5 and max(severity-scores) < 4 then is-clean = true
+  ⊨ if overall-score > 1.5 or max(severity-scores) ≥ 4 then is-clean = false
+
+⊢ redesign
+  given draft-dsl→grammar
+  given draft-dsl→explanation
+  given critique→awkward-parts
+  given critique→is-clean
+  given domain→requirements
+  yield grammar', explanation'
+
+  ∴ If «critique→is-clean» is true: output «draft-dsl→grammar» and
+    «draft-dsl→explanation» unchanged.
+
+    If «critique→is-clean» is false: redesign the grammar to fix every
+    awkward part listed in «critique→awkward-parts». For each fix:
+    - Apply the suggested syntax change (or a better one)
+    - Ensure the fix doesn't break other constructs
+    - Verify the fix addresses the root cause, not just the symptom
+
+    Preserve constructs that work well. Only change what's broken.
+    Output the revised grammar and updated explanation.
+
+  ⊨ grammar' addresses every awkward part with severity ≥ 3
+  ⊨ grammar' still satisfies all domain→requirements
+  ⊨ §redesign has same given/yield signature as «§draft-dsl»
+
+  ⊨? on failure:
+    retry with «critique→awkward-parts» appended to prompt
+    max 3 attempts
+
+⊢∘ refine(draft-dsl)
+  through write-examples, critique, redesign
+  until critique→is-clean = true
+  max 4
