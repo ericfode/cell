@@ -1,0 +1,13 @@
+[project]
+name = "cell-validator"
+version = "0.1.0"
+description = "ML validation tools for the Cell language"
+requires-python = ">=3.11"
+dependencies = [
+    "tinygrad",
+    "numpy",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.backends"
