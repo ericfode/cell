@@ -1,0 +1,1051 @@
+-- 29-bootstrapper-frames.cell — full eval-one execution trace
+--
+-- Ready set analysis:
+--   task: all givens have ≡ → READY
+--   analyze-needs: needs task→prompt → BLOCKED
+--   spawn-specialists: needs analyze-needs→needed-cells → BLOCKED
+--   specialist-*: spawned dynamically → BLOCKED
+--   synthesize: needs specialist-*→findings → BLOCKED
+--   evaluate-completeness: needs synthesize→draft-plan → BLOCKED
+--   spawn-gap-fillers: needs evaluate-completeness→gaps → BLOCKED
+--   gap-filler-*: spawned dynamically → BLOCKED
+--   re-synthesize: needs gap-filler-*→additional-findings → BLOCKED
+--   final-plan: needs re-synthesize→revised-plan → BLOCKED
+--   bootstrapper-observations: no givens → READY (deterministic)
+--
+-- Ready set: { task, bootstrapper-observations }
+--
+-- Structure: BOOTSTRAP SPINE with TWO FAN-OUT waves.
+--   task → analyze-needs → spawn-specialists
+--     → [specialist-1..N] → synthesize → evaluate-completeness
+--       → spawn-gap-fillers → [gap-filler-1..M] → re-synthesize
+--         → (⊢∘ loop back to evaluate if quality < 7)
+--           → final-plan
+--
+-- The key insight: the program starts with ZERO domain cells.
+-- analyze-needs decides what cells to create. spawn-specialists creates them.
+-- evaluate-completeness decides if MORE cells are needed. Frontier grows
+-- dynamically until convergence.
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 0: task (trivial pass-through)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { task, bootstrapper-observations }
+-- Pick: task
+
+⊢ task
+  given prompt ≡ "Plan a weekend trip to Tokyo for someone who loves ramen and architecture"
+  yield prompt
+
+-- eval-one: pass-through. prompt already bound via given ≡.
+
+  yield prompt ≡ "Plan a weekend trip to Tokyo for someone who loves ramen and architecture"
+
+-- oracle check:
+--   ⊨ prompt is a concrete problem statement requiring multi-faceted planning → ✓
+--     It requires: food research, architecture knowledge, logistics, scheduling.
+
+-- Ready set after frame 0: { bootstrapper-observations, analyze-needs }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 1: bootstrapper-observations (deterministic ⊢= cell)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { bootstrapper-observations, analyze-needs }
+-- Pick: bootstrapper-observations (deterministic, fast)
+
+⊢= bootstrapper-observations
+  yield observations
+
+  yield observations ≡ "
+    1. ZERO-START BOOTSTRAP: This program begins with no domain cells at all.
+       The meta-cell (analyze-needs) inspects the task and DECIDES what cells
+       to create. This is the purest form of Cell's self-bootstrapping property.
+
+    2. TWO-PHASE SPAWNING: First wave (spawn-specialists) creates broad coverage.
+       Second wave (spawn-gap-fillers) creates targeted depth. The meta-cell
+       reasons about what's MISSING, not just what's NEEDED.
+
+    3. CONVERGENCE VIA ⊢∘: The evolution loop doesn't improve a single cell —
+       it improves the ENSEMBLE. Each iteration spawns new cells into the
+       frontier, making the collective output more complete. The quality-score
+       oracle drives convergence.
+
+    4. TEMPLATE POLYMORPHISM: specialist-template and gap-filler-template are
+       the same shape (given context → yield findings + recommendations) but
+       serve different roles. The spawner binds different purposes to the
+       same interface. This is Cell's version of parametric polymorphism.
+
+    5. META-REASONING: analyze-needs must reason about reasoning — what KINDS
+       of knowledge does this task require? This is the bootstrapping insight:
+       the system must be able to reflect on its own capabilities gap.
+
+    6. MONOTONIC GROWTH: The plan only gets better. re-synthesize is a superset
+       of synthesize. Information accumulates, never retracts. This matches
+       Cell's monotonicity guarantee at the language level.
+  "
+
+-- No oracles on deterministic observation cell.
+
+-- Ready set after frame 1: { analyze-needs }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 2: analyze-needs (soft cell, LLM — THE BOOTSTRAP MOMENT)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { analyze-needs }
+-- This is the critical frame: the meta-cell looks at a blank slate and
+-- decides what specialist cells to create from nothing.
+
+⊢ analyze-needs
+  given task→prompt ≡ "Plan a weekend trip to Tokyo for someone who loves ramen and architecture"
+  yield needed-cells[], rationale
+
+  ∴ Analyze the task. Decide what specialist cells are needed...
+
+-- LLM evaluation:
+-- The task requires: (1) knowledge about Tokyo ramen, (2) knowledge about
+-- Tokyo architecture, (3) neighborhood/logistics knowledge to connect
+-- locations, (4) temporal planning to fit into a weekend, (5) practical
+-- travel tips. I'll create specialist cells for each knowledge domain.
+
+  yield needed-cells ≡ [
+    {
+      name: "ramen-researcher",
+      purpose: "Identify the best ramen shops in Tokyo for a weekend visitor, covering different styles and neighborhoods",
+      inputs: "task→prompt",
+      outputs: "findings (ramen styles, specific shops, neighborhoods), recommendations (which to visit, when, reservation needs)"
+    },
+    {
+      name: "architecture-scout",
+      purpose: "Identify notable architecture in Tokyo — both traditional and modern — that is visitable on a weekend",
+      inputs: "task→prompt",
+      outputs: "findings (buildings, temples, districts), recommendations (which to visit, opening hours, guided tour options)"
+    },
+    {
+      name: "neighborhood-mapper",
+      purpose: "Map Tokyo neighborhoods relevant to ramen and architecture, identify clusters where both coexist, plan transit routes",
+      inputs: "task→prompt",
+      outputs: "findings (neighborhood profiles, transit connections), recommendations (optimal routing, neighborhood pairings)"
+    },
+    {
+      name: "itinerary-planner",
+      purpose: "Structure a 2-day weekend itinerary with realistic timing, accounting for travel time, meal pacing, and energy management",
+      inputs: "task→prompt, depends on other specialists for content",
+      outputs: "findings (time constraints, pacing considerations), recommendations (day structure, time blocks, backup options)"
+    },
+    {
+      name: "practical-tips",
+      purpose: "Provide practical travel advice: transit passes, cash vs card, language tips, weekend-specific considerations",
+      inputs: "task→prompt",
+      outputs: "findings (practical constraints), recommendations (what to buy, what to know, what to avoid)"
+    }
+  ]
+
+  yield rationale ≡ "Five specialists covering: domain expertise (ramen-researcher, architecture-scout), spatial reasoning (neighborhood-mapper), temporal reasoning (itinerary-planner), and pragmatics (practical-tips). The ramen and architecture specialists can run independently. The neighborhood-mapper bridges them spatially. The itinerary-planner bridges them temporally. Practical-tips runs independently but informs the final synthesis. This is MECE: food/buildings/space/time/logistics."
+
+-- oracle checks:
+--   ⊨ length(needed-cells) ≥ 3 → ✓ (5 cells)
+--   ⊨ needed-cells collectively cover full scope → ✓
+--     food: ramen-researcher
+--     sights: architecture-scout
+--     space: neighborhood-mapper
+--     time: itinerary-planner
+--     pragmatics: practical-tips
+--   ⊨ each needed-cell has name, purpose, inputs, outputs → ✓
+--   ⊨ at least one cell depends on another → ✓
+--     neighborhood-mapper bridges ramen + architecture knowledge;
+--     itinerary-planner depends on all others for content
+
+-- Ready set after frame 2: { spawn-specialists }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 3: spawn-specialists (⊢⊢ spawner — CREATES 5 CELLS)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { spawn-specialists }
+-- This is the first frontier expansion: 5 new cells enter the graph.
+
+⊢⊢ spawn-specialists
+  given analyze-needs→needed-cells ≡ [ramen-researcher, architecture-scout, neighborhood-mapper, itinerary-planner, practical-tips]
+  given task→prompt ≡ "Plan a weekend trip to Tokyo for someone who loves ramen and architecture"
+  given §specialist-template
+  yield §specialist-cells[]
+
+-- Spawner instantiates 5 cells from specialist-template:
+--   specialist-ramen-researcher
+--   specialist-architecture-scout
+--   specialist-neighborhood-mapper
+--   specialist-itinerary-planner
+--   specialist-practical-tips
+
+  yield §specialist-cells ≡ [
+    §specialist-ramen-researcher,
+    §specialist-architecture-scout,
+    §specialist-neighborhood-mapper,
+    §specialist-itinerary-planner,
+    §specialist-practical-tips
+  ]
+
+-- oracle checks:
+--   ⊨ one specialist cell per needed-cell → ✓ (5 for 5)
+--   ⊨ each specialist cell has distinct scope → ✓
+
+-- Ready set after frame 3: { specialist-ramen-researcher, specialist-architecture-scout,
+--   specialist-neighborhood-mapper, specialist-itinerary-planner, specialist-practical-tips }
+-- ALL FIVE are ready simultaneously (all have task→prompt bound).
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 4: specialist-ramen-researcher (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: 5 specialist cells. Pick: ramen-researcher.
+
+⊢ specialist-ramen-researcher
+  given purpose ≡ "Identify the best ramen shops in Tokyo for a weekend visitor, covering different styles and neighborhoods"
+  given scope ≡ "ramen expertise — styles, shops, neighborhoods, timing, reservation needs"
+  given task→prompt ≡ "Plan a weekend trip to Tokyo for someone who loves ramen and architecture"
+  yield findings, recommendations[]
+
+  ∴ Research Tokyo ramen landscape for a weekend visitor...
+
+-- LLM evaluation:
+
+  yield findings ≡ "Tokyo's ramen landscape is organized by style and neighborhood. Key styles: (1) shoyu (soy sauce) — classic Tokyo style, clear broth, wavy noodles. (2) tonkotsu (pork bone) — rich, creamy, from Kyushu but hugely popular in Tokyo. (3) tsukemen — dipping noodles, thicker broth, pioneered at Taishoken. (4) miso — heartier, from Hokkaido tradition. (5) niboshi/iriko — dried sardine based, intensely savory.
+
+Key ramen districts: Shinjuku (dense concentration, late-night options), Ebisu/Meguro (upscale, less tourist), Ikebukuro (especially for tsukemen), Tokyo Station area (Ramen Street in underground, curated selection).
+
+Weekend considerations: Popular shops have 30-60 min waits, especially at lunch. Weekday-only shops exist but won't apply here. Some shops close early on Sundays. Ticket machine (券売機) ordering is standard — no Japanese needed, but know your order.
+
+Notable shops: Fuunji (Shinjuku, tsukemen, expect 45-min wait), Afuri (Ebisu/multiple locations, yuzu shio, lighter style), Rokurinsha (Tokyo Station Ramen Street, tsukemen), Nakiryu (Otsuka, Michelin-starred tantanmen), Kagari (Ginza, chicken paitan), Ichiran (Shibuya/everywhere, tonkotsu, solo booths — tourist friendly but authentic)."
+
+  yield recommendations ≡ [
+    "Day 1 lunch: Fuunji in Shinjuku for tsukemen — arrive by 10:45 to beat the line. Near Shinjuku's architecture (Cocoon Tower, Mode Gakuen).",
+    "Day 1 dinner: Afuri in Ebisu for yuzu shio ramen — lighter evening option. Ebisu has excellent walking architecture.",
+    "Day 2 lunch: Kagari in Ginza for chicken paitan soba — rich but refined. Ginza has Nakagin Capsule Tower site and Ginza Six architecture.",
+    "Day 2 dinner: Nakiryu near Otsuka for Michelin-starred tantanmen — worth the detour. 30-min train from central Tokyo.",
+    "Backup: Rokurinsha at Tokyo Station Ramen Street if timing doesn't work — always accessible, excellent tsukemen."
+  ]
+
+-- oracle checks:
+--   ⊨ findings is substantive → ✓ (detailed style taxonomy, neighborhoods, practical notes)
+--   ⊨ length(recommendations) ≥ 2 → ✓ (5 recommendations)
+--   ⊨ recommendations are specific and actionable → ✓ (named shops, times, locations)
+
+-- Ready set after frame 4: { specialist-architecture-scout, specialist-neighborhood-mapper,
+--   specialist-itinerary-planner, specialist-practical-tips }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 5: specialist-architecture-scout (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ specialist-architecture-scout
+  given purpose ≡ "Identify notable architecture in Tokyo — both traditional and modern — that is visitable on a weekend"
+  given scope ≡ "architecture expertise — traditional temples, modern buildings, districts, accessibility"
+  given task→prompt ≡ "Plan a weekend trip to Tokyo for someone who loves ramen and architecture"
+  yield findings, recommendations[]
+
+  ∴ Research Tokyo architecture for a weekend visitor...
+
+-- LLM evaluation:
+
+  yield findings ≡ "Tokyo architecture spans 1400 years of building culture and contains some of the world's most important modern buildings.
+
+MODERN: (1) Omotesando — 'Tokyo's Champs-Élysées' but for architecture. Every luxury brand hired a starchitect: Tadao Ando (Omotesando Hills), SANAA (Dior), Toyo Ito (Tod's), Herzog & de Meuron (Prada — the crystalline glass building). Walkable in 1-2 hours. (2) Roppongi — 21_21 Design Sight (Tadao Ando), National Art Center (Kisho Kurokawa — undulating glass facade), Mori Tower observation deck. (3) Ginza — Nakagin Capsule Tower was demolished 2022 but its site is marked; Ginza Six (MVRDV rooftop garden); Shizuoka Press Building (Kenzo Tange, metabolism). (4) Shibuya — Shibuya Stream and Scramble Square, Miyashita Park redevelopment. (5) Shinjuku — Mode Gakuen Cocoon Tower (most photogenic skyscraper in Tokyo), Tokyo Metropolitan Government Building (Kenzo Tange, free observation deck).
+
+TRADITIONAL: (1) Meiji Jingu — massive Shinto shrine, forested grounds in the middle of the city. Weekend ceremonies possible. (2) Senso-ji — oldest temple in Tokyo, Asakusa. Tourist-heavy but architecturally significant (Thunder Gate, five-story pagoda). (3) Nezu Shrine — vermillion torii gates, quieter than Meiji. (4) Imperial Palace East Gardens — free, Edo castle ruins, peaceful. (5) Yoyogi National Gymnasium (Kenzo Tange, 1964 Olympics — brutalist masterwork, visible from outside).
+
+Weekend considerations: Most outdoor sites accessible 24/7. Museums/galleries typically closed Tuesdays, open weekends. Omotesando shops open 11am-8pm weekends."
+
+  yield recommendations ≡ [
+    "Day 1 morning: Omotesando architecture walk — Prada, Tod's, Omotesando Hills. Free, self-guided, 1.5 hours. Start at Harajuku Station.",
+    "Day 1 afternoon: Meiji Jingu shrine — 15-min walk from Omotesando, through the forest. Traditional contrast to the morning's modernism.",
+    "Day 2 morning: Shinjuku — Mode Gakuen Cocoon Tower (exterior), Tokyo Met Gov Building (free observation deck opens 9:30). Then walk to Yoyogi Gymnasium.",
+    "Day 2 afternoon: Asakusa — Senso-ji temple complex, then walk across Sumida River to Tokyo Skytree plaza (Nikken Sekkei design).",
+    "Optional evening: Roppongi — 21_21 Design Sight if open, then Mori Tower observation deck for night skyline."
+  ]
+
+-- oracle checks:
+--   ⊨ findings is substantive → ✓ (detailed categorization, specific buildings, architects)
+--   ⊨ length(recommendations) ≥ 2 → ✓ (5 recommendations)
+--   ⊨ recommendations are specific and actionable → ✓ (locations, times, self-guided routes)
+
+-- Ready set after frame 5: { specialist-neighborhood-mapper, specialist-itinerary-planner,
+--   specialist-practical-tips }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 6: specialist-neighborhood-mapper (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ specialist-neighborhood-mapper
+  given purpose ≡ "Map Tokyo neighborhoods relevant to ramen and architecture, identify clusters where both coexist, plan transit routes"
+  given scope ≡ "spatial reasoning — neighborhood profiles, transit connections, optimal routing"
+  given task→prompt ≡ "Plan a weekend trip to Tokyo for someone who loves ramen and architecture"
+  yield findings, recommendations[]
+
+  ∴ Map Tokyo neighborhoods for ramen + architecture overlap...
+
+-- LLM evaluation:
+
+  yield findings ≡ "Tokyo's transit system (JR Yamanote line + Metro) makes most areas reachable in 20-40 minutes, but neighborhood clustering saves hours.
+
+HIGH-OVERLAP CLUSTERS (ramen + architecture in walking distance):
+1. Shinjuku cluster: Fuunji (tsukemen) + Cocoon Tower + Met Gov Building + Yoyogi area. Dense, walkable.
+2. Ebisu-Omotesando corridor: Afuri (ramen) + Omotesando starchitect row + Daikanyama T-Site (Klein Dytham). Connected by Yamanote (1 stop) or 20-min walk through Shibuya.
+3. Ginza cluster: Kagari (ramen) + Shizuoka Press Building + Ginza Six + Kabuki-za theater (Kengo Kuma). Walkable.
+4. Asakusa-Skytree axis: Multiple ramen shops + Senso-ji + Tokyo Skytree. Connected by walk across Sumida River.
+
+TRANSIT MAP:
+- Shinjuku → Harajuku/Omotesando: JR Yamanote 1 stop (3 min) or walk (20 min through Meiji Park)
+- Omotesando → Ebisu: Metro Ginza line to Hibiya line (10 min)
+- Shinjuku → Ginza: Metro Marunouchi line direct (15 min)
+- Ginza → Asakusa: Metro Ginza line direct (15 min)
+- Asakusa → Shinjuku: Metro + JR (30 min)
+
+IC CARD: Get a Suica or Pasmo at the airport — works on all transit, many shops and vending machines."
+
+  yield recommendations ≡ [
+    "Day 1 route: Harajuku → Omotesando (walk) → Meiji Jingu (walk) → Shinjuku (JR 1 stop) → Ebisu (JR 2 stops). All on the Yamanote line, minimal transit.",
+    "Day 2 route: Shinjuku start → Ginza (Metro direct) → Asakusa (Metro direct). Linear path east, no backtracking.",
+    "Avoid: Roppongi to Asakusa on the same day — they're far apart with no direct connection. Pick one cluster per half-day.",
+    "Transit pass: 24-hour Metro ticket (600¥) is worth it if making 3+ Metro trips. Otherwise IC card tap-and-go."
+  ]
+
+-- oracle checks:
+--   ⊨ findings is substantive → ✓ (cluster analysis, transit times, card advice)
+--   ⊨ length(recommendations) ≥ 2 → ✓ (4 recommendations)
+--   ⊨ recommendations are specific → ✓ (named routes, times, prices)
+
+-- Ready set after frame 6: { specialist-itinerary-planner, specialist-practical-tips }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 7: specialist-itinerary-planner (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ specialist-itinerary-planner
+  given purpose ≡ "Structure a 2-day weekend itinerary with realistic timing"
+  given scope ≡ "temporal reasoning — time blocks, energy management, meal pacing, buffer time"
+  given task→prompt ≡ "Plan a weekend trip to Tokyo for someone who loves ramen and architecture"
+  yield findings, recommendations[]
+
+  ∴ Design the temporal structure of a 2-day Tokyo weekend...
+
+-- LLM evaluation:
+
+  yield findings ≡ "Weekend trip temporal constraints:
+- Assume arrive Friday evening or Saturday early morning
+- Two full days: Saturday + Sunday
+- Key timing: ramen shops open 11am-2pm (lunch) and 6pm-10pm (dinner). Some popular spots close when broth sells out (often by 2pm).
+- Architecture viewing: outdoor sites available anytime; museums 10am-5/6pm; observation decks until 10-11pm
+- Energy: walking 15-20k steps/day is typical for Tokyo sightseeing. Build in café/rest breaks.
+- Meals: breakfast often from convenience stores (excellent onigiri, sandwiches) or hotel. Lunch and dinner are the ramen slots.
+- Weather variable: have indoor backup plans."
+
+  yield recommendations ≡ [
+    "Each day: 3 blocks — morning (9-12), afternoon (1-5), evening (6-10). One ramen meal per block boundary (lunch and dinner).",
+    "Morning blocks for walking-heavy architecture (Omotesando walk, shrine visits). You're freshest, light is best for photos.",
+    "Afternoon blocks for indoor/observation (museums, observation decks, Meiji interior). Post-ramen energy dip.",
+    "Evening for second ramen + night architecture (illuminated buildings, Shibuya crossing). Tokyo is beautiful at night.",
+    "Build 30-min buffer between each block for transit + spontaneous discovery. Tokyo rewards wandering."
+  ]
+
+-- oracle checks:
+--   ⊨ findings is substantive → ✓ (timing constraints, energy model, meal slots)
+--   ⊨ length(recommendations) ≥ 2 → ✓ (5 recommendations)
+--   ⊨ recommendations are specific → ✓ (time blocks, rationale for each)
+
+-- Ready set after frame 7: { specialist-practical-tips }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 8: specialist-practical-tips (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ specialist-practical-tips
+  given purpose ≡ "Provide practical travel advice: transit passes, cash vs card, language tips, weekend-specific considerations"
+  given scope ≡ "pragmatics — logistics, money, language, cultural norms, weekend specifics"
+  given task→prompt ≡ "Plan a weekend trip to Tokyo for someone who loves ramen and architecture"
+  yield findings, recommendations[]
+
+  ∴ Compile practical travel tips for a Tokyo weekend...
+
+-- LLM evaluation:
+
+  yield findings ≡ "Practical considerations for a Tokyo weekend:
+- CASH: Japan is increasingly cashless but many ramen shops are cash-only (especially ticket machine ones). Carry ¥10,000-15,000 in cash. 7-Eleven ATMs accept foreign cards.
+- TRANSIT: Suica/Pasmo IC card from airport. ¥1,500 deposit (¥500 refundable). Recharge at any station. Works on JR, Metro, buses, and many shops.
+- LANGUAGE: Minimal Japanese needed. Train stations have English. Ramen shops use ticket machines (pictures help). Key phrases: sumimasen (excuse me), arigatou gozaimasu (thank you), kore kudasai (this please).
+- TICKETS: Ramen ticket machines: insert money first, then press button for your order. Change is returned. Machines have photos.
+- RESERVATIONS: Most ramen shops don't take reservations — just queue. Architecture sites mostly free/no-reservation. Some museums need online tickets (check 21_21 Design Sight).
+- WEEKEND SPECIFICS: Harajuku/Omotesando busier on weekends. Shrines may have wedding ceremonies (bonus). Some business-district ramen shops closed on weekends (Ginza area mostly open).
+- WEATHER: March — still cool (8-15°C). Layers. Comfortable walking shoes essential.
+- ETIQUETTE: Slurping ramen is expected and polite. Remove shoes at shrines. Bow slightly when greeting."
+
+  yield recommendations ≡ [
+    "Get Suica card immediately at Narita/Haneda airport. Load ¥3,000 to start.",
+    "Carry ¥10,000+ cash. Hit a 7-Eleven ATM before your first ramen stop.",
+    "Download Google Maps offline for Tokyo — works on Metro, shows walking routes and restaurant locations.",
+    "Wear comfortable shoes. You will walk 15-20km per day. No heels."
+  ]
+
+-- oracle checks:
+--   ⊨ findings is substantive → ✓ (detailed practical guide)
+--   ⊨ length(recommendations) ≥ 2 → ✓ (4 recommendations)
+--   ⊨ recommendations are specific → ✓ (amounts, specific actions)
+
+-- state: ALL SPECIALISTS FROZEN.
+-- Ready set after frame 8: { synthesize }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 9: synthesize (soft cell, LLM — FIRST SYNTHESIS)
+-- ═══════════════════════════════════════════════════════════════
+-- This cell reads ALL specialist outputs and weaves them into a draft plan.
+
+⊢ synthesize
+  given specialist-ramen-researcher→findings ≡ "Tokyo ramen styles, shops, timing..."
+  given specialist-ramen-researcher→recommendations ≡ [Fuunji lunch D1, Afuri dinner D1, Kagari lunch D2, Nakiryu dinner D2, Rokurinsha backup]
+  given specialist-architecture-scout→findings ≡ "Omotesando starchitects, Meiji, Shinjuku towers, Asakusa, Roppongi..."
+  given specialist-architecture-scout→recommendations ≡ [Omotesando morning D1, Meiji afternoon D1, Shinjuku morning D2, Asakusa afternoon D2, Roppongi optional]
+  given specialist-neighborhood-mapper→findings ≡ "Cluster analysis, transit map..."
+  given specialist-neighborhood-mapper→recommendations ≡ [D1 Yamanote route, D2 eastward linear, avoid far jumps, 24h Metro pass]
+  given specialist-itinerary-planner→findings ≡ "3 blocks per day, ramen at boundaries..."
+  given specialist-itinerary-planner→recommendations ≡ [morning/afternoon/evening blocks, architecture AM, indoor PM, night ramen]
+  given specialist-practical-tips→findings ≡ "Cash, transit, language, etiquette..."
+  given specialist-practical-tips→recommendations ≡ [Suica card, cash, Google Maps, walking shoes]
+  given task→prompt ≡ "Plan a weekend trip to Tokyo for someone who loves ramen and architecture"
+  yield draft-plan, coverage-map
+
+  ∴ Synthesize all specialist outputs into a coherent draft plan...
+
+-- LLM evaluation:
+-- Combining the specialists: ramen-researcher gives 4 shops across 2 days.
+-- architecture-scout gives routes. neighborhood-mapper confirms clusters align.
+-- itinerary-planner provides the 3-block-per-day structure. practical-tips
+-- adds logistics. Let me weave these together.
+
+  yield draft-plan ≡ "
+WEEKEND TOKYO: RAMEN & ARCHITECTURE
+
+=== DAY 1 (Saturday) — West Tokyo Loop ===
+
+MORNING (9:00-11:30) — Omotesando Architecture Walk
+- 9:00: Start at Harajuku Station (JR Yamanote)
+- 9:15: Walk Omotesando boulevard — Prada building (Herzog & de Meuron),
+  Tod's (Toyo Ito), Dior (SANAA), Omotesando Hills (Tadao Ando)
+- 10:30: Continue to Cat Street area, Daikanyama T-Site if time
+- 10:45: Walk toward Shinjuku. Head to Fuunji.
+
+LUNCH (11:00-12:30) — Fuunji Tsukemen, Shinjuku
+- 10:45: Queue at Fuunji (expect 30-45 min wait)
+- Ticket machine: get the tsukemen (つけめん), size medium (中)
+- Rich, thick fish-based dipping broth. Slurp loudly — it's polite.
+
+AFTERNOON (13:00-17:00) — Shrines & Towers
+- 13:00: Meiji Jingu shrine — walk through the torii gate forest.
+  Traditional architecture: cypress wood, copper roof.
+  Weekend bonus: may see a Shinto wedding procession.
+- 14:30: JR Yamanote 1 stop to Shinjuku
+- 15:00: Mode Gakuen Cocoon Tower — exterior photography
+- 15:30: Tokyo Metropolitan Government Building — free observation deck
+  (45th floor, open until 11pm). Clear day = Mt. Fuji visible.
+
+DINNER (18:00-19:30) — Afuri Yuzu Shio, Ebisu
+- 17:45: JR Yamanote from Shinjuku to Ebisu (2 stops, 5 min)
+- 18:00: Afuri Ebisu — yuzu-citrus shio ramen. Lighter, aromatic.
+  Counter seating, intimate. Good evening option after a heavy lunch tsukemen.
+- 19:30: Evening stroll through Ebisu Garden Place (architecture)
+
+=== DAY 2 (Sunday) — East Tokyo Linear ===
+
+MORNING (9:00-11:30) — Shinjuku to Ginza
+- 9:00: Revisit Cocoon Tower in morning light (optional)
+- 9:30: Metro Marunouchi line from Shinjuku to Ginza (15 min)
+- 10:00: Ginza architecture walk — Ginza Six (MVRDV rooftop garden),
+  Shizuoka Press Building (Kenzo Tange, metabolist movement),
+  Kabuki-za theater (Kengo Kuma renovation)
+
+LUNCH (11:30-13:00) — Kagari Chicken Paitan, Ginza
+- 11:30: Kagari (銀座 篝) — rich chicken-based paitan soba.
+  Refined, Ginza-appropriate. Shorter weekend queue than weekday.
+  Ticket machine ordering.
+
+AFTERNOON (13:30-17:00) — Asakusa & Skytree
+- 13:30: Metro Ginza line from Ginza to Asakusa (15 min)
+- 14:00: Senso-ji temple complex — Kaminarimon (Thunder Gate),
+  Nakamise shopping street, five-story pagoda, main hall.
+  Tokyo's oldest temple (628 CE original).
+- 15:30: Walk across Sumida River — views of Tokyo Skytree
+- 16:00: Skytree plaza (Nikken Sekkei) — observation deck if desired
+  (¥2,100 for Tembo Deck at 350m)
+
+DINNER (18:30-20:00) — Nakiryu Tantanmen, Otsuka
+- 17:30: Metro + JR from Asakusa to Otsuka (30 min)
+- 18:00: Nakiryu (鳴龍) — Michelin-starred tantanmen ramen.
+  Sichuan-influenced, spicy, complex. The trophy meal.
+  Expect 30-45 min wait. Cash only. Worth it.
+- 20:00: JR back to hotel. Tokyo at night from the train.
+
+=== PRACTICAL NOTES ===
+- Get Suica card at airport. Load ¥3,000.
+- Carry ¥10,000+ cash (7-Eleven ATM). Many ramen shops cash-only.
+- Wear comfortable walking shoes (15-20km/day).
+- Download Google Maps offline for Tokyo.
+"
+
+  yield coverage-map ≡ {
+    covered: [
+      "ramen: 4 shops across 4 meals, different styles (tsukemen, yuzu shio, chicken paitan, tantanmen)",
+      "architecture: modern (Omotesando, Cocoon Tower, Met Gov, Ginza Six) + traditional (Meiji, Senso-ji)",
+      "logistics: transit routes, neighborhood clustering, no backtracking",
+      "timing: realistic blocks with buffer, queue times accounted for",
+      "practical: cash, transit card, walking shoes, maps"
+    ],
+    gaps: [
+      "breakfast: no breakfast recommendations for either day",
+      "budget: no total cost estimate for the weekend",
+      "rain-plan: no indoor backup if weather is bad",
+      "evening-architecture: Day 2 evening after Nakiryu has no architecture element"
+    ]
+  }
+
+-- oracle checks:
+--   ⊨ draft-plan covers both days → ✓ (Day 1 Saturday, Day 2 Sunday)
+--   ⊨ at least 3 ramen spots and 3 architecture sites → ✓
+--     ramen: Fuunji, Afuri, Kagari, Nakiryu (4 spots)
+--     architecture: Omotesando walk, Meiji, Met Gov, Ginza walk, Senso-ji, Skytree (6+ sites)
+--   ⊨ coverage-map identifies remaining gaps → ✓ (4 gaps identified)
+
+-- Ready set after frame 9: { evaluate-completeness }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 10: evaluate-completeness — ⊢∘ ITERATION 1
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ evaluate-completeness
+  given synthesize→draft-plan ≡ "WEEKEND TOKYO: RAMEN & ARCHITECTURE [full plan above]"
+  given synthesize→coverage-map ≡ { covered: [...], gaps: [breakfast, budget, rain-plan, evening-architecture] }
+  given task→prompt ≡ "Plan a weekend trip to Tokyo for someone who loves ramen and architecture"
+  yield is-complete, gaps[], quality-score
+
+  ∴ Evaluate whether the draft plan fully solves the task...
+
+-- LLM evaluation:
+-- The plan is solid: specific shops, realistic timing, good routing.
+-- But there are real gaps:
+-- 1. No breakfast — where do you eat in the morning?
+-- 2. No budget — what does this weekend cost?
+-- 3. No rain contingency — a real risk
+-- 4. Day 2 evening is just "train back to hotel" — underwhelming
+-- Quality: core is strong (7/10 material) but gaps drag it to 6.
+
+  yield is-complete ≡ false
+
+  yield gaps ≡ [
+    "breakfast: Need morning meal suggestions for both days — convenience stores, cafes, or hotel options",
+    "budget-estimate: Need approximate total cost (transit, meals, admission) so traveler can plan",
+    "rain-contingency: Need 2-3 indoor backup activities if weather is bad (museums, covered markets)",
+    "day2-evening-architecture: After Nakiryu, need an architecture element — night views, illuminated buildings"
+  ]
+
+  yield quality-score ≡ 6
+
+-- oracle checks:
+--   ⊨ is-complete ∈ { true, false } → ✓ (false)
+--   ⊨ quality-score ∈ 1..10 → ✓ (6)
+--   ⊨ if not is-complete then length(gaps) ≥ 1 → ✓ (4 gaps)
+--   ⊨ gaps are specific and addressable → ✓
+
+-- quality-score = 6 < 7 → ⊢∘ loop continues. Spawn gap-fillers.
+-- Ready set after frame 10: { spawn-gap-fillers }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 11: spawn-gap-fillers (⊢⊢ spawner — SECOND WAVE)
+-- ═══════════════════════════════════════════════════════════════
+-- This is the SECOND frontier expansion. The system identified what's
+-- MISSING and creates NEW cells to fill those gaps. This is the
+-- bootstrapping loop in action.
+
+⊢⊢ spawn-gap-fillers
+  given evaluate-completeness→gaps ≡ [breakfast, budget-estimate, rain-contingency, day2-evening-architecture]
+  given synthesize→draft-plan ≡ "[the full draft plan]"
+  given task→prompt ≡ "Plan a weekend trip to Tokyo for someone who loves ramen and architecture"
+  given §gap-filler-template
+  yield §gap-filler-cells[]
+
+-- Spawner instantiates 4 gap-filler cells:
+--   gap-filler-breakfast
+--   gap-filler-budget
+--   gap-filler-rain
+--   gap-filler-evening
+
+  yield §gap-filler-cells ≡ [
+    §gap-filler-breakfast,
+    §gap-filler-budget,
+    §gap-filler-rain,
+    §gap-filler-evening
+  ]
+
+-- oracle checks:
+--   ⊨ one gap-filler per gap → ✓ (4 for 4)
+--   ⊨ each addresses a specific gap → ✓
+
+-- Ready set after frame 11: { gap-filler-breakfast, gap-filler-budget,
+--   gap-filler-rain, gap-filler-evening }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 12: gap-filler-breakfast (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ gap-filler-breakfast
+  given gap-description ≡ "breakfast: Need morning meal suggestions for both days — convenience stores, cafes, or hotel options"
+  given draft-plan-context ≡ "[Day 1 starts at 9am Harajuku; Day 2 starts at 9am Shinjuku]"
+  given task→prompt ≡ "Plan a weekend trip to Tokyo for someone who loves ramen and architecture"
+  yield additional-findings, patch-recommendations[]
+
+  ∴ Fill the breakfast gap in the existing plan...
+
+-- LLM evaluation:
+
+  yield additional-findings ≡ "Japanese breakfast options for travelers: (1) Convenience stores (konbini): 7-Eleven, Lawson, FamilyMart — onigiri (¥120-200), tamago sando (egg sandwich, ¥200-300), canned coffee (¥130). Open 24/7, everywhere. Genuinely good food. (2) Kissaten (traditional coffee shops): thick toast (ogura toast), hard-boiled egg, coffee. Morning set (モーニング) ¥500-800. (3) Hotel breakfast: often excellent but ¥2,000-3,000. (4) Standing soba: Tokyo has standing soba/udon shops at train stations. ¥300-500 for a hot noodle breakfast. Fast, authentic."
+
+  yield patch-recommendations ≡ [
+    "Day 1 breakfast (7:30-8:30): Konbini breakfast near hotel — grab onigiri + tamago sando + Boss coffee. Eat in a park. Budget: ¥500.",
+    "Day 2 breakfast (7:30-8:30): Standing soba at Shinjuku Station (Kaméya or similar) — hot noodles before a walking day. Budget: ¥400. Architecture bonus: observe the station's brutalist underground passages."
+  ]
+
+-- oracle checks:
+--   ⊨ additional-findings directly addresses the gap → ✓
+--   ⊨ patch-recommendations compatible with existing plan → ✓
+--   ⊨ length(patch-recommendations) ≥ 1 → ✓ (2)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 13: gap-filler-budget (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ gap-filler-budget
+  given gap-description ≡ "budget-estimate: Need approximate total cost (transit, meals, admission) so traveler can plan"
+  given draft-plan-context ≡ "[4 ramen meals, Skytree optional, transit via IC card]"
+  given task→prompt ≡ "Plan a weekend trip to Tokyo for someone who loves ramen and architecture"
+  yield additional-findings, patch-recommendations[]
+
+  ∴ Estimate the weekend budget...
+
+-- LLM evaluation:
+
+  yield additional-findings ≡ "Cost breakdown for the planned weekend (excluding accommodation and flights):
+TRANSIT: IC card usage ≈ ¥2,000-3,000 for 2 days (JR + Metro). Individual rides ¥170-300 each.
+RAMEN: ¥900-1,500 per bowl. 4 meals ≈ ¥4,000-6,000.
+BREAKFAST: Konbini ¥500 + standing soba ¥400 = ¥900.
+ADMISSION: Most architecture is free/outdoor. Tokyo Skytree ¥2,100 (optional). Met Gov observation deck: free. 21_21 Design Sight ¥1,200 (if visited).
+DRINKS/SNACKS: Vending machines ¥130/drink, konbini snacks. Budget ¥1,000/day.
+TOTAL ESTIMATE: ¥10,000-16,000 (≈$65-105 USD) excluding accommodation."
+
+  yield patch-recommendations ≡ [
+    "Add budget note to practical section: 'Weekend activity budget: ¥10,000-16,000 (≈$65-105 USD) for transit, meals, and optional admission. Bring ¥15,000 cash to be safe.'",
+    "Note that most architecture is FREE — this is an extremely budget-friendly interest for Tokyo travel."
+  ]
+
+-- oracle checks: all pass ✓
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 14: gap-filler-rain (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ gap-filler-rain
+  given gap-description ≡ "rain-contingency: Need 2-3 indoor backup activities if weather is bad (museums, covered markets)"
+  given draft-plan-context ≡ "[outdoor walking heavy — Omotesando, Meiji, Senso-ji]"
+  given task→prompt ≡ "Plan a weekend trip to Tokyo for someone who loves ramen and architecture"
+  yield additional-findings, patch-recommendations[]
+
+  ∴ Identify rain contingency options...
+
+-- LLM evaluation:
+
+  yield additional-findings ≡ "Indoor alternatives that serve both ramen and architecture interests:
+1. Mori Art Museum + observation deck (Roppongi Hills, 53rd floor) — art exhibits in a tower by KPF. ¥2,200. Architecture views from above when you can't walk below.
+2. National Art Center, Tokyo (Roppongi, Kisho Kurokawa) — spectacular undulating glass facade, impressive even in rain. No permanent collection, rotating exhibits. ¥1,000-1,600.
+3. Tokyo Station Ramen Street (underground) — covered, climate-controlled. 8 curated ramen shops including Rokurinsha. Architecture: Tokyo Station itself is a restored 1914 Tatsuno Kingo red-brick masterwork.
+4. Nezu Museum (Omotesando area) — Kengo Kuma design with bamboo facade. Garden is nice even in light rain.
+5. teamLab digital art museums — immersive, fully indoor, architecturally interesting spaces."
+
+  yield patch-recommendations ≡ [
+    "Rain Day 1 backup: Replace outdoor Omotesando walk with National Art Center (Kurokawa building IS the exhibit) + Mori observation deck. Still get architecture, stay dry.",
+    "Rain Day 2 backup: Replace Senso-ji walk with Tokyo Station exploration (Tatsuno red-brick building + Ramen Street underground). Two interests combined in one covered location.",
+    "Add note: Buy a transparent vinyl umbrella (¥500) from any konbini. Tokyoites walk in light rain — it doesn't cancel a day, just changes the pace."
+  ]
+
+-- oracle checks: all pass ✓
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 15: gap-filler-evening (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ gap-filler-evening
+  given gap-description ≡ "day2-evening-architecture: After Nakiryu, need an architecture element — night views, illuminated buildings"
+  given draft-plan-context ≡ "[Day 2 dinner at Nakiryu in Otsuka, then 'JR back to hotel']"
+  given task→prompt ≡ "Plan a weekend trip to Tokyo for someone who loves ramen and architecture"
+  yield additional-findings, patch-recommendations[]
+
+  ∴ Find an evening architecture element for Day 2...
+
+-- LLM evaluation:
+
+  yield additional-findings ≡ "Night architecture options near Otsuka (JR Yamanote line):
+1. Ikebukuro (1 stop from Otsuka): Sunshine 60 observation deck — free rooftop. Tokyo skyline at night.
+2. Shinjuku (4 stops): Return to Met Gov Building observation deck — open until 11pm, FREE, city lights.
+3. Tokyo Tower (further): Classic illuminated steel tower, visible from many points. Observation at ¥1,200.
+4. Shibuya Scramble crossing at night — not a building but an architectural experience. Sky observation deck on Scramble Square (¥2,000).
+
+Best fit for Day 2: Ikebukuro Sunshine 60 is closest (1 stop from Otsuka). Free. Night views. Clean ending."
+
+  yield patch-recommendations ≡ [
+    "Day 2 after Nakiryu (20:00): JR from Otsuka to Ikebukuro (1 stop, 2 min). Sunshine 60 rooftop for night city views. Free. Architecture bookend: end the weekend looking at Tokyo's skyline — all the buildings you visited, now seen from above, illuminated.",
+    "Alternative: if energy permits, continue to Shinjuku (3 more stops) for Met Gov observation deck reprise at night — compare day vs night views of the same cityscape."
+  ]
+
+-- oracle checks: all pass ✓
+
+-- state: ALL GAP-FILLERS FROZEN.
+-- Ready set after frame 15: { re-synthesize }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 16: re-synthesize (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ re-synthesize
+  given synthesize→draft-plan ≡ "[the original draft plan]"
+  given gap-filler-breakfast→additional-findings ≡ "Konbini, kissaten, standing soba options..."
+  given gap-filler-breakfast→patch-recommendations ≡ [konbini D1, standing soba D2]
+  given gap-filler-budget→additional-findings ≡ "¥10,000-16,000 total..."
+  given gap-filler-budget→patch-recommendations ≡ [add budget note, architecture is free]
+  given gap-filler-rain→additional-findings ≡ "National Art Center, Tokyo Station Ramen Street, Mori..."
+  given gap-filler-rain→patch-recommendations ≡ [rain D1 backup, rain D2 backup, umbrella tip]
+  given gap-filler-evening→additional-findings ≡ "Ikebukuro Sunshine 60, night views..."
+  given gap-filler-evening→patch-recommendations ≡ [Sunshine 60 after Nakiryu]
+  given task→prompt ≡ "Plan a weekend trip to Tokyo for someone who loves ramen and architecture"
+  yield revised-plan, coverage-map'
+
+  ∴ Merge gap-filler results into the draft plan...
+
+-- LLM evaluation:
+
+  yield revised-plan ≡ "
+WEEKEND TOKYO: RAMEN & ARCHITECTURE — REVISED
+
+=== DAY 1 (Saturday) — West Tokyo Loop ===
+
+BREAKFAST (7:30-8:30)
+- Konbini breakfast near hotel: onigiri (salmon or umeboshi), tamago sando,
+  Boss canned coffee. ¥500. Eat in a park or on a bench. Welcome to Japan.
+
+MORNING (9:00-11:30) — Omotesando Architecture Walk
+- 9:00: Start at Harajuku Station (JR Yamanote)
+- 9:15: Walk Omotesando boulevard — Prada (Herzog & de Meuron crystalline glass),
+  Tod's (Toyo Ito concrete tree), Dior (SANAA curved glass), Omotesando Hills
+  (Tadao Ando spiraling ramp). Each building is a museum of its architect.
+- 10:30: Cat Street area, Daikanyama T-Site (Klein Dytham) if time.
+- 10:45: Head toward Shinjuku for Fuunji.
+- ☂ RAIN BACKUP: Skip outdoor walk. Metro to National Art Center, Roppongi
+  (Kisho Kurokawa — the undulating glass facade IS the exhibit). Then Mori
+  observation deck (53rd floor) for architecture from above.
+
+LUNCH (11:00-12:30) — Fuunji Tsukemen, Shinjuku
+- 10:45: Queue at Fuunji (expect 30-45 min wait)
+- Ticket machine: つけめん (tsukemen), 中 (medium)
+- Rich fish-based dipping broth, thick noodles. Slurp loudly.
+
+AFTERNOON (13:00-17:00) — Shrines & Towers
+- 13:00: Meiji Jingu shrine — forested path, cypress torii gates, copper roofs.
+  May see a Shinto wedding procession on weekends.
+- 14:30: JR Yamanote 1 stop to Shinjuku
+- 15:00: Mode Gakuen Cocoon Tower — exterior photography
+- 15:30: Tokyo Met Government Building — free observation deck (45th floor).
+  Clear day = Mt. Fuji visible. Open until 11pm.
+
+DINNER (18:00-19:30) — Afuri Yuzu Shio, Ebisu
+- 17:45: JR from Shinjuku to Ebisu (2 stops, 5 min)
+- 18:00: Afuri Ebisu — yuzu-citrus shio ramen. Lighter, aromatic, elegant.
+  Perfect evening counterpoint to the heavy tsukemen lunch.
+- 19:30: Evening stroll through Ebisu Garden Place (architecture + illumination).
+
+=== DAY 2 (Sunday) — East Tokyo Linear ===
+
+BREAKFAST (7:30-8:30)
+- Standing soba at Shinjuku Station — hot noodles at a counter, surrounded by
+  the brutalist underground passages. ¥400. Architecture happens everywhere in
+  Tokyo, even at breakfast.
+
+MORNING (9:00-11:30) — Ginza Architecture
+- 9:30: Metro Marunouchi line from Shinjuku to Ginza (15 min)
+- 10:00: Ginza architecture walk — Ginza Six (MVRDV, rooftop garden free),
+  Shizuoka Press Building (Kenzo Tange, metabolist tower on a single column),
+  Kabuki-za theater (Kengo Kuma renovation, traditional forms in modern materials).
+
+LUNCH (11:30-13:00) — Kagari Chicken Paitan, Ginza
+- 11:30: Kagari (銀座 篝) — rich chicken paitan soba.
+  Refined. Ginza-appropriate. Ticket machine ordering.
+
+AFTERNOON (13:30-17:00) — Asakusa & Skytree
+- 13:30: Metro Ginza line from Ginza to Asakusa (15 min)
+- 14:00: Senso-ji temple complex — Kaminarimon (Thunder Gate, 628 CE origin),
+  Nakamise street, five-story pagoda, main hall.
+- 15:30: Walk across Sumida River — Skytree views.
+- 16:00: Skytree plaza (optional observation deck ¥2,100)
+- ☂ RAIN BACKUP: Skip Senso-ji. Go to Tokyo Station instead — Tatsuno Kingo
+  red-brick masterwork (1914, restored) + Ramen Street underground (8 curated
+  shops including Rokurinsha tsukemen). Two interests, one roof.
+
+DINNER (18:00-20:00) — Nakiryu Tantanmen, Otsuka
+- 17:30: Metro + JR from Asakusa to Otsuka (30 min)
+- 18:00: Nakiryu (鳴龍) — Michelin-starred tantanmen. Sichuan-influenced,
+  complex, spicy. The trophy meal of the weekend. Cash only. 30-45 min wait.
+
+EVENING (20:00-21:00) — Night Architecture
+- 20:00: JR from Otsuka to Ikebukuro (1 stop, 2 min)
+- 20:15: Sunshine 60 rooftop observation — free night city views.
+  All the buildings you visited today, now illuminated. Architecture bookend.
+- 21:00: JR back to hotel. Weekend complete.
+
+=== PRACTICAL NOTES ===
+- Suica/Pasmo: Get at airport. Load ¥3,000. Works everywhere.
+- Cash: Carry ¥15,000 (7-Eleven ATM). Many ramen shops cash-only.
+- Budget: ≈¥10,000-16,000 ($65-105) for transit, meals, optional admission.
+  Most architecture is FREE — this is a budget-friendly weekend.
+- Walking shoes: 15-20km/day. No heels.
+- Google Maps offline: download Tokyo before departure.
+- Rain: Buy ¥500 vinyl umbrella at any konbini. Rain doesn't cancel Tokyo.
+- Etiquette: Slurp ramen (polite). Remove shoes at shrines. Bow slightly.
+"
+
+  yield coverage-map' ≡ {
+    covered: [
+      "ramen: 4 shops, 4 styles (tsukemen, yuzu shio, chicken paitan, tantanmen)",
+      "architecture: 10+ sites spanning 1400 years (Senso-ji to Cocoon Tower)",
+      "logistics: transit routes, neighborhood clustering, no backtracking",
+      "timing: realistic blocks with buffer, queue times accounted for",
+      "practical: cash, transit card, walking shoes, maps, etiquette",
+      "breakfast: both days covered (konbini + standing soba)",
+      "budget: ¥10,000-16,000 estimate with breakdown",
+      "rain-plan: indoor alternatives for both days",
+      "evening-architecture: Sunshine 60 night views after Nakiryu"
+    ],
+    gaps: []
+  }
+
+-- oracle checks:
+--   ⊨ revised-plan is a superset of draft-plan → ✓ (same core + breakfast, budget, rain, evening)
+--   ⊨ coverage-map' shows fewer gaps → ✓ (0 gaps, down from 4)
+--   ⊨ revised-plan maintains logical consistency → ✓ (no contradictions, timing still works)
+
+-- ⊢∘ loop: re-synthesize output feeds back to evaluate-completeness.
+-- Ready set after frame 16: { evaluate-completeness } (⊢∘ iteration 2)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 17: evaluate-completeness — ⊢∘ ITERATION 2
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ evaluate-completeness
+  given synthesize→draft-plan ≡ "[REVISED plan with breakfast, budget, rain, evening]"
+  given synthesize→coverage-map ≡ { covered: [9 items], gaps: [] }
+  given task→prompt ≡ "Plan a weekend trip to Tokyo for someone who loves ramen and architecture"
+  yield is-complete, gaps[], quality-score
+
+  ∴ Re-evaluate the revised plan...
+
+-- LLM evaluation:
+-- The revised plan addresses all 4 previous gaps. Let me check quality:
+-- 1. Both days with realistic timing? ✓ (morning/afternoon/evening blocks, transit times)
+-- 2. Ramen specific? ✓ (4 named shops with styles, ticket machine tips, wait times)
+-- 3. Architecture specific and visitable? ✓ (10+ named buildings with architects, opening info)
+-- 4. Travel feasible? ✓ (Yamanote loop D1, linear east D2, no zigzagging)
+-- 5. Practical details? ✓ (budget, cash, transit, rain plan, breakfast, evening)
+-- Quality: 8/10. Strong, actionable, specific. Minor improvement possible
+-- (could add a hidden gem or two) but this is a solid plan.
+
+  yield is-complete ≡ true
+  yield gaps ≡ []
+  yield quality-score ≡ 8
+
+-- oracle checks:
+--   ⊨ is-complete ∈ { true, false } → ✓ (true)
+--   ⊨ quality-score ∈ 1..10 → ✓ (8)
+--   ⊨ if not is-complete then length(gaps) ≥ 1 → ✓ (is-complete = true, no gaps needed)
+
+-- quality-score = 8 ≥ 7 → ⊢∘ loop TERMINATES. Convergence achieved.
+-- Ready set after frame 17: { final-plan }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 18: final-plan (soft cell, LLM — FINAL OUTPUT)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ final-plan
+  given re-synthesize→revised-plan ≡ "[the full revised plan]"
+  given evaluate-completeness→quality-score ≡ 8
+  given task→prompt ≡ "Plan a weekend trip to Tokyo for someone who loves ramen and architecture"
+  yield polished-plan, meta-summary
+
+  ∴ Produce the final deliverable and reflect on the bootstrapping process...
+
+-- LLM evaluation:
+
+  yield polished-plan ≡ "
+═══════════════════════════════════════════════════════════════
+ WEEKEND TOKYO: RAMEN & ARCHITECTURE
+ A 2-day itinerary for someone who loves both
+═══════════════════════════════════════════════════════════════
+
+DAY 1 (SATURDAY) — WEST TOKYO LOOP
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+☀ 7:30  BREAKFAST — Konbini Run
+         Grab onigiri + tamago sando + Boss coffee (¥500)
+         from 7-Eleven or Lawson near your hotel.
+
+🏛 9:00  OMOTESANDO ARCHITECTURE WALK
+         Start at Harajuku Station. Walk south on Omotesando:
+         • Prada (Herzog & de Meuron) — crystalline diamond glass
+         • Tod's (Toyo Ito) — concrete tree branching facade
+         • Dior (SANAA) — translucent curved glass
+         • Omotesando Hills (Tadao Ando) — spiraling interior ramp
+         Each brand store is a museum of its architect. ~1.5 hrs.
+         ☂ Rain: Metro to National Art Center (Kurokawa) instead.
+
+🍜 11:00 LUNCH — Fuunji Tsukemen, Shinjuku
+         Arrive 10:45 to queue (30-45 min typical).
+         Ticket machine: つけめん 中 (tsukemen, medium).
+         Thick fish-based dipping broth. Slurp = respect.
+
+⛩ 13:00 MEIJI JINGU SHRINE
+         Walk through the towering torii gates and forested path.
+         Cypress wood, copper roofs, Shinto architecture at its purest.
+         Weekend bonus: possible wedding procession sighting.
+
+🏙 15:00 SHINJUKU TOWERS
+         • Mode Gakuen Cocoon Tower — Tokyo's most photogenic skyscraper
+         • Tokyo Met Government Building — FREE observation deck, 45th floor
+           Clear day: Mt. Fuji visible. Open until 11pm.
+
+🍜 18:00 DINNER — Afuri Yuzu Shio Ramen, Ebisu
+         JR from Shinjuku (2 stops). Counter seating, intimate.
+         Yuzu-citrus broth — light, aromatic. Evening counterpoint
+         to the heavy lunch tsukemen. Then stroll Ebisu Garden Place.
+
+DAY 2 (SUNDAY) — EAST TOKYO LINEAR
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+☀ 7:30  BREAKFAST — Standing Soba, Shinjuku Station
+         Hot noodles at a counter (¥400). Architecture surrounds you
+         even at breakfast — brutalist station passages overhead.
+
+🏛 10:00 GINZA ARCHITECTURE WALK
+         Metro from Shinjuku (15 min).
+         • Ginza Six (MVRDV) — free rooftop garden
+         • Shizuoka Press Building (Kenzo Tange) — metabolist tower
+         • Kabuki-za (Kengo Kuma) — tradition in modern materials
+
+🍜 11:30 LUNCH — Kagari Chicken Paitan, Ginza
+         銀座 篝 — rich chicken-based paitan soba.
+         Refined, Ginza-appropriate. Ticket machine ordering.
+
+⛩ 14:00 SENSO-JI TEMPLE, ASAKUSA
+         Metro from Ginza (15 min). Tokyo's oldest temple (628 CE).
+         Kaminarimon Thunder Gate → Nakamise → pagoda → main hall.
+         Then walk across Sumida River toward Skytree.
+         ☂ Rain: Tokyo Station instead — Tatsuno red-brick (1914)
+         + underground Ramen Street (Rokurinsha tsukemen).
+
+🍜 18:00 DINNER — Nakiryu Tantanmen, Otsuka
+         Metro+JR from Asakusa (30 min). Michelin-starred.
+         Sichuan tantanmen — spicy, complex. The trophy meal.
+         Cash only. 30-45 min wait. Worth every minute.
+
+🌃 20:00 NIGHT VIEWS — Sunshine 60, Ikebukuro
+         JR from Otsuka (1 stop). Free rooftop observation.
+         Every building you visited, now illuminated below.
+         Architecture bookend. Weekend complete.
+
+PRACTICAL NOTES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💴 Budget: ¥10,000-16,000 (≈$65-105) for transit + meals + admission
+🚃 Transit: Suica card from airport (load ¥3,000). Works on everything.
+💵 Cash: ¥15,000 from 7-Eleven ATM. Ramen shops often cash-only.
+👟 Shoes: Comfortable. You'll walk 15-20km/day.
+📱 Maps: Download Google Maps offline for Tokyo.
+☂ Rain: ¥500 umbrella from any konbini. Tokyo doesn't stop for rain.
+🙇 Manners: Slurp ramen (polite). Shoes off at shrines. Bow slightly.
+"
+
+  yield meta-summary ≡ "
+BOOTSTRAPPING PROCESS REFLECTION:
+
+This plan was built from ZERO. No cells existed at the start — only a prompt.
+
+CELL CENSUS:
+  - Initial specialist cells spawned: 5
+    (ramen-researcher, architecture-scout, neighborhood-mapper,
+     itinerary-planner, practical-tips)
+  - Gap-filler cells spawned: 4
+    (breakfast, budget, rain-contingency, evening-architecture)
+  - Total cells created dynamically: 9
+  - Static cells (analyze-needs, synthesize, evaluate, etc.): 8
+  - Total cells in final graph: 17
+
+QUALITY TRAJECTORY:
+  - Iteration 1: quality-score = 6 (solid core, 4 gaps)
+  - Iteration 2: quality-score = 8 (all gaps filled, convergent)
+  - ⊢∘ loop terminated after 2 iterations (threshold: 7)
+
+BOOTSTRAP INSIGHT:
+  The meta-cell (analyze-needs) made a key architectural decision: it split
+  the problem into domain expertise (ramen, architecture), spatial reasoning
+  (neighborhoods), temporal reasoning (itinerary), and pragmatics (tips).
+  This decomposition was NOT predetermined — the meta-cell invented it by
+  analyzing the task. The gap-filler wave then addressed what the first wave
+  COULDN'T KNOW it was missing (breakfast, budget, rain, evening balance).
+
+  This two-wave pattern — broad coverage then targeted depth — emerges
+  naturally from the bootstrap loop. It mirrors how humans plan: rough
+  outline first, then fill in gaps. But here the 'gaps' are identified
+  by an oracle (evaluate-completeness) and filled by freshly spawned cells.
+
+  The frontier grew monotonically: 0 → 5 → 9 domain cells. Each wave
+  added information without removing any. The ⊢∘ loop drove convergence
+  by repeatedly asking 'is this good enough?' and spawning new cells
+  when the answer was no.
+"
+
+-- oracle checks:
+--   ⊨ polished-plan is a complete, actionable weekend itinerary → ✓
+--     Two full days, specific times, named places, transit directions.
+--   ⊨ polished-plan mentions ramen AND architecture in every time block → ✓
+--     Morning: architecture walk. Lunch: ramen. Afternoon: shrines/architecture.
+--     Dinner: ramen. Evening: architecture views. Both interests in every slot.
+--   ⊨ meta-summary includes cell-count statistics → ✓
+--     5 specialists + 4 gap-fillers + 8 static = 17 total.
+--   ⊨ meta-summary reflects on the bootstrapping process → ✓
+--     Two-wave pattern, quality trajectory, monotonic growth.
+
+-- ═══════════════════════════════════════════════════════════════
+-- EXECUTION COMPLETE
+-- ═══════════════════════════════════════════════════════════════
+--
+-- Final state: ALL cells frozen. Document is the final state.
+--
+-- Cells evaluated: 19 frames (0-18)
+--   Frame 0: task (pass-through)
+--   Frame 1: bootstrapper-observations (deterministic)
+--   Frame 2: analyze-needs (LLM — the bootstrap moment)
+--   Frame 3: spawn-specialists (⊢⊢ — first frontier expansion: 5 cells)
+--   Frames 4-8: specialist-* (5 LLM cells, parallel-ready)
+--   Frame 9: synthesize (LLM — first draft)
+--   Frame 10: evaluate-completeness (LLM — quality=6, 4 gaps)
+--   Frame 11: spawn-gap-fillers (⊢⊢ — second frontier expansion: 4 cells)
+--   Frames 12-15: gap-filler-* (4 LLM cells, parallel-ready)
+--   Frame 16: re-synthesize (LLM — merge gaps into plan)
+--   Frame 17: evaluate-completeness (LLM — quality=8, converged)
+--   Frame 18: final-plan (LLM — polish + meta-reflection)
+--
+-- ⊢∘ evolution: 2 iterations (6 → 8), threshold 7.
+-- Frontier growth: 0 → 5 → 9 domain cells.
+-- Total cells in graph: 17 (8 static + 5 specialists + 4 gap-fillers).
+--
+-- Key observations:
+-- ⊢= bootstrapper-observations captures the theoretical significance.
+-- The program demonstrates Cell's core promise: start with nothing,
+-- let the meta-level decide what to build, grow the frontier until
+-- the problem is solved. This is self-bootstrapping in action.
