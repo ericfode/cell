@@ -1,0 +1,140 @@
+-- 03-progressive-crystallization.cell
+-- Tests: substrate transfer ⊢ → ⊢=, ⊢∘-driven progressive retry, guard-gated
+--        success/failure branching, ⊥ on exhaustion, given? for optional feedback
+--
+-- v0.2 improvements over R16:
+-- - Harder problem (rank-by-greater-count) forces crystallization failure on
+--   first attempt — the "progressive" part of progressive crystallization
+--   is now actually exercised
+-- - ⊢∘ evolution loop wraps crystallize→verify→refine cycle
+-- - Guard clauses dispatch to emit-success or emit-failure cleanly
+-- - given? tolerates ⊥ for refine-crystal→feedback on iteration 0
+-- - ⊢= expression language validated against v0.2 primitives
+-- - File-scope ⊨? with exhaustion → error-value(⊥)
+
+⊢ task
+  given description ≡ "Given a list of numbers, return a new list where each element is replaced by the count of elements strictly greater than it in the original list."
+  given test-inputs[] ≡ [
+    [5, 2, 6, 1],
+    [3, 3, 3],
+    [1, 2, 3, 4, 5],
+    [10],
+    [4, 1, 4, 2]
+  ]
+  given test-expected[] ≡ [
+    [1, 2, 0, 3],
+    [0, 0, 0],
+    [4, 3, 2, 1, 0],
+    [0],
+    [0, 3, 0, 2]
+  ]
+  yield description, test-inputs, test-expected
+
+  ⊨ test-inputs has same length as test-expected
+  ⊨ each test-expected entry has same length as its corresponding test-input
+
+⊢ solve-soft
+  given task→description
+  given task→test-inputs
+  yield solution, outputs[]
+
+  ∴ Solve «task→description». For each input in «task→test-inputs»,
+    work through the problem step by step. For each element, count
+    how many elements in the ORIGINAL list are STRICTLY greater than it.
+    Produce the answer for each input.
+
+  ⊨ outputs has same length as test-inputs
+  ⊨ each output has same length as its corresponding input
+  ⊨ each element in outputs is a non-negative integer
+
+⊢ extract-pattern
+  given solve-soft→solution
+  given solve-soft→outputs
+  yield algorithm
+
+  ∴ Read «solve-soft→solution». What deterministic algorithm did you use?
+    Express it as a numbered sequence of mechanical steps.
+    No subjective judgment — only operations a machine could execute.
+
+  ⊨ algorithm is a numbered list of steps
+  ⊨ algorithm contains only deterministic operations
+  ⊨ algorithm does not reference any specific input values
+
+⊢ crystallize
+  given extract-pattern→algorithm
+  given? refine-crystal→feedback
+  yield hard-body
+
+  ∴ Convert «extract-pattern→algorithm» into a single ⊢= expression
+    using only these primitives: map, count, sort, take, drop, filter,
+    len, min, max, sum, comparisons (<, >, =, !=, <=, >=), arithmetic.
+    If «refine-crystal→feedback» is available (not ⊥), use it to correct
+    the previous attempt's errors.
+
+  ⊨ hard-body is a valid ⊢= expression
+  ⊨ hard-body contains no natural language
+  ⊨ hard-body uses only defined ⊢= primitives
+
+⊢ verify-crystal
+  given crystallize→hard-body
+  given task→test-inputs
+  given task→test-expected
+  yield pass-all, results[], failures[]
+
+  ∴ Apply «crystallize→hard-body» to each input in «task→test-inputs».
+    Compare each result with «task→test-expected».
+    Record pass/fail for each case. For failures, include actual vs expected.
+
+  ⊨ results has same length as test-inputs
+  ⊨ failures is empty if and only if pass-all = true
+  ⊨ if pass-all then every result matches expected
+
+⊢ refine-crystal
+  given verify-crystal→failures
+  given crystallize→hard-body
+  yield feedback
+
+  ∴ Analyze «verify-crystal→failures». What went wrong with
+    «crystallize→hard-body»? Identify the root cause and produce
+    specific, actionable feedback for the next crystallization attempt.
+
+  ⊨ feedback references specific failure cases
+  ⊨ feedback proposes concrete corrections
+
+⊢∘ harden(crystallize)
+  through verify-crystal, refine-crystal
+  until verify-crystal→pass-all = true
+  max 3
+
+⊢ emit-success
+  given verify-crystal→pass-all where pass-all = true
+  given crystallize→hard-body
+  given §solve-soft
+  yield crystallized-cell, substrate-transfer
+
+  ∴ Produce the crystallized version of «§solve-soft» by replacing
+    the ∴ body with «crystallize→hard-body» and adding ▸ crystallized.
+    This IS substrate transfer: ⊢ → ⊢=.
+
+  ⊨ crystallized-cell contains "⊢="
+  ⊨ crystallized-cell contains "▸ crystallized"
+  ⊨ substrate-transfer = true
+
+⊢ emit-failure
+  given verify-crystal→pass-all where pass-all = false
+  given verify-crystal→failures
+  yield crystallized-cell, substrate-transfer
+
+  ∴ Crystallization failed after max retries. Report what went wrong
+    and why substrate transfer could not be completed.
+    substrate-transfer = false.
+
+  ⊨ substrate-transfer = false
+  ⊨ crystallized-cell = ⊥
+
+⊨? on failure:
+  retry with «oracle.failures» appended to prompt
+  max 2 attempts
+
+⊨? on exhaustion:
+  error-value(⊥)

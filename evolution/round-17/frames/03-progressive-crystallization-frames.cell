@@ -1,0 +1,526 @@
+-- 03-progressive-crystallization-frames.cell — full eval-one execution trace
+--
+-- Ready set analysis:
+--   task: all givens have ≡ (description, test-inputs, test-expected) → READY
+--   solve-soft: needs task→description, task→test-inputs → BLOCKED
+--   extract-pattern: needs solve-soft→solution, solve-soft→outputs → BLOCKED
+--   crystallize: needs extract-pattern→algorithm; given? refine-crystal→feedback (⊥ OK) → BLOCKED
+--   verify-crystal: needs crystallize→hard-body, task→test-inputs, task→test-expected → BLOCKED
+--   refine-crystal: needs verify-crystal→failures, crystallize→hard-body → BLOCKED
+--   emit-success: needs verify-crystal→pass-all (where true), crystallize→hard-body, §solve-soft → BLOCKED
+--   emit-failure: needs verify-crystal→pass-all (where false), verify-crystal→failures → BLOCKED
+--
+-- Ready set: { task }
+-- Pre-loop chain: task → solve-soft → extract-pattern
+-- ⊢∘ harden loop: crystallize ↔ verify-crystal ↔ refine-crystal (max 3 iterations)
+-- Post-loop: emit-success XOR emit-failure (guard-gated)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 0: task
+-- ═══════════════════════════════════════════════════════════════
+
+-- task is a data cell — all yields determined by givens. Freezes immediately.
+
+⊢ task
+  given description ≡ "Given a list of numbers, return a new list where each element is replaced by the count of elements strictly greater than it in the original list."
+  given test-inputs[] ≡ [
+    [5, 2, 6, 1],
+    [3, 3, 3],
+    [1, 2, 3, 4, 5],
+    [10],
+    [4, 1, 4, 2]
+  ]
+  given test-expected[] ≡ [
+    [1, 2, 0, 3],
+    [0, 0, 0],
+    [4, 3, 2, 1, 0],
+    [0],
+    [0, 3, 0, 2]
+  ]
+  yield description ≡ "Given a list of numbers, return a new list where each element is replaced by the count of elements strictly greater than it in the original list."
+  yield test-inputs ≡ [[5, 2, 6, 1], [3, 3, 3], [1, 2, 3, 4, 5], [10], [4, 1, 4, 2]]
+  yield test-expected ≡ [[1, 2, 0, 3], [0, 0, 0], [4, 3, 2, 1, 0], [0], [0, 3, 0, 2]]
+
+  ⊨ test-inputs has same length as test-expected → ✓ (both length 5)
+  ⊨ each test-expected entry has same length as its corresponding test-input → ✓
+
+-- Ready set after frame 0: { solve-soft }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 1: solve-soft
+-- ═══════════════════════════════════════════════════════════════
+
+-- solve-soft is ⊢ (soft). The LLM interprets the ∴ body.
+-- This cell will LATER be crystallized. Right now it runs via LLM.
+
+⊢ solve-soft
+  given task→description ≡ "Given a list of numbers, return a new list where each element is replaced by the count of elements strictly greater than it in the original list."
+  given task→test-inputs ≡ [[5, 2, 6, 1], [3, 3, 3], [1, 2, 3, 4, 5], [10], [4, 1, 4, 2]]
+  yield solution, outputs[]
+
+  ∴ Solve «task→description». For each input in «task→test-inputs»,
+    work through the problem step by step. For each element, count
+    how many elements in the ORIGINAL list are STRICTLY greater than it.
+    Produce the answer for each input.
+
+-- LLM evaluation:
+--
+-- Input [5, 2, 6, 1]:
+--   5: elements strictly greater → {6} → count 1
+--   2: elements strictly greater → {5, 6} → count 2
+--   6: elements strictly greater → {} → count 0
+--   1: elements strictly greater → {5, 2, 6} → count 3
+--   Result: [1, 2, 0, 3]
+--
+-- Input [3, 3, 3]:
+--   3: elements strictly greater → {} → count 0
+--   3: elements strictly greater → {} → count 0
+--   3: elements strictly greater → {} → count 0
+--   Result: [0, 0, 0]
+--   NOTE: "strictly greater" means none of the equal 3s count.
+--
+-- Input [1, 2, 3, 4, 5]:
+--   1: {2, 3, 4, 5} → 4
+--   2: {3, 4, 5} → 3
+--   3: {4, 5} → 2
+--   4: {5} → 1
+--   5: {} → 0
+--   Result: [4, 3, 2, 1, 0]
+--
+-- Input [10]:
+--   10: {} → 0
+--   Result: [0]
+--
+-- Input [4, 1, 4, 2]:
+--   4: elements strictly greater → {} → count 0
+--   1: elements strictly greater → {4, 4, 2} → count 3
+--   4: elements strictly greater → {} → count 0
+--   2: elements strictly greater → {4, 4} → count 2
+--   Result: [0, 3, 0, 2]
+
+  yield solution ≡ "For each element x in the input list, scan the entire original list and count how many elements y satisfy y > x (strictly greater, not equal). The count for each position becomes the output at that position. Key subtlety: equal elements do NOT count — only strictly greater."
+
+  yield outputs ≡ [
+    [1, 2, 0, 3],
+    [0, 0, 0],
+    [4, 3, 2, 1, 0],
+    [0],
+    [0, 3, 0, 2]
+  ]
+
+-- oracle checks:
+--   ⊨ outputs has same length as test-inputs → ✓ (both 5)
+--   ⊨ each output has same length as its corresponding input → ✓
+--   ⊨ each element in outputs is a non-negative integer → ✓
+
+-- Ready set after frame 1: { extract-pattern }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 2: extract-pattern
+-- ═══════════════════════════════════════════════════════════════
+
+-- extract-pattern reads the LLM's solution and extracts the mechanical algorithm.
+-- Permanently soft — it's the CRYSTALLIZER, not the thing being crystallized.
+
+⊢ extract-pattern
+  given solve-soft→solution ≡ "For each element x in the input list, scan the entire original list and count how many elements y satisfy y > x (strictly greater, not equal). The count for each position becomes the output at that position. Key subtlety: equal elements do NOT count — only strictly greater."
+  given solve-soft→outputs ≡ [[1, 2, 0, 3], [0, 0, 0], [4, 3, 2, 1, 0], [0], [0, 3, 0, 2]]
+  yield algorithm
+
+  ∴ Read «solve-soft→solution». What deterministic algorithm did you use?
+    Express it as a numbered sequence of mechanical steps.
+
+-- LLM evaluation:
+
+  yield algorithm ≡ "1. Take input list. 2. For each element x at position i, count the number of elements y in the full list where y > x. 3. Place that count at position i in the output. 4. Return the output list."
+
+-- oracle checks:
+--   ⊨ algorithm is a numbered list of steps → ✓ (4 numbered steps)
+--   ⊨ algorithm contains only deterministic operations → ✓ (comparison, counting)
+--   ⊨ algorithm does not reference any specific input values → ✓
+
+-- Ready set after frame 2: { crystallize }
+-- extract-pattern→algorithm is frozen. ⊢∘ harden loop begins.
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ harden — ITERATION 0
+-- ═══════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 3: crystallize (iteration 0)
+-- ═══════════════════════════════════════════════════════════════
+
+-- crystallize is ⊢ (soft) managed by ⊢∘ harden.
+-- given? refine-crystal→feedback is ⊥ (first iteration, no prior feedback).
+
+⊢ crystallize
+  given extract-pattern→algorithm ≡ "1. Take input list. 2. For each element x at position i, count the number of elements y in the full list where y > x. 3. Place that count at position i in the output. 4. Return the output list."
+  given? refine-crystal→feedback ≡ ⊥
+  yield hard-body
+
+  ∴ Convert «extract-pattern→algorithm» into a single ⊢= expression
+    using only these primitives: map, count, sort, take, drop, filter,
+    len, min, max, sum, comparisons (<, >, =, !=, <=, >=), arithmetic.
+    If «refine-crystal→feedback» is available (not ⊥), use it to correct
+    the previous attempt's errors.
+
+-- LLM evaluation:
+-- The algorithm says "for each x, count y where y > x."
+-- The LLM reasons: "map over the list, for each x count elements
+-- that are at least as big as x, then subtract 1 to exclude x itself."
+-- This is a common but WRONG approach when duplicates exist.
+
+  yield hard-body ≡ "⊢= result ← map(«input», x -> count(«input», y -> y >= x) - 1)"
+
+-- oracle checks:
+--   ⊨ hard-body is a valid ⊢= expression → ✓ (map, count, >=, -, all valid primitives)
+--   ⊨ hard-body contains no natural language → ✓
+--   ⊨ hard-body uses only defined ⊢= primitives → ✓ (map, count, >=, -)
+--
+-- NOTE: The oracles on a ⊢∘-managed cell are ASPIRATIONAL — they provide
+-- feedback but don't independently block freezing. The ⊢∘ until condition
+-- is the actual gate. These oracles pass (the expression IS syntactically
+-- valid), but the expression is semantically wrong.
+--
+-- THE BUG: "count(y >= x) - 1" assumes each value appears exactly once.
+-- For input [3, 3, 3]: count(y >= 3) = 3 for each element, minus 1 = 2.
+-- But the correct answer is 0 (no element STRICTLY greater than 3).
+-- The subtraction-of-self trick fails with duplicate values.
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 4: verify-crystal (iteration 0)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ verify-crystal
+  given crystallize→hard-body ≡ "⊢= result ← map(«input», x -> count(«input», y -> y >= x) - 1)"
+  given task→test-inputs ≡ [[5, 2, 6, 1], [3, 3, 3], [1, 2, 3, 4, 5], [10], [4, 1, 4, 2]]
+  given task→test-expected ≡ [[1, 2, 0, 3], [0, 0, 0], [4, 3, 2, 1, 0], [0], [0, 3, 0, 2]]
+  yield pass-all, results[], failures[]
+
+  ∴ Apply «crystallize→hard-body» to each input. Compare with expected.
+
+-- LLM evaluation (simulating ⊢= execution):
+--
+-- Test 1: input = [5, 2, 6, 1]
+--   5: count(y >= 5) = 2 (5, 6), -1 = 1. Expected: 1 → ✓
+--   2: count(y >= 2) = 3 (5, 2, 6), -1 = 2. Expected: 2 → ✓
+--   6: count(y >= 6) = 1 (6), -1 = 0. Expected: 0 → ✓
+--   1: count(y >= 1) = 4 (all), -1 = 3. Expected: 3 → ✓
+--   Result: [1, 2, 0, 3] → PASS (all unique — bug hidden)
+--
+-- Test 2: input = [3, 3, 3]
+--   3: count(y >= 3) = 3, -1 = 2. Expected: 0 → ✗
+--   3: count(y >= 3) = 3, -1 = 2. Expected: 0 → ✗
+--   3: count(y >= 3) = 3, -1 = 2. Expected: 0 → ✗
+--   Result: [2, 2, 2] → FAIL (expected [0, 0, 0])
+--
+-- Test 3: input = [1, 2, 3, 4, 5]
+--   Each element unique: count(y >= x) - 1 = count(y > x). Correct.
+--   Result: [4, 3, 2, 1, 0] → PASS (all unique — bug hidden)
+--
+-- Test 4: input = [10]
+--   10: count(y >= 10) = 1, -1 = 0. Expected: 0 → ✓
+--   Result: [0] → PASS
+--
+-- Test 5: input = [4, 1, 4, 2]
+--   4: count(y >= 4) = 2 (4, 4), -1 = 1. Expected: 0 → ✗
+--   1: count(y >= 1) = 4 (all), -1 = 3. Expected: 3 → ✓
+--   4: count(y >= 4) = 2 (4, 4), -1 = 1. Expected: 0 → ✗
+--   2: count(y >= 2) = 3 (4, 4, 2), -1 = 2. Expected: 2 → ✓
+--   Result: [1, 3, 1, 2] → FAIL (expected [0, 3, 0, 2])
+
+  yield pass-all ≡ false
+  yield results ≡ [
+    [1, 2, 0, 3],
+    [2, 2, 2],
+    [4, 3, 2, 1, 0],
+    [0],
+    [1, 3, 1, 2]
+  ]
+  yield failures ≡ [
+    {test: 2, input: [3, 3, 3], expected: [0, 0, 0], actual: [2, 2, 2], note: "all-equal list: formula overcounts by number of duplicates minus 1"},
+    {test: 5, input: [4, 1, 4, 2], expected: [0, 3, 0, 2], actual: [1, 3, 1, 2], note: "duplicate 4s: count(y >= 4) - 1 = 1 but correct answer is 0"}
+  ]
+
+-- oracle checks:
+--   ⊨ results has same length as test-inputs → ✓ (both 5)
+--   ⊨ failures is empty if and only if pass-all = true → ✓ (failures non-empty, pass-all false)
+--   ⊨ if pass-all then every result matches expected → vacuously ✓ (pass-all is false)
+
+-- CRYSTAL FAILED. 3 of 5 tests pass, 2 fail. The >=/-1 trick breaks with duplicates.
+-- This is exactly why progressive crystallization needs iteration.
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 5: refine-crystal (iteration 0)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ refine-crystal
+  given verify-crystal→failures ≡ [
+    {test: 2, input: [3, 3, 3], expected: [0, 0, 0], actual: [2, 2, 2], note: "all-equal list: formula overcounts by number of duplicates minus 1"},
+    {test: 5, input: [4, 1, 4, 2], expected: [0, 3, 0, 2], actual: [1, 3, 1, 2], note: "duplicate 4s: count(y >= 4) - 1 = 1 but correct answer is 0"}
+  ]
+  given crystallize→hard-body ≡ "⊢= result ← map(«input», x -> count(«input», y -> y >= x) - 1)"
+  yield feedback
+
+  ∴ Analyze «verify-crystal→failures». What went wrong with
+    «crystallize→hard-body»? Identify the root cause and produce
+    specific, actionable feedback for the next crystallization attempt.
+
+-- LLM evaluation:
+-- The LLM reads the failures and identifies the pattern: both failures
+-- involve duplicate values. The formula count(y >= x) - 1 assumes
+-- exactly one copy of x exists. With duplicates, the subtraction
+-- removes only one copy but the >= catches all copies.
+--
+-- Root cause: >= includes equal elements. Subtracting 1 only removes
+-- "self" but when there are K copies of x, it removes 1 instead of K.
+-- Fix: use strict > instead of >= (then no subtraction needed at all).
+
+  yield feedback ≡ "ROOT CAUSE: count(y >= x) - 1 fails when duplicates of x exist. With K copies of value x, count(y >= x) includes all K copies, but subtracting 1 only removes one. For [3,3,3]: count(>=3) = 3, -1 = 2, but correct is 0. FIX: Use strict greater-than directly: count(y -> y > x). No subtraction needed. This handles duplicates correctly because y > x excludes ALL copies of x, not just one."
+
+-- oracle checks:
+--   ⊨ feedback references specific failure cases → ✓ (cites tests 2 and 5, [3,3,3] and [4,1,4,2])
+--   ⊨ feedback proposes concrete corrections → ✓ ("use y > x instead of y >= x, drop the - 1")
+
+-- ⊢∘ harden: check until condition
+-- verify-crystal→pass-all = false → condition NOT met → ITERATE (1 of max 3)
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ harden — ITERATION 1
+-- ═══════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 6: crystallize (iteration 1)
+-- ═══════════════════════════════════════════════════════════════
+
+-- refine-crystal→feedback from iteration 0 is now available.
+-- crystallize re-evaluates with the feedback incorporated.
+
+⊢ crystallize
+  given extract-pattern→algorithm ≡ "1. Take input list. 2. For each element x at position i, count the number of elements y in the full list where y > x. 3. Place that count at position i in the output. 4. Return the output list."
+  given? refine-crystal→feedback ≡ "ROOT CAUSE: count(y >= x) - 1 fails when duplicates of x exist. With K copies of value x, count(y >= x) includes all K copies, but subtracting 1 only removes one. For [3,3,3]: count(>=3) = 3, -1 = 2, but correct is 0. FIX: Use strict greater-than directly: count(y -> y > x). No subtraction needed. This handles duplicates correctly because y > x excludes ALL copies of x, not just one."
+  yield hard-body
+
+  ∴ Convert «extract-pattern→algorithm» into a single ⊢= expression
+    using only these primitives: map, count, sort, take, drop, filter,
+    len, min, max, sum, comparisons (<, >, =, !=, <=, >=), arithmetic.
+    If «refine-crystal→feedback» is available (not ⊥), use it to correct
+    the previous attempt's errors.
+
+-- LLM evaluation:
+-- Feedback says: use strict > instead of >=, drop the - 1.
+-- The fix is straightforward: map each element to count of strictly greater.
+
+  yield hard-body ≡ "⊢= result ← map(«input», x -> count(«input», y -> y > x))"
+
+-- oracle checks:
+--   ⊨ hard-body is a valid ⊢= expression → ✓
+--   ⊨ hard-body contains no natural language → ✓
+--   ⊨ hard-body uses only defined ⊢= primitives → ✓ (map, count, >)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 7: verify-crystal (iteration 1)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ verify-crystal
+  given crystallize→hard-body ≡ "⊢= result ← map(«input», x -> count(«input», y -> y > x))"
+  given task→test-inputs ≡ [[5, 2, 6, 1], [3, 3, 3], [1, 2, 3, 4, 5], [10], [4, 1, 4, 2]]
+  given task→test-expected ≡ [[1, 2, 0, 3], [0, 0, 0], [4, 3, 2, 1, 0], [0], [0, 3, 0, 2]]
+  yield pass-all, results[], failures[]
+
+  ∴ Apply «crystallize→hard-body» to each input. Compare with expected.
+
+-- LLM evaluation (simulating corrected ⊢= expression):
+--
+-- Test 1: input = [5, 2, 6, 1]
+--   5: count(y > 5) = 1 (6). Expected: 1 → ✓
+--   2: count(y > 2) = 2 (5, 6). Expected: 2 → ✓
+--   6: count(y > 6) = 0. Expected: 0 → ✓
+--   1: count(y > 1) = 3 (5, 2, 6). Expected: 3 → ✓
+--   Result: [1, 2, 0, 3] → PASS
+--
+-- Test 2: input = [3, 3, 3]
+--   3: count(y > 3) = 0. Expected: 0 → ✓
+--   3: count(y > 3) = 0. Expected: 0 → ✓
+--   3: count(y > 3) = 0. Expected: 0 → ✓
+--   Result: [0, 0, 0] → PASS
+--
+-- Test 3: input = [1, 2, 3, 4, 5]
+--   1: count(y > 1) = 4. Expected: 4 → ✓
+--   2: count(y > 2) = 3. Expected: 3 → ✓
+--   3: count(y > 3) = 2. Expected: 2 → ✓
+--   4: count(y > 4) = 1. Expected: 1 → ✓
+--   5: count(y > 5) = 0. Expected: 0 → ✓
+--   Result: [4, 3, 2, 1, 0] → PASS
+--
+-- Test 4: input = [10]
+--   10: count(y > 10) = 0. Expected: 0 → ✓
+--   Result: [0] → PASS
+--
+-- Test 5: input = [4, 1, 4, 2]
+--   4: count(y > 4) = 0. Expected: 0 → ✓
+--   1: count(y > 1) = 3 (4, 4, 2). Expected: 3 → ✓
+--   4: count(y > 4) = 0. Expected: 0 → ✓
+--   2: count(y > 2) = 2 (4, 4). Expected: 2 → ✓
+--   Result: [0, 3, 0, 2] → PASS
+
+  yield pass-all ≡ true
+  yield results ≡ [
+    [1, 2, 0, 3],
+    [0, 0, 0],
+    [4, 3, 2, 1, 0],
+    [0],
+    [0, 3, 0, 2]
+  ]
+  yield failures ≡ []
+
+-- oracle checks:
+--   ⊨ results has same length as test-inputs → ✓ (both 5)
+--   ⊨ failures is empty if and only if pass-all = true → ✓ (failures empty, pass-all true)
+--   ⊨ if pass-all then every result matches expected → ✓ (all 5 match)
+
+-- ALL TESTS PASS. The corrected crystal handles duplicates correctly.
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 8: refine-crystal (iteration 1)
+-- ═══════════════════════════════════════════════════════════════
+
+-- refine-crystal runs as part of the through chain even though
+-- verify-crystal→pass-all = true. The until check happens AFTER
+-- the full through chain completes.
+
+⊢ refine-crystal
+  given verify-crystal→failures ≡ []
+  given crystallize→hard-body ≡ "⊢= result ← map(«input», x -> count(«input», y -> y > x))"
+  yield feedback
+
+  ∴ Analyze «verify-crystal→failures». What went wrong with
+    «crystallize→hard-body»?
+
+-- LLM evaluation:
+-- No failures to analyze. Crystal passes all tests.
+
+  yield feedback ≡ "No failures. All 5 test cases pass. The expression map(input, x -> count(input, y -> y > x)) correctly handles both unique and duplicate values."
+
+-- oracle checks:
+--   ⊨ feedback references specific failure cases → ✓ (vacuously — no failures exist)
+--   ⊨ feedback proposes concrete corrections → ✓ (vacuously — no corrections needed)
+
+-- ⊢∘ harden: check until condition
+-- verify-crystal→pass-all = true → condition MET → EXIT LOOP
+-- Loop completed in 2 iterations (0 and 1). Progressive crystallization worked:
+-- iteration 0 failed on duplicates, iteration 1 fixed the bug with feedback.
+
+-- ═══════════════════════════════════════════════════════════════
+-- Post-loop: guard clause evaluation
+-- ═══════════════════════════════════════════════════════════════
+
+-- Ready set after ⊢∘ harden exits: { emit-success, emit-failure }
+-- Both have all given inputs frozen. Guard evaluation determines dispatch.
+--
+-- emit-success: given verify-crystal→pass-all where pass-all = true
+--   → pass-all ≡ true, guard evaluates to true → ENTERS READY SET
+--
+-- emit-failure: given verify-crystal→pass-all where pass-all = false
+--   → pass-all ≡ true, guard evaluates to false → SKIPPED
+--   → all yields of emit-failure become ⊥
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 9: emit-success
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ emit-success
+  given verify-crystal→pass-all ≡ true
+  given crystallize→hard-body ≡ "⊢= result ← map(«input», x -> count(«input», y -> y > x))"
+  given §solve-soft ≡ "(the full definition of solve-soft as a ⊢ cell with ∴ body)"
+  yield crystallized-cell, substrate-transfer
+
+  ∴ Produce the crystallized version of «§solve-soft» by replacing
+    the ∴ body with «crystallize→hard-body» and adding ▸ crystallized.
+
+-- LLM evaluation:
+-- Reads §solve-soft (the original soft cell) and produces the hard replacement.
+
+  yield crystallized-cell ≡ "⊢ solve-soft ▸ crystallized
+  given task→description
+  given task→test-inputs
+  yield result[]
+
+  ⊢= result ← map(«task→test-inputs», input -> map(input, x -> count(input, y -> y > x)))
+
+  ⊨ each result has same length as its corresponding input
+  ⊨ each element in result is a non-negative integer"
+
+  yield substrate-transfer ≡ true
+
+-- oracle checks:
+--   ⊨ crystallized-cell contains "⊢=" → ✓
+--   ⊨ crystallized-cell contains "▸ crystallized" → ✓
+--   ⊨ substrate-transfer = true → ✓
+
+-- emit-failure: SKIPPED (guard false). Yields:
+--   crystallized-cell ≡ ⊥
+--   substrate-transfer ≡ ⊥
+
+-- ═══════════════════════════════════════════════════════════════
+-- QUIESCENCE
+-- ═══════════════════════════════════════════════════════════════
+
+-- All cells frozen or skipped. No cell in the ready set. Program complete.
+--
+-- Frozen cells (9 total across iterations):
+--   task, solve-soft, extract-pattern,
+--   crystallize (iter 1), verify-crystal (iter 1), refine-crystal (iter 1),
+--   emit-success
+-- Skipped cells (1):
+--   emit-failure (guard false → yields ⊥)
+--
+-- 10 eval-one steps total (frames 0-9).
+-- ⊢∘ harden used 2 of 3 allowed iterations.
+-- Substrate transfer: ⊢ → ⊢= succeeded on second attempt.
+
+-- ═══════════════════════════════════════════════════════════════
+-- OBSERVATIONS
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= obs-progressive-actually-works
+  given §03-progressive-crystallization
+  yield observations
+
+  ⊢= observations ← "PROGRESSIVE CRYSTALLIZATION EARNED ITS NAME: Unlike R16 where the crystal passed on first try, this execution required 2 iterations. The first attempt used count(y >= x) - 1, a natural but wrong approach that breaks with duplicate values. The refine-crystal cell diagnosed the root cause (>= vs > with duplicates) and produced actionable feedback. Iteration 1 fixed the bug. This is the ⊢∘ loop doing exactly what it was designed for: evolving toward correctness under oracle pressure."
+
+⊢= obs-duplicate-trap
+  given §03-progressive-crystallization
+  yield observations
+
+  ⊢= observations ← "THE DUPLICATE TRAP IS REALISTIC: The >= vs > bug is a genuine crystallization hazard, not a contrived failure. LLMs naturally reach for 'count elements at least as big, minus myself' — it's how humans think about the problem too. The bug only manifests with duplicate values, which test cases 2 ([3,3,3]) and 5 ([4,1,4,2]) specifically target. Test case design MATTERS for progressive crystallization: without duplicate-containing tests, the bug passes silently (tests 1, 3, 4 all pass the buggy formula). The oracle-as-test-suite pattern is only as good as the test cases."
+
+⊢= obs-guard-clauses-clean-dispatch
+  given §03-progressive-crystallization
+  yield observations
+
+  ⊢= observations ← "GUARD CLAUSES REPLACE CONDITIONAL LOGIC IN ∴: In R16, emit-crystallized handled both success and failure in one cell with 'if pass-all then... else...'. In v0.2, guard clauses split this into emit-success (where pass-all = true) and emit-failure (where pass-all = false). Only one fires. The other's yields become ⊥. This is cleaner: each cell has a single responsibility, the branching is structural (in the graph topology) not procedural (in the ∴ body). Zero wasted LLM calls — the skipped cell never evaluates."
+
+⊢= obs-given-optional-feedback
+  given §03-progressive-crystallization
+  yield observations
+
+  ⊢= observations ← "given? ENABLES CLEAN FIRST-ITERATION BOOTSTRAP: On iteration 0, refine-crystal→feedback doesn't exist yet — it's ⊥. Without given?, crystallize would be permanently blocked waiting for feedback that can't exist until crystallize has run. given? breaks the circular dependency cleanly: crystallize runs with feedback=⊥ on first iteration, then with actual feedback on subsequent iterations. This is the ⊥-as-bootstrap pattern from the spec's co-evolve semantics, applied to a simpler iteration loop."
+
+⊢= obs-expression-language-validation
+  given §03-progressive-crystallization
+  yield observations
+
+  ⊢= observations ← "⊢= EXPRESSION LANGUAGE PREVENTS FALSE CRYSTALLIZATION: Both the buggy and correct crystals use only defined v0.2 primitives: map, count, comparisons. No invented functions like 'rank()' or 'greater-count()'. The v0.2 expression language spec makes the crystallization boundary enforceable — you can mechanically verify that a ⊢= body uses only valid primitives. This is what R16 programs 27 and 28 got wrong (using undefined functions like proof-covers()). The oracle '⊨ hard-body uses only defined ⊢= primitives' is itself crystallizable."
+
+⊢= obs-crystallizer-stays-warm
+  given §03-progressive-crystallization
+  yield observations
+
+  ⊢= observations ← "THE WARM LAYER IS LARGER THAN BEFORE: R16 had 3 permanently-soft cells (extract-pattern, crystallize, emit-crystallized). v0.2 adds refine-crystal as a 4th warm cell — it analyzes failures and proposes fixes, which requires natural language reasoning about code semantics. The crystallization boundary: solve-soft goes cold, but the 4 cells that ENABLED the crystallization must stay warm. The stem cell analogy still holds: more differentiation machinery, but the ratio of warm-to-cold improves as more target cells crystallize."
+
+⊢= obs-file-scope-recovery
+  given §03-progressive-crystallization
+  yield observations
+
+  ⊢= observations ← "FILE-SCOPE ⊨? PROVIDES SAFETY NET: The file-scope recovery policy (retry max 2, exhaustion → error-value(⊥)) applies to any cell without its own ⊨?. If ANY cell's oracles fail outside the ⊢∘ loop (e.g., extract-pattern produces a non-deterministic algorithm), the file-scope policy catches it. Inside the ⊢∘ loop, the loop's own iteration handles retry — but if the loop itself exits with failure and emit-failure's oracles somehow fail, the file-scope ⊨? provides a final backstop. Defense in depth."
