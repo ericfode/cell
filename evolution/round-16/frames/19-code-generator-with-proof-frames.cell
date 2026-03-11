@@ -1,0 +1,536 @@
+-- 19-code-generator-with-proof-frames.cell
+-- Execution trace of 19-code-generator-with-proof.cell via eval-one
+--
+-- Spec: "binary search on sorted array, returns index or -1"
+-- Demonstrates proof-carrying computation: LLM generates (NP), verifier checks (P).
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 0: evaluate spec (trivial pass-through)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { spec }
+-- Blocked: { generate-code, generate-property-tests } — need spec→*
+
+⊢ spec
+  given description ≡ "binary search on sorted array, returns index or -1"
+  given signature ≡ "binary_search(arr: int[], target: int) -> int"
+  given preconditions ≡ "arr is sorted in ascending order, no duplicates"
+  yield description, signature, preconditions
+
+  yield description ≡ "binary search on sorted array, returns index or -1"
+  yield signature ≡ "binary_search(arr: int[], target: int) -> int"
+  yield preconditions ≡ "arr is sorted in ascending order, no duplicates"
+
+-- oracle checks:
+--   ⊨ description specifies algorithm, input, output → ✓
+--   ⊨ signature has typed parameters and return type → ✓
+--   ⊨ preconditions constrain the input space → ✓
+
+-- state after frame 0: spec frozen.
+-- Ready set: { generate-code, generate-property-tests }
+-- Both depend only on spec→* — confluence: either can go first.
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 1: evaluate generate-code (soft cell, LLM) — ⊢∘ ITERATION 1
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { generate-code, generate-property-tests }
+-- Picking generate-code first (the ⊢∘ target)
+
+⊢ generate-code
+  given spec→description ≡ "binary search on sorted array, returns index or -1"
+  given spec→signature ≡ "binary_search(arr: int[], target: int) -> int"
+  given spec→preconditions ≡ "arr is sorted in ascending order, no duplicates"
+  yield §implementation, code-text
+
+  ∴ Write a correct implementation of binary_search(arr, target)...
+
+-- LLM evaluation (simulated):
+
+  yield §implementation ≡ §binary-search-v1
+  yield code-text ≡ "
+    def binary_search(arr: int[], target: int) -> int:
+      lo = 0
+      hi = len(arr) - 1
+      while lo <= hi:
+        mid = lo + (hi - lo) // 2
+        if arr[mid] == target:
+          return mid
+        elif arr[mid] < target:
+          lo = mid + 1
+        else:
+          hi = mid - 1
+      return -1
+  "
+
+-- oracle checks:
+--   ⊨ code-text contains a loop structure → ✓ (while lo <= hi)
+--   ⊨ code-text returns -1 for not-found → ✓ (return -1 at end)
+--   ⊨ code-text uses integer division for midpoint → ✓ (lo + (hi - lo) // 2)
+
+-- state after frame 1: generate-code frozen.
+-- Ready set: { generate-property-tests }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 2: evaluate generate-property-tests (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { generate-property-tests }
+
+⊢ generate-property-tests
+  given spec→signature ≡ "binary_search(arr: int[], target: int) -> int"
+  given spec→preconditions ≡ "arr is sorted in ascending order, no duplicates"
+  given spec→description ≡ "binary search on sorted array, returns index or -1"
+  yield test-cases[], properties[]
+
+  ∴ Generate property-based test cases...
+
+-- LLM evaluation (simulated):
+
+  yield properties ≡ [
+    "P1: found — if target in arr, result is its index",
+    "P2: not-found — if target not in arr, result is -1",
+    "P3: boundary-first — target at index 0",
+    "P4: boundary-last — target at last index",
+    "P5: single-element-found — arr of size 1, target present",
+    "P6: single-element-not-found — arr of size 1, target absent",
+    "P7: empty-array — result must be -1",
+    "P8: midpoint — target at exact midpoint of array"
+  ]
+
+  yield test-cases ≡ [
+    { input-arr: [1, 3, 5, 7, 9],      input-target: 5,  expected-output: 2  },
+    { input-arr: [1, 3, 5, 7, 9],      input-target: 7,  expected-output: 3  },
+    { input-arr: [1, 3, 5, 7, 9],      input-target: 4,  expected-output: -1 },
+    { input-arr: [1, 3, 5, 7, 9],      input-target: 10, expected-output: -1 },
+    { input-arr: [1, 3, 5, 7, 9],      input-target: 1,  expected-output: 0  },
+    { input-arr: [1, 3, 5, 7, 9],      input-target: 9,  expected-output: 4  },
+    { input-arr: [42],                  input-target: 42, expected-output: 0  },
+    { input-arr: [42],                  input-target: 7,  expected-output: -1 },
+    { input-arr: [],                    input-target: 1,  expected-output: -1 },
+    { input-arr: [2, 4, 6, 8, 10],     input-target: 6,  expected-output: 2  },
+    { input-arr: [10, 20, 30, 40, 50, 60, 70], input-target: 40, expected-output: 3 },
+    { input-arr: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], input-target: 0, expected-output: -1 }
+  ]
+
+-- oracle checks:
+--   ⊨ length(test-cases) ≥ 10 → ✓ (12)
+--   ⊨ properties covers found, not-found, boundary, edge → ✓ (8 properties)
+--   ⊨ each test-case has input-arr (sorted), input-target, expected-output → ✓
+
+-- state after frame 2: generate-property-tests frozen.
+-- Ready set: { run-tests }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 3: evaluate run-tests (soft cell, LLM simulating execution)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { run-tests }
+
+⊢ run-tests
+  given generate-code→code-text ≡ "def binary_search(arr, target): ..."
+  given generate-property-tests→test-cases ≡ [12 test cases]
+  yield results[], pass-count, fail-count, failure-details[]
+
+  ∴ Simulate executing binary_search on each test case...
+
+-- LLM evaluation (simulated):
+-- Tracing binary_search([1,3,5,7,9], 5):
+--   lo=0, hi=4, mid=2, arr[2]=5=target → return 2 ✓
+-- Tracing binary_search([1,3,5,7,9], 7):
+--   lo=0, hi=4, mid=2, arr[2]=5<7 → lo=3
+--   lo=3, hi=4, mid=3, arr[3]=7=target → return 3 ✓
+-- Tracing binary_search([1,3,5,7,9], 4):
+--   lo=0, hi=4, mid=2, arr[2]=5>4 → hi=1
+--   lo=0, hi=1, mid=0, arr[0]=1<4 → lo=1
+--   lo=1, hi=1, mid=1, arr[1]=3<4 → lo=2
+--   lo=2, hi=1, lo>hi → return -1 ✓
+-- Tracing binary_search([1,3,5,7,9], 10):
+--   lo=0, hi=4, mid=2, arr[2]=5<10 → lo=3
+--   lo=3, hi=4, mid=3, arr[3]=7<10 → lo=4
+--   lo=4, hi=4, mid=4, arr[4]=9<10 → lo=5
+--   lo=5, hi=4, lo>hi → return -1 ✓
+-- Tracing binary_search([1,3,5,7,9], 1):
+--   lo=0, hi=4, mid=2, arr[2]=5>1 → hi=1
+--   lo=0, hi=1, mid=0, arr[0]=1=target → return 0 ✓
+-- Tracing binary_search([1,3,5,7,9], 9):
+--   lo=0, hi=4, mid=2, arr[2]=5<9 → lo=3
+--   lo=3, hi=4, mid=3, arr[3]=7<9 → lo=4
+--   lo=4, hi=4, mid=4, arr[4]=9=target → return 4 ✓
+-- Tracing binary_search([42], 42):
+--   lo=0, hi=0, mid=0, arr[0]=42=target → return 0 ✓
+-- Tracing binary_search([42], 7):
+--   lo=0, hi=0, mid=0, arr[0]=42>7 → hi=-1
+--   lo=0, hi=-1, lo>hi → return -1 ✓
+-- Tracing binary_search([], 1):
+--   lo=0, hi=-1, lo>hi → return -1 ✓
+-- Tracing binary_search([2,4,6,8,10], 6):
+--   lo=0, hi=4, mid=2, arr[2]=6=target → return 2 ✓
+-- Tracing binary_search([10,20,30,40,50,60,70], 40):
+--   lo=0, hi=6, mid=3, arr[3]=40=target → return 3 ✓
+-- Tracing binary_search([1..10], 0):
+--   lo=0, hi=9, mid=4, arr[4]=5>0 → hi=3
+--   lo=0, hi=3, mid=1, arr[1]=2>0 → hi=0
+--   lo=0, hi=0, mid=0, arr[0]=1>0 → hi=-1
+--   lo=0, hi=-1, lo>hi → return -1 ✓
+
+  yield results ≡ [
+    { input: "[1,3,5,7,9], 5",  actual: 2,  expected: 2,  pass: true  },
+    { input: "[1,3,5,7,9], 7",  actual: 3,  expected: 3,  pass: true  },
+    { input: "[1,3,5,7,9], 4",  actual: -1, expected: -1, pass: true  },
+    { input: "[1,3,5,7,9], 10", actual: -1, expected: -1, pass: true  },
+    { input: "[1,3,5,7,9], 1",  actual: 0,  expected: 0,  pass: true  },
+    { input: "[1,3,5,7,9], 9",  actual: 4,  expected: 4,  pass: true  },
+    { input: "[42], 42",        actual: 0,  expected: 0,  pass: true  },
+    { input: "[42], 7",         actual: -1, expected: -1, pass: true  },
+    { input: "[], 1",           actual: -1, expected: -1, pass: true  },
+    { input: "[2,4,6,8,10], 6", actual: 2,  expected: 2,  pass: true  },
+    { input: "[10..70], 40",    actual: 3,  expected: 3,  pass: true  },
+    { input: "[1..10], 0",      actual: -1, expected: -1, pass: true  }
+  ]
+
+  yield pass-count ≡ 12
+  yield fail-count ≡ 0
+  yield failure-details ≡ []
+
+-- oracle checks:
+--   ⊨ length(results) = length(test-cases) → ✓ (12 = 12)
+--   ⊨ pass-count + fail-count = length(results) → ✓ (12 + 0 = 12)
+--   ⊨ fail-count > 0 implies failure-details non-empty → ✓ (vacuous — fail-count = 0)
+
+-- state after frame 3: run-tests frozen.
+-- Ready set: { analyze-failures }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 4: evaluate analyze-failures (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { analyze-failures }
+
+⊢ analyze-failures
+  given run-tests→failure-details ≡ []
+  given run-tests→fail-count ≡ 0
+  given generate-code→code-text ≡ "def binary_search(arr, target): ..."
+  yield diagnosis, bug-category, fix-strategy
+
+  ∴ fail-count = 0, so all tests pass...
+
+-- LLM evaluation (simulated):
+
+  yield diagnosis ≡ "all tests pass"
+  yield bug-category ≡ "none"
+  yield fix-strategy ≡ "none"
+
+-- oracle checks:
+--   ⊨ fail-count = 0 → diagnosis = "all tests pass" → ✓
+--   ⊨ fail-count > 0 → fix-strategy concrete → ✓ (vacuous)
+--   ⊨ bug-category ∈ valid set → ✓ ("none")
+
+-- state after frame 4: analyze-failures frozen.
+-- Ready set: { rewrite-code }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 5: evaluate rewrite-code (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { rewrite-code }
+
+⊢ rewrite-code
+  given analyze-failures→diagnosis ≡ "all tests pass"
+  given analyze-failures→fix-strategy ≡ "none"
+  given generate-code→code-text ≡ "def binary_search(arr, target): ..."
+  given run-tests→failure-details ≡ []
+  yield §implementation', code-text', changed-lines[]
+
+  ∴ All tests pass → output code unchanged...
+
+-- LLM evaluation (simulated):
+
+  yield §implementation' ≡ §binary-search-v1
+  yield code-text' ≡ "
+    def binary_search(arr: int[], target: int) -> int:
+      lo = 0
+      hi = len(arr) - 1
+      while lo <= hi:
+        mid = lo + (hi - lo) // 2
+        if arr[mid] == target:
+          return mid
+        elif arr[mid] < target:
+          lo = mid + 1
+        else:
+          hi = mid - 1
+      return -1
+  "
+  yield changed-lines ≡ []
+
+-- oracle checks:
+--   ⊨ §implementation' has same signature as §generate-code → ✓
+--   ⊨ diagnosis = "all tests pass" → code-text' = code-text → ✓
+--   ⊨ fix-strategy = "none" → changed-lines empty → ✓ (vacuous satisfied)
+
+-- ⊢∘ CHECK: run-tests→fail-count = 0. Condition met. Evolution CONVERGES.
+-- ⊢∘ evolve terminates after 1 iteration — code was correct on first generation.
+
+-- state after frame 5: rewrite-code frozen.
+-- Ready set: { generate-proof-sketch }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 6: evaluate generate-proof-sketch (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { generate-proof-sketch }
+-- This is the NP-hard creative work: constructing a correctness argument.
+
+⊢ generate-proof-sketch
+  given rewrite-code→code-text' ≡ "def binary_search(arr, target): ..."
+  given generate-property-tests→properties ≡ [8 properties]
+  given spec→preconditions ≡ "arr is sorted in ascending order, no duplicates"
+  yield proof-sketch, invariants[], termination-argument
+
+  ∴ Generate a formal proof sketch for binary_search correctness...
+
+-- LLM evaluation (simulated):
+
+  yield invariants ≡ [
+    "INV1 (loop invariant): At the start of each iteration, if target ∈ arr[0..n-1], then target ∈ arr[lo..hi]. Equivalently: target ∉ arr[0..lo-1] ∧ target ∉ arr[hi+1..n-1].",
+    "INV2 (bounds): 0 ≤ lo ≤ hi + 1 ≤ n at loop entry (where n = len(arr)).",
+    "INV3 (midpoint): lo ≤ mid ≤ hi, so arr[mid] is always a valid access."
+  ]
+
+  yield termination-argument ≡ "The quantity (hi - lo + 1) is a natural number that strictly decreases each iteration. Initially hi - lo + 1 ≤ n. Each branch either returns (terminating) or reduces the search space: lo ← mid + 1 increases lo by ≥ 1, hi ← mid - 1 decreases hi by ≥ 1. Since mid = lo + (hi - lo) // 2, we have lo ≤ mid ≤ hi, so mid + 1 > lo and mid - 1 < hi. Thus hi - lo + 1 decreases by ≥ 1 per iteration. When hi - lo + 1 < 1 (i.e., lo > hi), the while condition fails and the loop terminates."
+
+  yield proof-sketch ≡ "
+    THEOREM: binary_search(arr, target) returns the index i such that
+    arr[i] = target, or -1 if target ∉ arr.
+
+    PRECONDITION: arr is sorted ascending with no duplicates.
+
+    PROOF:
+
+    Step 1 — Initialization:
+      lo = 0, hi = len(arr) - 1.
+      INV1 holds vacuously: arr[0..lo-1] = arr[0..-1] = ∅, and
+      arr[hi+1..n-1] = arr[n..n-1] = ∅, so no elements are excluded.
+      INV2 holds: lo = 0 ≤ hi + 1 = n when arr non-empty; when arr empty,
+      lo = 0 > hi = -1, loop doesn't execute, returns -1 correctly.
+
+    Step 2 — Maintenance (found case):
+      If arr[mid] = target, return mid.
+      Correctness: arr[mid] = target by direct comparison. Since arr has
+      no duplicates, mid is the unique index. ∎
+
+    Step 3 — Maintenance (target > arr[mid]):
+      arr[mid] < target, so set lo = mid + 1.
+      Since arr is sorted: ∀ j ∈ [lo..mid], arr[j] ≤ arr[mid] < target.
+      So target ∉ arr[lo..mid]. Combined with INV1 (target ∉ arr[0..lo-1]),
+      we get target ∉ arr[0..mid]. New lo = mid + 1 preserves INV1.
+
+    Step 4 — Maintenance (target < arr[mid]):
+      arr[mid] > target, so set hi = mid - 1.
+      Since arr is sorted: ∀ j ∈ [mid..hi], arr[j] ≥ arr[mid] > target.
+      So target ∉ arr[mid..hi]. Combined with INV1 (target ∉ arr[hi+1..n-1]),
+      we get target ∉ arr[mid..n-1]. New hi = mid - 1 preserves INV1.
+
+    Step 5 — Termination (not-found case):
+      Loop exits when lo > hi. By INV1: target ∉ arr[0..lo-1] and
+      target ∉ arr[hi+1..n-1]. Since lo > hi, these ranges cover
+      arr[0..n-1] entirely. Therefore target ∉ arr. Return -1. ∎
+
+    Step 6 — Termination argument:
+      Variant function V = hi - lo + 1. V ∈ ℕ at loop entry (since
+      lo ≤ hi implies V ≥ 1). Each non-returning branch decreases V by ≥ 1.
+      V = 0 ⟹ lo > hi ⟹ loop exits. Therefore the loop terminates.
+
+    Step 7 — Precondition usage:
+      Steps 3 and 4 use 'arr is sorted' to conclude that elements
+      on one side of mid are all < or > target. Without sortedness,
+      arr[mid] < target would NOT imply arr[lo..mid-1] < target, and
+      the search space reduction would be invalid.
+
+    QED.
+  "
+
+-- oracle checks:
+--   ⊨ proof-sketch contains at least 4 logical steps → ✓ (7 steps)
+--   ⊨ invariants includes loop invariant referencing lo, hi, target → ✓ (INV1)
+--   ⊨ termination-argument identifies decreasing quantity bounded below → ✓ (hi - lo + 1, bounded by 0)
+
+-- state after frame 6: generate-proof-sketch frozen.
+-- Ready set: { verify-proof }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 7: evaluate verify-proof (⊢= crystallized — deterministic check)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { verify-proof }
+-- This is the P-time check: the verifier is crystallized, no LLM needed.
+-- The proof was generated by an LLM (NP). The verifier checks structure (P).
+
+⊢ verify-proof ▸ crystallized
+  given generate-proof-sketch→proof-sketch ≡ "THEOREM: binary_search..."
+  given generate-proof-sketch→invariants ≡ [INV1, INV2, INV3]
+  given generate-proof-sketch→termination-argument ≡ "hi - lo + 1 decreases..."
+  given rewrite-code→code-text' ≡ "def binary_search(arr, target): ..."
+  yield proof-valid, gaps[], verdict
+
+  ⊢= proof-valid ← (
+    has-loop-invariant(invariants) ∧            -- ✓ INV1 is a loop invariant
+    invariant-references(invariants, ["lo", "hi", "target"]) ∧  -- ✓ INV1 refs all three
+    has-decreasing-quantity(termination-argument) ∧  -- ✓ "hi - lo + 1"
+    has-lower-bound(termination-argument) ∧     -- ✓ "bounded by 0"
+    proof-covers(proof-sketch, ["found-case", "not-found-case", "termination"]) ∧  -- ✓ steps 2, 5, 6
+    proof-uses-precondition(proof-sketch, "sorted")  -- ✓ step 7
+  )
+  -- All conjuncts true:
+
+  yield proof-valid ≡ true
+
+  ⊢= gaps ← missing-from(proof-sketch, [
+    "loop-invariant",           -- present (step 1, INV1)
+    "termination",              -- present (step 6)
+    "found-postcondition",      -- present (step 2)
+    "not-found-postcondition",  -- present (step 5)
+    "precondition-usage"        -- present (step 7)
+  ])
+  -- All required components present:
+
+  yield gaps ≡ []
+
+  ⊢= verdict ← proof-valid ∧ gaps = [] → "proof complete"
+
+  yield verdict ≡ "proof complete"
+
+-- oracle checks:
+--   ⊨ verdict ∈ valid set → ✓ ("proof complete")
+--   ⊨ proof-valid → gaps has at most 1 element → ✓ (gaps = [])
+--   ⊨ not proof-valid → gaps ≥ 2 → ✓ (vacuous — proof-valid is true)
+
+-- KEY MOMENT: The crystallized verifier (⊢=) checked the LLM-generated proof
+-- WITHOUT calling the LLM. Pure structural verification. This is the
+-- proof-carrying computation pattern: generate in NP, verify in P.
+
+-- state after frame 7: verify-proof frozen.
+-- Ready set: { proof-certificate }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 8: evaluate proof-certificate (soft cell, LLM — assembly)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { proof-certificate }
+
+⊢ proof-certificate
+  given verify-proof→verdict ≡ "proof complete"
+  given verify-proof→proof-valid ≡ true
+  given verify-proof→gaps ≡ []
+  given generate-proof-sketch→proof-sketch ≡ "THEOREM: binary_search..."
+  given rewrite-code→code-text' ≡ "def binary_search(arr, target): ..."
+  given run-tests→pass-count ≡ 12
+  yield certificate, confidence-level
+
+  ∴ Assemble proof-carrying certificate...
+
+-- LLM evaluation (simulated):
+
+  yield certificate ≡ "
+    ╔══════════════════════════════════════════════════════════╗
+    ║  PROOF-CARRYING CERTIFICATE                             ║
+    ║  binary_search(arr: int[], target: int) -> int          ║
+    ╠══════════════════════════════════════════════════════════╣
+    ║                                                          ║
+    ║  CODE (verified):                                        ║
+    ║    def binary_search(arr, target):                       ║
+    ║      lo, hi = 0, len(arr) - 1                           ║
+    ║      while lo <= hi:                                     ║
+    ║        mid = lo + (hi - lo) // 2                        ║
+    ║        if arr[mid] == target: return mid                 ║
+    ║        elif arr[mid] < target: lo = mid + 1             ║
+    ║        else: hi = mid - 1                               ║
+    ║      return -1                                           ║
+    ║                                                          ║
+    ║  TESTS: 12/12 passing                                    ║
+    ║    Properties: found, not-found, boundary-first,         ║
+    ║    boundary-last, single-found, single-not-found,        ║
+    ║    empty-array, midpoint                                 ║
+    ║                                                          ║
+    ║  PROOF: 7-step correctness argument                      ║
+    ║    Loop invariant: target ∈ arr[lo..hi] if present       ║
+    ║    Termination: hi - lo + 1 strictly decreasing          ║
+    ║    Found-case: direct comparison at mid                  ║
+    ║    Not-found: lo > hi ⟹ arr fully excluded              ║
+    ║    Precondition usage: sortedness in steps 3, 4          ║
+    ║                                                          ║
+    ║  VERIFICATION: ✓ proof complete                          ║
+    ║    Crystallized verifier (⊢=) confirmed all 5 proof      ║
+    ║    components present. No gaps detected.                  ║
+    ║                                                          ║
+    ║  CONFIDENCE: HIGH                                        ║
+    ║    All tests pass ∧ proof complete ∧ no gaps             ║
+    ╚══════════════════════════════════════════════════════════╝
+  "
+
+  yield confidence-level ≡ "high"
+
+-- oracle checks:
+--   ⊨ certificate includes code, proof, test-count, verdict → ✓
+--   ⊨ confidence-level ∈ valid set → ✓ ("high")
+--   ⊨ proof-valid ∧ pass-count ≥ 10 → confidence-level ≠ "low" → ✓ ("high")
+
+-- state after frame 8: proof-certificate frozen.
+-- Ready set: { } — no more cells with unbound yields.
+-- Frontier exhausted. Program complete (for this fixed set of cells).
+
+-- ═══════════════════════════════════════════════════════════════
+-- EXECUTION SUMMARY
+-- ═══════════════════════════════════════════════════════════════
+--
+-- Total frames: 9 (0-8)
+-- ⊢∘ iterations: 1 (code was correct on first generation — no rewrites needed)
+-- Cells evaluated: spec, generate-code, generate-property-tests, run-tests,
+--   analyze-failures, rewrite-code, generate-proof-sketch, verify-proof,
+--   proof-certificate
+-- Crystallized cells: 1 (verify-proof — ran without LLM)
+-- Soft cells: 7 (required LLM simulation)
+-- Pass-through cells: 1 (spec)
+--
+-- Input: 1 natural language specification
+-- Output: proof-carrying certificate with code, tests, and formal proof
+-- Tests: 12/12 passing across 8 properties
+-- Proof: 7-step argument verified by crystallized checker
+-- Confidence: HIGH
+--
+-- Key observations:
+--
+-- ⊢= Observation 1: proof-carrying computation separates generation from verification
+--   The LLM generated code (frame 1) and a proof (frame 6) — both creative,
+--   NP-hard tasks requiring search through a large space of possible outputs.
+--   The crystallized verifier (frame 7) checked the proof structurally in P-time
+--   without calling the LLM. This is Cell's killer pattern: the LLM finds
+--   solutions, the verifier certifies them. Neither trusts the other — the
+--   verifier catches wrong proofs, and the LLM doesn't know what the verifier
+--   will check. Adversarial separation produces trustworthy computation.
+--
+-- ⊢= Observation 2: the ⊢∘ evolution loop is a test-driven development cycle
+--   generate-code → run-tests → analyze-failures → rewrite-code is exactly
+--   the red-green-refactor cycle. When tests fail, the LLM analyzes WHY (not
+--   just retrying blindly) and applies targeted fixes. The evolution loop
+--   embeds software engineering methodology in the language itself. In this
+--   trace, the code passed on iteration 1 — but the mechanism for iterative
+--   repair was ready. A deliberately buggy initial implementation (e.g., using
+--   mid = (lo + hi) / 2 causing overflow) would trigger the full cycle.
+--
+-- ⊢= Observation 3: crystallization boundary is exactly the P/NP boundary
+--   verify-proof is crystallized (⊢=) because checking a proof is in P.
+--   generate-code and generate-proof-sketch are soft (∴) because generating
+--   correct code and proofs is NP-hard. This isn't coincidence — it's the
+--   fundamental asymmetry that makes proof-carrying computation work. Easy
+--   to check, hard to create. Cell's crystallization spectrum maps directly
+--   onto computational complexity classes.
+--
+-- ⊢= Observation 4: the oracle system provides layered assurance
+--   Three layers of evidence support the code's correctness:
+--   (1) Property tests — empirical evidence (12 concrete test cases)
+--   (2) Proof sketch — deductive evidence (7-step logical argument)
+--   (3) Proof verification — meta-evidence (crystallized checker confirms
+--       the proof has all required components). Each layer catches different
+--   failure modes: tests catch bugs, proofs catch logical gaps, verification
+--   catches incomplete proofs. This is defense in depth applied to correctness.
+--
+-- ⊢= Observation 5: generate-code and generate-property-tests are confluent
+--   In frame 1 and 2, both cells were in the ready set simultaneously.
+--   They depend only on spec (frozen in frame 0), not on each other.
+--   Confluence guarantees we'd get the same result evaluating them in either
+--   order — or in parallel. The test cases are generated independently of the
+--   code, ensuring they're not biased by the implementation. This independence
+--   is both a confluence property AND a testing best practice: the oracle
+--   (tests) shouldn't know how the implementation works.
