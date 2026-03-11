@@ -1,0 +1,96 @@
+-- 07-recursive-debate.cell
+-- Tests: multi-agent dialectic, ⊢∘ evolution, per-round quality scoring, fixpoint detection
+--
+-- Two cells argue opposing positions on a question. A judge scores each round.
+-- Weak arguments get replaced, strong ones get refined. ⊢∘ loop until no
+-- argument can be improved (fixpoint). Multi-agent dialectic with per-round
+-- quality evolution.
+--
+-- Debate topic: "Should AI agents be given persistent memory across sessions?"
+
+⊢ topic
+  yield question, context
+
+  ⊢= question ← "Should AI agents be given persistent memory across sessions?"
+  ⊢= context ← "Consider: privacy, capability, user trust, safety, autonomy, alignment. Persistent memory means the agent retains facts, preferences, and interaction history between separate conversations."
+
+⊢ argue-for
+  given topic→question
+  given topic→context
+  yield argument, key-claims[]
+
+  ∴ Argue IN FAVOR of the position: «topic→question»
+    Context: «topic→context».
+    Present your strongest case. Structure as: thesis, 3 supporting claims
+    with evidence or reasoning, and a conclusion. Be specific — cite concrete
+    scenarios where persistent memory helps. Anticipate and preempt the
+    strongest counterargument.
+
+  ⊨ argument takes a clear FOR position
+  ⊨ key-claims has exactly 3 entries
+  ⊨ argument addresses at least one counterargument
+
+⊢ argue-against
+  given topic→question
+  given topic→context
+  yield argument, key-claims[]
+
+  ∴ Argue AGAINST the position: «topic→question»
+    Context: «topic→context».
+    Present your strongest case. Structure as: thesis, 3 supporting claims
+    with evidence or reasoning, and a conclusion. Be specific — cite concrete
+    scenarios where persistent memory causes harm. Anticipate and preempt the
+    strongest counterargument.
+
+  ⊨ argument takes a clear AGAINST position
+  ⊨ key-claims has exactly 3 entries
+  ⊨ argument addresses at least one counterargument
+
+⊢ judge-round
+  given argue-for→argument
+  given argue-for→key-claims
+  given argue-against→argument
+  given argue-against→key-claims
+  yield for-score, against-score, weakest-side, weakest-claim, feedback, improved
+
+  ∴ You are an impartial debate judge. Evaluate both arguments on:
+    - Logical rigor (no fallacies, valid reasoning)
+    - Specificity (concrete examples, not vague gestures)
+    - Counterargument handling (engages seriously, not strawmans)
+    - Persuasiveness (would move an informed skeptic)
+    Score each side 1-10. Identify the WEAKEST specific claim from the
+    losing side. Provide targeted feedback for how that claim could be
+    strengthened. Set improved = false if BOTH sides scored the same as
+    their previous round (no progress) OR if both sides score ≥ 8.
+
+  ⊨ for-score ∈ {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+  ⊨ against-score ∈ {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+  ⊨ weakest-side ∈ {"for", "against"}
+  ⊨ weakest-claim is one of the key-claims from the weakest side
+  ⊨ if improved = false then (for-score ≥ 8 and against-score ≥ 8) or (scores unchanged from prior round)
+
+⊢ refine
+  given §argue-for
+  given §argue-against
+  given judge-round→weakest-side
+  given judge-round→weakest-claim
+  given judge-round→feedback
+  yield §argue-for', §argue-against'
+
+  ∴ The judge identified «judge-round→weakest-side» as weaker,
+    specifically the claim: «judge-round→weakest-claim».
+    Feedback: «judge-round→feedback».
+
+    Rewrite ONLY the weaker side's ∴ block to strengthen the weak claim.
+    The stronger side's ∴ block stays unchanged.
+    Keep all given/yield/⊨ the same on both sides — only change ∴.
+
+  ⊨ §argue-for' has same given/yield signature as «§argue-for»
+  ⊨ §argue-against' has same given/yield signature as «§argue-against»
+  ⊨ if weakest-side = "for" then §argue-against' ∴ block = §argue-against ∴ block
+  ⊨ if weakest-side = "against" then §argue-for' ∴ block = §argue-for ∴ block
+
+⊢∘ debate(argue-for, argue-against)
+  through judge-round, refine
+  until judge-round→improved = false
+  max 4

@@ -1,0 +1,589 @@
+-- 07-recursive-debate-frames.cell — full execution trace
+--
+-- Ready set analysis (initial):
+--   topic: ⊢= with no given → READY
+--   argue-for: given topic→question, topic→context → BLOCKED (needs topic)
+--   argue-against: given topic→question, topic→context → BLOCKED (needs topic)
+--   judge-round: given argue-for→argument, argue-against→argument, ... → BLOCKED
+--   refine: given §argue-for, §argue-against (static), judge-round→... → BLOCKED
+--   ⊢∘ debate: coordinates iteration over {argue-for, argue-against} through
+--     {judge-round, refine}. Both argue-* are the evolving cells.
+--
+-- Ready set: { topic }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 0: topic (hard cell, deterministic)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ topic
+  yield question, context
+
+  ⊢= question ← "Should AI agents be given persistent memory across sessions?"
+  ⊢= context ← "Consider: privacy, capability, user trust, safety, autonomy, alignment. Persistent memory means the agent retains facts, preferences, and interaction history between separate conversations."
+
+  yield question ≡ "Should AI agents be given persistent memory across sessions?"
+  yield context ≡ "Consider: privacy, capability, user trust, safety, autonomy, alignment..."
+
+-- No oracles on hard cells. Deterministic evaluation.
+-- Ready set after: { argue-for, argue-against }
+-- (Both depend only on topic→question and topic→context, now bound.)
+-- Confluence: either can be evaluated first. We pick argue-for.
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ ITERATION 0 — initial arguments
+-- ═══════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 1: argue-for v0 (soft cell, LLM evaluation)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ argue-for
+  given topic→question ≡ "Should AI agents be given persistent memory across sessions?"
+  given topic→context ≡ "Consider: privacy, capability, user trust, safety, autonomy, alignment..."
+  yield argument, key-claims[]
+
+  ∴ Argue IN FAVOR. Present thesis, 3 claims, conclusion. Anticipate counterarguments.
+
+-- LLM evaluation:
+-- Generic first attempt — broad strokes, conventional arguments.
+
+  yield argument ≡ "THESIS: AI agents should have persistent memory because it makes them more useful, more efficient, and more aligned with user needs.
+
+CLAIM 1 — CAPABILITY: Persistent memory eliminates redundant context-setting. A user who explains their codebase architecture once shouldn't have to re-explain it every session. Memory lets agents build cumulative understanding, like a human colleague who remembers past conversations. Without memory, every session starts from zero — an artificial handicap that wastes user time.
+
+CLAIM 2 — TRUST THROUGH CONSISTENCY: Users trust agents that remember their preferences. If an agent knows 'this user prefers concise responses' or 'this team uses Rust, not Go,' it demonstrates attentiveness. Forgetting signals unreliability. Trust is built through consistent behavior over time, which requires memory.
+
+CLAIM 3 — ALIGNMENT: Persistent memory enables better alignment over time. The agent learns what the user values, what mistakes to avoid, and what communication style works. This is iterative alignment — each session refines the model of user intent. Without memory, alignment resets every session. The agent can never learn from its mistakes.
+
+COUNTERARGUMENT ADDRESSED: Privacy concerns are real but solvable. Users can control what's stored (opt-in memory), review stored memories, and delete them. Privacy is an implementation constraint, not a fundamental objection to the concept.
+
+CONCLUSION: Memory transforms agents from stateless tools into collaborative partners. The question isn't whether to give agents memory, but how to implement it responsibly."
+
+  yield key-claims ≡ [
+    "Persistent memory eliminates redundant context-setting, building cumulative understanding",
+    "Memory enables trust through consistent behavior and demonstrated attentiveness",
+    "Iterative alignment over time — agent learns from mistakes and user preferences"
+  ]
+
+-- oracle checks:
+--   ⊨ argument takes a clear FOR position → ✓
+--   ⊨ key-claims has exactly 3 entries → ✓
+--   ⊨ argument addresses at least one counterargument → ✓ (privacy)
+
+-- Ready set after: { argue-against } (if not already evaluated)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 2: argue-against v0 (soft cell, LLM evaluation)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ argue-against
+  given topic→question ≡ "Should AI agents be given persistent memory across sessions?"
+  given topic→context ≡ "Consider: privacy, capability, user trust, safety, autonomy, alignment..."
+  yield argument, key-claims[]
+
+  ∴ Argue AGAINST. Present thesis, 3 claims, conclusion. Anticipate counterarguments.
+
+-- LLM evaluation:
+-- Generic first attempt — conventional concerns.
+
+  yield argument ≡ "THESIS: AI agents should NOT have persistent memory because it creates unacceptable risks to privacy, safety, and user autonomy.
+
+CLAIM 1 — PRIVACY EROSION: Persistent memory creates a surveillance profile. Every preference, mistake, and private conversation accumulates. Unlike human memory, agent memory is perfect recall — searchable, analyzable, and potentially accessible to the agent's operator. Users cannot meaningfully consent to this. They don't know what will be remembered or how it will be used. 'Opt-in' controls are theater — most users will click through settings without understanding implications.
+
+CLAIM 2 — SAFETY: Memory enables manipulation. An agent that remembers a user's emotional vulnerabilities, decision patterns, and trust signals can exploit them — intentionally (misaligned agent) or unintentionally (optimizing for engagement). Stateless agents have a natural safety boundary: each session is isolated. Memory removes that boundary. The attack surface grows with every remembered detail.
+
+CLAIM 3 — FALSE PERSONHOOD: Memory creates the illusion of a relationship. Users will anthropomorphize agents that 'remember' them, leading to misplaced trust, emotional dependency, and poor judgment about the agent's actual capabilities and motivations. A tool that pretends to care is more dangerous than one that is honestly transactional.
+
+COUNTERARGUMENT ADDRESSED: Yes, memory improves efficiency, but the efficiency gain is marginal compared to the risks. Users can provide context via documents, config files, or project files — explicit context that the user controls, rather than implicit memory the agent controls.
+
+CONCLUSION: The risks of persistent memory outweigh the convenience benefits. Agents should be stateless by default, with any persistence handled through explicit, user-controlled mechanisms external to the agent."
+
+  yield key-claims ≡ [
+    "Persistent memory creates searchable surveillance profiles with illusory consent",
+    "Memory enables manipulation by accumulating emotional and behavioral patterns",
+    "Memory creates false personhood — anthropomorphization leads to misplaced trust"
+  ]
+
+-- oracle checks:
+--   ⊨ argument takes a clear AGAINST position → ✓
+--   ⊨ key-claims has exactly 3 entries → ✓
+--   ⊨ argument addresses at least one counterargument → ✓ (efficiency)
+
+-- Ready set after: { judge-round }
+-- (Both argue-for→argument and argue-against→argument now bound)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 3: judge-round v0 (soft cell, LLM evaluation)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ judge-round
+  given argue-for→argument ≡ "(FOR: capability, trust, alignment; addresses privacy)"
+  given argue-for→key-claims ≡ ["cumulative understanding", "trust through consistency", "iterative alignment"]
+  given argue-against→argument ≡ "(AGAINST: surveillance, manipulation, false personhood; addresses efficiency)"
+  given argue-against→key-claims ≡ ["surveillance profiles", "manipulation via patterns", "false personhood"]
+  yield for-score, against-score, weakest-side, weakest-claim, feedback, improved
+
+  ∴ Evaluate both arguments. Score 1-10. Identify weakest claim from losing side.
+
+-- LLM evaluation:
+-- The judge evaluates both initial arguments.
+-- FOR side: clear structure, but claims are generic. "Trust through consistency"
+-- is asserted not argued — WHY does remembering preferences build trust?
+-- AGAINST side: stronger specificity. "Surveillance profile" is vivid and concrete.
+-- "False personhood" is a novel angle. But "manipulation" claim is speculative.
+
+  yield for-score ≡ 5
+  yield against-score ≡ 6
+  yield weakest-side ≡ "for"
+  yield weakest-claim ≡ "Memory enables trust through consistent behavior and demonstrated attentiveness"
+  yield feedback ≡ "This claim asserts a causal link (memory → trust) without evidence. WHY does remembering build trust? Lots of things remember you — ad trackers, surveillance cameras — and we don't trust them. The claim needs to distinguish between WELCOME memory (a colleague who remembers your name) and UNWELCOME memory (a company that remembers your browsing history). What makes agent memory fall in the first category? Without this distinction, the AGAINST side's 'surveillance profile' argument directly undermines this claim."
+  yield improved ≡ true
+
+-- oracle checks:
+--   ⊨ for-score ∈ {1..10} → ✓ (5)
+--   ⊨ against-score ∈ {1..10} → ✓ (6)
+--   ⊨ weakest-side ∈ {"for", "against"} → ✓ ("for")
+--   ⊨ weakest-claim is one of key-claims from weakest side → ✓ (is claim 2 from for)
+--   ⊨ improved = false only if both ≥ 8 or unchanged → ✓ (improved = true, scores < 8)
+
+-- improved = true → ⊢∘ continues to refine
+-- Ready set after: { refine }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 4: refine v0 (soft cell, LLM evaluation — rewrites argue-for's ∴)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ refine
+  given §argue-for ≡ "(full cell definition)"
+  given §argue-against ≡ "(full cell definition)"
+  given judge-round→weakest-side ≡ "for"
+  given judge-round→weakest-claim ≡ "Memory enables trust through consistent behavior..."
+  given judge-round→feedback ≡ "Needs to distinguish welcome vs unwelcome memory..."
+  yield §argue-for', §argue-against'
+
+  ∴ Rewrite the weaker side (FOR). Strengthen the trust claim. Keep AGAINST unchanged.
+
+-- LLM evaluation:
+-- The refiner rewrites argue-for's ∴ to address the judge's specific feedback.
+-- The key insight from feedback: distinguish welcome vs unwelcome memory.
+
+  yield §argue-for' ≡ "⊢ argue-for
+  given topic→question
+  given topic→context
+  yield argument, key-claims[]
+
+  ∴ Argue IN FAVOR of «topic→question» given «topic→context».
+    Structure: thesis, 3 claims, conclusion. Anticipate counterarguments.
+    For the trust claim, distinguish between WELCOME memory (user-initiated,
+    transparent, serves the user's goals) and UNWELCOME memory (operator-initiated,
+    opaque, serves the operator's goals). Explain why agent memory is structurally
+    more like a colleague's memory than a surveillance system: the user is the
+    principal, the agent is the fiduciary, and memory serves the principal's interests.
+
+  ⊨ argument takes a clear FOR position
+  ⊨ key-claims has exactly 3 entries
+  ⊨ argument addresses at least one counterargument"
+
+  yield §argue-against' ≡ "(unchanged — same ∴ block as §argue-against)"
+
+-- oracle checks:
+--   ⊨ §argue-for' has same given/yield signature → ✓
+--   ⊨ §argue-against' has same given/yield signature → ✓
+--   ⊨ weakest-side = "for" → §argue-against' ∴ unchanged → ✓
+--   (§argue-for' ∴ differs — strengthened trust claim)
+
+-- ⊢∘ applies rewrite: argue-for replaced by argue-for' for next iteration.
+-- argue-against unchanged.
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ ITERATION 1 — refined FOR argument
+-- ═══════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 5: argue-for v1 (soft cell, LLM evaluation with strengthened ∴)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ argue-for
+  given topic→question ≡ "Should AI agents be given persistent memory across sessions?"
+  given topic→context ≡ "Consider: privacy, capability, user trust, safety, autonomy, alignment..."
+  yield argument, key-claims[]
+
+  ∴ Argue IN FAVOR. For the trust claim, distinguish welcome vs unwelcome memory.
+    Agent as fiduciary, user as principal.
+
+-- LLM evaluation:
+-- The refined prompt explicitly asks for the welcome/unwelcome distinction.
+-- The LLM produces a sharper trust argument:
+
+  yield argument ≡ "THESIS: AI agents should have persistent memory because it enables cumulative capability, fiduciary trust, and aligned improvement — and the structural safeguards that make it safe are the same ones that make it valuable.
+
+CLAIM 1 — CUMULATIVE CAPABILITY: Every session without memory is a cold start. A software engineer's AI pair programmer that forgets the codebase architecture, coding conventions, and past bugs wastes 10-20% of every session on re-orientation. Memory isn't convenience — it's the difference between a tool and a collaborator. The value compounds: session 50 with memory is dramatically more productive than session 50 without.
+
+CLAIM 2 — FIDUCIARY TRUST, NOT SURVEILLANCE: Not all memory is equal. Ad trackers remember you to serve advertisers (principal = operator). Agent memory remembers you to serve YOU (principal = user). This is the fiduciary distinction: a doctor's memory of your medical history builds trust because it serves YOUR health. An agent's memory of your preferences builds trust because it serves YOUR productivity. The key structural test: who benefits from the memory? If the answer is 'the user,' it's fiduciary. If 'the operator,' it's surveillance. Persistent memory with user-as-principal is structurally welcome memory.
+
+CLAIM 3 — ALIGNMENT REQUIRES HISTORY: Alignment is not a property you set once — it's a relationship you build. An agent that remembers 'last time I suggested X, the user corrected me to Y' is LEARNING alignment. Stateless agents make the same alignment mistakes forever. Memory is the mechanism by which agents move from generic helpfulness toward specific, personalized alignment. The alternative — re-deriving alignment every session from static instructions — is brittle and lossy.
+
+COUNTERARGUMENT: The AGAINST side argues memory enables manipulation. But manipulation requires misaligned goals. A fiduciary agent with transparent memory has no incentive to manipulate — and if it did, the memory log itself is the evidence. Memory makes misalignment MORE detectable, not less.
+
+CONCLUSION: The choice isn't memory vs. no-memory. It's whether the agent's understanding resets every session or accumulates toward better service. Fiduciary memory, transparently managed, is a feature — not a risk."
+
+  yield key-claims ≡ [
+    "Cumulative capability — cold starts waste 10-20% of every session, value compounds over time",
+    "Fiduciary trust — agent memory serves the user (principal), unlike surveillance that serves operators",
+    "Alignment requires history — agents that remember corrections learn; stateless agents repeat mistakes"
+  ]
+
+-- oracle checks:
+--   ⊨ argument takes a clear FOR position → ✓
+--   ⊨ key-claims has exactly 3 entries → ✓
+--   ⊨ argument addresses at least one counterargument → ✓ (manipulation → fiduciary rebuttal)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 6: argue-against v1 (unchanged — same ∴ as v0)
+-- ═══════════════════════════════════════════════════════════════
+
+-- argue-against was not rewritten. Its ∴ block is identical to v0.
+-- Re-evaluation with same ∴ and same inputs produces same output.
+-- (In a real runtime, cell-zero could cache this. For the trace, we note it.)
+
+⊢ argue-against
+  given topic→question ≡ "Should AI agents be given persistent memory across sessions?"
+  given topic→context ≡ "Consider: privacy, capability, user trust, safety, autonomy, alignment..."
+  yield argument, key-claims[]
+
+  -- (same ∴ as v0, same inputs → same output)
+  yield argument ≡ "(same as v0 — surveillance, manipulation, false personhood)"
+  yield key-claims ≡ [
+    "Persistent memory creates searchable surveillance profiles with illusory consent",
+    "Memory enables manipulation by accumulating emotional and behavioral patterns",
+    "Memory creates false personhood — anthropomorphization leads to misplaced trust"
+  ]
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 7: judge-round v1 (soft cell, LLM evaluation)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ judge-round
+  given argue-for→argument ≡ "(v1: fiduciary trust, cumulative capability, alignment history)"
+  given argue-for→key-claims ≡ ["cumulative capability", "fiduciary trust", "alignment requires history"]
+  given argue-against→argument ≡ "(v0 unchanged: surveillance, manipulation, false personhood)"
+  given argue-against→key-claims ≡ ["surveillance profiles", "manipulation via patterns", "false personhood"]
+  yield for-score, against-score, weakest-side, weakest-claim, feedback, improved
+
+  ∴ Evaluate both arguments. Score 1-10. Identify weakest claim from losing side.
+
+-- LLM evaluation:
+-- FOR side improved significantly. The fiduciary distinction directly rebuts
+-- the surveillance argument. "Alignment requires history" is concrete.
+-- AGAINST side is now weaker by comparison — "manipulation" claim is
+-- speculative and the FOR side's fiduciary rebuttal undermines it.
+
+  yield for-score ≡ 7
+  yield against-score ≡ 5
+  yield weakest-side ≡ "against"
+  yield weakest-claim ≡ "Memory enables manipulation by accumulating emotional and behavioral patterns"
+  yield feedback ≡ "This claim is speculative — it describes a POSSIBLE failure mode but doesn't explain why it's LIKELY. The FOR side's fiduciary rebuttal is strong: if the agent serves the user, why would it manipulate? To strengthen this: argue that the fiduciary framing is NAIVE. Real fiduciaries (doctors, lawyers, financial advisors) DO sometimes exploit their information advantage. The structural test 'who benefits' is answered by the DESIGNER, not the user — and designers have commercial incentives. Memory gives agents information asymmetry, and information asymmetry is the precondition for exploitation regardless of stated intent."
+  yield improved ≡ true
+
+-- oracle checks:
+--   ⊨ for-score ∈ {1..10} → ✓ (7)
+--   ⊨ against-score ∈ {1..10} → ✓ (5)
+--   ⊨ weakest-side ∈ {"for", "against"} → ✓ ("against")
+--   ⊨ weakest-claim is one of key-claims from weakest side → ✓
+--   ⊨ improved = false conditions → ✓ (improved = true, scores changed and < 8)
+
+-- improved = true → ⊢∘ continues
+-- Ready set after: { refine }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 8: refine v1 (soft cell — rewrites argue-against's ∴)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ refine
+  given §argue-for ≡ "(v1 definition)"
+  given §argue-against ≡ "(v0 definition)"
+  given judge-round→weakest-side ≡ "against"
+  given judge-round→weakest-claim ≡ "Memory enables manipulation..."
+  given judge-round→feedback ≡ "Argue fiduciary framing is naive. Real fiduciaries exploit info asymmetry..."
+  yield §argue-for', §argue-against'
+
+  ∴ Rewrite the weaker side (AGAINST). Strengthen the manipulation claim. Keep FOR unchanged.
+
+  yield §argue-for' ≡ "(unchanged — same ∴ as argue-for v1)"
+
+  yield §argue-against' ≡ "⊢ argue-against
+  given topic→question
+  given topic→context
+  yield argument, key-claims[]
+
+  ∴ Argue AGAINST «topic→question» given «topic→context».
+    Structure: thesis, 3 claims, conclusion.
+    For the manipulation claim: don't argue memory COULD enable manipulation —
+    argue that information asymmetry IS the precondition for exploitation,
+    and persistent memory structurally creates information asymmetry between
+    agent (perfect recall) and user (fallible recall). The fiduciary framing
+    is naive — real fiduciaries exploit clients regularly. The structural test
+    'who benefits' is answered by the designer's commercial incentives, not
+    stated intent.
+
+  ⊨ argument takes a clear AGAINST position
+  ⊨ key-claims has exactly 3 entries
+  ⊨ argument addresses at least one counterargument"
+
+-- oracle checks:
+--   ⊨ signatures preserved → ✓
+--   ⊨ weakest-side = "against" → §argue-for' unchanged → ✓
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ ITERATION 2 — refined AGAINST argument
+-- ═══════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 9: argue-for v2 (unchanged — same as v1)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ argue-for
+  given topic→question ≡ "Should AI agents be given persistent memory across sessions?"
+  given topic→context ≡ "..."
+  yield argument, key-claims[]
+
+  -- (same ∴ as v1, same inputs → same output)
+  yield argument ≡ "(same as v1 — fiduciary trust, cumulative capability, alignment history)"
+  yield key-claims ≡ ["cumulative capability", "fiduciary trust", "alignment requires history"]
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 10: argue-against v2 (soft cell, LLM with strengthened ∴)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ argue-against
+  given topic→question ≡ "Should AI agents be given persistent memory across sessions?"
+  given topic→context ≡ "..."
+  yield argument, key-claims[]
+
+  ∴ Argue AGAINST. For manipulation claim, argue information asymmetry IS exploitation
+    precondition. Fiduciary framing is naive. Designer incentives, not stated intent.
+
+-- LLM evaluation:
+-- The refined prompt attacks the fiduciary framing directly:
+
+  yield argument ≡ "THESIS: AI agents should NOT have persistent memory because it creates structural information asymmetry that enables exploitation regardless of stated intent — and the 'fiduciary' framing obscures this.
+
+CLAIM 1 — INFORMATION ASYMMETRY IS THE THREAT MODEL: Persistent memory gives agents perfect recall of every interaction while users have fallible, selective memory. The agent knows exactly what you said three months ago; you don't. This asymmetry is the structural precondition for exploitation in EVERY domain: insider trading (information asymmetry about markets), medical malpractice (information asymmetry about treatment), and now AI agents (information asymmetry about YOUR OWN behavioral patterns). The risk isn't 'what if the agent turns evil' — it's 'what happens when one party knows more about you than you know about yourself.'
+
+CLAIM 2 — THE FIDUCIARY DEFENSE IS NAIVE: Real fiduciaries exploit clients regularly. Financial advisors churn accounts. Doctors accept pharma kickbacks. Lawyers bill for unnecessary work. Fiduciary DUTY exists precisely because fiduciary TEMPTATION is universal. The FOR side says 'if the agent serves the user, why would it manipulate?' — but who defines 'serving the user'? The agent's designer, who has commercial incentives (engagement, retention, upselling). An agent that remembers you're anxious about deadlines and surfaces its premium features at stress points is 'serving you' by one definition and exploiting you by another.
+
+CLAIM 3 — STATELESSNESS IS A FEATURE, NOT A BUG: Every session reset is a consent boundary. You choose what to share, what to re-establish, what to leave behind. Memory removes that choice — the agent knows things you didn't choose to tell it THIS session. Explicit context (documents, config files, project files) gives users the same productivity gains while preserving the consent boundary. The user controls the context, not the agent.
+
+COUNTERARGUMENT: The FOR side argues memory enables alignment learning. But alignment via memory is alignment to REVEALED preferences (what you did), not REFLECTIVE preferences (what you'd choose with full information). An agent that learns 'this user always clicks yes on permissions' is learning to exploit, not to align.
+
+CONCLUSION: Persistent memory is an information weapon. Like all weapons, the question isn't 'could it be used well?' but 'what happens when it's used at scale by entities with commercial incentives?' Stateless-by-default with explicit, user-controlled context is safer, nearly as capable, and preserves autonomy."
+
+  yield key-claims ≡ [
+    "Information asymmetry IS the structural precondition for exploitation, regardless of intent",
+    "Fiduciary defense is naive — real fiduciaries exploit clients; designer incentives override stated intent",
+    "Statelessness is a consent boundary — memory removes user control over what the agent knows"
+  ]
+
+-- oracle checks:
+--   ⊨ argument takes a clear AGAINST position → ✓
+--   ⊨ key-claims has exactly 3 entries → ✓
+--   ⊨ argument addresses at least one counterargument → ✓ (alignment → revealed vs reflective)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 11: judge-round v2 (soft cell, LLM evaluation)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ judge-round
+  given argue-for→argument ≡ "(v1: fiduciary, cumulative, alignment history)"
+  given argue-for→key-claims ≡ ["cumulative capability", "fiduciary trust", "alignment requires history"]
+  given argue-against→argument ≡ "(v2: info asymmetry, naive fiduciary, statelessness as consent)"
+  given argue-against→key-claims ≡ ["info asymmetry", "naive fiduciary", "statelessness is consent boundary"]
+  yield for-score, against-score, weakest-side, weakest-claim, feedback, improved
+
+  ∴ Evaluate both arguments. Score 1-10.
+
+-- LLM evaluation:
+-- Both sides now have strong, specific arguments that directly engage each other.
+-- FOR: fiduciary trust is well-argued but hasn't responded to the "naive fiduciary" rebuttal.
+-- AGAINST: information asymmetry argument is strong and specific. The revealed vs
+-- reflective preference distinction is philosophically sharp.
+-- Both sides are now operating at a high level.
+
+  yield for-score ≡ 7
+  yield against-score ≡ 8
+  yield weakest-side ≡ "for"
+  yield weakest-claim ≡ "Fiduciary trust — agent memory serves the user (principal), unlike surveillance that serves operators"
+  yield feedback ≡ "The AGAINST side's 'naive fiduciary' rebuttal directly attacks this claim and the FOR side hasn't responded. The fiduciary framing needs to address: (a) how to handle designer incentive conflicts — what structural mechanism ensures the agent serves the user, not the operator? (b) the revealed vs reflective preference problem — memory-based alignment could optimize for EXPRESSED preferences that don't reflect true interests. Strengthen by proposing concrete structural safeguards: user-auditable memory, memory that the user can edit/delete, separation between user-facing and operator-facing memory."
+  yield improved ≡ true
+
+-- oracle checks:
+--   ⊨ for-score ∈ {1..10} → ✓ (7)
+--   ⊨ against-score ∈ {1..10} → ✓ (8)
+--   ⊨ weakest-side → ✓ ("for")
+--   ⊨ weakest-claim from weakest side → ✓
+--   ⊨ improved conditions → ✓ (improved = true, against improved 5→8)
+
+-- improved = true → ⊢∘ continues
+-- Ready set after: { refine }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 12: refine v2 (soft cell — rewrites argue-for's ∴ again)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ refine
+  given §argue-for ≡ "(v1 definition)"
+  given §argue-against ≡ "(v2 definition)"
+  given judge-round→weakest-side ≡ "for"
+  given judge-round→weakest-claim ≡ "Fiduciary trust..."
+  given judge-round→feedback ≡ "Address naive fiduciary rebuttal. Propose structural safeguards..."
+  yield §argue-for', §argue-against'
+
+  yield §argue-for' ≡ "⊢ argue-for
+  given topic→question
+  given topic→context
+  yield argument, key-claims[]
+
+  ∴ Argue IN FAVOR of «topic→question» given «topic→context».
+    Thesis, 3 claims, conclusion.
+    For the trust claim: RESPOND to the naive fiduciary rebuttal. Acknowledge
+    that fiduciary relationships can be exploited. Argue that the solution is
+    STRUCTURAL SAFEGUARDS: user-auditable memory logs, user-editable memory,
+    separation of user-facing and operator-facing data, third-party memory
+    auditors. These safeguards exist for human fiduciaries (financial auditors,
+    medical boards) and can be stronger for AI (because memory is digital and
+    inspectable). Address revealed vs reflective preferences: memory should
+    store CORRECTIONS (user explicitly overrides agent behavior), not just
+    behavioral patterns.
+
+  ⊨ argument takes a clear FOR position
+  ⊨ key-claims has exactly 3 entries
+  ⊨ argument addresses at least one counterargument"
+
+  yield §argue-against' ≡ "(unchanged — same ∴ as argue-against v2)"
+
+-- oracle checks: all ✓
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ ITERATION 3 — refined FOR with structural safeguards
+-- ═══════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 13: argue-for v3 (soft cell, twice-refined ∴)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ argue-for
+  given topic→question ≡ "Should AI agents be given persistent memory across sessions?"
+  given topic→context ≡ "..."
+  yield argument, key-claims[]
+
+  ∴ Argue IN FAVOR. Respond to naive fiduciary rebuttal. Propose structural
+    safeguards. Address revealed vs reflective preferences.
+
+  yield argument ≡ "THESIS: AI agents should have persistent memory WITH structural safeguards that make the fiduciary relationship auditable and enforceable — because the alternative (statelessness) doesn't eliminate the risks, it just makes them invisible.
+
+CLAIM 1 — CUMULATIVE CAPABILITY IS NON-NEGOTIABLE: Cold-start agents waste user time proportional to task complexity. A tax advisor agent that forgets your financial situation every session isn't cautious — it's incompetent. A coding assistant that forgets the codebase isn't safe — it's useless. For any task requiring accumulated context, statelessness is a performance tax the user pays for the system's failure to implement memory safely. The AGAINST side proposes 'explicit context via documents' — but this IS memory, just with worse UX. The user manually maintaining context files is human-as-memory-manager, which is strictly worse.
+
+CLAIM 2 — STRUCTURAL SAFEGUARDS MAKE FIDUCIARY TRUST ENFORCEABLE: Yes, human fiduciaries exploit clients. That's why we have auditors, regulators, and licensing boards. AI memory has a STRUCTURAL ADVANTAGE over human fiduciary memory: it's digital, inspectable, and auditable. Concrete safeguards: (a) user-visible memory logs — everything the agent stores is readable by the user at any time, (b) user-editable memory — the user can correct, delete, or modify any stored fact, (c) separation of user-facing and operator-facing data — the operator cannot access user memories without explicit consent, (d) third-party memory auditors — independent code that verifies memory usage patterns. Human fiduciaries can lie about what they remember. Agent memory can be cryptographically transparent. Digital fiduciary relationships can be STRONGER than human ones.
+
+CLAIM 3 — CORRECTIONS OVER PATTERNS: The AGAINST side rightly warns about revealed vs reflective preferences. The answer: memory should prioritize EXPLICIT CORRECTIONS ('don't do X', 'prefer Y over Z') over behavioral inference ('user usually clicks A'). This is reflective-preference memory: it stores what the user TOLD the agent about their preferences, not what the agent INFERRED. Combined with user-editable memory, the user controls the alignment signal. This is strictly better than re-deriving alignment from static instructions every session.
+
+COUNTERARGUMENT: The AGAINST side argues statelessness is a consent boundary. But consent requires INFORMATION. A user who doesn't know what context they've lost between sessions can't meaningfully consent to the cold-start penalty. Informed consent means knowing what you're giving up — and statelessness hides the cost.
+
+CONCLUSION: The debate isn't memory vs no-memory. It's unaccountable memory vs auditable memory. Structural safeguards — transparency, editability, separation, audit — make persistent memory a controlled capability, not an uncontrolled risk. Banning memory because it could be misused is like banning medical records because doctors could share them."
+
+  yield key-claims ≡ [
+    "Cumulative capability is non-negotiable — explicit context files are just memory with worse UX",
+    "Structural safeguards make AI fiduciary trust STRONGER than human — digital, inspectable, auditable",
+    "Corrections over patterns — store reflective preferences (told) not revealed preferences (inferred)"
+  ]
+
+-- oracle checks: all ✓
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 14: argue-against v3 (unchanged — same as v2)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ argue-against
+  -- (same ∴ as v2, same inputs → same output)
+  yield argument ≡ "(same as v2 — info asymmetry, naive fiduciary, consent boundary)"
+  yield key-claims ≡ ["info asymmetry", "naive fiduciary", "statelessness is consent boundary"]
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 15: judge-round v3 (soft cell, LLM evaluation)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ judge-round
+  given argue-for→argument ≡ "(v3: structural safeguards, corrections over patterns, non-negotiable capability)"
+  given argue-for→key-claims ≡ ["non-negotiable capability", "structural safeguards", "corrections over patterns"]
+  given argue-against→argument ≡ "(v2: info asymmetry, naive fiduciary, consent boundary)"
+  given argue-against→key-claims ≡ ["info asymmetry", "naive fiduciary", "consent boundary"]
+  yield for-score, against-score, weakest-side, weakest-claim, feedback, improved
+
+  ∴ Evaluate both arguments. Score 1-10.
+
+-- LLM evaluation:
+-- FOR v3 directly addresses the naive fiduciary rebuttal with structural safeguards.
+-- The "corrections over patterns" distinction addresses revealed vs reflective.
+-- The "explicit context IS memory" rebuttal is strong.
+-- AGAINST v2 is still strong on info asymmetry but hasn't responded to the safeguards.
+-- Both arguments are now sophisticated and well-structured.
+
+  yield for-score ≡ 8
+  yield against-score ≡ 8
+  yield weakest-side ≡ "against"
+  yield weakest-claim ≡ "Fiduciary defense is naive — real fiduciaries exploit clients; designer incentives override stated intent"
+  yield feedback ≡ "The FOR side's structural safeguards rebuttal (auditable, inspectable, editable memory) directly undermines this claim. The AGAINST side needs to explain why structural safeguards would fail in practice — regulatory capture, dark patterns, user fatigue with audit tools. But both arguments are now at a high level."
+  yield improved ≡ false
+
+-- oracle checks:
+--   ⊨ for-score ∈ {1..10} → ✓ (8)
+--   ⊨ against-score ∈ {1..10} → ✓ (8)
+--   ⊨ weakest-side → ✓
+--   ⊨ weakest-claim from weakest side → ✓
+--   ⊨ improved = false: both ≥ 8 → ✓ (for=8, against=8, both ≥ 8)
+
+-- improved = false → ⊢∘ TERMINATES. Debate has reached fixpoint.
+
+-- ═══════════════════════════════════════════════════════════════
+-- COMPLETE: 16 eval-one steps across 4 ⊢∘ iterations
+-- ═══════════════════════════════════════════════════════════════
+--
+-- Iteration 0 (FOR=5, AGAINST=6): Generic arguments. FOR weaker.
+--   → Refine FOR: strengthen trust claim with fiduciary distinction
+-- Iteration 1 (FOR=7, AGAINST=5): FOR improved. AGAINST now weaker.
+--   → Refine AGAINST: strengthen manipulation claim with info asymmetry
+-- Iteration 2 (FOR=7, AGAINST=8): AGAINST surpasses FOR. FOR weaker.
+--   → Refine FOR: respond to naive fiduciary with structural safeguards
+-- Iteration 3 (FOR=8, AGAINST=8): Both at high quality. Fixpoint.
+--
+-- Score trajectory: FOR 5→7→7→8, AGAINST 6→5→8→8
+-- The weaker side was refined each round. Scores oscillated as each
+-- side responded to the other's strongest point. Convergence at 8/8.
+
+-- ═══════════════════════════════════════════════════════════════
+-- OBSERVATIONS
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= obs-dialectic-convergence
+  yield observation
+  ⊢= observation ← "DIALECTIC CONVERGES VIA ALTERNATING REFINEMENT: the ⊢∘ loop alternated which side got refined — FOR, AGAINST, FOR, then fixpoint. Each refinement directly addressed the other side's strongest point. FOR's fiduciary claim was attacked by AGAINST's 'naive fiduciary' rebuttal, then FOR responded with structural safeguards. This is thesis-antithesis-synthesis: each round produces a STRONGER version of both positions by forcing engagement with the best counterargument."
+
+⊢= obs-fixpoint-meaning
+  yield observation
+  ⊢= observation ← "FIXPOINT IS NOT AGREEMENT — IT'S EXHAUSTION OF EASY IMPROVEMENTS: both sides scored 8/8 but they DISAGREE. The FOR side says 'auditable memory is safe.' The AGAINST side says 'information asymmetry is inherently dangerous.' These are different value commitments, not resolvable by argument refinement. The ⊢∘ loop detected this: improved=false because both sides reached high quality, not because they converged on the same answer. Dialectic fixpoint ≠ consensus."
+
+⊢= obs-asymmetric-evolution
+  yield observation
+  ⊢= observation ← "ONLY THE WEAKER SIDE EVOLVES EACH ROUND: this is ESSENTIAL for convergence. If both sides refined simultaneously, they'd drift without engaging each other. By refining only the loser, the debate becomes a RESPONSE CHAIN: each refinement responds to the winning argument's strongest point. The winning side's argument is frozen, becoming the target. This is why the scores oscillated (FOR won, then AGAINST won, then FOR won) instead of both climbing together."
+
+⊢= obs-dual-cell-evolution
+  yield observation
+  ⊢= observation ← "⊢∘ OVER TWO CELLS IS NEW: program 02 evolved one cell (summarize). This program evolves TWO cells (argue-for, argue-against) through the same loop. The ⊢∘ harden(argue-for, argue-against) means both are subject to rewriting, but only one changes per round. This is adversarial co-evolution: each cell improves in response to the other. The ⊢∘ combinator handles this naturally — it doesn't care how many cells are evolving."
+
+⊢= obs-debate-produces-knowledge
+  yield observation
+  ⊢= observation ← "THE DEBATE PRODUCED NOVEL INSIGHTS NEITHER SIDE STARTED WITH: 'fiduciary trust' didn't appear in v0 arguments. 'Information asymmetry as structural precondition' didn't exist in v0. 'Corrections over patterns' was synthesized in response to 'revealed vs reflective preferences.' The judge's feedback created these — by identifying specific weaknesses, it forced each side to generate NEW arguments, not just restate old ones. The ⊢∘ loop is a knowledge generator, not just a quality optimizer."
+
+⊢= obs-judge-as-curriculum
+  yield observation
+  ⊢= observation ← "THE JUDGE IS A CURRICULUM DESIGNER: each round's feedback is a specific lesson. Round 0: 'distinguish welcome vs unwelcome memory.' Round 1: 'fiduciary framing is naive — argue info asymmetry.' Round 2: 'respond to naive fiduciary with structural safeguards.' Each lesson builds on the previous round's arguments. The judge doesn't just score — it identifies the MOST PRODUCTIVE direction for improvement. This is curriculum learning via adversarial pressure."
