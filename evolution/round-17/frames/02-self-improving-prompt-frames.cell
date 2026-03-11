@@ -1,0 +1,457 @@
+-- 02-self-improving-prompt-frames.cell — full execution trace (R17, v0.2)
+--
+-- Ready set analysis (initial):
+--   sample-code: ⊢= with no given → READY
+--   criteria: ⊢= with no given → READY
+--   summarize: given sample-code→code → BLOCKED (needs sample-code)
+--   judge: given summarize→summary, criteria→text → BLOCKED
+--   improve: given §summarize (static), judge→weaknesses → BLOCKED (needs judge)
+--   ⊢∘ evolve: coordinates iteration over {summarize, judge, improve}
+--
+-- Ready set: { sample-code, criteria }
+--
+-- v0.2 execution notes:
+--   - ⊨? at file scope applies as default recovery for all cells
+--   - Oracles on summarize are aspirational under ⊢∘ management
+--   - ⊢∘ max raised to 5 (from 3) — more room but same convergence expected
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 0: sample-code (hard cell, deterministic)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ sample-code
+  yield code
+
+  ⊢= code ← "class EventBus:
+    def __init__(self):
+        self._handlers = {}
+        self._middleware = []
+
+    def on(self, event, handler, priority=0):
+        if event not in self._handlers:
+            self._handlers[event] = []
+        self._handlers[event].append((priority, handler))
+        self._handlers[event].sort(key=lambda x: -x[0])
+
+    def use(self, middleware_fn):
+        self._middleware.append(middleware_fn)
+
+    def emit(self, event, payload):
+        ctx = {'event': event, 'payload': payload, 'cancelled': False}
+        for mw in self._middleware:
+            ctx = mw(ctx)
+            if ctx.get('cancelled'):
+                return None
+        results = []
+        for _, handler in self._handlers.get(event, []):
+            results.append(handler(ctx['payload']))
+        return results
+
+class TypedBus(EventBus):
+    def __init__(self, schema_registry):
+        super().__init__()
+        self._schemas = schema_registry
+
+    def emit(self, event, payload):
+        if event in self._schemas:
+            self._schemas[event].validate(payload)
+        return super().emit(event, payload)
+
+def create_saga(bus, steps):
+    completed = []
+    def run():
+        for step_fn, compensate_fn in steps:
+            try:
+                result = step_fn()
+                completed.append((result, compensate_fn))
+            except Exception:
+                for _, comp in reversed(completed):
+                    comp()
+                raise
+    return run"
+
+  yield code ≡ "(full Python source — 50 lines, 3 definitions: EventBus, TypedBus, create_saga)"
+
+-- No oracles on hard cells. Deterministic evaluation.
+-- Ready set after: { criteria, summarize }
+-- (sample-code→code now bound, so summarize's given is satisfied)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 1: criteria (hard cell, deterministic)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ criteria
+  yield text
+
+  ⊢= text ← "The summary should identify architectural patterns, not just list functions. It should be useful to a new developer joining the project."
+
+  yield text ≡ "The summary should identify architectural patterns, not just list functions. It should be useful to a new developer joining the project."
+
+-- Ready set after: { summarize }
+-- judge still blocked (needs summarize→summary, which is not yet bound)
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ ITERATION 0 — initial prompt
+-- ═══════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 2: summarize v0 (soft cell, LLM evaluation)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ summarize
+  given sample-code→code ≡ "(full Python source)"
+  yield summary
+
+  ∴ Summarize this code file and list the key functions.
+
+-- LLM evaluation:
+-- The prompt is minimal: "Summarize this code file and list the key functions."
+-- A generic LLM response to this prompt enumerates classes and methods
+-- without deeper architectural analysis.
+
+  yield summary ≡ "This code defines an event handling system with three components. EventBus is a class that manages event handlers with priority ordering and supports middleware functions that can intercept and modify events. TypedBus extends EventBus by adding schema validation — it validates payloads against a schema registry before dispatching. create_saga is a factory function that returns a run() function executing a sequence of steps with automatic rollback: if any step fails, previously completed steps are compensated in reverse order."
+
+-- v0.2: oracle checks on ⊢∘-managed cells are aspirational (feedback signals):
+--   ⊨ summary identifies architectural patterns → ✗
+--     FAIL: summary describes WHAT each component does but doesn't name the
+--     architectural patterns (pub/sub, middleware pipeline, saga/compensation).
+--     A new developer learns the API but not the design vocabulary.
+--   ⊨ summary is useful to a new developer → partial
+--     PARTIAL: better than a bare method listing, but doesn't explain WHY
+--     these abstractions exist or how they compose.
+--
+-- Under v0.2 ⊢∘ semantics: oracle failures don't block freezing.
+-- The oracles feed into judge's evaluation. We freeze and let ⊢∘ drive improvement.
+
+-- Ready set after: { judge } (summarize→summary now bound, criteria→text already bound)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 3: judge v0 (soft cell, LLM evaluation)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ judge
+  given summarize→summary ≡ "This code defines an event handling system with three components. EventBus is a class that manages event handlers with priority ordering and supports middleware functions that can intercept and modify events. TypedBus extends EventBus by adding schema validation — it validates payloads against a schema registry before dispatching. create_saga is a factory function that returns a run() function executing a sequence of steps with automatic rollback: if any step fails, previously completed steps are compensated in reverse order."
+  given criteria→text ≡ "The summary should identify architectural patterns, not just list functions. It should be useful to a new developer joining the project."
+  yield score, weaknesses
+
+  ∴ Evaluate «summarize→summary» against: «criteria→text».
+    Score 1-10 where:
+    - 1-3: merely lists functions/classes with no insight
+    - 4-6: identifies some patterns but misses key relationships
+    - 7-8: captures architecture and is useful to newcomers
+    - 9-10: exceptional insight into design decisions and trade-offs
+    List specific weaknesses if score < 8.
+
+-- LLM evaluation:
+-- The summary describes each component's behavior but doesn't name patterns
+-- or explain architectural relationships.
+
+  yield score ≡ 4
+  yield weaknesses ≡ "1. No architectural patterns named — the summary describes behavior (priority ordering, middleware interception, rollback) but never identifies the patterns by name: publish/subscribe, middleware pipeline (chain of responsibility), saga/compensation. A developer can't search for these patterns or connect them to known literature. 2. No inter-component relationships — how do EventBus, TypedBus, and create_saga compose? Can sagas use TypedBus for validated events? 3. No explanation of the middleware pipeline — emit() runs a chain of middleware functions that can transform or cancel events before handlers execute. This is a central architectural feature buried in a clause. 4. No extension guidance — a new developer doesn't know WHERE to add behavior (new event types, middleware, saga steps)."
+
+-- oracle checks:
+--   ⊨ score ∈ {1..10} → ✓ (4)
+--   ⊨ weaknesses is empty iff score ≥ 8 → ✓ (score=4, weaknesses non-empty)
+
+-- judge→score(4) < 8 → ⊢∘ continues to improve
+
+-- Ready set after: { improve } (§summarize is static, judge→weaknesses now bound)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 4: improve v0 (soft cell, LLM evaluation — rewrites §summarize)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ improve
+  given §summarize ≡ "⊢ summarize\n  given sample-code→code\n  yield summary\n\n  ∴ Summarize this code file and list the key functions.\n\n  ⊨ summary identifies architectural patterns, not just lists functions\n  ⊨ summary is useful to a new developer joining the project"
+  given judge→weaknesses ≡ "1. No architectural patterns named... 2. No inter-component relationships... 3. No middleware pipeline explanation... 4. No extension guidance..."
+  yield §summarize'
+
+  ∴ Read the current prompt in «§summarize»'s ∴ block.
+    The judge found these weaknesses: «judge→weaknesses».
+    Rewrite ONLY the ∴ block to fix these weaknesses.
+    Keep the same given/yield/⊨ — only change the natural language instruction.
+
+-- LLM evaluation:
+-- The LLM reads "Summarize this code file and list the key functions"
+-- and the four weaknesses. It rewrites the ∴ to explicitly request
+-- pattern names, relationships, middleware analysis, and extension points.
+
+  yield §summarize' ≡ "⊢ summarize\n  given sample-code→code\n  yield summary\n\n  ∴ Analyze «sample-code→code» for a developer joining the project.\n    Name each architectural pattern used (pub/sub, middleware pipeline,\n    saga/compensation, etc.). Explain how EventBus, TypedBus, and\n    create_saga relate — can they compose? Describe the data flow\n    through emit(), including the middleware chain. Identify extension\n    points: where would a developer add new event types, middleware,\n    or saga steps?\n\n  ⊨ summary identifies architectural patterns, not just lists functions\n  ⊨ summary is useful to a new developer joining the project"
+
+-- oracle checks:
+--   ⊨ §summarize' has same given/yield signature as §summarize → ✓
+--     (both: given sample-code→code, yield summary)
+--   ⊨ §summarize' ∴ block differs from §summarize ∴ block → ✓
+--     (old: "Summarize this code file and list the key functions."
+--      new: "Analyze for a developer joining the project. Name each
+--            architectural pattern used...")
+
+-- ⊢∘ applies the rewrite: summarize is replaced by summarize' for next iteration.
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ ITERATION 1 — improved prompt v1
+-- ═══════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 5: summarize v1 (soft cell, LLM evaluation with rewritten ∴)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ summarize
+  given sample-code→code ≡ "(full Python source)"
+  yield summary
+
+  ∴ Analyze «sample-code→code» for a developer joining the project.
+    Name each architectural pattern used (pub/sub, middleware pipeline,
+    saga/compensation, etc.). Explain how EventBus, TypedBus, and
+    create_saga relate — can they compose? Describe the data flow
+    through emit(), including the middleware chain. Identify extension
+    points: where would a developer add new event types, middleware,
+    or saga steps?
+
+-- LLM evaluation:
+-- The improved prompt explicitly asks for patterns, relationships, data flow,
+-- and extension points. The LLM responds with significantly more depth:
+
+  yield summary ≡ "This module implements an event-driven architecture using three layered patterns:
+
+1. PUBLISH/SUBSCRIBE (EventBus): Producers call emit(event, payload), consumers register via on(event, handler, priority). Handlers are sorted by priority (highest first). This decouples producers from consumers.
+
+2. MIDDLEWARE PIPELINE (EventBus.emit): Before handlers execute, emit() chains registered middleware functions. Each middleware receives a context dict and can transform the payload or cancel the event (ctx['cancelled']=True). This is the interceptor/chain-of-responsibility pattern — use it for logging, auth, rate-limiting.
+
+3. SCHEMA VALIDATION (TypedBus): Extends EventBus with payload validation. TypedBus.emit() checks the payload against a schema_registry before delegating to super().emit(). Fail-fast: malformed events are rejected before middleware or handlers see them.
+
+4. SAGA/COMPENSATION (create_saga): Orchestrates multi-step operations. Each step is a (action, compensate) pair. If step N fails, steps N-1 through 0 are compensated in reverse. Returns a run() closure.
+
+COMPOSITION: TypedBus IS-A EventBus (inheritance). create_saga takes a bus parameter — it can use either EventBus or TypedBus. Typed events + saga = validated multi-step workflows.
+
+DATA FLOW: emit(event, payload) → middleware chain (transform/cancel) → schema check (TypedBus) → priority-sorted handlers → results[].
+
+EXTENSION POINTS: Add handlers via on(). Add middleware via use(). Add schemas to the registry for TypedBus. Add saga steps as (action, compensate) tuples."
+
+-- v0.2: aspirational oracle checks:
+--   ⊨ summary identifies architectural patterns → ✓ (pub/sub, middleware, saga, schema validation)
+--   ⊨ summary is useful to a new developer → ✓ (patterns, composition, data flow, extension points)
+
+-- Ready set after: { judge }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 6: judge v1 (soft cell, LLM evaluation)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ judge
+  given summarize→summary ≡ "This module implements an event-driven architecture using three layered patterns:\n\n1. PUBLISH/SUBSCRIBE (EventBus)... 2. MIDDLEWARE PIPELINE... 3. SCHEMA VALIDATION (TypedBus)... 4. SAGA/COMPENSATION...\n\nCOMPOSITION: TypedBus IS-A EventBus... create_saga takes a bus parameter...\nDATA FLOW: emit → middleware → schema → handlers → results.\nEXTENSION POINTS: Add handlers via on(). Add middleware via use()..."
+  given criteria→text ≡ "The summary should identify architectural patterns, not just list functions. It should be useful to a new developer joining the project."
+  yield score, weaknesses
+
+  ∴ Evaluate «summarize→summary» against: «criteria→text».
+    Score 1-10 where:
+    - 1-3: merely lists functions/classes with no insight
+    - 4-6: identifies some patterns but misses key relationships
+    - 7-8: captures architecture and is useful to newcomers
+    - 9-10: exceptional insight into design decisions and trade-offs
+    List specific weaknesses if score < 8.
+
+-- LLM evaluation:
+-- The summary now names all patterns, explains composition, shows data flow,
+-- and identifies extension points. Major improvement from v0.
+
+  yield score ≡ 7
+  yield weaknesses ≡ "1. Missing design rationale — patterns are named and described but the summary doesn't explain WHY these specific patterns were chosen for this problem. What problem does priority-sorted dispatch solve that FIFO wouldn't? Why middleware instead of decorators? 2. The saga section doesn't explain its error model — what happens to the bus events emitted during a partially-completed saga? Are they rolled back too, or only the step side-effects?"
+
+-- oracle checks:
+--   ⊨ score ∈ {1..10} → ✓ (7)
+--   ⊨ weaknesses is empty iff score ≥ 8 → ✓ (score=7, weaknesses non-empty)
+
+-- judge→score(7) < 8 → ⊢∘ continues to improve
+
+-- Ready set after: { improve }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 7: improve v1 (soft cell, LLM evaluation — rewrites §summarize again)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ improve
+  given §summarize ≡ "⊢ summarize\n  given sample-code→code\n  yield summary\n\n  ∴ Analyze «sample-code→code» for a developer joining the project.\n    Name each architectural pattern used (pub/sub, middleware pipeline,\n    saga/compensation, etc.). Explain how EventBus, TypedBus, and\n    create_saga relate...\n    Identify extension points...\n\n  ⊨ ..."
+  given judge→weaknesses ≡ "1. Missing design rationale — WHY these patterns? 2. Saga error model unclear — what about bus events during partial saga?"
+  yield §summarize'
+
+  ∴ Read the current prompt in «§summarize»'s ∴ block.
+    The judge found these weaknesses: «judge→weaknesses».
+    Rewrite ONLY the ∴ block to fix these weaknesses.
+    Keep the same given/yield/⊨ — only change the natural language instruction.
+
+  yield §summarize' ≡ "⊢ summarize\n  given sample-code→code\n  yield summary\n\n  ∴ Write an architectural briefing of «sample-code→code» for a new team member.\n    For each component:\n    (a) Name the pattern it implements.\n    (b) Explain what problem that pattern solves — why this choice over alternatives.\n    (c) Describe how it composes with the other components.\n    (d) Identify extension points for adding new behavior.\n    For create_saga specifically: explain the error model — what is compensated\n    on failure, and what (like already-emitted bus events) is NOT.\n    Show the end-to-end data flow from emit() through all layers.\n\n  ⊨ summary identifies architectural patterns, not just lists functions\n  ⊨ summary is useful to a new developer joining the project"
+
+-- oracle checks:
+--   ⊨ §summarize' has same given/yield signature → ✓
+--   ⊨ §summarize' ∴ block differs → ✓
+
+-- ⊢∘ applies the rewrite: summarize replaced by summarize' for iteration 2.
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ ITERATION 2 — improved prompt v2
+-- ═══════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 8: summarize v2 (soft cell, LLM evaluation with twice-rewritten ∴)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ summarize
+  given sample-code→code ≡ "(full Python source)"
+  yield summary
+
+  ∴ Write an architectural briefing of «sample-code→code» for a new team member.
+    For each component:
+    (a) Name the pattern it implements.
+    (b) Explain what problem that pattern solves — why this choice over alternatives.
+    (c) Describe how it composes with the other components.
+    (d) Identify extension points for adding new behavior.
+    For create_saga specifically: explain the error model — what is compensated
+    on failure, and what (like already-emitted bus events) is NOT.
+    Show the end-to-end data flow from emit() through all layers.
+
+-- LLM evaluation:
+-- The prompt now asks for design rationale (why over alternatives), explicit
+-- error model for sagas, and composition semantics. The LLM produces a
+-- comprehensive architectural briefing:
+
+  yield summary ≡ "ARCHITECTURAL BRIEFING — Event-Driven Module
+
+This module layers three patterns from general to specific. Each solves a distinct decoupling problem.
+
+1. EventBus — PUBLISH/SUBSCRIBE + MIDDLEWARE PIPELINE
+   PATTERNS: (a) Pub/sub decouples event producers from consumers. (b) The middleware pipeline (chain of responsibility) decouples cross-cutting concerns from handler logic.
+   WHY PUB/SUB: Producers don't need to know which handlers exist or in what order they run. Adding a handler requires zero changes to emit-side code. Priority ordering (not just FIFO) lets critical handlers (e.g. security validation) run before others.
+   WHY MIDDLEWARE: Middleware separates cross-cutting concerns (logging, auth, rate-limiting) from business handlers. Unlike decorators, middleware is registered centrally and applies to ALL events — no per-handler wrapping. Middleware can cancel events entirely (ctx['cancelled']=True), acting as a gate.
+   EXTENSION: on(event, handler, priority) to add handlers. use(middleware_fn) to add middleware. Both are additive — no existing code changes.
+
+2. TypedBus — SCHEMA VALIDATION LAYER (extends EventBus)
+   PATTERN: Contract enforcement via schema registry — the decorator pattern applied to the bus.
+   WHY: Fail-fast at the emit boundary. Without validation, a malformed payload silently reaches handlers, causing cryptic downstream errors. TypedBus catches structural errors before middleware or handlers execute.
+   COMPOSITION: TypedBus IS-A EventBus (inheritance). It overrides emit() to validate, then delegates to super().emit(). All middleware and handlers work unchanged — the validation is transparent.
+   EXTENSION: Register schemas per event type in schema_registry.
+
+3. create_saga — SAGA/COMPENSATION PATTERN
+   PATTERN: Saga with compensating transactions — the choreography alternative to distributed transactions.
+   WHY: Multi-step workflows need all-or-nothing semantics. Traditional transactions don't work across async event-driven systems. The saga pattern provides rollback via explicit compensation functions.
+   ERROR MODEL: If step N raises an exception, steps N-1 through 0 are compensated in REVERSE ORDER by calling each compensate_fn(). IMPORTANT LIMITATION: compensation only undoes step side-effects. If steps emitted bus events, those events are NOT recalled — handlers that already processed them will have stale state. This is an inherent limitation of sagas without event sourcing.
+   COMPOSITION: create_saga takes a bus parameter — it can use EventBus (unvalidated) or TypedBus (validated). Validated sagas catch payload errors BEFORE executing steps, preventing partial-execution scenarios from schema violations.
+   EXTENSION: Add steps as (step_fn, compensate_fn) tuples. Order matters — steps execute sequentially, compensations reverse.
+
+END-TO-END DATA FLOW:
+  caller → bus.emit(event, payload)
+    → middleware chain: each mw(ctx) transforms or cancels
+    → [TypedBus only] schema_registry.validate(payload)
+    → priority-sorted handlers: each handler(payload) → results[]
+    → return results (or None if cancelled by middleware)"
+
+-- v0.2: aspirational oracle checks:
+--   ⊨ summary identifies architectural patterns → ✓
+--     (pub/sub, middleware/chain-of-responsibility, schema/decorator, saga/compensation)
+--   ⊨ summary is useful to a new developer → ✓
+--     (pattern/rationale/composition/extension/error-model for each component)
+
+-- Ready set after: { judge }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 9: judge v2 (soft cell, LLM evaluation)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ judge
+  given summarize→summary ≡ "ARCHITECTURAL BRIEFING — Event-Driven Module\n\nThis module layers three patterns from general to specific...\n\n1. EventBus — PUBLISH/SUBSCRIBE + MIDDLEWARE PIPELINE\n   WHY PUB/SUB: ... Priority ordering (not just FIFO)...\n   WHY MIDDLEWARE: ... Unlike decorators, middleware is registered centrally...\n\n2. TypedBus — SCHEMA VALIDATION LAYER\n   WHY: Fail-fast at the emit boundary...\n   COMPOSITION: TypedBus IS-A EventBus (inheritance)...\n\n3. create_saga — SAGA/COMPENSATION PATTERN\n   ERROR MODEL: ... compensation only undoes step side-effects. Bus events NOT recalled...\n   COMPOSITION: create_saga takes a bus parameter — TypedBus or EventBus...\n\nEND-TO-END DATA FLOW: caller → emit → middleware → schema → handlers → results"
+  given criteria→text ≡ "The summary should identify architectural patterns, not just list functions. It should be useful to a new developer joining the project."
+  yield score, weaknesses
+
+  ∴ Evaluate «summarize→summary» against: «criteria→text».
+    Score 1-10 where:
+    - 1-3: merely lists functions/classes with no insight
+    - 4-6: identifies some patterns but misses key relationships
+    - 7-8: captures architecture and is useful to newcomers
+    - 9-10: exceptional insight into design decisions and trade-offs
+    List specific weaknesses if score < 8.
+
+-- LLM evaluation:
+-- The summary now covers patterns, rationale, composition, extension points,
+-- error model limitations, and end-to-end data flow. It explains WHY each
+-- pattern was chosen over alternatives. It calls out the saga's limitation
+-- regarding already-emitted events.
+
+  yield score ≡ 9
+  yield weaknesses ≡ ""
+
+-- oracle checks:
+--   ⊨ score ∈ {1..10} → ✓ (9)
+--   ⊨ weaknesses is empty iff score ≥ 8 → ✓ (score=9, weaknesses empty)
+
+-- judge→score(9) ≥ 8 → ⊢∘ TERMINATES. Evolution complete.
+
+-- ═══════════════════════════════════════════════════════════════
+-- QUIESCENCE: All cells frozen, no cells in ready set
+-- ═══════════════════════════════════════════════════════════════
+--
+-- Frozen cells:
+--   sample-code  → code ≡ (Python source)
+--   criteria     → text ≡ (evaluation criteria)
+--   summarize v2 → summary ≡ (architectural briefing)
+--   judge v2     → score ≡ 9, weaknesses ≡ ""
+--   improve v1   → §summarize' (last rewrite applied)
+--
+-- No cells have unsatisfied given dependencies.
+-- No ⊢∘ iterations pending (until condition met).
+-- No ⊢⊢ spawners to fire.
+-- Program has reached quiescence. All cells frozen. ■
+
+-- ═══════════════════════════════════════════════════════════════
+-- EXECUTION SUMMARY
+-- ═══════════════════════════════════════════════════════════════
+--
+-- Total eval-one steps: 10 (frames 0-9)
+-- ⊢∘ iterations: 3 (0, 1, 2) out of max 5
+-- Convergence: judge→score progressed 4 → 7 → 9 (exceeded threshold of 8)
+--
+-- Prompt evolution across iterations:
+--   v0 (9 words):  "Summarize this code file and list the key functions."
+--   v1 (52 words): "Analyze for a developer... Name each architectural pattern...
+--                    Explain how components relate... Describe data flow...
+--                    Identify extension points..."
+--   v2 (73 words): "Write an architectural briefing for a new team member.
+--                    For each component: (a) pattern, (b) rationale/alternatives,
+--                    (c) composition, (d) extension points.
+--                    For create_saga: error model — what IS vs ISN'T compensated.
+--                    Show end-to-end data flow."
+--
+-- Each rewrite was TARGETED: improve addressed specific judge weaknesses.
+-- The interface (given sample-code→code / yield summary) stayed frozen.
+-- Only the ∴ block changed — Liskov substitution for cells.
+
+-- ═══════════════════════════════════════════════════════════════
+-- OBSERVATIONS (v0.2-aware)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= obs-evolution-converges
+  yield observation
+  ⊢= observation ← "⊢∘ EVOLUTION CONVERGES RELIABLY: prompt evolved from score 4 to 9 in 3 iterations (of max 5). The v0.2 increase from max 3 to max 5 gave breathing room but wasn't needed — convergence is driven by weakness targeting, not iteration budget. Each rewrite addressed the SPECIFIC weaknesses judge identified: no patterns named → name them; no rationale → explain why; no error model → describe limitations. Targeted rewriting beats blind retry."
+
+⊢= obs-aspirational-oracles
+  yield observation
+  ⊢= observation ← "v0.2 ASPIRATIONAL ORACLE SEMANTICS VALIDATED: summarize's oracles (identifies patterns, useful to developer) failed in iteration 0 but the cell froze anyway because ⊢∘ drives improvement, not individual oracle gates. The aspirational semantics are correct — the oracles describe the TARGET quality, the ⊢∘ until condition is the OPERATIONAL gate. Without this v0.2 clarification, iteration 0 would have triggered ⊨? retry, conflicting with the ⊢∘ loop. The two mechanisms (oracle retry vs evolution loop) are now cleanly separated."
+
+⊢= obs-interface-freeze
+  yield observation
+  ⊢= observation ← "INTERFACE FREEZE IS STRUCTURAL INTEGRITY: across 3 iterations, summarize always had given (sample-code→code) and yield (summary). Only the ∴ block changed. This is Liskov substitution for cells — any version of summarize is plug-compatible with judge. The v0.2 spec's explicit statement that improve must preserve given/yield signature is not bureaucracy, it's a structural invariant that prevents the ⊢∘ loop from breaking the dependency graph."
+
+⊢= obs-judge-improve-separation
+  yield observation
+  ⊢= observation ← "SEPARATION OF JUDGE AND IMPROVE REMAINS KEY: judge produces score + weaknesses (EVALUATION capability), improve uses weaknesses to rewrite (REWRITING capability). Merging them conflates analysis and action. Cell's dataflow makes the separation natural. In v0.2, this pattern is the canonical ⊢∘ through-chain: through judge, improve. The through keyword names the pipeline stages explicitly."
+
+⊢= obs-score-trajectory
+  yield observation
+  ⊢= observation ← "SCORE TRAJECTORY 4→7→9 SHOWS DIMINISHING-RETURNS CURVE: iteration 0→1 gained 3 points (pattern naming, relationships, data flow, extension points — low-hanging fruit). Iteration 1→2 gained 2 points (design rationale, error model — deeper analysis). If we continued, iteration 2→3 might gain 0-1 points — the prompt is approaching saturation for this task. The ⊢∘ until threshold (≥8) is well-calibrated: it stops before diminishing returns waste LLM calls."
+
+⊢= obs-prompt-structure-emergence
+  yield observation
+  ⊢= observation ← "PROMPT STRUCTURE EMERGED THROUGH EVOLUTION: the final v2 prompt has a clear structure — (a) pattern, (b) rationale, (c) composition, (d) extension — that was NOT designed by any human or written in any single step. It emerged through iterative weakness-targeting. The ⊢∘ loop discovered the structure a=pattern b=rationale c=composition d=extension. This is the meta-pattern: humans write oracles (WHAT quality looks like), the machine discovers the prompt structure (HOW to get there)."
+
+⊢= obs-file-scope-recovery
+  yield observation
+  ⊢= observation ← "v0.2 FILE-SCOPE ⊨? WORKS AS DESIGNED: the file-scope ⊨? on exhaustion: partial-accept(best) was never triggered because ⊢∘ converged within max 5. But it provides a clean fallback: if the prompt couldn't reach score 8 after 5 iterations, the best-scoring version would be accepted. This is the v0.2 clarification that file-scope ⊨? applies to all cells without local ⊨? — previously ambiguous, now spec-compliant."

@@ -1,0 +1,121 @@
+-- 02-self-improving-prompt.cell (R17, v0.2)
+-- Tests: ⊢∘ evolution loop, oracle-gated iteration, § quotation for rewriting
+--
+-- A Cell program that takes a prompt + evaluation criteria, runs the prompt,
+-- scores output quality, identifies weaknesses, rewrites the prompt to fix
+-- weaknesses, re-runs, re-scores. Uses ⊢∘ evolution loop until score
+-- exceeds threshold or max iterations hit.
+--
+-- This demonstrates Cell's unique ability to evolve soft cells: the ∴ block
+-- literally changes across iterations while the given/yield interface stays frozen.
+--
+-- v0.2 changes from R16:
+--   - ⊨? at file scope (now explicitly blessed by v0.2 spec)
+--   - Oracles on ⊢∘-managed cells are aspirational (v0.2 clarification)
+--   - ⊢∘ parameter binding syntax clarified
+--   - No structural changes needed — program was already v0.2-conformant
+
+⊢ sample-code
+  yield code
+
+  ⊢= code ← "class EventBus:
+    def __init__(self):
+        self._handlers = {}
+        self._middleware = []
+
+    def on(self, event, handler, priority=0):
+        if event not in self._handlers:
+            self._handlers[event] = []
+        self._handlers[event].append((priority, handler))
+        self._handlers[event].sort(key=lambda x: -x[0])
+
+    def use(self, middleware_fn):
+        self._middleware.append(middleware_fn)
+
+    def emit(self, event, payload):
+        ctx = {'event': event, 'payload': payload, 'cancelled': False}
+        for mw in self._middleware:
+            ctx = mw(ctx)
+            if ctx.get('cancelled'):
+                return None
+        results = []
+        for _, handler in self._handlers.get(event, []):
+            results.append(handler(ctx['payload']))
+        return results
+
+class TypedBus(EventBus):
+    def __init__(self, schema_registry):
+        super().__init__()
+        self._schemas = schema_registry
+
+    def emit(self, event, payload):
+        if event in self._schemas:
+            self._schemas[event].validate(payload)
+        return super().emit(event, payload)
+
+def create_saga(bus, steps):
+    completed = []
+    def run():
+        for step_fn, compensate_fn in steps:
+            try:
+                result = step_fn()
+                completed.append((result, compensate_fn))
+            except Exception:
+                for _, comp in reversed(completed):
+                    comp()
+                raise
+    return run"
+
+⊢ criteria
+  yield text
+
+  ⊢= text ← "The summary should identify architectural patterns, not just list functions. It should be useful to a new developer joining the project."
+
+⊢ summarize
+  given sample-code→code
+  yield summary
+
+  ∴ Summarize this code file and list the key functions.
+
+  -- v0.2: These oracles are aspirational under ⊢∘ management.
+  -- They serve as feedback signals, not hard gates.
+  ⊨ summary identifies architectural patterns, not just lists functions
+  ⊨ summary is useful to a new developer joining the project
+
+⊢ judge
+  given summarize→summary
+  given criteria→text
+  yield score, weaknesses
+
+  ∴ Evaluate «summarize→summary» against: «criteria→text».
+    Score 1-10 where:
+    - 1-3: merely lists functions/classes with no insight
+    - 4-6: identifies some patterns but misses key relationships
+    - 7-8: captures architecture and is useful to newcomers
+    - 9-10: exceptional insight into design decisions and trade-offs
+    List specific weaknesses if score < 8.
+
+  ⊨ score ∈ {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+  ⊨ weaknesses is empty iff score ≥ 8
+
+⊢ improve
+  given §summarize
+  given judge→weaknesses
+  yield §summarize'
+
+  ∴ Read the current prompt in «§summarize»'s ∴ block.
+    The judge found these weaknesses: «judge→weaknesses».
+    Rewrite ONLY the ∴ block to fix these weaknesses.
+    Keep the same given/yield/⊨ — only change the natural language instruction.
+
+  ⊨ §summarize' has same given/yield signature as «§summarize»
+  ⊨ §summarize' ∴ block differs from «§summarize» ∴ block
+
+⊢∘ evolve(summarize, sample-code→code ≡ sample-code→code)
+  through judge, improve
+  until judge→score ≥ 8
+  max 5
+
+-- v0.2: ⊨? at file scope — default recovery for all cells without local ⊨?
+⊨? on exhaustion:
+  partial-accept(best)
