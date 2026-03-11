@@ -1,0 +1,578 @@
+-- 10-socratic-teacher-frames.cell — full execution trace
+--
+-- Ready set analysis (initial):
+--   concept: ⊢= with no given → READY
+--   ask: given concept→topic, concept→student-level, concept→prerequisite-knowledge → BLOCKED
+--   simulate-student: given ask→question, concept→student-level, ... → BLOCKED
+--   evaluate: given ask→question, simulate-student→answer, ... → BLOCKED
+--   design-followup: given §ask (static), evaluate→misconceptions → BLOCKED
+--   spawn-remedials: ⊢⊢ spawner, given evaluate→misconceptions → BLOCKED
+--   ⊢∘ teach: coordinates {ask} through {simulate-student, evaluate, design-followup}
+--
+-- Ready set: { concept }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 0: concept (hard cell, deterministic)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ concept
+  yield topic, student-level, prerequisite-knowledge
+
+  ⊢= topic ← "Git rebase vs merge — when to use which"
+  ⊢= student-level ← "Junior developer who knows git add/commit/push but not branching strategies"
+  ⊢= prerequisite-knowledge ← "Knows: git add, git commit, git push, basic file staging. Does NOT know: branches, HEAD, commit graph topology, fast-forward, three-way merge, rebase rewriting."
+
+  yield topic ≡ "Git rebase vs merge — when to use which"
+  yield student-level ≡ "Junior developer who knows git add/commit/push but not branching strategies"
+  yield prerequisite-knowledge ≡ "Knows: git add, git commit, git push..."
+
+-- No oracles on hard cells. Deterministic.
+-- Ready set after: { ask }
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ ITERATION 0 — initial question
+-- ═══════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 1: ask v0 (soft cell, LLM evaluation)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ ask
+  given concept→topic ≡ "Git rebase vs merge — when to use which"
+  given concept→student-level ≡ "Junior developer who knows git add/commit/push but not branching strategies"
+  given concept→prerequisite-knowledge ≡ "Knows: git add, git commit, git push..."
+  yield question, target-understanding
+
+  ∴ Design ONE Socratic question about «concept→topic» for «concept→student-level».
+    Scenario-based, not definition. Reveal understanding, not test recall.
+
+-- LLM evaluation:
+-- The student doesn't know branching yet. A scenario about rebase vs merge
+-- would be premature. Start with the prerequisite: understanding that
+-- commits form a HISTORY, and that branches are just pointers to that history.
+
+  yield question ≡ "Imagine you and a coworker both start from the same codebase on Monday. You make 3 commits during the week. Your coworker makes 2 different commits during the same week. On Friday, you need to combine your work. You both used git commit and git push, but to different places. What do you think happens when you try to combine your changes? What problems might arise?"
+  yield target-understanding ≡ "Whether the student understands that parallel commit histories can DIVERGE, creating a situation where combining requires a strategy — the prerequisite for understanding why merge and rebase exist as different strategies."
+
+-- oracle checks:
+--   ⊨ question is scenario-based → ✓ (scenario: you and coworker, parallel commits)
+--   ⊨ target-understanding names a specific concept → ✓ (parallel history divergence)
+
+-- Ready set after: { simulate-student }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 2: simulate-student v0 (soft cell, LLM evaluation)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ simulate-student
+  given ask→question ≡ "Imagine you and a coworker both start from the same codebase..."
+  given concept→student-level ≡ "Junior developer who knows git add/commit/push..."
+  given concept→prerequisite-knowledge ≡ "Knows: git add, git commit, git push..."
+  yield answer, confidence
+
+  ∴ Simulate this student answering. Partial knowledge, common misconceptions.
+
+-- LLM evaluation:
+-- A junior dev who knows push but not branches would reason from experience
+-- with single-user workflows. They'd likely think of "conflicts" in a vague
+-- file-overwriting sense, not in terms of commit graph divergence.
+
+  yield answer ≡ "I think when I try to push my changes, it would say there's already newer changes there? Like when you try to save a file that someone else already saved? I think git would tell me there's a conflict and I'd have to figure out which version to keep. Maybe I'd have to copy my changes somewhere, pull their changes, and then paste mine back in? I've had that happen before where git said I can't push and I had to pull first."
+  yield confidence ≡ "unsure"
+
+-- oracle checks:
+--   ⊨ answer reflects student level → ✓ (vague "conflict" understanding, file-save mental model)
+--   ⊨ confidence ∈ {"confident", "unsure", "guessing"} → ✓ ("unsure")
+
+-- Ready set after: { evaluate }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 3: evaluate v0 (soft cell, LLM evaluation)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ evaluate
+  given ask→question ≡ "(parallel commit scenario)"
+  given ask→target-understanding ≡ "parallel history divergence"
+  given simulate-student→answer ≡ "(push rejection, file-save mental model, copy-paste workaround)"
+  given simulate-student→confidence ≡ "unsure"
+  yield correct, misconceptions[], understanding-level
+
+  ∴ Evaluate the answer. Identify specific misconceptions.
+
+-- LLM evaluation:
+-- The student has PARTIAL understanding: they know push can be rejected and
+-- pull is needed. But their mental model is wrong — they think of it as
+-- file overwriting, not commit graph divergence.
+
+  yield correct ≡ false
+  yield misconceptions ≡ [
+    "FILE-SAVE MENTAL MODEL: Student thinks git conflicts are like two people saving the same file — 'which version to keep.' Git conflicts are about combining COMMIT HISTORIES, not overwriting files. Two commits can change different files and still need combining. The student's model can't explain non-conflicting merges.",
+    "COPY-PASTE RECOVERY: Student's instinct is to manually copy changes, pull, then paste back. This reveals they don't understand that git TRACKS their changes as commits — they think their work exists only as file contents, not as a replayable sequence of changes. This misconception blocks understanding rebase (which replays commits)."
+  ]
+  yield understanding-level ≡ "partial"
+
+-- oracle checks:
+--   ⊨ correct ∈ {true, false} → ✓ (false)
+--   ⊨ each misconception is specific and falsifiable → ✓
+--     (file-save model: falsifiable by showing non-conflicting merge)
+--     (copy-paste: falsifiable by showing git stash or commit-based recovery)
+--   ⊨ understanding-level ∈ {"none", "partial", "solid"} → ✓ ("partial")
+--   ⊨ if correct then misconceptions empty → ✓ (vacuous: not correct)
+--   ⊨ if understanding-level = "solid" then correct → ✓ (vacuous: not solid)
+
+-- understanding-level = "partial" ≠ "solid" → ⊢∘ continues
+-- Ready set after: { design-followup, spawn-remedials (⊢⊢) }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 4: spawn-remedials (⊢⊢ spawner, first invocation)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢⊢ spawn-remedials
+  given evaluate→misconceptions ≡ [
+    "FILE-SAVE MENTAL MODEL: ...",
+    "COPY-PASTE RECOVERY: ..."
+  ]
+  yield §remedial-cells[]
+
+  ∴ Create a remedial cell for each misconception.
+
+-- LLM evaluation:
+-- The spawner creates two remedial cell definitions, one per misconception.
+
+  yield §remedial-cells ≡ [
+    "⊢ remedial-file-save-model
+      given misconception ≡ \"Git conflicts are like two people saving the same file\"
+      yield counter-example, corrected-understanding
+
+      ∴ Show the student a scenario where two people change DIFFERENT files
+        in the same repo. Person A edits README.md, person B edits main.py.
+        They both commit and push. Git combines both changes with NO conflict.
+        Ask: if git conflicts were about file-saving, why did this work?
+        The answer: git tracks CHANGES PER FILE, not the whole project as one
+        file. Conflicts happen only when the SAME lines in the SAME file diverge.
+
+      ⊨ counter-example involves changes to different files
+      ⊨ corrected-understanding mentions per-file change tracking",
+
+    "⊢ remedial-copy-paste-recovery
+      given misconception ≡ \"To recover from push rejection, copy files, pull, paste back\"
+      yield counter-example, corrected-understanding
+
+      ∴ Show the student: you have 3 commits. Git KNOWS about all 3 as
+        separate, replayable changes. When push is rejected, 'git pull'
+        doesn't erase your work — it COMBINES your 3 commits with the remote's
+        commits. Your commits are safe because git stored them, not because
+        you copied files. Demonstrate: 'git log' shows your commits are still
+        there after a failed push. Ask: why would you copy files if git
+        already saved every commit?
+
+      ⊨ counter-example shows commits surviving failed push
+      ⊨ corrected-understanding mentions commits as durable, replayable units"
+  ]
+
+-- oracle checks:
+--   ⊨ §remedial-cells has same length as misconceptions → ✓ (2 remedials, 2 misconceptions)
+--   ⊨ each addresses exactly one misconception → ✓
+
+-- Spawned cells join the frontier but are NOT evaluated in this trace —
+-- they await future students who exhibit these misconceptions.
+-- Ready set after: { design-followup }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 5: design-followup v0 (soft cell — rewrites ask's ∴)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ design-followup
+  given §ask ≡ "(ask cell definition with scenario-based ∴)"
+  given evaluate→misconceptions ≡ ["FILE-SAVE MENTAL MODEL", "COPY-PASTE RECOVERY"]
+  given evaluate→understanding-level ≡ "partial"
+  yield §ask'
+
+  ∴ Understanding = partial. Target the specific misconception.
+    The file-save mental model is more fundamental — fix it first.
+
+-- LLM evaluation:
+-- The student has partial understanding (knows push gets rejected, knows pull
+-- is needed) but wrong mental model (file-saving, not commit histories).
+-- Design a question that exposes the file-save misconception directly.
+
+  yield §ask' ≡ "⊢ ask
+  given concept→topic
+  given concept→student-level
+  given concept→prerequisite-knowledge
+  yield question, target-understanding
+
+  ∴ Design ONE Socratic question for «concept→student-level» about «concept→topic».
+    The student has a FILE-SAVE mental model — they think git conflicts are about
+    overwriting files. Design a scenario where two developers change DIFFERENT files
+    and ask whether there will be a conflict. The correct answer is NO — and the
+    student's surprise reveals their misconception. Follow up: if conflicts aren't
+    about file-saving, what ARE they about?
+
+  ⊨ question is scenario-based, not a definition request
+  ⊨ target-understanding names a specific concept being tested"
+
+-- oracle checks:
+--   ⊨ §ask' same given/yield → ✓
+--   ⊨ §ask' ∴ differs → ✓
+--   ⊨ understanding-level = "partial" → targets specific misconception → ✓ (file-save model)
+
+-- ⊢∘ applies rewrite: ask replaced by ask' for next iteration.
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ ITERATION 1 — targeted question for file-save misconception
+-- ═══════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 6: ask v1 (soft cell, targeted ∴)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ ask
+  given concept→topic ≡ "Git rebase vs merge — when to use which"
+  given concept→student-level ≡ "Junior developer..."
+  given concept→prerequisite-knowledge ≡ "Knows: git add, commit, push..."
+  yield question, target-understanding
+
+  ∴ Scenario where two devs change DIFFERENT files. Is there a conflict?
+
+  yield question ≡ "Here's a specific situation: you edit README.md and commit. Your coworker edits app.py and commits. Neither of you touched the other's file. When you try to combine your work, do you think there will be a conflict? Why or why not?"
+  yield target-understanding ≡ "Whether the student understands that git tracks changes per-file, not project-as-a-whole — conflicts arise from same-line divergence, not from any parallel work."
+
+-- oracle checks: all ✓
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 7: simulate-student v1 (soft cell)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ simulate-student
+  given ask→question ≡ "(different files scenario)"
+  given concept→student-level ≡ "Junior developer..."
+  given concept→prerequisite-knowledge ≡ "..."
+  yield answer, confidence
+
+  ∴ Simulate student answering.
+
+-- LLM evaluation:
+-- A student with the file-save mental model would PREDICT a conflict
+-- (because "we both changed the project"). The correct answer (no conflict)
+-- challenges their model.
+
+  yield answer ≡ "Hmm... I think there would still be a conflict? Because we both made changes at the same time? Like, git doesn't know whose version is the 'right' one. But wait... we changed different files... maybe git is smart enough to see that? I honestly don't know. Maybe it would be fine since we didn't touch the same file? But I'm not sure how git would know that."
+  yield confidence ≡ "unsure"
+
+-- oracle checks:
+--   ⊨ reflects student level → ✓ (wavering between mental models, can't decide)
+--   ⊨ confidence ∈ valid set → ✓ ("unsure")
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 8: evaluate v1 (soft cell)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ evaluate
+  given ask→question ≡ "(different files scenario)"
+  given ask→target-understanding ≡ "per-file tracking, same-line divergence"
+  given simulate-student→answer ≡ "(wavering — initially predicts conflict, then doubts)"
+  given simulate-student→confidence ≡ "unsure"
+  yield correct, misconceptions[], understanding-level
+
+  yield correct ≡ false
+  yield misconceptions ≡ [
+    "WHOLE-PROJECT MENTAL MODEL WEAKENING: Student initially predicted a conflict ('we both made changes') but then self-corrected ('we didn't touch the same file'). The file-save model is CRACKING — they can see the per-file logic but don't trust it yet. They need CONFIRMATION that git tracks per-file, and then the leap to per-LINE tracking."
+  ]
+  yield understanding-level ≡ "partial"
+
+-- oracle checks: all ✓
+-- understanding-level = "partial" → ⊢∘ continues
+
+-- spawn-remedials fires again with new misconception:
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 9: spawn-remedials (⊢⊢ spawner, second invocation)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢⊢ spawn-remedials
+  given evaluate→misconceptions ≡ ["WHOLE-PROJECT MENTAL MODEL WEAKENING: ..."]
+  yield §remedial-cells[]
+
+  yield §remedial-cells ≡ [
+    "⊢ remedial-per-file-tracking
+      given misconception ≡ \"Unsure whether git tracks per-file or whole-project\"
+      yield counter-example, corrected-understanding
+
+      ∴ Show: run 'git diff' after your commit. Git shows changes PER FILE,
+        with + and - lines. It doesn't show 'the project changed' — it shows
+        'README.md line 3 changed.' Git's entire model is file-level diffs.
+        When combining, it applies each person's diffs independently.
+        Conflict = same file, same line, different changes. That's it.
+
+      ⊨ counter-example uses git diff output
+      ⊨ corrected-understanding states conflict = same file + same lines"
+  ]
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 10: design-followup v1 (soft cell — rewrites ask again)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ design-followup
+  given §ask ≡ "(v1 definition)"
+  given evaluate→misconceptions ≡ ["WHOLE-PROJECT MODEL WEAKENING"]
+  given evaluate→understanding-level ≡ "partial"
+  yield §ask'
+
+  ∴ Understanding = partial. The student is CLOSE — file-save model cracking.
+    Confirm per-file tracking, then bridge to the actual topic: rebase vs merge.
+
+  yield §ask' ≡ "⊢ ask
+  given concept→topic
+  given concept→student-level
+  given concept→prerequisite-knowledge
+  yield question, target-understanding
+
+  ∴ The student now suspects git tracks per-file. CONFIRM this and bridge
+    to the core topic. Scenario: you made 3 commits on your branch (A, B, C).
+    Your coworker made 2 commits (X, Y). You need to combine them.
+    Git offers two ways: it can CREATE A NEW COMMIT that ties both histories
+    together (merge), or it can REPLAY your commits on top of your coworker's
+    (rebase). Ask: what do you think the difference would look like in the
+    commit history? Which would be simpler to read?
+
+  ⊨ question is scenario-based, not a definition request
+  ⊨ target-understanding names a specific concept being tested"
+
+-- oracle checks: all ✓
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ ITERATION 2 — bridging to rebase vs merge
+-- ═══════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 11: ask v2 (soft cell, bridge question)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ ask
+  given concept→topic ≡ "Git rebase vs merge — when to use which"
+  given concept→student-level ≡ "Junior developer..."
+  given concept→prerequisite-knowledge ≡ "..."
+  yield question, target-understanding
+
+  ∴ Confirm per-file tracking. Bridge: merge (new commit) vs rebase (replay).
+
+  yield question ≡ "Good news: you're right that changing different files doesn't cause conflicts! Git tracks changes per-file, per-line. Now here's the real question: you have 3 commits (A, B, C) and your coworker has 2 commits (X, Y). Git gives you two ways to combine them. Option 1 (merge): git creates a NEW commit 'M' that has BOTH your history and theirs — like a knot tying two ropes together. Your history looks like: A-B-C-M and X-Y-M. Option 2 (rebase): git takes YOUR commits and REPLAYS them on top of theirs — so the history looks like: X-Y-A'-B'-C' (where A', B', C' are copies of your commits). Which do you think would be easier to understand when reading the history later? Why?"
+  yield target-understanding ≡ "Whether the student can reason about commit history TOPOLOGY — merge preserves parallel history (shows what actually happened), rebase linearizes it (cleaner but rewrites commits). This is the core of when-to-use-which."
+
+-- oracle checks: all ✓
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 12: simulate-student v2 (soft cell)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ simulate-student
+  given ask→question ≡ "(merge M-knot vs rebase replay, which easier to read?)"
+  given concept→student-level ≡ "Junior developer..."
+  given concept→prerequisite-knowledge ≡ "..."
+  yield answer, confidence
+
+-- LLM evaluation:
+-- The student now has the scaffold: per-file tracking confirmed, two options
+-- presented visually. A junior dev would likely prefer the simpler-looking
+-- option (linear = rebase) without understanding the tradeoff.
+
+  yield answer ≡ "The second one (rebase) looks way cleaner! X-Y-A'-B'-C' is just a straight line, I can read it top to bottom. The first one with the M merge commit looks confusing with two lines coming together. So I'd always want to use rebase, right? Why would anyone use merge if rebase gives you a cleaner history?"
+  yield confidence ≡ "confident"
+
+-- oracle checks:
+--   ⊨ reflects student level → ✓ (prefers simple, overgeneralizes "always rebase")
+--   ⊨ confidence → ✓ ("confident" — Dunning-Kruger on new concept)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 13: evaluate v2 (soft cell)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ evaluate
+  given ask→question ≡ "(merge vs rebase visual)"
+  given ask→target-understanding ≡ "commit history topology, when to use which"
+  given simulate-student→answer ≡ "(always rebase, why would anyone merge?)"
+  given simulate-student→confidence ≡ "confident"
+  yield correct, misconceptions[], understanding-level
+
+  yield correct ≡ false
+  yield misconceptions ≡ [
+    "REBASE-IS-ALWAYS-BETTER: Student concluded rebase is strictly superior because the history looks cleaner. They don't understand the tradeoff: rebase REWRITES commits (A becomes A' — different hash, different parent). On shared branches, this rewrites OTHER PEOPLE'S history. Merge preserves what actually happened. The 'when to use which' answer is: rebase YOUR local work before sharing; merge when combining shared branches."
+  ]
+  yield understanding-level ≡ "partial"
+
+-- oracle checks: all ✓
+-- understanding-level = "partial" → ⊢∘ continues
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 14: spawn-remedials (⊢⊢ spawner, third invocation)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢⊢ spawn-remedials
+  given evaluate→misconceptions ≡ ["REBASE-IS-ALWAYS-BETTER: ..."]
+  yield §remedial-cells[]
+
+  yield §remedial-cells ≡ [
+    "⊢ remedial-rebase-rewrites
+      given misconception ≡ \"Rebase is always better than merge because cleaner history\"
+      yield counter-example, corrected-understanding
+
+      ∴ Scenario: you rebase a branch that 3 coworkers are also working on.
+        Your commits A,B,C become A',B',C' (new hashes). Your coworkers still
+        have A,B,C. When they pull, git sees A and A' as DIFFERENT commits
+        (different hashes) — it tries to apply both. Chaos: duplicate commits,
+        conflicts, confused teammates. The rule: never rebase commits that
+        others have based work on. Rebase YOUR local unpushed work. Merge
+        shared branches.
+
+      ⊨ counter-example shows rebase causing duplicate commits on shared branch
+      ⊨ corrected-understanding states the rebase-local/merge-shared rule"
+  ]
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 15: design-followup v2 (soft cell — targets the rebase-always misconception)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ design-followup
+  given §ask ≡ "(v2 definition)"
+  given evaluate→misconceptions ≡ ["REBASE-IS-ALWAYS-BETTER"]
+  given evaluate→understanding-level ≡ "partial"
+  yield §ask'
+
+  yield §ask' ≡ "⊢ ask
+  given concept→topic
+  given concept→student-level
+  given concept→prerequisite-knowledge
+  yield question, target-understanding
+
+  ∴ The student thinks rebase is always better. Design a scenario that
+    BREAKS this assumption. Three developers share a branch. Developer A
+    rebases, changing commit hashes. Developers B and C pull and get
+    DUPLICATE commits — the old hashes AND the new ones. Ask the student:
+    what went wrong? Why did rebase cause problems HERE but not in the
+    earlier example? Guide toward the rule: rebase local/unpushed work,
+    merge shared branches.
+
+  ⊨ question is scenario-based, not a definition request
+  ⊨ target-understanding names a specific concept being tested"
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ ITERATION 3 — the shared-branch trap
+-- ═══════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 16: ask v3 (soft cell, reveals rebase danger)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ ask
+  given concept→topic ≡ "Git rebase vs merge — when to use which"
+  given concept→student-level ≡ "Junior developer..."
+  given concept→prerequisite-knowledge ≡ "..."
+  yield question, target-understanding
+
+  ∴ Scenario: shared branch rebase causes duplicate commits.
+
+  yield question ≡ "You said you'd always use rebase. Let me give you a scenario: you, Alice, and Bob all work on the same branch called 'feature.' You've all pushed commits to it. You decide to rebase the feature branch onto main to get a cleaner history. After you push, Alice pulls and says: 'Why are there duplicate commits? I see my commit twice — once with its original hash and once with a new hash!' What happened? And does this change your mind about always using rebase?"
+  yield target-understanding ≡ "Rebase REWRITES commit hashes. On shared branches, this creates duplicates for anyone who already has the old commits. The student should realize rebase is safe only for LOCAL, UNPUSHED commits — the rule is 'rebase local, merge shared.'"
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 17: simulate-student v3 (soft cell)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ simulate-student
+  given ask→question ≡ "(shared branch rebase, Alice sees duplicates)"
+  given concept→student-level ≡ "Junior developer..."
+  given concept→prerequisite-knowledge ≡ "..."
+  yield answer, confidence
+
+-- LLM evaluation:
+-- The student now has the visual model (linear vs branching history)
+-- and is confronted with a failure scenario. Junior devs can reason
+-- about this with the A'/A hash-rewriting hint from the previous question.
+
+  yield answer ≡ "Oh! Because when I rebased, my commits got new copies — like you said, A becomes A' with a different hash. But Alice already had the original A. So when she pulls, git sees A and A' as two different commits because the hashes don't match, even though the changes are the same. So she gets both... that's bad. OK so I think I get it now — you should only rebase if nobody else has your commits yet? Like if I haven't pushed yet, I can rebase safely because nobody has the old hashes. But if the branch is shared, use merge because it doesn't rewrite anything. Is that right?"
+  yield confidence ≡ "confident"
+
+-- oracle checks:
+--   ⊨ reflects student level → ✓ (reasoning through the scenario, arriving at the rule)
+--   ⊨ confidence → ✓ ("confident" — justified this time)
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 18: evaluate v3 (soft cell)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ evaluate
+  given ask→question ≡ "(shared branch rebase scenario)"
+  given ask→target-understanding ≡ "rebase rewrites hashes, safe only for local/unpushed"
+  given simulate-student→answer ≡ "(correctly identifies duplicate hash problem, derives rebase-local/merge-shared rule)"
+  given simulate-student→confidence ≡ "confident"
+  yield correct, misconceptions[], understanding-level
+
+  yield correct ≡ true
+  yield misconceptions ≡ []
+  yield understanding-level ≡ "solid"
+
+-- oracle checks:
+--   ⊨ correct ∈ {true, false} → ✓ (true)
+--   ⊨ each misconception is specific → ✓ (vacuous: empty)
+--   ⊨ understanding-level ∈ valid set → ✓ ("solid")
+--   ⊨ if correct then misconceptions empty → ✓
+--   ⊨ if understanding = "solid" then correct → ✓
+
+-- understanding-level = "solid" → ⊢∘ TERMINATES.
+
+-- ═══════════════════════════════════════════════════════════════
+-- COMPLETE: 19 eval-one steps across 4 ⊢∘ iterations
+-- ═══════════════════════════════════════════════════════════════
+--
+-- Iteration 0 (understanding: partial): Scenario about parallel work.
+--   Student: vague file-save model, copy-paste recovery.
+--   Misconceptions: file-save model, copy-paste recovery.
+--   Remedials spawned: 2 (per-file tracking, commit durability)
+--
+-- Iteration 1 (understanding: partial): Different-files scenario.
+--   Student: file-save model cracking, can't commit to per-file logic.
+--   Misconceptions: whole-project model weakening.
+--   Remedials spawned: 1 (per-file tracking confirmation)
+--
+-- Iteration 2 (understanding: partial): Merge knot vs rebase replay.
+--   Student: "rebase is always better!"
+--   Misconceptions: rebase-is-always-better.
+--   Remedials spawned: 1 (rebase rewrites shared history)
+--
+-- Iteration 3 (understanding: solid): Shared-branch rebase trap.
+--   Student: correctly derives "rebase local, merge shared" rule.
+--   Misconceptions: none.
+--   Total remedials spawned across all iterations: 4
+--
+-- Teaching path: prerequisites → per-file tracking → merge vs rebase visual
+-- → rebase danger on shared branches → student-derived rule.
+-- Each question ADAPTED to the specific misconception from the previous round.
+
+-- ═══════════════════════════════════════════════════════════════
+-- OBSERVATIONS
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= obs-adaptive-questioning
+  yield observation
+  ⊢= observation ← "QUESTIONS ADAPTED TO MISCONCEPTIONS: the ∴ block evolved from a generic scenario (v0: parallel work) to targeted probes (v1: different files to break file-save model, v2: visual merge vs rebase, v3: shared-branch trap to break rebase-always). Each rewrite addressed the SPECIFIC misconception from evaluate. The teacher never repeated a question type — each round's question was diagnostically targeted. This is the difference between Socratic teaching and quizzing: questions are DESIGNED to reveal, not just test."
+
+⊢= obs-misconception-accumulation
+  yield observation
+  ⊢= observation ← "⊢⊢ SPAWNER ACCUMULATES REMEDIAL CELLS: 4 remedial cells spawned across 4 iterations, each targeting a specific misconception. These cells are ARTIFACTS of the teaching process — a misconception library that grows monotonically. Future students who exhibit the file-save misconception can be routed directly to remedial-file-save-model without re-deriving the remedial from scratch. The ⊢⊢ spawner turns teaching into curriculum generation."
+
+⊢= obs-simulated-student-realism
+  yield observation
+  ⊢= observation ← "SIMULATED STUDENT TRACKS LEARNING: v0 answer was vague (file-save model). v1 answer wavered (model cracking). v2 answer was confidently wrong (rebase always better). v3 answer was correctly derived (rebase local, merge shared). The confidence trajectory (unsure→unsure→confident-wrong→confident-right) mirrors real learning: confusion → dawning → overgeneralization → correction. The simulate-student cell's ∴ block didn't change — the QUESTIONS changed, and the student's responses naturally tracked the teaching progression."
+
+⊢= obs-prerequisite-discovery
+  yield observation
+  ⊢= observation ← "THE TEACHER DISCOVERED PREREQUISITES DYNAMICALLY: the initial question was about parallel work (prerequisite), not rebase vs merge (target topic). The teacher's ∴ block detected that the student lacked prerequisite knowledge and adjusted downward. This is ADAPTIVE DIFFICULTY: the ⊢∘ loop's evaluate cell detected understanding-level and design-followup adjusted accordingly. The spec says 'if none: simpler question, if partial: target misconception, if solid: advance.' The evaluate→design-followup pipeline implements automatic difficulty scaling."
+
+⊢= obs-evolution-vs-spawning
+  yield observation
+  ⊢= observation ← "⊢∘ AND ⊢⊢ SERVE DIFFERENT ROLES IN THE SAME PROGRAM: ⊢∘ evolves the ask cell (the question adapts). ⊢⊢ spawns remedial cells (the misconception library grows). Evolution is the TEACHING LOOP — same cell, improving. Spawning is ARTIFACT GENERATION — new cells, accumulating. They compose naturally: each ⊢∘ iteration may trigger ⊢⊢ to spawn new remedials. The teaching process BOTH adapts (⊢∘) and accumulates (⊢⊢) simultaneously."
+
+⊢= obs-student-derives-rule
+  yield observation
+  ⊢= observation ← "THE STUDENT DERIVED THE RULE, NOT THE TEACHER: in iteration 3, the student said 'you should only rebase if nobody else has your commits yet... if the branch is shared, use merge.' The teacher never STATED this rule — the scenario (shared-branch rebase causing duplicates) forced the student to INFER it. This is genuinely Socratic: the teacher designs experiences, the student extracts understanding. Cell's structure makes this visible: the rule appears in simulate-student→answer, not in ask→question."
