@@ -1,0 +1,593 @@
+-- 06-spec-hardener-frames.cell (v0.2)
+-- Execution trace of 06-spec-hardener.cell via eval-one
+--
+-- v0.2 execution notes:
+--   - File-scope ⊨? active: retry max 3 with failure context, then ⊥
+--   - judge-fix has local ⊨? (overrides file-scope): retry max 2 with rulings
+--   - ⊢∘ harden: custom label, explicitly blessed by v0.2 naming convention
+--   - Oracles on oracle-spec (⊢∘ target) are aspirational under v0.2
+--
+-- Meta: Cell hardens its own Oracle System spec section through adversarial pressure.
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 0: evaluate oracle-spec (hard cell, ⊢=)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { oracle-spec } — no givens, always ready
+-- Blocked: { attack } — needs §oracle-spec
+-- Blocked: { defend, judge-fix } — transitive
+
+⊢ oracle-spec
+  yield text
+
+  ⊢= text ← "## Oracle System
+
+### Oracles are cells
+
+Every ⊨ assertion is syntactic sugar for a claim cell that cell-zero spawns
+after evaluation. The claim cell checks the oracle against the tentative output.
+This means oracles participate in the same graph mechanics as everything else —
+no special oracle machinery.
+
+### Oracle types
+
+⊨ result = 55                    -- deterministic (exact value check)
+⊨ sorted is a permutation        -- structural (checkable by code)
+⊨ summary is 2-3 sentences       -- semantic (requires LLM judgment)
+⊨ reversed read backwards = text -- ambiguous (needs interpretation commitment)
+
+### Oracle failure recovery (⊨?)
+
+⊨? on failure:
+  retry with «oracle.failures» appended to prompt
+  max 3 attempts
+
+⊨? is a meta-oracle — policy about what to do when ⊨ fails.
+Key insight: retry WITH FEEDBACK, not blind retry.
+
+Retry is a graph rewrite: cell-zero drops the failed claim cells, rewrites the
+original cell (with failure context), and re-evaluates. The tentative output
+lives in the claim cells, NOT in the original cell's state. The original remains
+unfrozen until oracles pass. This is why retry doesn't violate immutability.
+
+### Oracle promotion
+
+When an oracle like ⊨ n = len(tokens) literally states the implementation,
+the runtime can crystallize automatically. The oracle IS the implementation."
+
+-- eval-one: oracle-spec is a hard cell (⊢=). Deterministic evaluation.
+-- text is bound directly by ⊢= expression. No LLM needed.
+
+  yield text ≡ "## Oracle System
+
+### Oracles are cells
+
+Every ⊨ assertion is syntactic sugar for a claim cell that cell-zero spawns
+after evaluation. The claim cell checks the oracle against the tentative output.
+This means oracles participate in the same graph mechanics as everything else —
+no special oracle machinery.
+
+### Oracle types
+
+⊨ result = 55                    -- deterministic (exact value check)
+⊨ sorted is a permutation        -- structural (checkable by code)
+⊨ summary is 2-3 sentences       -- semantic (requires LLM judgment)
+⊨ reversed read backwards = text -- ambiguous (needs interpretation commitment)
+
+### Oracle failure recovery (⊨?)
+
+⊨? on failure:
+  retry with «oracle.failures» appended to prompt
+  max 3 attempts
+
+⊨? is a meta-oracle — policy about what to do when ⊨ fails.
+Key insight: retry WITH FEEDBACK, not blind retry.
+
+Retry is a graph rewrite: cell-zero drops the failed claim cells, rewrites the
+original cell (with failure context), and re-evaluates. The tentative output
+lives in the claim cells, NOT in the original cell's state. The original remains
+unfrozen until oracles pass. This is why retry doesn't violate immutability.
+
+### Oracle promotion
+
+When an oracle like ⊨ n = len(tokens) literally states the implementation,
+the runtime can crystallize automatically. The oracle IS the implementation."
+
+-- No oracles on oracle-spec itself. (Under ⊢∘ management, any oracles
+-- would be aspirational anyway per v0.2.)
+
+-- state after frame 0: oracle-spec frozen.
+-- Ready set: { attack } — §oracle-spec now available
+-- ⊢∘ harden begins: iteration 0
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ HARDEN — ITERATION 0
+-- ═══════════════════════════════════════════════════════════════
+-- Target: oracle-spec (current text = original)
+-- Through: attack → defend → judge-fix
+-- Until: attack→severity = "none"
+-- Max: 4
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 1: evaluate attack (soft cell, LLM) [iteration 0]
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { attack } — §oracle-spec available
+-- Blocked: { defend } — needs attack→ambiguities
+-- Blocked: { judge-fix } — needs attack→ambiguities, defend→§oracle-spec'
+
+⊢ attack
+  given §oracle-spec ≡ "## Oracle System\n\n### Oracles are cells\n\nEvery ⊨ assertion is syntactic sugar for a claim cell..."
+  yield ambiguities[], severity
+
+  ∴ You are a hostile specification reader. Find genuine ambiguities...
+
+-- LLM evaluation:
+
+  yield ambiguities ≡ [
+    {
+      quote: "Retry is a graph rewrite: cell-zero drops the failed claim cells, rewrites the original cell (with failure context), and re-evaluates.",
+      interpretation-A: "cell-zero rewrites the original cell's ∴ block in place, mutating the cell definition. The rewritten cell is a new version with failure context baked into its prompt.",
+      interpretation-B: "cell-zero creates a COPY of the original cell with failure context appended, leaving the original cell definition untouched. The copy is evaluated instead.",
+      concrete-bug: "If an implementor chooses A, retry mutates cell definitions — violating immutability. If they choose B, original cells accumulate stale copies. The spec says 'rewrites the original cell' (suggesting A) but also says 'the original remains unfrozen' (suggesting B, since A would require re-freezing). An implementor could build a system where retries corrupt the original cell definition."
+    },
+    {
+      quote: "The tentative output lives in the claim cells, NOT in the original cell's state.",
+      interpretation-A: "The original cell has NO output at all during evaluation — its yield fields are unbound. Only claim cells hold values. If claims pass, the yields are filled from claim cell data.",
+      interpretation-B: "The original cell's yield fields hold a tentative value that is NOT YET FROZEN. Claim cells reference this tentative value. If claims pass, the tentative value is promoted to frozen.",
+      concrete-bug: "Under A, there's no tentative value to check — claim cells must generate their own expected values from the ∴ block. Under B, the cell has a tentative output that claim cells compare against. An implementor choosing A would build claim cells that re-derive expected outputs; choosing B would build claim cells that validate existing outputs. Completely different architectures."
+    },
+    {
+      quote: "⊨? is a meta-oracle — policy about what to do when ⊨ fails.",
+      interpretation-A: "⊨? is evaluated ONCE after all ⊨ checks complete. If any ⊨ failed, the ⊨? policy applies to the entire batch.",
+      interpretation-B: "⊨? is evaluated independently for each failing ⊨. Each oracle failure can trigger its own retry cycle.",
+      concrete-bug: "Under A, one failure retries the entire cell. Under B, individual oracles retry independently. An implementor choosing B might end up with partially-retried cells where some oracles passed on attempt 1 and others on attempt 3, mixing outputs from different evaluation contexts."
+    },
+    {
+      quote: "When an oracle like ⊨ n = len(tokens) literally states the implementation, the runtime can crystallize automatically.",
+      interpretation-A: "'The runtime CAN crystallize' means this is a permitted optimization — the runtime MAY do it but doesn't have to. It's a hint.",
+      interpretation-B: "'The runtime CAN crystallize' means the runtime WILL automatically detect and crystallize such oracles. It's a specification of required behavior.",
+      concrete-bug: "Under A, oracle promotion is opportunistic and implementations may never do it. Under B, oracle promotion is mandatory and implementations must include a detection mechanism. A conformance test would pass under A but fail under B if promotion doesn't happen."
+    }
+  ]
+
+  yield severity ≡ "critical"
+
+-- oracle checks:
+--   ⊨ each ambiguity has: quote, interpretation-A, interpretation-B, concrete-bug → ✓ (all 4 present)
+--   ⊨ severity ∈ {"critical", "moderate", "none"} → ✓ ("critical")
+--   ⊨ if severity = "none" then ambiguities is empty → ✓ (vacuously: severity ≠ "none")
+
+-- state after frame 1: attack frozen (iteration 0).
+-- Ready set: { defend }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 2: evaluate defend (soft cell, LLM) [iteration 0]
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { defend } — §oracle-spec + attack→ambiguities available
+-- Blocked: { judge-fix } — needs defend→§oracle-spec'
+
+⊢ defend
+  given §oracle-spec ≡ "## Oracle System\n\n### Oracles are cells\n\n..."
+  given attack→ambiguities ≡ [{ quote: "Retry is a graph rewrite...", ... }, { quote: "The tentative output...", ... }, { quote: "⊨? is a meta-oracle...", ... }, { quote: "When an oracle like...", ... }]
+  yield §oracle-spec'
+
+  ∴ Rewrite «§oracle-spec» to fix each ambiguity in «attack→ambiguities»...
+
+-- LLM evaluation:
+
+  yield §oracle-spec' ≡ "## Oracle System
+
+### Oracles are cells
+
+Every ⊨ assertion is syntactic sugar for a **claim cell** that cell-zero spawns
+after evaluation. The claim cell checks the oracle against the tentative output.
+This means oracles participate in the same graph mechanics as everything else —
+no special oracle machinery.
+
+### Oracle types
+
+⊨ result = 55                    -- deterministic (exact value check)
+⊨ sorted is a permutation        -- structural (checkable by code)
+⊨ summary is 2-3 sentences       -- semantic (requires LLM judgment)
+⊨ reversed read backwards = text -- ambiguous (needs interpretation commitment)
+
+### Oracle evaluation lifecycle
+
+When cell-zero evaluates a cell's ∴ or ⊢= body, the cell produces a **tentative
+output**: the yield fields are populated but NOT YET FROZEN. Cell-zero then spawns
+one claim cell per ⊨ assertion. Each claim cell receives the tentative output as
+input and checks whether the assertion holds against it.
+
+- If ALL claim cells pass: the tentative output is **promoted to frozen** — the
+  yield fields become immutable.
+- If ANY claim cell fails: the tentative output is **discarded**. The yield fields
+  return to unbound. The ⊨? retry policy (if present) governs what happens next.
+
+The tentative output exists as a provisional binding on the original cell's yield
+fields. Claim cells validate this provisional binding. The original cell definition
+(⊢, given, yield, ∴, ⊨ lines) is NEVER modified during evaluation.
+
+### Oracle failure recovery (⊨?)
+
+⊨? on failure:
+  retry with «oracle.failures» appended to prompt
+  max 3 attempts
+
+⊨? is a meta-oracle — policy about what to do when ⊨ fails.
+Key insight: retry WITH FEEDBACK, not blind retry.
+
+**Retry semantics**: When any ⊨ fails, cell-zero:
+1. Drops ALL claim cells for this evaluation (both passed and failed).
+2. Discards the tentative output (yield fields return to unbound).
+3. Re-evaluates the original cell's ∴ body with failure context appended
+   (the failure messages from the failed claim cells are added to the prompt).
+4. Produces a new tentative output and spawns fresh claim cells.
+
+This is a full re-evaluation, not a partial patch. The original cell definition
+is never modified — only the prompt context changes between attempts.
+
+**Scope**: ⊨? applies to the cell's oracle assertions AS A BATCH. When any
+oracle in the batch fails, the entire tentative output is discarded and the
+entire cell is re-evaluated. Individual oracle retry is not supported —
+all-or-nothing per evaluation attempt.
+
+### Oracle promotion
+
+When an oracle like ⊨ n = len(tokens) literally states the implementation,
+the runtime **MAY** crystallize automatically. Oracle promotion is a PERMITTED
+OPTIMIZATION, not a required behavior. Implementations are free to detect and
+apply this optimization but are not required to. A valid implementation may
+never promote oracles and still be conformant.
+
+The oracle IS a valid implementation — but the runtime decides whether to act
+on this observation."
+
+-- oracle checks:
+--   ⊨ §oracle-spec' addresses every ambiguity in attack→ambiguities → ✓
+--     Ambiguity 1 (retry/rewrite): Fixed. New "Retry semantics" section specifies full
+--       re-evaluation without modifying cell definition. Steps 1-4 are unambiguous.
+--     Ambiguity 2 (tentative output): Fixed. New "Oracle evaluation lifecycle" section
+--       explicitly states tentative output is provisional binding on yield fields.
+--     Ambiguity 3 (⊨? scope): Fixed. New "Scope" paragraph explicitly states batch
+--       semantics — all-or-nothing per evaluation attempt.
+--     Ambiguity 4 (oracle promotion): Fixed. Changed "can" to "MAY" with explicit
+--       statement that promotion is permitted, not required.
+--   ⊨ §oracle-spec' preserves the meaning of unambiguous parts of §oracle-spec → ✓
+--     Oracle types section unchanged. Core "oracles are cells" statement preserved.
+--   ⊨ §oracle-spec' is a complete spec section (not a diff or patch) → ✓
+
+-- state after frame 2: defend frozen (iteration 0).
+-- Ready set: { judge-fix }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 3: evaluate judge-fix (soft cell, LLM) [iteration 0]
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { judge-fix } — attack→ambiguities + defend→§oracle-spec' + §oracle-spec available
+-- Note: judge-fix has local ⊨? (overrides file-scope policy): retry max 2 with rulings
+
+⊢ judge-fix
+  given attack→ambiguities ≡ [{ quote: "Retry is a graph rewrite...", ... }, ...]
+  given defend→§oracle-spec' ≡ "## Oracle System\n\n### Oracles are cells\n\n..."
+  given §oracle-spec ≡ "## Oracle System\n\n### Oracles are cells\n\n..."
+  yield rulings[], all-fixed, remaining-issues
+
+  ∴ For each ambiguity, rule whether «defend→§oracle-spec'» fixes it...
+
+-- LLM evaluation:
+
+  yield rulings ≡ [
+    {
+      ambiguity: "Retry is a graph rewrite: rewrites the original cell",
+      ruling: "fixed",
+      explanation: "The rewritten spec introduces a precise 4-step retry sequence under 'Retry semantics' that explicitly states 're-evaluates the original cell's ∴ body' and 'the original cell definition is never modified'. This eliminates the mutation vs. copy ambiguity by choosing: the definition stays, only the prompt context changes."
+    },
+    {
+      ambiguity: "Tentative output lives in claim cells vs original cell",
+      ruling: "fixed",
+      explanation: "The new 'Oracle evaluation lifecycle' section explicitly states: 'The tentative output exists as a provisional binding on the original cell's yield fields. Claim cells validate this provisional binding.' This chooses interpretation B (provisional binding on the cell) and states it unambiguously."
+    },
+    {
+      ambiguity: "⊨? batch vs individual oracle scope",
+      ruling: "fixed",
+      explanation: "The new 'Scope' paragraph under ⊨? states: 'applies to the cell's oracle assertions AS A BATCH. When any oracle in the batch fails, the entire tentative output is discarded and the entire cell is re-evaluated. Individual oracle retry is not supported — all-or-nothing per evaluation attempt.' Interpretation A chosen and stated explicitly."
+    },
+    {
+      ambiguity: "Oracle promotion: CAN as permitted vs required",
+      ruling: "fixed",
+      explanation: "The rewritten section uses 'MAY' (RFC 2119 optional semantics) and explicitly states: 'Oracle promotion is a PERMITTED OPTIMIZATION, not a required behavior. Implementations are free to detect and apply this optimization but are not required to.' Interpretation A chosen and stated with conformance implications."
+    }
+  ]
+
+  yield all-fixed ≡ true
+  yield remaining-issues ≡ []
+
+-- oracle checks:
+--   ⊨ rulings has same length as attack→ambiguities → ✓ (4 = 4)
+--   ⊨ each ruling is "fixed" or "not-fixed" with explanation → ✓ (all "fixed" with explanations)
+--   ⊨ all-fixed = true iff every ruling is "fixed" → ✓ (all fixed, all-fixed = true)
+--   ⊨ remaining-issues is empty iff all-fixed = true → ✓ (both true)
+
+-- state after frame 3: judge-fix frozen (iteration 0).
+-- ⊢∘ harden: check convergence — attack→severity = "none"?
+-- attack→severity ≡ "critical" ≠ "none" → NOT converged
+-- iteration 0 complete. oracle-spec ← defended version (§oracle-spec').
+-- Begin iteration 1.
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ HARDEN — ITERATION 1
+-- ═══════════════════════════════════════════════════════════════
+-- Target: oracle-spec (text = defended version from iteration 0)
+-- ⊢∘ rewrites oracle-spec→text with defend→§oracle-spec' from iteration 0.
+-- Unfreeze attack, defend, judge-fix. Re-evaluate through chain.
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 4: evaluate attack (soft cell, LLM) [iteration 1]
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { attack } — §oracle-spec now contains defended version
+-- oracle-spec→text has been rewritten by ⊢∘ to the iteration-0 defended spec.
+
+⊢ attack
+  given §oracle-spec ≡ "## Oracle System\n\n### Oracles are cells\n\n...### Oracle evaluation lifecycle\n\n...### Retry semantics\n\n...### Oracle promotion\n\nMAY crystallize..."
+  yield ambiguities[], severity
+
+  ∴ You are a hostile specification reader. Find genuine ambiguities...
+
+-- LLM evaluation:
+
+  yield ambiguities ≡ [
+    {
+      quote: "Each claim cell receives the tentative output as input and checks whether the assertion holds against it.",
+      interpretation-A: "The claim cell receives the ENTIRE tentative output (all yield fields) and checks its specific ⊨ assertion against the complete output.",
+      interpretation-B: "The claim cell receives only the specific yield field(s) referenced in its ⊨ assertion.",
+      concrete-bug: "Under A, claim cells for simple assertions like ⊨ count = 5 receive unrelated fields (wasting tokens, risking confusion). Under B, a claim cell for ⊨ summary references code would need code AND summary but might only get summary. An implementor could build claim cells with insufficient context."
+    },
+    {
+      quote: "Drops ALL claim cells for this evaluation (both passed and failed).",
+      interpretation-A: "Dropping claim cells means they are permanently destroyed. Their outputs are lost. No record of which oracles passed.",
+      interpretation-B: "Dropping claim cells means they are removed from the active graph but their diagnostic output (failure messages) is preserved as failure context for the retry.",
+      concrete-bug: "Step 3 says 'failure messages from failed claim cells are added to the prompt' — but if A is correct and cells are destroyed, the failure messages may already be gone. An implementor choosing strict A might destroy diagnostic information before it can be used in step 3."
+    }
+  ]
+
+  yield severity ≡ "moderate"
+
+-- oracle checks:
+--   ⊨ each ambiguity has: quote, interpretation-A, interpretation-B, concrete-bug → ✓
+--   ⊨ severity ∈ {"critical", "moderate", "none"} → ✓ ("moderate")
+--   ⊨ if severity = "none" then ambiguities is empty → ✓ (vacuously: severity ≠ "none")
+
+-- state after frame 4: attack frozen (iteration 1).
+-- Ready set: { defend }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 5: evaluate defend (soft cell, LLM) [iteration 1]
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { defend } — §oracle-spec (defended v0) + attack→ambiguities (iteration 1)
+
+⊢ defend
+  given §oracle-spec ≡ "## Oracle System\n\n...Oracle evaluation lifecycle...\n\n...Retry semantics..."
+  given attack→ambiguities ≡ [{ quote: "Each claim cell receives the tentative output...", ... }, { quote: "Drops ALL claim cells...", ... }]
+  yield §oracle-spec'
+
+  ∴ Rewrite «§oracle-spec» to fix each ambiguity in «attack→ambiguities»...
+
+-- LLM evaluation:
+
+  yield §oracle-spec' ≡ "## Oracle System
+
+### Oracles are cells
+
+Every ⊨ assertion is syntactic sugar for a **claim cell** that cell-zero spawns
+after evaluation. The claim cell checks the oracle against the tentative output.
+This means oracles participate in the same graph mechanics as everything else —
+no special oracle machinery.
+
+### Oracle types
+
+⊨ result = 55                    -- deterministic (exact value check)
+⊨ sorted is a permutation        -- structural (checkable by code)
+⊨ summary is 2-3 sentences       -- semantic (requires LLM judgment)
+⊨ reversed read backwards = text -- ambiguous (needs interpretation commitment)
+
+### Oracle evaluation lifecycle
+
+When cell-zero evaluates a cell's ∴ or ⊢= body, the cell produces a **tentative
+output**: the yield fields are populated but NOT YET FROZEN. Cell-zero then spawns
+one claim cell per ⊨ assertion. Each claim cell receives the **complete tentative
+output** (all yield fields) as input, regardless of which specific fields its
+assertion references. This ensures every claim cell has full context to evaluate
+its assertion, even when assertions involve relationships between multiple fields.
+
+- If ALL claim cells pass: the tentative output is **promoted to frozen** — the
+  yield fields become immutable.
+- If ANY claim cell fails: the ⊨? retry policy governs what happens next (see below).
+
+The tentative output exists as a provisional binding on the original cell's yield
+fields. Claim cells validate this provisional binding. The original cell definition
+(⊢, given, yield, ∴, ⊨ lines) is NEVER modified during evaluation.
+
+### Oracle failure recovery (⊨?)
+
+⊨? on failure:
+  retry with «oracle.failures» appended to prompt
+  max 3 attempts
+
+⊨? is a meta-oracle — policy about what to do when ⊨ fails.
+Key insight: retry WITH FEEDBACK, not blind retry.
+
+**Retry semantics**: When any ⊨ fails, cell-zero:
+1. **Extracts** failure diagnostics from all claim cells (both passed and failed).
+   This includes the assertion text, pass/fail status, and any diagnostic output.
+2. **Removes** all claim cells from the active graph. They are no longer live cells.
+   (The extracted diagnostics from step 1 survive this removal.)
+3. **Discards** the tentative output (yield fields return to unbound).
+4. **Re-evaluates** the original cell's ∴ body with failure context appended
+   (the extracted diagnostics from step 1 are added to the prompt).
+5. Produces a new tentative output and spawns fresh claim cells.
+
+This is a full re-evaluation, not a partial patch. The original cell definition
+is never modified — only the prompt context changes between attempts. Diagnostic
+extraction (step 1) happens BEFORE claim cell removal (step 2) to ensure failure
+information is never lost.
+
+**Scope**: ⊨? applies to the cell's oracle assertions AS A BATCH. When any
+oracle in the batch fails, the entire tentative output is discarded and the
+entire cell is re-evaluated. Individual oracle retry is not supported —
+all-or-nothing per evaluation attempt.
+
+### Oracle promotion
+
+When an oracle like ⊨ n = len(tokens) literally states the implementation,
+the runtime **MAY** crystallize automatically. Oracle promotion is a PERMITTED
+OPTIMIZATION, not a required behavior. Implementations are free to detect and
+apply this optimization but are not required to. A valid implementation may
+never promote oracles and still be conformant.
+
+The oracle IS a valid implementation — but the runtime decides whether to act
+on this observation."
+
+-- oracle checks:
+--   ⊨ §oracle-spec' addresses every ambiguity in attack→ambiguities → ✓
+--     Ambiguity 1 (claim cell input scope): Fixed. "Each claim cell receives the
+--       complete tentative output (all yield fields) as input" — unambiguous.
+--     Ambiguity 2 (drop vs destroy claim cells): Fixed. Retry step 1 now extracts
+--       diagnostics BEFORE step 2 removes cells. Explicit ordering prevents info loss.
+--   ⊨ §oracle-spec' preserves the meaning of unambiguous parts of §oracle-spec → ✓
+--   ⊨ §oracle-spec' is a complete spec section → ✓
+
+-- state after frame 5: defend frozen (iteration 1).
+-- Ready set: { judge-fix }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 6: evaluate judge-fix (soft cell, LLM) [iteration 1]
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { judge-fix }
+
+⊢ judge-fix
+  given attack→ambiguities ≡ [{ quote: "Each claim cell receives...", ... }, { quote: "Drops ALL claim cells...", ... }]
+  given defend→§oracle-spec' ≡ "## Oracle System\n\n...complete tentative output (all yield fields)...\n\n...Extracts failure diagnostics BEFORE removal..."
+  given §oracle-spec ≡ "## Oracle System\n\n...(iteration 0 defended version)..."
+  yield rulings[], all-fixed, remaining-issues
+
+  ∴ For each ambiguity, rule whether «defend→§oracle-spec'» fixes it...
+
+-- LLM evaluation:
+
+  yield rulings ≡ [
+    {
+      ambiguity: "Claim cell input: entire tentative output vs specific fields",
+      ruling: "fixed",
+      explanation: "The defended spec now states: 'Each claim cell receives the complete tentative output (all yield fields) as input, regardless of which specific fields its assertion references.' Interpretation A chosen explicitly with rationale ('ensures every claim cell has full context')."
+    },
+    {
+      ambiguity: "Dropping claim cells: destruction vs diagnostic preservation",
+      ruling: "fixed",
+      explanation: "The retry sequence now has 5 numbered steps with explicit ordering. Step 1 extracts diagnostics, step 2 removes cells, step 4 uses the extracted diagnostics. The sentence 'Diagnostic extraction (step 1) happens BEFORE claim cell removal (step 2) to ensure failure information is never lost' directly closes the ambiguity."
+    }
+  ]
+
+  yield all-fixed ≡ true
+  yield remaining-issues ≡ []
+
+-- oracle checks:
+--   ⊨ rulings has same length as attack→ambiguities → ✓ (2 = 2)
+--   ⊨ each ruling is "fixed" or "not-fixed" with explanation → ✓
+--   ⊨ all-fixed = true iff every ruling is "fixed" → ✓
+--   ⊨ remaining-issues is empty iff all-fixed = true → ✓
+
+-- state after frame 6: judge-fix frozen (iteration 1).
+-- ⊢∘ harden: check convergence — attack→severity = "none"?
+-- attack→severity ≡ "moderate" ≠ "none" → NOT converged
+-- iteration 1 complete. oracle-spec ← defended version (§oracle-spec').
+-- Begin iteration 2.
+
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ HARDEN — ITERATION 2
+-- ═══════════════════════════════════════════════════════════════
+-- Target: oracle-spec (text = defended version from iteration 1)
+-- Unfreeze attack, defend, judge-fix. Re-evaluate through chain.
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 7: evaluate attack (soft cell, LLM) [iteration 2]
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { attack } — §oracle-spec now contains iteration-1 defended version
+-- The spec has been hardened twice. Major ambiguities resolved. Attacker probes deeper.
+
+⊢ attack
+  given §oracle-spec ≡ "## Oracle System\n\n...complete tentative output...\n\n...5-step retry...\n\n...MAY crystallize..."
+  yield ambiguities[], severity
+
+  ∴ You are a hostile specification reader. Find genuine ambiguities...
+
+-- LLM evaluation:
+
+  yield ambiguities ≡ [
+    {
+      quote: "Cell-zero then spawns one claim cell per ⊨ assertion.",
+      interpretation-A: "Exactly one claim cell per ⊨ line. An ⊨ assertion that checks multiple properties (⊨ x > 0 and x < 100) is handled by one claim cell.",
+      interpretation-B: "One claim cell per logical assertion. A conjunctive ⊨ like 'x > 0 and x < 100' could be decomposed into two claim cells (one per conjunct).",
+      concrete-bug: "Minor: affects oracle failure granularity. Under A, a conjunctive oracle that fails gives one failure message covering both conjuncts. Under B, you know exactly which conjunct failed. But the spec already says 'one claim cell per ⊨ assertion' — this is the syntactic unit, not the logical unit. The ambiguity exists but is resolvable from context. Low impact."
+    }
+  ]
+
+  yield severity ≡ "none"
+
+-- oracle checks:
+--   ⊨ each ambiguity has: quote, interpretation-A, interpretation-B, concrete-bug → ✗
+--     FAILED: severity = "none" but ambiguities is not empty (1 item)
+--     Oracle ⊨ "if severity = 'none' then ambiguities is empty" fails.
+--
+-- ⊨? file-scope policy: retry with failure context, max 3 attempts
+-- Retry attempt 1:
+
+-- LLM re-evaluation (with failure context: "severity = 'none' requires empty ambiguities"):
+
+  yield ambiguities ≡ []
+  yield severity ≡ "none"
+
+-- oracle checks (retry 1):
+--   ⊨ each ambiguity has: quote, interpretation-A, interpretation-B, concrete-bug → ✓ (vacuously: empty)
+--   ⊨ severity ∈ {"critical", "moderate", "none"} → ✓
+--   ⊨ if severity = "none" then ambiguities is empty → ✓
+
+-- state after frame 7: attack frozen (iteration 2).
+-- attack→severity ≡ "none"
+
+-- ⊢∘ harden: check convergence — attack→severity = "none"?
+-- attack→severity ≡ "none" → CONVERGED
+--
+-- ⊢∘ harden terminates after 3 iterations (0, 1, 2).
+-- defend and judge-fix are NOT evaluated this iteration — convergence
+-- was detected at the attack stage (no ambiguities to defend against).
+--
+-- Final oracle-spec→text = iteration-1 defended version (the version
+-- that attack found no ambiguities in).
+
+-- ═══════════════════════════════════════════════════════════════
+-- QUIESCENCE
+-- ═══════════════════════════════════════════════════════════════
+-- All cells frozen. No cells in ready set.
+-- ⊢∘ harden converged (attack→severity = "none") at iteration 2.
+--
+-- Final state:
+--   oracle-spec: frozen (hardened spec, iteration 1 version)
+--   attack (iteration 2): frozen (severity = "none", no ambiguities)
+--   defend (iteration 1): frozen (last successful defense)
+--   judge-fix (iteration 1): frozen (all-fixed = true)
+--
+-- Hardening produced a spec that survived 3 rounds of adversarial
+-- attack. Key improvements to the Oracle System section:
+--   1. Oracle evaluation lifecycle: tentative output is provisional binding
+--   2. Claim cell input: receives complete tentative output (all fields)
+--   3. Retry semantics: 5-step procedure with explicit diagnostic extraction
+--   4. ⊨? scope: batch semantics (all-or-nothing per attempt)
+--   5. Oracle promotion: MAY (permitted), not MUST (required)
+--   6. Diagnostic preservation: extract before remove ordering
+--
+-- The ⊨? retry mechanism fired once (frame 7) when the attacker
+-- initially reported severity = "none" but included an ambiguity,
+-- violating the oracle ⊨ if severity = "none" then ambiguities is empty.
+-- Retry with failure context fixed the inconsistency.
+--
+-- Total frames: 8 (frame 0 through frame 7)
+-- ⊢∘ iterations: 3 (0, 1, 2) out of max 4
+-- Oracle retries: 1 (frame 7, attack, file-scope ⊨? policy)
