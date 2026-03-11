@@ -1,0 +1,199 @@
+-- 04-self-building-test-suite.cell
+-- Tests: ⊢∘ evolution loop, ⊢⊢ spawner, recursive edge case discovery, oracle-gated coverage
+--
+-- A Cell program that takes a function signature + behavior description, generates
+-- initial test cases, runs them, discovers edge cases from the results, spawns
+-- targeted test cells for each edge case, and loops until coverage oracle passes.
+--
+-- This demonstrates Cell's recursive discovery + dynamic spawning: the test suite
+-- BUILDS ITSELF by finding its own gaps.
+--
+-- Function under test: parse_date(s: string) -> Date
+-- Parses dates in any common format (ISO, US, European, natural language like "next Tuesday")
+
+⊢ function-spec
+  given signature ≡ "parse_date(s: string) -> Date"
+  given behavior ≡ "Parses dates in any common format. Accepts ISO 8601 (2024-03-15, 2024-03-15T10:30:00Z), US format (03/15/2024, March 15 2024), European format (15.03.2024, 15/03/2024), and natural language (next Tuesday, yesterday, in 3 days). Returns a Date with year, month, day fields. Raises ValueError on unparseable input."
+  yield signature, behavior
+
+  ⊨ signature specifies input and output types
+  ⊨ behavior describes at least 3 distinct input formats
+
+⊢ generate-initial-tests
+  given function-spec→signature
+  given function-spec→behavior
+  yield test-cases[], categories[]
+
+  ∴ Given the function «function-spec→signature» with behavior:
+    «function-spec→behavior»
+
+    Generate 5-7 initial test cases covering the obvious happy paths.
+    Each test case is { input, expected-output, category }.
+    Categories: "iso", "us", "european", "natural-language", "error".
+    Start with the most obvious valid inputs — one per format family.
+
+  ⊨ length(test-cases) ≥ 5
+  ⊨ categories covers at least 3 distinct format families
+  ⊨ each test-case has input, expected-output, and category fields
+
+⊢ run-tests
+  given generate-initial-tests→test-cases
+  given function-spec→signature
+  given function-spec→behavior
+  yield results[], pass-count, fail-count
+
+  ∴ Simulate executing «function-spec→signature» on each test case
+    in «generate-initial-tests→test-cases». For each test:
+    - Determine what the function SHOULD return given the behavior spec
+    - Compare against the test's expected-output
+    - Mark as pass or fail with explanation
+
+  ⊨ length(results) = length(generate-initial-tests→test-cases)
+  ⊨ pass-count + fail-count = length(results)
+  ⊨ each result includes input, actual, expected, pass/fail, explanation
+
+⊢ discover-edge-cases
+  given run-tests→results
+  given function-spec→behavior
+  given generate-initial-tests→categories
+  yield edge-cases[], reasoning
+
+  ∴ Analyze the test results «run-tests→results» and the behavior spec
+    «function-spec→behavior». For each tested category, identify edge cases
+    that the initial tests MISSED:
+
+    - Boundary conditions (empty string, whitespace-only, very long input)
+    - Ambiguous inputs ("01/02/03" — US or European? MDY or DMY?)
+    - Format mixing ("March 15, 2024 10:30:00Z" — natural + ISO time)
+    - Partial inputs ("March 2024" — no day, "Tuesday" — no year)
+    - Numeric boundaries (month 13, day 32, Feb 29 on non-leap year)
+    - Relative date anchoring ("next Tuesday" — from when?)
+    - Unicode and locale (full-width digits, month names in other scripts)
+    - Error cases that should raise ValueError
+
+    For each edge case, explain WHY it's an edge case — what could go wrong.
+
+  ⊨ length(edge-cases) ≥ 4
+  ⊨ each edge-case identifies a specific risk or ambiguity
+  ⊨ edge-cases includes at least one ambiguous input and one boundary case
+  ⊨ reasoning explains the discovery process
+
+⊢⊢ spawn-edge-tests
+  given discover-edge-cases→edge-cases
+  given function-spec→signature
+  given function-spec→behavior
+  given §edge-test-template
+  yield §edge-test-cells[]
+  until length(edge-test-cells) = length(discover-edge-cases→edge-cases)
+  max 10
+
+  ∴ For each edge case in «discover-edge-cases→edge-cases», spawn a test cell
+    from «§edge-test-template». Each spawned cell receives the specific edge
+    case input, the expected behavior (or expected error), and the rationale
+    for why this edge case matters.
+
+  ⊨ length(edge-test-cells) = length(discover-edge-cases→edge-cases)
+  ⊨ each spawned cell targets exactly one edge case
+
+⊢ edge-test-template
+  given edge-input
+  given expected-behavior
+  given edge-rationale
+  given function-spec→signature
+  yield result, verdict, deeper-edges[]
+
+  ∴ Simulate executing «function-spec→signature» on «edge-input».
+    Determine the actual behavior. Compare to «expected-behavior».
+    Verdict: "pass", "fail", or "ambiguous" (if the spec is unclear).
+
+    Then: does this result reveal EVEN DEEPER edge cases? For example,
+    if «edge-input» is "02/03/2024" and we chose US interpretation,
+    that implies we need tests for "13/02/2024" (unambiguously European
+    since month > 12). List any deeper edges discovered.
+
+  ⊨ verdict ∈ { "pass", "fail", "ambiguous" }
+  ⊨ if verdict = "ambiguous" then result explains the ambiguity
+  ⊨ deeper-edges is a list (possibly empty)
+
+⊢ assess-coverage
+  given run-tests→results
+  given edge-test-*→result
+  given edge-test-*→verdict
+  given edge-test-*→deeper-edges
+  given function-spec→behavior
+  yield coverage-score, gaps[], total-tests, ambiguities[]
+
+  ∴ Assess test coverage across all results:
+    - Initial test results: «run-tests→results»
+    - Edge test results: all edge-test-* cells
+
+    Score coverage 1-10 where:
+    - 1-3: only happy paths covered
+    - 4-6: some edge cases but major gaps remain
+    - 7-8: good coverage, minor gaps
+    - 9-10: comprehensive — hard to think of untested scenarios
+
+    List remaining gaps (uncovered scenarios).
+    List ambiguities (cases where the spec itself is unclear).
+
+  ⊨ coverage-score ∈ {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+  ⊨ gaps is empty iff coverage-score ≥ 9
+  ⊨ total-tests = count of all test results (initial + edge)
+
+⊢ refine-test-suite
+  given assess-coverage→gaps
+  given assess-coverage→ambiguities
+  given discover-edge-cases→edge-cases
+  yield refined-edge-cases[], spec-clarifications[]
+
+  ∴ Given remaining gaps «assess-coverage→gaps» and ambiguities
+    «assess-coverage→ambiguities», produce:
+    1. New edge cases targeting each gap
+    2. Spec clarifications needed (questions for the function author)
+
+    The refined edge cases feed back into the evolution loop.
+
+  ⊨ length(refined-edge-cases) ≥ length(assess-coverage→gaps)
+  ⊨ each gap has at least one corresponding test case
+  ⊨ spec-clarifications addresses each ambiguity
+
+⊢∘ evolve(discover-edge-cases, run-tests→results ≡ run-tests→results)
+  through assess-coverage, refine-test-suite
+  until assess-coverage→coverage-score ≥ 8
+  max 3
+
+  -- Each iteration: edge cases discovered → edge test cells spawned →
+  -- results collected → coverage assessed → gaps found → new edge cases
+  -- generated. The refined edge cases feed back as the new discover output.
+  --
+  -- The evolution loop rewrites discover-edge-cases's output with the
+  -- refined edge cases, then re-spawns edge test cells and re-assesses.
+  -- Interface frozen; only the edge cases evolve.
+
+⊢ final-test-suite
+  given generate-initial-tests→test-cases
+  given edge-test-*→result
+  given edge-test-*→verdict
+  given assess-coverage→coverage-score
+  given assess-coverage→total-tests
+  given refine-test-suite→spec-clarifications
+  yield complete-suite[], coverage-report, spec-questions[]
+
+  ∴ Assemble the final test suite from all test results:
+    - Initial tests: «generate-initial-tests→test-cases»
+    - Edge tests: all edge-test-* results and verdicts
+    Deduplicate, organize by category, mark each as:
+      ✓ passing, ✗ failing, ? ambiguous
+
+    Produce a coverage report summarizing what's tested and what isn't.
+    Include spec-clarifications as open questions for the function author.
+
+  ⊨ complete-suite covers initial tests + all edge tests
+  ⊨ coverage-report references the coverage-score
+  ⊨ if spec-questions is non-empty then at least one ambiguity was found
+  ⊨ complete-suite is organized by category
+
+⊨? on failure:
+  retry with «oracle.failures» max 3
+⊨? on exhaustion:
+  partial-accept(best)
