@@ -1,0 +1,145 @@
+-- 15-recursive-explanation.cell
+-- Explains a concept. Identifies hardest sub-concepts. Explains each.
+-- Recurses until all leaf explanations pass a comprehension oracle.
+--
+-- Tests: ⊢⊢ spawner (recursive tree), ⊢∘ evolution loop,
+--        comprehension oracle ("would a 10-year-old understand?"),
+--        recursive depth controlled by semantic judgment
+--
+-- Concept: "How does Cell's confluence property work and why does it matter?"
+
+⊢ concept
+  given text ≡ "How does Cell's confluence property work and why does it matter?"
+  yield text
+
+  ⊨ text names a concept that can be explained at multiple levels of depth
+
+⊢ explain
+  given concept→text
+  yield explanation, jargon-terms[]
+
+  ∴ Explain «concept→text» clearly and completely. Use plain language where
+    possible but don't sacrifice accuracy. After writing the explanation,
+    list every technical term or concept you used that a non-expert might
+    not understand (the "jargon terms"). These are candidates for recursive
+    explanation.
+
+  ⊨ explanation addresses both "how it works" and "why it matters"
+  ⊨ explanation is 3-8 sentences
+  ⊨ length(jargon-terms) ≥ 1
+
+⊢ assess-comprehension
+  given explain→explanation
+  given explain→jargon-terms
+  yield clear-terms[], hard-terms[], comprehension-score
+
+  ∴ For each jargon term in «explain→jargon-terms», judge:
+    Would a curious 10-year-old understand this term from context in the
+    explanation «explain→explanation»?
+
+    Clear: the explanation provides enough context to understand the term
+    (e.g., "list" in "a list of items" — self-evident).
+    Hard: the term requires its own explanation (e.g., "topological sort"
+    — not self-evident from context).
+
+    Pick the 3 hardest terms (most opaque, most crucial to understanding).
+    Score comprehension 0-10: how well would a 10-year-old understand
+    the full explanation?
+
+  ⊨ length(clear-terms) + length(hard-terms) = length(explain→jargon-terms)
+  ⊨ length(hard-terms) ≤ 3
+  ⊨ comprehension-score ∈ [0, 10]
+  ⊨ if comprehension-score ≥ 9 then hard-terms is empty
+
+⊢⊢ spawn-explainers
+  given assess-comprehension→hard-terms
+  given §sub-explain-template
+  yield §explainer-cells[]
+  until length(explainer-cells) = length(assess-comprehension→hard-terms)
+  max 5
+
+  ∴ For each hard term in «assess-comprehension→hard-terms», spawn an
+    explainer cell that explains just that term at a 10-year-old's level.
+
+  ⊨ length(explainer-cells) = length(assess-comprehension→hard-terms)
+
+⊢ sub-explain-template
+  given term
+  given parent-context
+  yield explanation, still-hard
+
+  ∴ Explain «term» so a curious 10-year-old could understand it.
+    Use analogies, examples, and everyday language. The term appeared in
+    this context: «parent-context». Your explanation should make that
+    context comprehensible.
+
+    After explaining, judge: does YOUR explanation introduce any term a
+    10-year-old wouldn't understand? If yes, mark still-hard = true.
+
+  ⊨ explanation uses no unexplained jargon
+  ⊨ explanation is 2-5 sentences
+  ⊨ explanation uses at least one analogy or concrete example
+  ⊨ still-hard ∈ {true, false}
+
+⊢ collect-explanations
+  given explain→explanation
+  given assess-comprehension→clear-terms
+  given explainer-*→explanation
+  given explainer-*→still-hard
+  yield full-explanation, remaining-hard[], leaf-score
+
+  ∴ Assemble a complete explanation by combining:
+    1. The main explanation: «explain→explanation»
+    2. Sub-explanations for each hard term from the explainer cells
+
+    Format as a layered explanation: main text first, then "What does X
+    mean?" sections for each sub-explained term.
+
+    Check: are any explainer cells still-hard = true? If so, those terms
+    need further recursion. Compute leaf-score:
+    - 10 if no remaining hard terms
+    - Lower proportional to remaining hard terms
+
+  ⊨ full-explanation includes the main explanation and all sub-explanations
+  ⊨ remaining-hard contains only terms where still-hard = true
+  ⊨ leaf-score = 10 if remaining-hard is empty
+
+⊢ deepen
+  given collect-explanations→remaining-hard
+  given collect-explanations→full-explanation
+  yield deeper-explanations[]
+
+  ∴ For each still-hard term in «collect-explanations→remaining-hard»,
+    provide a simpler explanation using only words a 10-year-old knows.
+    Use analogies from everyday life. No technical terms allowed.
+
+  ⊨ each deeper explanation uses only everyday language
+  ⊨ each deeper explanation includes an analogy
+  ⊨ length(deeper-explanations) = length(collect-explanations→remaining-hard)
+
+⊢∘ evolve(explain, concept→text)
+  through collect-explanations, deepen
+  until collect-explanations→leaf-score ≥ 9
+  max 3
+
+  -- Each iteration: explain the concept → assess which terms are hard →
+  -- spawn explainer cells for hard terms → collect results → if any
+  -- sub-explanations still use hard terms, deepen further.
+  -- Recursion depth bounded by max 3 and by the comprehension oracle:
+  -- the explainer template marks still-hard = false when its explanation
+  -- uses only simple terms, terminating that branch.
+
+⊢ format-output
+  given collect-explanations→full-explanation
+  given concept→text
+  yield final-explanation
+
+  ∴ Format «collect-explanations→full-explanation» as a clean, readable
+    document explaining «concept→text». Structure it as:
+    1. The main explanation (for someone who knows related concepts)
+    2. "Digging deeper" sections for each sub-concept
+    3. A one-sentence summary a 10-year-old could repeat
+
+  ⊨ final-explanation starts with the main explanation
+  ⊨ final-explanation ends with a one-sentence 10-year-old summary
+  ⊨ final-explanation contains no unexplained jargon at any level

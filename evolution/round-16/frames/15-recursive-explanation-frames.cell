@@ -1,0 +1,331 @@
+-- 15-recursive-explanation-frames.cell
+-- Execution trace of 15-recursive-explanation.cell via eval-one
+--
+-- Concept: "How does Cell's confluence property work and why does it matter?"
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 0: evaluate concept (trivial pass-through)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { concept }
+-- Blocked: { explain } — needs concept→text
+
+⊢ concept
+  given text ≡ "How does Cell's confluence property work and why does it matter?"
+  yield text
+
+  yield text ≡ "How does Cell's confluence property work and why does it matter?"
+
+-- oracle check:
+--   ⊨ text names a concept explainable at multiple levels → ✓
+
+-- state after frame 0: concept frozen.
+-- Ready set: { explain }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 1: evaluate explain (soft cell, LLM) — ⊢∘ ITERATION 1
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { explain }
+
+⊢ explain
+  given concept→text ≡ "How does Cell's confluence property work and why does it matter?"
+  yield explanation, jargon-terms[]
+
+  ∴ Explain the concept clearly and completely...
+
+-- LLM evaluation (simulated):
+
+  yield explanation ≡ "Confluence means that when a Cell program has multiple cells ready to execute at the same time, it doesn't matter which one you pick first — you get the same final result either way. This works because Cell's execution model is monotonic: once a cell produces an output, that output is frozen and never changes. Since cells only read each other's frozen outputs (never modifying them), two independent cells can't interfere with each other. Think of it like filling in a crossword puzzle — it doesn't matter whether you solve 3-across or 7-down first, because each answer is determined by its clue, not by which other squares you filled in first. This matters because it means Cell programs can be safely parallelized: you can run multiple cells simultaneously without locks, race conditions, or coordination overhead. It also means debugging is simpler — if something goes wrong, the execution order is irrelevant."
+
+  yield jargon-terms ≡ [
+    "confluence",
+    "monotonic",
+    "frozen",
+    "execution model",
+    "race conditions",
+    "parallelized",
+    "DAG (directed acyclic graph)"
+  ]
+
+-- oracle checks:
+--   ⊨ explanation addresses "how" and "why" → ✓ (how: monotonic frozen outputs; why: safe parallelism)
+--   ⊨ explanation is 3-8 sentences → ✓ (6 sentences)
+--   ⊨ length(jargon-terms) ≥ 1 → ✓ (7)
+
+-- state after frame 1: explain frozen.
+-- Ready set: { assess-comprehension }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 2: evaluate assess-comprehension (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { assess-comprehension }
+
+⊢ assess-comprehension
+  given explain→explanation ≡ "Confluence means that when a Cell program..."
+  given explain→jargon-terms ≡ ["confluence", "monotonic", "frozen", "execution model", "race conditions", "parallelized", "DAG (directed acyclic graph)"]
+  yield clear-terms[], hard-terms[], comprehension-score
+
+  ∴ Judge each term: would a 10-year-old understand it from context?
+
+-- LLM evaluation (simulated):
+
+  yield clear-terms ≡ [
+    "confluence — explained directly in the first sentence ('it doesn't matter which one you pick first')",
+    "frozen — intuitive metaphor ('frozen and never changes')",
+    "parallelized — partially explained ('run multiple cells simultaneously')",
+    "DAG — not actually used in the explanation, listed in error"
+  ]
+
+  yield hard-terms ≡ [
+    "monotonic — used without explanation. A 10-year-old doesn't know what 'monotonic' means. Crucial: it's the mechanism that enables confluence.",
+    "execution model — abstract concept. 'The way the program runs' is not obvious to a child.",
+    "race conditions — mentioned but not explained. 'Without locks, race conditions' assumes the reader knows what these are."
+  ]
+
+  yield comprehension-score ≡ 5
+
+-- oracle checks:
+--   ⊨ clear + hard = jargon-terms → ✓ (4 + 3 = 7)
+--   ⊨ length(hard-terms) ≤ 3 → ✓ (3)
+--   ⊨ comprehension-score ∈ [0, 10] → ✓ (5)
+--   ⊨ if score ≥ 9 then hard-terms empty → ✓ (vacuous — score = 5)
+
+-- state after frame 2: assess-comprehension frozen.
+-- Ready set: { spawn-explainers }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 3: evaluate spawn-explainers (⊢⊢ spawner fires)
+-- ═══════════════════════════════════════════════════════════════
+-- 3 hard terms → 3 explainer cells
+
+⊢⊢ spawn-explainers
+  given assess-comprehension→hard-terms ≡ ["monotonic...", "execution model...", "race conditions..."]
+  given §sub-explain-template
+  yield §explainer-cells[]
+  until length(explainer-cells) = 3
+  max 5
+
+  yield explainer-cells ≡ [§explainer-0, §explainer-1, §explainer-2]
+
+-- oracle check:
+--   ⊨ length(explainer-cells) = 3 → ✓
+
+-- SPAWNER EFFECT: 3 new cells enter the frontier:
+--
+-- ⊢ explainer-0: given term ≡ "monotonic"
+-- ⊢ explainer-1: given term ≡ "execution model"
+-- ⊢ explainer-2: given term ≡ "race conditions"
+
+-- state after frame 3: spawn-explainers frozen.
+-- Ready set: { explainer-0, explainer-1, explainer-2 }
+-- All three are independent — confluence allows any order.
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 4: evaluate explainer-0 (monotonic)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ explainer-0
+  given term ≡ "monotonic"
+  given parent-context ≡ "Cell's execution model is monotonic: once a cell produces an output, that output is frozen and never changes."
+  yield explanation, still-hard
+
+-- LLM evaluation (simulated):
+
+  yield explanation ≡ "Monotonic means 'only goes one direction.' Think of filling a glass of water — you can add water, but you can't un-add it. The glass only gets fuller, never emptier. In Cell, this means answers only get filled in, never erased. Once a cell figures out its answer, that answer stays forever. Nothing can come along later and change it."
+
+  yield still-hard ≡ false
+
+-- oracle checks:
+--   ⊨ uses no unexplained jargon → ✓ (glass of water, filled in, erased — all everyday words)
+--   ⊨ 2-5 sentences → ✓ (5 sentences)
+--   ⊨ uses analogy or example → ✓ (glass of water analogy)
+--   ⊨ still-hard ∈ {true, false} → ✓ (false)
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 5: evaluate explainer-1 (execution model)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ explainer-1
+  given term ≡ "execution model"
+  given parent-context ≡ "Cell's execution model is monotonic..."
+  yield explanation, still-hard
+
+-- LLM evaluation (simulated):
+
+  yield explanation ≡ "An execution model is the set of rules for how a program does its work — like the rules of a board game. In Monopoly, the rules say you roll dice, move your piece, and follow the instructions on the square. Cell's rules say: look at all the cells, find ones that have all the information they need, pick one, let it do its work, and write down the answer. Then repeat."
+
+  yield still-hard ≡ false
+
+-- oracle checks:
+--   ⊨ uses no unexplained jargon → ✓ (board game, rules, Monopoly — everyday)
+--   ⊨ 2-5 sentences → ✓ (3 sentences)
+--   ⊨ uses analogy → ✓ (board game rules)
+--   ⊨ still-hard = false → ✓
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 6: evaluate explainer-2 (race conditions)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ explainer-2
+  given term ≡ "race conditions"
+  given parent-context ≡ "Cell programs can be safely parallelized: you can run multiple cells simultaneously without locks, race conditions, or coordination overhead."
+  yield explanation, still-hard
+
+-- LLM evaluation (simulated):
+
+  yield explanation ≡ "A race condition is when two workers try to change the same thing at the same time and the result depends on who gets there first. Imagine two kids both trying to write the answer to the same math problem on the whiteboard — if they write different answers at the same time, you get a mess. Cell avoids this because workers never change something that's already written. They only write in blank spaces, and each blank space has exactly one correct answer, so even if two workers try, they'd write the same thing."
+
+  yield still-hard ≡ false
+
+-- oracle checks:
+--   ⊨ uses no unexplained jargon → ✓ (whiteboard, kids, math problem — everyday)
+--   ⊨ 2-5 sentences → ✓ (3 sentences)
+--   ⊨ uses analogy → ✓ (kids writing on whiteboard)
+--   ⊨ still-hard = false → ✓
+
+-- state after frames 4-6: all explainer cells frozen.
+-- Ready set: { collect-explanations }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 7: evaluate collect-explanations (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ collect-explanations
+  given explain→explanation ≡ "Confluence means that when a Cell program..."
+  given assess-comprehension→clear-terms ≡ ["confluence", "frozen", "parallelized", "DAG"]
+  given explainer-0→explanation ≡ "Monotonic means 'only goes one direction.'..."
+  given explainer-0→still-hard ≡ false
+  given explainer-1→explanation ≡ "An execution model is the set of rules..."
+  given explainer-1→still-hard ≡ false
+  given explainer-2→explanation ≡ "A race condition is when two workers..."
+  given explainer-2→still-hard ≡ false
+  yield full-explanation, remaining-hard[], leaf-score
+
+-- LLM evaluation (simulated):
+
+  yield full-explanation ≡ "
+Confluence means that when a Cell program has multiple cells ready to execute at the same time, it doesn't matter which one you pick first — you get the same final result either way. This works because Cell's execution model is monotonic: once a cell produces an output, that output is frozen and never changes. Since cells only read each other's frozen outputs (never modifying them), two independent cells can't interfere with each other. Think of it like filling in a crossword puzzle — it doesn't matter whether you solve 3-across or 7-down first, because each answer is determined by its clue, not by which other squares you filled in first. This matters because it means Cell programs can be safely parallelized: you can run multiple cells simultaneously without locks, race conditions, or coordination overhead. It also means debugging is simpler — if something goes wrong, the execution order is irrelevant.
+
+What does 'monotonic' mean?
+Monotonic means 'only goes one direction.' Think of filling a glass of water — you can add water, but you can't un-add it. The glass only gets fuller, never emptier. In Cell, this means answers only get filled in, never erased. Once a cell figures out its answer, that answer stays forever. Nothing can come along later and change it.
+
+What is an 'execution model'?
+An execution model is the set of rules for how a program does its work — like the rules of a board game. In Monopoly, the rules say you roll dice, move your piece, and follow the instructions on the square. Cell's rules say: look at all the cells, find ones that have all the information they need, pick one, let it do its work, and write down the answer. Then repeat.
+
+What are 'race conditions'?
+A race condition is when two workers try to change the same thing at the same time and the result depends on who gets there first. Imagine two kids both trying to write the answer to the same math problem on the whiteboard — if they write different answers at the same time, you get a mess. Cell avoids this because workers never change something that's already written. They only write in blank spaces, and each blank space has exactly one correct answer, so even if two workers try, they'd write the same thing.
+"
+
+  yield remaining-hard ≡ []
+
+  yield leaf-score ≡ 10
+
+-- oracle checks:
+--   ⊨ full-explanation includes main + all sub-explanations → ✓
+--   ⊨ remaining-hard contains only still-hard = true terms → ✓ (empty — all false)
+--   ⊨ leaf-score = 10 if remaining-hard empty → ✓
+
+-- state after frame 7: collect-explanations frozen.
+-- ⊢∘ CHECK: leaf-score = 10 ≥ 9 → CONVERGED. Exit evolution loop.
+-- ⊢∘ evolution completed in 1 iteration (all sub-explanations simple enough).
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 8: evaluate format-output (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { format-output }
+-- Final output cell.
+
+⊢ format-output
+  given collect-explanations→full-explanation ≡ "(the assembled layered explanation)"
+  given concept→text ≡ "How does Cell's confluence property work and why does it matter?"
+  yield final-explanation
+
+-- LLM evaluation (simulated):
+
+  yield final-explanation ≡ "
+# How Does Cell's Confluence Property Work and Why Does It Matter?
+
+## The Main Idea
+
+Confluence means that when a Cell program has multiple cells ready to execute at the same time, it doesn't matter which one you pick first — you get the same final result either way. This works because Cell's execution model is monotonic: once a cell produces an output, that output is frozen and never changes. Since cells only read each other's frozen outputs (never modifying them), two independent cells can't interfere with each other.
+
+Think of it like filling in a crossword puzzle — it doesn't matter whether you solve 3-across or 7-down first, because each answer is determined by its clue, not by which other squares you filled in first.
+
+This matters because it means Cell programs can be safely run in parallel: you can run multiple cells at the same time without them stepping on each other's toes. It also means debugging is simpler — if something goes wrong, the order things happened in is irrelevant.
+
+## Digging Deeper
+
+### What does 'monotonic' mean?
+Monotonic means 'only goes one direction.' Think of filling a glass of water — you can add water, but you can't un-add it. The glass only gets fuller, never emptier. In Cell, answers only get filled in, never erased. Once a cell figures out its answer, that answer stays forever.
+
+### What is an 'execution model'?
+An execution model is the set of rules for how a program does its work — like the rules of a board game. In Monopoly, the rules say you roll dice, move your piece, and follow the instructions on the square. Cell's rules say: look at all the cells, find ones that have all the information they need, pick one, let it do its work, write down the answer, then repeat.
+
+### What are 'race conditions'?
+A race condition is when two workers try to change the same thing at the same time and the result depends on who gets there first. Imagine two kids both trying to write the answer to a math problem on the whiteboard at the same time — you get a mess. Cell avoids this because workers never change something already written. They only write in blank spaces, and each blank space has exactly one correct answer.
+
+## The One-Sentence Version
+
+When a Cell program has several things it could do next, it doesn't matter which one it does first — like a crossword puzzle where every clue has exactly one answer, so you always end up with the same completed grid no matter what order you solve the clues.
+"
+
+-- oracle checks:
+--   ⊨ starts with main explanation → ✓ ("The Main Idea" section)
+--   ⊨ ends with one-sentence 10-year-old summary → ✓ ("The One-Sentence Version")
+--   ⊨ contains no unexplained jargon → ✓ (all technical terms have sub-explanations)
+
+-- state after frame 8: format-output frozen.
+-- No more ready cells. Program quiescent.
+
+-- ═══════════════════════════════════════════════════════════════
+-- EXECUTION SUMMARY
+-- ═══════════════════════════════════════════════════════════════
+--
+-- Total frames: 9 (0-8)
+-- ⊢∘ iterations: 1 (converged — all sub-explanations used simple language)
+-- Recursion depth: 2 (concept → 3 hard terms → leaf explanations)
+-- Cells evaluated: concept, explain, assess-comprehension, spawn-explainers,
+--   explainer-0..2 (3 cells), collect-explanations, format-output
+--
+-- Input: 1 technical question
+-- Output: layered explanation with 3 sub-explanations + 1-sentence summary
+-- Jargon terms identified: 7, classified: 4 clear + 3 hard
+--
+-- Key observations:
+--
+-- ⊢= Observation 1: comprehension oracle naturally controls recursion depth
+--   The "would a 10-year-old understand?" oracle on sub-explain-template
+--   returned still-hard = false for all 3 terms after one level of
+--   decomposition. No term required deeper recursion. The oracle acts as
+--   a natural stopping condition: simple concepts terminate at depth 1,
+--   complex ones would recurse to depth 2 or 3. The max=3 bound on ⊢∘
+--   prevents pathological cases where every explanation introduces new jargon.
+--
+-- ⊢= Observation 2: analogy is the leaf node of explanation
+--   Every successful leaf explanation (still-hard = false) used an analogy:
+--   glass of water (monotonic), board game rules (execution model),
+--   kids at whiteboard (race conditions). The comprehension oracle implicitly
+--   selects for analogies — they're the simplest way to make abstract
+--   concepts concrete. This suggests analogies are the "crystallized"
+--   form of explanations: they map abstract to concrete deterministically.
+--
+-- ⊢= Observation 3: the spawner creates a natural explanation tree
+--   concept → [monotonic, execution-model, race-conditions] forms a tree.
+--   Each branch is independent (confluence!). If any branch had returned
+--   still-hard = true, the ⊢∘ loop would spawn sub-sub-explainers,
+--   deepening that branch while leaving converged branches untouched.
+--   The tree grows only where comprehension fails — minimum explanation.
+--
+-- ⊢= Observation 4: the program demonstrates its own subject matter
+--   This Cell program about confluence IS confluent: frames 4-6 (the three
+--   explainer cells) are independent and can execute in any order. The
+--   trace proves confluence by exhibiting it — the explanation of a property
+--   is itself an instance of that property. This is Cell's metacircular
+--   character in action.
+--
+-- ⊢= Observation 5: assess-comprehension separates generation from evaluation
+--   The explain cell generates the explanation (NP-hard creative work).
+--   The assess-comprehension cell evaluates it (P-time judgment). This is
+--   the proof-carrying pattern applied to pedagogy: the LLM creates, then
+--   a separate oracle checks. Neither cell is biased by the other — the
+--   explainer doesn't know which terms will be flagged, and the assessor
+--   doesn't know what analogies will be used in sub-explanations.
