@@ -1,0 +1,482 @@
+-- 09-negotiation-consensus-frames.cell (R17, v0.2)
+-- Execution trace of 09-negotiation-consensus.cell via eval-one
+--
+-- v0.2 execution notes:
+--   - File-scope ⊨? active: all cells get retry-3 + error-value(⊥) policy
+--   - ⊢∘ max raised to 5 (was 3 in R16) — more room if convergence is slow
+--   - Oracles on ⊢∘-managed cells (perspectives) are aspirational, not gates
+--   - Multi-target ⊢∘ sharing `mediate` is formally specified semantics
+--
+-- Question: "What programming language should a startup use for their backend?"
+-- Perspectives: CTO (pragmatist), Senior Dev (perfectionist),
+--               Junior Dev (learner), Investor (cost-conscious)
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 0: evaluate question (trivial pass-through)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { question }
+-- Blocked: { perspective-cto, perspective-senior, perspective-junior,
+--            perspective-investor } — all need question→text
+
+⊢ question
+  given text ≡ "What programming language should a startup use for their backend?"
+  yield text
+
+-- eval-one: pass-through. text already bound via given ≡.
+
+  yield text ≡ "What programming language should a startup use for their backend?"
+
+-- oracle check:
+--   ⊨ text is a debatable question with multiple valid positions → ✓
+
+-- state after frame 0: question frozen.
+-- Ready set: { perspective-cto, perspective-senior, perspective-junior,
+--              perspective-investor }
+-- NOTE: All four perspective cells become ready simultaneously.
+--       eval-one picks ONE. Confluence guarantees order doesn't matter.
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 1: evaluate perspective-cto (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { perspective-cto, perspective-senior, perspective-junior,
+--              perspective-investor }
+-- Pick: perspective-cto (arbitrary — all four are independent)
+
+⊢ perspective-cto
+  given question→text ≡ "What programming language should a startup use for their backend?"
+  yield position, reasoning, priorities[]
+
+  ∴ You are a pragmatist CTO...
+
+-- LLM evaluation:
+
+  yield position ≡ "Go"
+
+  yield reasoning ≡ "Go is the pragmatist's dream for a startup backend. Compilation is instant, deployment is a single binary — no dependency hell, no runtime to manage. The language is deliberately simple: any developer can read any Go codebase in a day. Goroutines give us concurrency that actually works without callback spaghetti or async/await ceremony. The standard library covers HTTP servers, JSON, crypto — we barely need third-party packages. Google, Uber, Cloudflare, and Twitch all scaled with Go. The hiring pool is growing fast because Go is the lingua franca of cloud-native infrastructure. It's boring in the best possible way: you ship features, not clever abstractions."
+
+  yield priorities ≡ [
+    "1. Deployment simplicity: Single binary, zero dependencies",
+    "2. Developer velocity: Simple language, fast compilation, fast onboarding",
+    "3. Concurrency: Goroutines handle thousands of connections naturally",
+    "4. Hiring pool: Growing rapidly in the cloud-native ecosystem",
+    "5. Operational cost: Low memory footprint, efficient CPU usage"
+  ]
+
+-- oracle checks:
+--   ⊨ position names a specific programming language → ✓ (Go)
+--   ⊨ reasoning references practical business concerns → ✓ (deployment, hiring, velocity)
+--   ⊨ length(priorities) ≥ 3 → ✓ (5 priorities)
+
+-- state after frame 1: perspective-cto frozen.
+-- Ready set: { perspective-senior, perspective-junior, perspective-investor }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 2: evaluate perspective-senior (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { perspective-senior, perspective-junior, perspective-investor }
+
+⊢ perspective-senior
+  given question→text ≡ "What programming language should a startup use for their backend?"
+  yield position, reasoning, priorities[]
+
+  ∴ You are a perfectionist Senior Developer...
+
+-- LLM evaluation:
+
+  yield position ≡ "Rust"
+
+  yield reasoning ≡ "Rust is the only language that gives you performance AND safety without compromise. The borrow checker eliminates null pointer exceptions, data races, and use-after-free at compile time — entire categories of production incidents simply cannot happen. The type system is the most expressive in any systems language: enums with data, pattern matching, traits. When your startup scales, you won't hit the Go wall where the garbage collector pauses at the wrong moment, or the Node.js wall where a single CPU-bound request blocks everything. Yes, the learning curve is steep — but the investment pays compound interest. Every line of Rust that compiles is a line you'll never debug at 3am in production."
+
+  yield priorities ≡ [
+    "1. Memory safety: Compile-time guarantees eliminate runtime crashes",
+    "2. Performance: Zero-cost abstractions, no GC pauses",
+    "3. Type system: Enums, pattern matching, traits — model your domain precisely",
+    "4. Fearless concurrency: Ownership prevents data races by construction",
+    "5. Long-term maintainability: If it compiles, it almost certainly works"
+  ]
+
+-- oracle checks:
+--   ⊨ position names a specific programming language → ✓ (Rust)
+--   ⊨ reasoning references technical quality concerns → ✓ (safety, performance, type system)
+--   ⊨ length(priorities) ≥ 3 → ✓ (5 priorities)
+
+-- state after frame 2: perspective-senior frozen.
+-- Ready set: { perspective-junior, perspective-investor }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 3: evaluate perspective-junior (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { perspective-junior, perspective-investor }
+
+⊢ perspective-junior
+  given question→text ≡ "What programming language should a startup use for their backend?"
+  yield position, reasoning, priorities[]
+
+  ∴ You are a Junior Developer who values learning and growth...
+
+-- LLM evaluation:
+
+  yield position ≡ "Python"
+
+  yield reasoning ≡ "Python is the language that made me fall in love with programming. The syntax reads like pseudocode — when I write `for item in items`, I know exactly what's happening. Django gives me an entire web framework with auth, admin, ORM, and migrations out of the box. FastAPI is incredible for building APIs with automatic docs. The community is the most beginner-friendly I've ever experienced — every error message I Google has a clear StackOverflow answer. Python is the #1 taught language in universities, so every new hire can contribute from day one. And if we ever pivot toward data science or ML, we're already in the right ecosystem. I can be productive in Python today, not in three months after fighting a compiler."
+
+  yield priorities ≡ [
+    "1. Readability: Code that reads like English, easy to review and maintain",
+    "2. Learning curve: Productive in days, not weeks or months",
+    "3. Community: Largest, most welcoming developer community",
+    "4. Frameworks: Django and FastAPI are best-in-class for web backends",
+    "5. Versatility: Web, data, ML, scripting — one language for everything"
+  ]
+
+-- oracle checks:
+--   ⊨ position names a specific programming language → ✓ (Python)
+--   ⊨ reasoning references learning and growth concerns → ✓ (readability, community, learning)
+--   ⊨ length(priorities) ≥ 3 → ✓ (5 priorities)
+
+-- state after frame 3: perspective-junior frozen.
+-- Ready set: { perspective-investor }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 4: evaluate perspective-investor (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { perspective-investor }
+
+⊢ perspective-investor
+  given question→text ≡ "What programming language should a startup use for their backend?"
+  yield position, reasoning, priorities[]
+
+  ∴ You are a cost-conscious Investor...
+
+-- LLM evaluation:
+
+  yield position ≡ "Go"
+
+  yield reasoning ≡ "I'm pricing this out like a business decision. Go developers cost less than Rust specialists and are easier to find than a year ago. The single-binary deployment means infrastructure costs are minimal — no container orchestration for a JVM, no npm install taking 200MB. Go's compilation speed means faster CI/CD, which means cheaper build pipelines and faster iteration. A Go backend on a $5/month VPS handles more traffic than a Python backend on a $50/month instance. The language's simplicity means code review is fast, onboarding is fast, and context-switching between services is fast. Every dollar not spent on infrastructure is a dollar spent on product. I've watched startups burn runway on Kubernetes because they chose a language that demanded it."
+
+  yield priorities ≡ [
+    "1. Infrastructure cost: Single binary, low memory, cheap hosting",
+    "2. Developer cost: Growing talent pool, reasonable salaries",
+    "3. Speed to market: Fast builds, simple deploys, quick iteration",
+    "4. Operational simplicity: No runtime dependencies, easy to monitor",
+    "5. Scalability economics: Performance per dollar is best-in-class"
+  ]
+
+-- oracle checks:
+--   ⊨ position names a specific programming language → ✓ (Go)
+--   ⊨ reasoning references financial and market concerns → ✓ (cost, infrastructure, talent)
+--   ⊨ length(priorities) ≥ 3 → ✓ (5 priorities)
+
+-- state after frame 4: perspective-investor frozen.
+-- Ready set: { mediate }
+-- NOTE: All four perspectives frozen. CTO and Investor agree (Go).
+--       Senior (Rust) and Junior (Python) dissent. 2-1-1 split.
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 5: evaluate mediate (soft cell, LLM) — ⊢∘ ITERATION 1
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { mediate }
+-- Blocked: { revise-cto, revise-senior, revise-junior, revise-investor }
+
+⊢ mediate
+  given perspective-cto→position ≡ "Go"
+  given perspective-cto→reasoning ≡ "Go is the pragmatist's dream for a startup backend..."
+  given perspective-senior→position ≡ "Rust"
+  given perspective-senior→reasoning ≡ "Rust is the only language that gives you performance AND safety..."
+  given perspective-junior→position ≡ "Python"
+  given perspective-junior→reasoning ≡ "Python is the language that made me fall in love with programming..."
+  given perspective-investor→position ≡ "Go"
+  given perspective-investor→reasoning ≡ "I'm pricing this out like a business decision..."
+  yield common-ground[], disagreements[], consensus-score
+
+  ∴ Identify common ground, disagreements, consensus score...
+
+-- LLM evaluation:
+
+  yield common-ground ≡ [
+    "All four agree that the language must support a productive hiring pipeline — no one wants to compete for rare specialists.",
+    "CTO, Investor, and Junior agree that simplicity of onboarding is a top-tier concern for early-stage teams.",
+    "CTO and Senior both value strong concurrency support — goroutines (Go) and ownership model (Rust) are both lauded.",
+    "All four agree that operational simplicity matters — though they disagree on what achieves it."
+  ]
+
+  yield disagreements ≡ [
+    "D1: Safety vs speed trade-off — Senior insists compile-time memory safety (Rust) is non-negotiable; CTO and Investor argue Go's GC and simplicity deliver 'safe enough' much faster.",
+    "D2: Learning curve tolerance — Senior accepts steep learning for long-term payoff; Junior and Investor argue learning curve directly burns runway and morale.",
+    "D3: Performance ceiling — Senior argues Go's GC will eventually bite; CTO argues GC pauses are a problem at Google scale, not startup scale.",
+    "D4: Ecosystem breadth — Junior values Python's data science ecosystem; CTO and Investor value Go's cloud-native ecosystem; Senior values Rust's safety-critical ecosystem."
+  ]
+
+  yield consensus-score ≡ 4
+
+-- oracle checks:
+--   ⊨ length(common-ground) ≥ 1 → ✓ (4 items)
+--   ⊨ consensus-score ∈ [0, 10] → ✓ (4)
+--   ⊨ if all four name same language then score ≥ 8 → ✓ (vacuous — they don't)
+--   ⊨ disagreements is empty iff score = 10 → ✓ (score ≠ 10, disagreements non-empty)
+
+-- state after frame 5: mediate frozen.
+-- ⊢∘ CHECK: consensus-score = 4 < 8 → CONTINUE. Revision cells fire.
+-- Ready set: { revise-cto, revise-senior, revise-junior, revise-investor }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 6: evaluate revise-cto (soft cell, LLM) — ⊢∘ ITERATION 1
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { revise-cto, revise-senior, revise-junior, revise-investor }
+-- All four revision cells are independent — confluence allows any order.
+
+⊢ revise-cto
+  given perspective-cto→position ≡ "Go"
+  given perspective-cto→reasoning ≡ "Go is the pragmatist's dream..."
+  given mediate→common-ground ≡ ["All four agree hiring pipeline matters...", ...]
+  given mediate→disagreements ≡ ["D1: Safety vs speed...", "D2: Learning curve...", "D3: Performance ceiling...", "D4: Ecosystem breadth..."]
+  yield position, reasoning, priorities[]
+
+-- LLM evaluation:
+
+  yield position ≡ "Go"
+
+  yield reasoning ≡ "Holding my position. On D1 (safety vs speed): Go isn't unsafe — it has garbage collection, bounds checking, and race detection built in. It's not Rust-level, but it's light-years ahead of C. The Senior is comparing Go to an ideal; I'm comparing it to shipping. On D2 (learning curve): Go's simplicity is a feature, not a limitation. A new hire writes production Go in their first week. That's not possible with Rust. On D3 (performance ceiling): I'll concede this much — we should establish clear performance benchmarks early and agree on thresholds that trigger a conversation about rewriting hot paths. That's a reasonable middle ground. On D4 (ecosystem): Go's cloud-native story (Docker, Kubernetes, gRPC) is exactly what a modern startup backend needs."
+
+  yield priorities ≡ [
+    "1. Deployment simplicity (unchanged — core strength)",
+    "2. Developer velocity and onboarding (unchanged)",
+    "3. Performance monitoring with agreed thresholds (concession toward Senior)",
+    "4. Cloud-native ecosystem alignment (unchanged)",
+    "5. Goroutine-based concurrency (unchanged)"
+  ]
+
+-- oracle checks:
+--   ⊨ position names a specific language → ✓ (Go)
+--   ⊨ reasoning addresses at least one disagreement → ✓ (D1, D2, D3, D4)
+
+-- state after frame 6: revise-cto frozen.
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 7: evaluate revise-senior (soft cell, LLM) — ⊢∘ ITERATION 1
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ revise-senior
+  given perspective-senior→position ≡ "Rust"
+  given perspective-senior→reasoning ≡ "Rust is the only language that gives you performance AND safety..."
+  given mediate→common-ground ≡ [...]
+  given mediate→disagreements ≡ ["D1: Safety vs speed...", "D2: Learning curve...", ...]
+  yield position, reasoning, priorities[]
+
+-- LLM evaluation:
+
+  yield position ≡ "Go"
+
+  yield reasoning ≡ "I'm making a painful but honest concession. On D2 (learning curve): the mediator is right. Rust's learning curve would cost a 4-person startup 2-3 months of productive time. At seed stage, that's potentially fatal. I've seen it happen — a team spends their runway fighting the borrow checker instead of finding product-market fit. On D1 (safety): Go provides garbage collection, bounds checking, and a race detector. It's not the compile-time guarantees I want, but it's not C either. On D3 (performance ceiling): Go's GC has improved dramatically. For 99% of startup workloads, it's fine. My conditions: we write Go with strict linting (golangci-lint), comprehensive tests, and clean interface boundaries. If we hit a performance wall in a specific service, we rewrite that service in Rust — not the whole codebase. Modular architecture is non-negotiable."
+
+  yield priorities ≡ [
+    "1. Strict linting and code quality enforcement (CI-gated)",
+    "2. Comprehensive test coverage (>80% on critical paths)",
+    "3. Clean service boundaries for future targeted rewrites",
+    "4. Race detector enabled in CI (use Go's safety tools)",
+    "5. Accept Go's trade-offs for startup survival"
+  ]
+
+-- oracle checks:
+--   ⊨ position names a specific language → ✓ (Go)
+--   ⊨ reasoning addresses at least one disagreement → ✓ (D1, D2, D3)
+
+-- NOTE: MAJOR SHIFT. Senior moved from Rust to Go (with conditions).
+-- CTO + Senior + Investor = 3 of 4 on Go. Supermajority forming.
+
+-- state after frame 7: revise-senior frozen.
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 8: evaluate revise-junior (soft cell, LLM) — ⊢∘ ITERATION 1
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ revise-junior
+  given perspective-junior→position ≡ "Python"
+  given perspective-junior→reasoning ≡ "Python is the language that made me fall in love with programming..."
+  given mediate→common-ground ≡ [...]
+  given mediate→disagreements ≡ [...]
+  yield position, reasoning, priorities[]
+
+-- LLM evaluation:
+
+  yield position ≡ "Go"
+
+  yield reasoning ≡ "I'm going to be honest: I was holding onto Python because it's comfortable, not because it's best for the team. On D2 (learning curve): Go is genuinely simple. I read the Go Tour in an afternoon and could write a working HTTP server. That's not Rust's year-long climb. On D4 (ecosystem): I care about data science because of my career interests, but this is a backend language choice — we can always use Python for data pipelines later. On D1 (safety): Go's error handling is explicit. Every function that can fail says so. That actually teaches me better habits than Python's exception-based approach. My conditions: good documentation for our internal services, a mentor for my first month, and the understanding that I'll be slower initially but will catch up. Go's simplicity means the gap will close fast."
+
+  yield priorities ≡ [
+    "1. Good internal documentation (my onboarding lifeline)",
+    "2. Mentorship in first month (pair programming encouraged)",
+    "3. Go is genuinely learnable (concession from Python)",
+    "4. Explicit error handling teaches good habits",
+    "5. Simplicity means faster mastery than expected"
+  ]
+
+-- oracle checks:
+--   ⊨ position names a specific language → ✓ (Go)
+--   ⊨ reasoning addresses at least one disagreement → ✓ (D1, D2, D4)
+
+-- NOTE: Junior shifted from Python to Go.
+-- Now 4 of 4 perspectives agree on Go. Full consensus forming.
+
+-- state after frame 8: revise-junior frozen.
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 9: evaluate revise-investor (soft cell, LLM) — ⊢∘ ITERATION 1
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ revise-investor
+  given perspective-investor→position ≡ "Go"
+  given perspective-investor→reasoning ≡ "I'm pricing this out like a business decision..."
+  given mediate→common-ground ≡ [...]
+  given mediate→disagreements ≡ [...]
+  yield position, reasoning, priorities[]
+
+-- LLM evaluation:
+
+  yield position ≡ "Go"
+
+  yield reasoning ≡ "Holding firm — the common ground validates my original analysis. On D1 (safety vs speed): the CTO's point about Go's built-in safety features is well-taken. GC, bounds checking, race detection — these aren't nothing. They eliminate the most expensive production bugs without the Rust learning tax. On D2 (learning curve): the mediator confirmed this is the key economic variable. Every week spent learning Rust instead of shipping features is a week burning cash with zero revenue. On D3 (performance ceiling): I'll support the CTO's performance monitoring concession. If we can see the wall coming, we can budget for targeted rewrites. My addition: Go's compilation speed means our CI pipeline runs in seconds, not minutes. That's a hidden cost savings that compounds daily."
+
+  yield priorities ≡ [
+    "1. Burn rate minimization (unchanged — Go is cheapest to operate)",
+    "2. CI speed as cost savings (Go compiles fast, saves pipeline costs)",
+    "3. Support strict linting and testing (Senior's conditions cost nothing)",
+    "4. Talent pool growth (Go demand rising in cloud-native market)",
+    "5. Speed to revenue through deployment simplicity"
+  ]
+
+-- oracle checks:
+--   ⊨ position names a specific language → ✓ (Go)
+--   ⊨ reasoning addresses at least one disagreement → ✓ (D1, D2, D3)
+
+-- state after frame 9: revise-investor frozen.
+-- ⊢∘ rewrites perspective cells with revised outputs. Unfreezes mediate.
+-- Ready set: { mediate }
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 10: evaluate mediate (⊢∘ ITERATION 2 — convergence check)
+-- ═══════════════════════════════════════════════════════════════
+-- ⊢∘ iteration 2: perspective outputs replaced with revisions.
+-- mediate re-evaluates with updated positions.
+
+⊢ mediate
+  given perspective-cto→position ≡ "Go"
+  given perspective-cto→reasoning ≡ "Holding position. Conceding performance monitoring thresholds..."
+  given perspective-senior→position ≡ "Go"
+  given perspective-senior→reasoning ≡ "Painful concession from Rust. Conditions: strict linting, tests, modular architecture..."
+  given perspective-junior→position ≡ "Go"
+  given perspective-junior→reasoning ≡ "Honest concession from Python. Go is genuinely learnable. Conditions: docs, mentorship..."
+  given perspective-investor→position ≡ "Go"
+  given perspective-investor→reasoning ≡ "Holding firm. Go is cheapest to operate and deploy..."
+  yield common-ground[], disagreements[], consensus-score
+
+-- LLM evaluation:
+
+  yield common-ground ≡ [
+    "UNANIMOUS: All four perspectives now agree on Go as the backend language.",
+    "UNANIMOUS: All accept strict linting and CI-enforced code quality.",
+    "UNANIMOUS: All support modular service boundaries for future targeted rewrites.",
+    "UNANIMOUS: All agree on good internal documentation and onboarding practices.",
+    "3 of 4 (CTO, Senior, Investor) agree on early performance monitoring with clear thresholds."
+  ]
+
+  yield disagreements ≡ [
+    "D-minor: Senior wants >80% test coverage as a hard CI gate; CTO considers it aspirational rather than blocking. Low stakes — can be resolved by starting aspirational and tightening over time."
+  ]
+
+  yield consensus-score ≡ 9
+
+-- oracle checks:
+--   ⊨ length(common-ground) ≥ 1 → ✓ (5 items)
+--   ⊨ consensus-score ∈ [0, 10] → ✓ (9)
+--   ⊨ if all four name same language then score ≥ 8 → ✓ (all Go, score 9 ≥ 8)
+--   ⊨ disagreements is empty iff score = 10 → ✓ (score ≠ 10, 1 minor disagreement)
+
+-- state after frame 10: mediate frozen (v2).
+-- ⊢∘ CHECK: consensus-score = 9 ≥ 8 → CONVERGED. Exit evolution loop.
+-- ⊢∘ evolution completed in 2 iterations. Consensus reached.
+
+-- ═══════════════════════════════════════════════════════════════
+-- FRAME 11: evaluate synthesize (soft cell, LLM)
+-- ═══════════════════════════════════════════════════════════════
+-- Ready set: { synthesize }
+-- All upstream cells frozen. This is the final output cell.
+
+⊢ synthesize
+  given mediate→common-ground ≡ ["UNANIMOUS: Go...", ...]
+  given mediate→disagreements ≡ ["D-minor: test coverage threshold..."]
+  given mediate→consensus-score ≡ 9
+  given revise-cto→position ≡ "Go"
+  given revise-senior→position ≡ "Go"
+  given revise-junior→position ≡ "Go"
+  given revise-investor→position ≡ "Go"
+  yield recommendation, dissent-record
+
+-- LLM evaluation:
+
+  yield recommendation ≡ "Go as the backend language, with strict engineering discipline. The team reached unanimous consensus (9/10) after two rounds of negotiation. The winning arguments: Go's deployment simplicity (single binary, zero dependencies) satisfied the CTO's pragmatism and Investor's cost concerns. Go's genuine simplicity (learnable in days, not months) won the Junior over from Python. Go's built-in safety features (GC, bounds checking, race detector) plus the team's commitment to strict linting and modular architecture gave the Senior enough quality guarantees to concede from Rust. Key conditions: golangci-lint enforced in CI, modular service boundaries for future targeted Rust rewrites if needed, comprehensive internal documentation, early performance monitoring with agreed thresholds, and mentorship support for junior developers."
+
+  yield dissent-record ≡ "Minor dissent: The Senior Developer wants >80% test coverage enforced as a hard CI gate from day one. The CTO argues this should start as an aspirational target that becomes a hard gate after the first quarter, when the team has established testing patterns. This is a process timing disagreement, not a language or architecture disagreement — both parties agree on the destination, just the pace of enforcement. No perspective dissents on Go itself."
+
+-- oracle checks:
+--   ⊨ recommendation names a specific language → ✓ (Go)
+--   ⊨ recommendation explains reasoning → ✓ (consensus process, conditions, winning arguments)
+--   ⊨ if score < 10 then dissent-record non-empty → ✓ (score = 9, minor dissent recorded)
+--   ⊨ dissent-record attributes views to perspectives → ✓ (Senior vs CTO on test coverage)
+
+-- state after frame 11: synthesize frozen.
+-- No more ready cells. Program quiescent.
+
+-- ═══════════════════════════════════════════════════════════════
+-- EXECUTION SUMMARY
+-- ═══════════════════════════════════════════════════════════════
+--
+-- Total frames: 12 (0-11)
+-- ⊢∘ iterations: 2 (converged when consensus-score = 9 ≥ 8)
+-- ⊢∘ max was 5, used 2 — converged well within budget
+-- File-scope ⊨? active but never triggered (no oracle failures)
+-- Cells evaluated: question, perspective-cto, perspective-senior,
+--   perspective-junior, perspective-investor, mediate (×2),
+--   revise-cto, revise-senior, revise-junior, revise-investor, synthesize
+--
+-- Key observations:
+--
+-- ⊢= Observation 1: N-way parallel evaluation works naturally
+--   Frames 1-4 evaluate four perspective cells independently. Confluence
+--   guarantees the same mediation result regardless of evaluation order.
+--   In a parallel runtime, all four could execute simultaneously.
+--
+-- ⊢= Observation 2: mediator pattern enables structured N-party negotiation
+--   The mediator cell acts as a synchronization barrier: it waits for all N
+--   perspectives, produces structured common-ground and disagreements, then
+--   enables the revision cells. Under v0.2, this multi-target ⊢∘ pattern
+--   is formally specified: N loops share one mediator, re-evaluated when
+--   ANY loop iterates.
+--
+-- ⊢= Observation 3: convergence is judgment-gated, not structural
+--   The consensus-score is a semantic judgment by the mediator, not a
+--   checkable property. This is legitimate: the mediator IS the oracle for
+--   convergence. Under v0.2, oracles on ⊢∘-managed cells are aspirational —
+--   the loop's `until` condition is the true convergence gate.
+--
+-- ⊢= Observation 4: concessions are reasoned, not averaged
+--   The Senior made a large, specific concession (Rust → Go) with explicit
+--   conditions (strict linting, modular architecture, targeted rewrites).
+--   The Junior made a medium concession (Python → Go) citing genuine
+--   simplicity, not peer pressure. The oracles force each revision to address
+--   specific disagreements, preventing mindless convergence. This is the
+--   difference between negotiation and averaging.
+--
+-- ⊢= Observation 5: v0.2 features validated but not structurally needed
+--   File-scope ⊨? was active but never triggered — no oracle failures
+--   occurred. The raised max (5 vs 3) provided headroom but convergence
+--   happened at iteration 2 as in R16. The formal blessing of multi-target
+--   ⊢∘ and parameter bindings is a spec compliance upgrade, not a behavioral
+--   change. This program was already v0.2-conformant in structure.
+--
+-- ⊢= Observation 6: different initial positions, same convergence dynamics
+--   R16 converged on TypeScript; R17 converged on Go. Different LLM runs
+--   produce different initial perspectives, but the negotiation dynamics
+--   are structurally identical: CTO+Investor form a practical bloc, Senior
+--   makes the largest concession with conditions, Junior follows the
+--   emerging consensus with personal conditions. The program captures a
+--   general pattern, not a specific outcome.
