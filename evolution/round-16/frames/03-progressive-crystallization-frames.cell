@@ -1,0 +1,296 @@
+-- 03-progressive-crystallization-frames.cell — full eval-one execution trace
+--
+-- Ready set analysis:
+--   task: all givens have ≡ (description, test-inputs, test-expected) → READY
+--   solve-soft: needs task→description, task→test-inputs → BLOCKED
+--   extract-pattern: needs solve-soft→solution, solve-soft→outputs → BLOCKED
+--   crystallize: needs extract-pattern→algorithm → BLOCKED
+--   verify-crystal: needs crystallize→hard-body, task→test-inputs, task→test-expected → BLOCKED
+--   emit-crystallized: needs verify-crystal→pass-all, verify-crystal→failures,
+--                      crystallize→hard-body, §solve-soft → BLOCKED (§ is parse-time, but others aren't)
+--
+-- Ready set: { task }
+-- Dependency chain: task → solve-soft → extract-pattern → crystallize → verify-crystal → emit-crystallized
+-- Strictly linear — no parallelism possible. 6 cells, 6 eval-one steps.
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 0: task
+-- ═══════════════════════════════════════════════════════════════
+
+-- task is a data cell — all yields are determined by givens.
+-- No ∴ body needed. Eval-one freezes immediately.
+
+⊢ task
+  given description ≡ "Given a list of numbers, return the top 3 largest."
+  given test-inputs[] ≡ [
+    [7, 2, 9, 4, 1, 8, 3],
+    [1, 1, 1, 1, 1],
+    [100, 200],
+    [5, 3, 8, 1, 9, 2, 7, 4, 6]
+  ]
+  given test-expected[] ≡ [
+    [9, 8, 7],
+    [1, 1, 1],
+    [200, 100],
+    [9, 8, 7]
+  ]
+  yield description ≡ "Given a list of numbers, return the top 3 largest."
+  yield test-inputs ≡ [[7, 2, 9, 4, 1, 8, 3], [1, 1, 1, 1, 1], [100, 200], [5, 3, 8, 1, 9, 2, 7, 4, 6]]
+  yield test-expected ≡ [[9, 8, 7], [1, 1, 1], [200, 100], [9, 8, 7]]
+
+  ⊨ test-inputs has same length as test-expected → ✓ (both length 4)
+  ⊨ each test-expected entry is sorted descending → ✓
+
+-- Ready set after frame 0: { solve-soft } — task→description and task→test-inputs now bound
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 1: solve-soft
+-- ═══════════════════════════════════════════════════════════════
+
+-- solve-soft is ⊢ (soft). The LLM interprets the ∴ body.
+-- This is the cell that will LATER be crystallized. Right now it runs via LLM.
+
+⊢ solve-soft
+  given task→description ≡ "Given a list of numbers, return the top 3 largest."
+  given task→test-inputs ≡ [[7, 2, 9, 4, 1, 8, 3], [1, 1, 1, 1, 1], [100, 200], [5, 3, 8, 1, 9, 2, 7, 4, 6]]
+  yield solution, outputs[]
+
+  ∴ Solve «task→description». For each input in «task→test-inputs»,
+    work through the problem step by step using natural language
+    reasoning. Produce the answer for each input.
+
+-- LLM evaluation:
+--
+-- Input [7, 2, 9, 4, 1, 8, 3]:
+--   Sort descending: [9, 8, 7, 4, 3, 2, 1]. Take first 3: [9, 8, 7].
+--
+-- Input [1, 1, 1, 1, 1]:
+--   Sort descending: [1, 1, 1, 1, 1]. Take first 3: [1, 1, 1].
+--
+-- Input [100, 200]:
+--   Sort descending: [200, 100]. Take first 3: only 2 elements, so [200, 100].
+--
+-- Input [5, 3, 8, 1, 9, 2, 7, 4, 6]:
+--   Sort descending: [9, 8, 7, 6, 5, 4, 3, 2, 1]. Take first 3: [9, 8, 7].
+
+  yield solution ≡ "For each input list: sort the numbers from largest to smallest, then take the first 3 elements. If the list has fewer than 3 elements, return all of them in descending order."
+
+  yield outputs ≡ [
+    [9, 8, 7],
+    [1, 1, 1],
+    [200, 100],
+    [9, 8, 7]
+  ]
+
+-- oracle checks:
+--   ⊨ outputs has same length as test-inputs → ✓ (both 4)
+--   ⊨ each output is a list of numbers sorted descending → ✓
+--   ⊨ each output has at most 3 elements → ✓
+
+-- KEY: this cell just ran via LLM. It works. But every invocation costs
+-- an LLM call. The entire rest of this program exists to ELIMINATE
+-- that LLM call by extracting the algorithm and hardcoding it as ⊢=.
+
+-- Ready set after frame 1: { extract-pattern }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 2: extract-pattern
+-- ═══════════════════════════════════════════════════════════════
+
+-- extract-pattern is ⊢ (soft). It reads the LLM's solution and
+-- extracts the mechanical algorithm. This cell is permanently soft —
+-- it's the CRYSTALLIZER, not the thing being crystallized.
+
+⊢ extract-pattern
+  given solve-soft→solution ≡ "For each input list: sort the numbers from largest to smallest, then take the first 3 elements. If the list has fewer than 3 elements, return all of them in descending order."
+  given solve-soft→outputs ≡ [[9, 8, 7], [1, 1, 1], [200, 100], [9, 8, 7]]
+  yield algorithm
+
+  ∴ Read «solve-soft→solution». What deterministic algorithm did you use?
+    Express it as a numbered sequence of mechanical steps.
+
+-- LLM evaluation:
+-- The LLM reads the natural language solution and extracts:
+
+  yield algorithm ≡ "1. Take input list of numbers. 2. Sort the list in descending order (largest first). 3. Take the first min(3, len(list)) elements. 4. Return the resulting list."
+
+-- oracle checks:
+--   ⊨ algorithm is a numbered list of steps → ✓ (4 numbered steps)
+--   ⊨ algorithm contains only deterministic operations → ✓ (sort, take, min, len)
+--   ⊨ algorithm does not reference any specific input values → ✓
+
+-- OBSERVATION: the LLM naturally expressed "take first 3 or fewer" as
+-- min(3, len(list)). This is already close to ⊢= form. The crystallization
+-- gap between what the LLM said in solve-soft and what extract-pattern
+-- produces is SMALL for this problem. For harder problems (summarization,
+-- creative writing) this gap would be unbridgeable.
+
+-- Ready set after frame 2: { crystallize }
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 3: crystallize
+-- ═══════════════════════════════════════════════════════════════
+
+-- crystallize is ⊢ (soft). It converts the extracted algorithm into
+-- a ⊢= expression. This cell is ALSO permanently soft — it's the
+-- code generator. crystallize cannot crystallize ITSELF.
+-- (see spec: "crystallize cannot crystallize itself — it is the
+-- layer that must stay warm so others can go cold")
+
+⊢ crystallize
+  given extract-pattern→algorithm ≡ "1. Take input list of numbers. 2. Sort the list in descending order (largest first). 3. Take the first min(3, len(list)) elements. 4. Return the resulting list."
+  yield hard-body
+
+  ∴ Convert «extract-pattern→algorithm» into a single ⊢= expression.
+
+-- LLM evaluation:
+-- Maps the 4 steps to a single deterministic expression:
+--   step 1: input is «input»
+--   step 2: sort(«input», descending)
+--   step 3: take(sorted, min(3, len(«input»)))
+--   step 4: return
+
+  yield hard-body ≡ "⊢= result ← sort(«input», descending).take(min(3, len(«input»)))"
+
+-- oracle checks:
+--   ⊨ hard-body is a valid ⊢= expression → ✓ (starts with ⊢=, uses ←)
+--   ⊨ hard-body contains no natural language → ✓ (only: sort, take, min, len, descending)
+--   ⊨ hard-body takes an input list and returns a list → ✓ (takes «input», returns list)
+
+-- THE CRYSTALLIZATION HAPPENED. The LLM just wrote deterministic code
+-- that replaces itself. Next step: verify it actually works.
+
+-- Ready set after frame 3: { verify-crystal } — needs hard-body + task→test-inputs + task→test-expected
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 4: verify-crystal
+-- ═══════════════════════════════════════════════════════════════
+
+-- verify-crystal is ⊢ (soft). It runs the ⊢= expression against
+-- test cases. In a real Cell runtime, this would be a hard cell
+-- that actually executes the expression. Here we simulate.
+
+⊢ verify-crystal
+  given crystallize→hard-body ≡ "⊢= result ← sort(«input», descending).take(min(3, len(«input»)))"
+  given task→test-inputs ≡ [[7, 2, 9, 4, 1, 8, 3], [1, 1, 1, 1, 1], [100, 200], [5, 3, 8, 1, 9, 2, 7, 4, 6]]
+  given task→test-expected ≡ [[9, 8, 7], [1, 1, 1], [200, 100], [9, 8, 7]]
+  yield pass-all, results[], failures[]
+
+  ∴ Apply «crystallize→hard-body» to each input. Compare with expected.
+
+-- LLM evaluation (simulating execution of the ⊢= expression):
+--
+-- Test 1: input = [7, 2, 9, 4, 1, 8, 3]
+--   sort descending: [9, 8, 7, 4, 3, 2, 1]
+--   take min(3, 7) = take 3: [9, 8, 7]
+--   expected: [9, 8, 7] → ✓
+--
+-- Test 2: input = [1, 1, 1, 1, 1]
+--   sort descending: [1, 1, 1, 1, 1]
+--   take min(3, 5) = take 3: [1, 1, 1]
+--   expected: [1, 1, 1] → ✓
+--
+-- Test 3: input = [100, 200]
+--   sort descending: [200, 100]
+--   take min(3, 2) = take 2: [200, 100]
+--   expected: [200, 100] → ✓
+--
+-- Test 4: input = [5, 3, 8, 1, 9, 2, 7, 4, 6]
+--   sort descending: [9, 8, 7, 6, 5, 4, 3, 2, 1]
+--   take min(3, 9) = take 3: [9, 8, 7]
+--   expected: [9, 8, 7] → ✓
+
+  yield pass-all ≡ true
+  yield results ≡ [[9, 8, 7], [1, 1, 1], [200, 100], [9, 8, 7]]
+  yield failures ≡ []
+
+-- oracle checks:
+--   ⊨ results has same length as test-inputs → ✓ (both 4)
+--   ⊨ failures is empty if and only if pass-all = true → ✓ (failures empty, pass-all true)
+--   ⊨ if pass-all then every result matches expected → ✓ (all 4 match)
+
+-- ALL TESTS PASS. The crystal is verified. Substrate transfer can proceed.
+
+-- Ready set after frame 4: { emit-crystallized } — all inputs bound
+
+-- ═══════════════════════════════════════════════════════════════
+-- frame 5: emit-crystallized
+-- ═══════════════════════════════════════════════════════════════
+
+-- emit-crystallized produces the final crystallized cell.
+-- This is the climax: the soft cell becomes hard.
+
+⊢ emit-crystallized
+  given verify-crystal→pass-all ≡ true
+  given verify-crystal→failures ≡ []
+  given crystallize→hard-body ≡ "⊢= result ← sort(«input», descending).take(min(3, len(«input»)))"
+  given §solve-soft ≡ "(the full definition of solve-soft as a ⊢ cell with ∴ body)"
+  yield crystallized-cell, substrate-transfer
+
+  ∴ pass-all is true. Produce the crystallized version of solve-soft.
+
+-- LLM evaluation:
+-- The LLM reads §solve-soft (the original soft cell definition) and
+-- replaces the ∴ body with the verified ⊢= expression.
+
+  yield crystallized-cell ≡ "⊢= solve-soft ▸ crystallized
+  given task→description
+  given task→test-inputs
+  yield result[]
+
+  ⊢= result ← sort(«input», descending).take(min(3, len(«input»)))
+
+  ⊨ result has at most 3 elements
+  ⊨ result is sorted descending"
+
+  yield substrate-transfer ≡ true
+
+-- oracle checks:
+--   ⊨ if pass-all then crystallized-cell contains "⊢=" → ✓
+--   ⊨ if pass-all then crystallized-cell contains "▸ crystallized" → ✓
+--   ⊨ if pass-all then substrate-transfer = true → ✓
+
+-- COMPLETE: 6 cells, 6 eval-one steps. Strictly linear.
+-- The program started with a soft cell (solve-soft with ∴) and ended
+-- with a hard cell (solve-soft ▸ crystallized with ⊢=).
+-- Substrate transfer: ⊢ → ⊢=. The LLM made itself unnecessary.
+
+-- ═══════════════════════════════════════════════════════════════
+-- OBSERVATIONS
+-- ═══════════════════════════════════════════════════════════════
+
+⊢= obs-substrate-transfer
+  given §03-progressive-crystallization
+  yield observations
+
+  ⊢= observations ← "SUBSTRATE TRANSFER WORKS: solve-soft started as ⊢ (LLM-evaluated via ∴) and ended as ⊢= (deterministic expression). The program literally replaced an LLM call with a formula. This is the core Cell promise: soft → hard under oracle pressure. The 4 intermediate cells (extract-pattern, crystallize, verify-crystal, emit-crystallized) are the MECHANISM of crystallization. They must stay soft so that solve-soft can go hard."
+
+⊢= obs-crystallization-boundary
+  given §03-progressive-crystallization
+  yield observations
+
+  ⊢= observations ← "THE CRYSTALLIZER STAYS WARM: extract-pattern, crystallize, and emit-crystallized are permanently soft cells. They use ∴ because their job IS to reason about code — that cannot be mechanized without solving AI. This matches the spec: 'crystallize cannot crystallize itself — it is the layer that must stay warm so others can go cold.' The stem cell analogy holds: these cells are pluripotent (can crystallize anything) but never differentiate themselves."
+
+⊢= obs-easy-problem
+  given §03-progressive-crystallization
+  yield observations
+
+  ⊢= observations ← "THIS PROBLEM WAS TOO EASY: 'top 3 largest' is trivially crystallizable — sort-then-take is a one-line expression. The gap between ∴ (natural language) and ⊢= (code) was tiny. A more interesting test would be a task where crystallization FAILS: summarization, sentiment analysis, creative writing. The ⊥ path (exhaustion → substrate transfer impossible) is where the real insight lives. This program only tested the happy path."
+
+⊢= obs-oracle-as-test-suite
+  given §03-progressive-crystallization
+  yield observations
+
+  ⊢= observations ← "ORACLES BECAME A TEST SUITE: the test-inputs/test-expected in task are oracle data. verify-crystal runs them like unit tests. The crystallized cell passes exactly when it matches the oracle expectations. This is the oracle promotion pattern from the spec: when ⊨ says exactly what the output should be, the oracle IS the specification, and the ⊢= expression IS the implementation. Test suite = oracle set. verify-crystal = test runner. crystallize = compiler."
+
+⊢= obs-missing-iteration
+  given §03-progressive-crystallization
+  yield observations
+
+  ⊢= observations ← "NO RETRY NEEDED: the ⊢= expression passed all 4 test cases on the first try. In a harder problem, verify-crystal would return pass-all = false, and the ⊨? on emit-crystallized would trigger a retry loop: crystallize again with failure context, re-verify. That loop — the PROGRESSIVE part of progressive crystallization — was never exercised. The program name promises iteration but delivers single-shot success. To truly test progressive crystallization, need test cases that force at least one retry."
+
+⊢= obs-meta-pattern
+  given §03-progressive-crystallization
+  yield observations
+
+  ⊢= observations ← "THE META-PATTERN: this program is a COMPILER written in Cell. task = source code. solve-soft = interpreter. extract-pattern = decompiler. crystallize = code generator. verify-crystal = test runner. emit-crystallized = linker. The soft→hard pipeline mirrors compilation: interpret → analyze → codegen → verify → emit. Cell's contribution: this compiler is itself a Cell program, so it could be applied to ITSELF (crystallize the compiler). But the spec says that's impossible — and this program shows why: the compiler cells must stay soft."

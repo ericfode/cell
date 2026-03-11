@@ -1,0 +1,102 @@
+-- 03-progressive-crystallization.cell
+-- Tests: substrate transfer ⊢ → ⊢=, self-crystallization, oracle-gated evolution
+--
+-- A Cell program that takes a soft task, solves it via LLM (⊢),
+-- extracts the algorithm pattern, converts to a ⊢= expression,
+-- then verifies the crystal against test cases. If all pass,
+-- the soft cell is replaced by its crystallized form.
+-- The cell literally evolves from ⊢ (soft/LLM) to ⊢= (hard/deterministic).
+-- This is substrate transfer as a runtime operation.
+
+⊢ task
+  given description ≡ "Given a list of numbers, return the top 3 largest."
+  given test-inputs[] ≡ [
+    [7, 2, 9, 4, 1, 8, 3],
+    [1, 1, 1, 1, 1],
+    [100, 200],
+    [5, 3, 8, 1, 9, 2, 7, 4, 6]
+  ]
+  given test-expected[] ≡ [
+    [9, 8, 7],
+    [1, 1, 1],
+    [200, 100],
+    [9, 8, 7]
+  ]
+  yield description, test-inputs, test-expected
+
+  ⊨ test-inputs has same length as test-expected
+  ⊨ each test-expected entry is sorted descending
+
+⊢ solve-soft
+  given task→description
+  given task→test-inputs
+  yield solution, outputs[]
+
+  ∴ Solve «task→description». For each input in «task→test-inputs»,
+    work through the problem step by step using natural language
+    reasoning. Produce the answer for each input.
+
+  ⊨ outputs has same length as test-inputs
+  ⊨ each output is a list of numbers sorted descending
+  ⊨ each output has at most 3 elements
+
+⊢ extract-pattern
+  given solve-soft→solution
+  given solve-soft→outputs
+  yield algorithm
+
+  ∴ Read «solve-soft→solution». What deterministic algorithm did you use?
+    Express it as a numbered sequence of mechanical steps.
+    No subjective judgment, no "think about it" — only operations
+    a machine could execute without an LLM.
+
+  ⊨ algorithm is a numbered list of steps
+  ⊨ algorithm contains only deterministic operations (sort, take, compare)
+  ⊨ algorithm does not reference any specific input values
+
+⊢ crystallize
+  given extract-pattern→algorithm
+  yield hard-body
+
+  ∴ Convert «extract-pattern→algorithm» into a single ⊢= expression.
+    The expression must be deterministic code that replaces the ∴ body
+    of solve-soft. Use only: sort, take, len, min.
+
+  ⊨ hard-body is a valid ⊢= expression
+  ⊨ hard-body contains no natural language
+  ⊨ hard-body takes an input list and returns a list
+
+⊢ verify-crystal
+  given crystallize→hard-body
+  given task→test-inputs
+  given task→test-expected
+  yield pass-all, results[], failures[]
+
+  ∴ Apply «crystallize→hard-body» to each input in «task→test-inputs».
+    Compare each result with «task→test-expected».
+    Record pass/fail for each case.
+
+  ⊨ results has same length as test-inputs
+  ⊨ failures is empty if and only if pass-all = true
+  ⊨ if pass-all then every result matches expected
+
+⊢ emit-crystallized
+  given verify-crystal→pass-all
+  given verify-crystal→failures
+  given crystallize→hard-body
+  given §solve-soft
+  yield crystallized-cell, substrate-transfer
+
+  ∴ If «verify-crystal→pass-all» is true:
+    Produce the crystallized version of «§solve-soft» by replacing
+    the ∴ body with «crystallize→hard-body» and adding ▸ crystallized.
+    This IS substrate transfer: ⊢ → ⊢=.
+    If pass-all is false: substrate-transfer = false, explain why.
+
+  ⊨ if pass-all then crystallized-cell contains "⊢="
+  ⊨ if pass-all then crystallized-cell contains "▸ crystallized"
+  ⊨ if pass-all then substrate-transfer = true
+
+  ⊨? on failure:
+    retry with «verify-crystal→failures» appended to prompt
+    max 2 attempts
