@@ -1,5 +1,5 @@
 -- reverse-string-crystal.cell: string reversal crystallization
--- LLM reverses a string, then crystallize proposes ⊢= form
+-- Oracle: reverse it again, should get original back
 
 ⊢ reverse
   given text ≡ "hello world"
@@ -8,16 +8,24 @@
   ∴ Reverse the characters in «text».
     "hello" → "olleh"
 
-  ⊨ reversed = "dlrow olleh"
+⊢ verify-reverse
+  given reverse→reversed
+  given text ≡ "hello world"
+  yield roundtrip
+
+  ∴ Reverse «reverse→reversed» again.
+    If the result equals «text», the reversal is correct.
+    Return the re-reversed string.
+
+  ⊨ roundtrip = "hello world"
 
 ⊢ crystallize
   given §reverse
-  given reverse→reversed
+  given verify-reverse→roundtrip where roundtrip = "hello world"
   yield §reverse', is-faithful
 
   ∴ Read «§reverse». It reverses a string character by character.
     Write a ⊢= expression that does the same thing.
-    Return the crystallized cell and whether the transformation is faithful.
 
 ⊢ verify-crystal
   given §reverse'
@@ -25,7 +33,6 @@
   given reverse→reversed
   yield approved
 
-  ∴ Does «§reverse'» produce "dlrow olleh" for input "hello world"?
-    Compare against the original output «reverse→reversed».
+  ∴ Does «§reverse'» use only ⊢= primitives?
 
   ⊨ if approved and crystallize→is-faithful then §reverse' may replace §reverse

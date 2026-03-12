@@ -1,4 +1,5 @@
--- classify-parity-crystal.cell: even/odd classifier with guard routing
+-- classify-parity-crystal.cell: even/odd classifier
+-- Oracle: if even then n%2=0, if odd then n%2=1
 
 ⊢ check-parity
   given n ≡ 7
@@ -6,7 +7,15 @@
 
   ∴ Is «n» even or odd? Return "even" or "odd".
 
-  ⊨ parity = "odd"
+⊢ verify-parity
+  given check-parity→parity
+  given n ≡ 7
+  yield consistent
+
+  ∴ Check: if «check-parity→parity» is "even", verify 7 % 2 = 0.
+    If "odd", verify 7 % 2 = 1. Return true if consistent.
+
+  ⊨ consistent = true
 
 ⊢ handle-even
   given check-parity→parity where parity = "even"
@@ -24,7 +33,7 @@
 
 ⊢ crystallize
   given §check-parity
-  given check-parity→parity
+  given verify-parity→consistent where consistent = true
   yield §check-parity', is-faithful
 
   ∴ Read «§check-parity». It classifies even/odd.

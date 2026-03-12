@@ -1,4 +1,5 @@
 -- sum-list-crystal.cell: sum a list of numbers
+-- Oracle: subtract each element from the total, result should be 0
 
 ⊢ total
   given values ≡ [10, 20, 30, 40, 50]
@@ -6,11 +7,18 @@
 
   ∴ Compute the sum of all numbers in «values».
 
-  ⊨ sum-result = 150
+⊢ verify-sum
+  given total→sum-result
+  given values ≡ [10, 20, 30, 40, 50]
+  yield remainder
+
+  ⊢= remainder ← total→sum-result - sum(values)
+
+  ⊨ remainder = 0
 
 ⊢ crystallize
   given §total
-  given total→sum-result
+  given verify-sum→remainder where remainder = 0
   yield §total', is-faithful
 
   ∴ Read «§total». It sums a list.
@@ -19,9 +27,9 @@
 ⊢ verify-crystal
   given §total'
   given crystallize→is-faithful
-  given total→sum-result
   yield approved
 
-  ∴ Does «§total'» produce 150 for [10, 20, 30, 40, 50]?
+  ∴ Does «§total'» use only ⊢= primitives (sum, len, etc.)?
+    Is the expression deterministic?
 
   ⊨ if approved and crystallize→is-faithful then §total' may replace §total

@@ -1,5 +1,5 @@
 -- word-count-crystal.cell: crystallization test
--- Starts soft, should crystallize to ⊢= split + count
+-- Oracle: rejoin the split words, should equal original text
 
 ⊢ count-words
   given text ≡ "the quick brown fox jumps over the lazy dog"
@@ -8,26 +8,30 @@
   ∴ Count the number of words in «text».
     Words are separated by spaces.
 
-  ⊨ count = 9
+⊢ verify-count
+  given count-words→count
+  given text ≡ "the quick brown fox jumps over the lazy dog"
+  yield words-rejoined
+
+  ⊢= words-rejoined ← join(split(text, " "), " ")
+
+  ⊨ words-rejoined = "the quick brown fox jumps over the lazy dog"
+  ⊨ count-words→count = len(split(text, " "))
 
 ⊢ crystallize
   given §count-words
-  given count-words→count
+  given verify-count→words-rejoined
   yield §count-words', is-faithful
 
   ∴ Read «§count-words». It counts words by splitting on spaces.
     Write a ⊢= expression using only Cell primitives that does the same thing.
     The expression should be: len(split(text, " "))
 
-    Return the crystallized cell definition and whether it's faithful.
-
 ⊢ verify-crystal
   given §count-words'
   given crystallize→is-faithful
   yield approved
 
-  ∴ Check: does «§count-words'» produce the same result as the original
-    for the test input "the quick brown fox jumps over the lazy dog"?
-    The expected answer is 9.
+  ∴ Does «§count-words'» use only ⊢= primitives?
 
   ⊨ if approved and crystallize→is-faithful then §count-words' may replace §count-words

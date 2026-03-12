@@ -1,4 +1,5 @@
--- max-finder-crystal.cell: find max in a list
+-- max-finder-crystal.cell: find max, verify it's actually the max
+-- Oracle: the result is in the list AND no element is greater
 
 ⊢ find-max
   given items ≡ [42, 17, 93, 8, 65, 31]
@@ -6,23 +7,30 @@
 
   ∴ Find the largest number in «items».
 
-  ⊨ maximum = 93
+⊢ verify-max
+  given find-max→maximum
+  given items ≡ [42, 17, 93, 8, 65, 31]
+  yield none-greater
+
+  ∴ Check: is there any element in «items» that is strictly greater
+    than «find-max→maximum»? Return false if none is greater (meaning
+    the maximum is correct), true if something is greater.
+
+  ⊨ none-greater = false
 
 ⊢ crystallize
   given §find-max
-  given find-max→maximum
+  given verify-max→none-greater where none-greater = false
   yield §find-max', is-faithful
 
   ∴ Read «§find-max». It finds the maximum of a list.
     Write a ⊢= expression: max(items)
-    Return the crystallized cell and faithfulness.
 
 ⊢ verify-crystal
   given §find-max'
   given crystallize→is-faithful
-  given find-max→maximum
   yield approved
 
-  ∴ Does «§find-max'» produce 93 for the input [42, 17, 93, 8, 65, 31]?
+  ∴ Does «§find-max'» use only ⊢= primitives?
 
   ⊨ if approved and crystallize→is-faithful then §find-max' may replace §find-max

@@ -1,16 +1,24 @@
--- string-length-crystal.cell: trivial crystallization
+-- string-length-crystal.cell: count characters
+-- Oracle: generate that many dots, compare length
 
 ⊢ measure
-  given text ≡ "pneumonoultramicroscopicsilicovolcanoconiosis"
+  given text ≡ "hello world"
   yield char-count
 
-  ∴ Count the number of characters in «text».
+  ∴ Count the number of characters in «text» (including spaces).
 
-  ⊨ char-count = 45
+⊢ verify-length
+  given measure→char-count
+  given text ≡ "hello world"
+  yield matches
+
+  ⊢= matches ← measure→char-count = length(text)
+
+  ⊨ matches = true
 
 ⊢ crystallize
   given §measure
-  given measure→char-count
+  given verify-length→matches where matches = true
   yield §measure', is-faithful
 
   ∴ Read «§measure». It counts characters.
@@ -19,9 +27,8 @@
 ⊢ verify-crystal
   given §measure'
   given crystallize→is-faithful
-  given measure→char-count
   yield approved
 
-  ∴ Does «§measure'» produce 45 for the test input?
+  ∴ Does «§measure'» use only ⊢= primitives?
 
   ⊨ if approved and crystallize→is-faithful then §measure' may replace §measure

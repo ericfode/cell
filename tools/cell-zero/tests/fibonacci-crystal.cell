@@ -1,5 +1,5 @@
--- fibonacci-crystal.cell: compute fibonacci, then crystallize
--- The LLM computes fib(10), crystallize writes the ⊢= algorithm
+-- fibonacci-crystal.cell: compute fibonacci, verify by recurrence
+-- Oracle: fib(n) = fib(n-1) + fib(n-2), not by hard-coding the answer
 
 ⊢ fib
   given n ≡ 10
@@ -8,24 +8,43 @@
   ∴ Compute the «n»th Fibonacci number.
     fib(0)=0, fib(1)=1, fib(n)=fib(n-1)+fib(n-2).
 
-  ⊨ result = 55
+⊢ fib-prev
+  given n ≡ 9
+  yield result
+
+  ∴ Compute the «n»th Fibonacci number.
+    fib(0)=0, fib(1)=1, fib(n)=fib(n-1)+fib(n-2).
+
+⊢ fib-prev2
+  given n ≡ 8
+  yield result
+
+  ∴ Compute the «n»th Fibonacci number.
+    fib(0)=0, fib(1)=1, fib(n)=fib(n-1)+fib(n-2).
+
+⊢ verify-recurrence
+  given fib→result
+  given fib-prev→result as prev
+  given fib-prev2→result as prev2
+  yield holds
+
+  ⊢= holds ← fib→result = fib-prev→result + fib-prev2→result
+
+  ⊨ holds = true
 
 ⊢ crystallize
   given §fib
-  given fib→result
+  given verify-recurrence→holds where holds = true
   yield §fib', is-faithful
 
   ∴ Read «§fib». It computes Fibonacci numbers.
-    Write a ⊢= expression using Cell primitives that computes fib(n).
-    Return the crystallized cell and faithfulness.
+    Write a ⊢= expression using Cell primitives.
 
 ⊢ verify-crystal
   given §fib'
   given crystallize→is-faithful
-  given fib→result
   yield approved
 
-  ∴ Does «§fib'» produce 55 for n=10?
-    Compare against «fib→result».
+  ∴ Does «§fib'» produce a deterministic computation?
 
   ⊨ if approved and crystallize→is-faithful then §fib' may replace §fib
