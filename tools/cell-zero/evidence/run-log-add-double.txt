@@ -1,0 +1,18 @@
+[beads-eval] Starting beads eval-loop (max 100 steps)
+[step 0] ready=[add] picking=add
+[beads-eval]   outputs: {"sum": 8}
+[beads-eval]   oracles: {"all_pass": true, "results": [{"text": "sum = 8", "pass": true, "reason": "deterministic: 8 vs 8"}]}
+[step 0] freeze add → sum=8
+[step 1] ready=[double] picking=double
+[beads-eval]   outputs: {"result": 16}
+[beads-eval]   oracles: {"all_pass": true, "results": [{"text": "result = 16", "pass": true, "reason": "deterministic: 16 vs 16"}]}
+[step 1] freeze double → result=16
+[beads-eval] QUIESCENT after 2 steps — all beads closed
+
+[beads-eval] Final state:
+
+  ✓ ⊢ add [ce-23yq]: closed → names=['sum'], sum=8
+  ✓ ⊢ double [ce-89cb]: closed → names=['result'], result=16
+
+[beads-eval] Summary: 2 frozen, 0 bottom, 0 pending (of 2 cells)
+[beads-eval] ALL CELLS FROZEN — program complete

@@ -1,0 +1,17 @@
+[beads-eval] Starting beads eval-loop (max 100 steps)
+[step 0] ready=[greet] picking=greet
+[beads-eval]   outputs: {"message": "<dry-run-message>"}
+[beads-eval]   oracles: {"all_pass": true, "results": [{"text": "message is a string", "pass": true, "reason": "dry-run: assumed pass"}]}
+[step 0] freeze greet → message='<dry-run-message>'
+[step 1] ready=[count-words] picking=count-words
+[beads-eval]   outputs: {"count": 1}
+[step 1] freeze count-words → count=1
+[beads-eval] QUIESCENT after 2 steps — all beads closed
+
+[beads-eval] Final state:
+
+  ✓ ⊢ greet [ce-u3wg]: closed → message='<dry-run-message>', names=['message']
+  ✓ ⊢ count-words [ce-pm63]: closed → count=1, names=['count']
+
+[beads-eval] Summary: 2 frozen, 0 bottom, 0 pending (of 2 cells)
+[beads-eval] ALL CELLS FROZEN — program complete

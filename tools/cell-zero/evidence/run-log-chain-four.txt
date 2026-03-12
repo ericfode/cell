@@ -1,0 +1,28 @@
+[beads-eval] Starting beads eval-loop (max 100 steps)
+[step 0] ready=[step1] picking=step1
+[beads-eval]   outputs: {"a": 6}
+[beads-eval]   oracles: {"all_pass": true, "results": [{"text": "a = 6", "pass": true, "reason": "deterministic: 6 vs 6"}]}
+[step 0] freeze step1 → a=6
+[step 1] ready=[step2] picking=step2
+[beads-eval]   outputs: {"b": 16}
+[beads-eval]   oracles: {"all_pass": true, "results": [{"text": "b = 16", "pass": true, "reason": "deterministic: 16 vs 16"}]}
+[step 1] freeze step2 → b=16
+[step 2] ready=[step3] picking=step3
+[beads-eval]   outputs: {"c": 32}
+[beads-eval]   oracles: {"all_pass": true, "results": [{"text": "c = 32", "pass": true, "reason": "deterministic: 32 vs 32"}]}
+[step 2] freeze step3 → c=32
+[step 3] ready=[step4] picking=step4
+[beads-eval]   outputs: {"d": 26}
+[beads-eval]   oracles: {"all_pass": true, "results": [{"text": "d = 26", "pass": true, "reason": "deterministic: 26 vs 26"}]}
+[step 3] freeze step4 → d=26
+[beads-eval] QUIESCENT after 4 steps — all beads closed
+
+[beads-eval] Final state:
+
+  ✓ ⊢ step1 [ce-9jvv]: closed → a=6, names=['a']
+  ✓ ⊢ step2 [ce-d3ad]: closed → b=16, names=['b']
+  ✓ ⊢ step3 [ce-idnm]: closed → c=32, names=['c']
+  ✓ ⊢ step4 [ce-t8zy]: closed → d=26, names=['d']
+
+[beads-eval] Summary: 4 frozen, 0 bottom, 0 pending (of 4 cells)
+[beads-eval] ALL CELLS FROZEN — program complete

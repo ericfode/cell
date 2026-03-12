@@ -1,0 +1,21 @@
+[beads-eval] Starting beads eval-loop (max 100 steps)
+[step 0] ready=[check-sign] picking=check-sign
+[beads-eval]   outputs: {"sign": "negative"}
+[beads-eval]   oracles: {"all_pass": true, "results": [{"text": "sign = \"negative\"", "pass": true, "reason": "deterministic: 'negative' vs 'negative'"}]}
+[step 0] freeze check-sign → sign='negative'
+[step 1] ready=[pass-through, negate] picking=pass-through
+[step 1] skip pass-through (guard false → ⊥)
+[step 1] ready=[negate] picking=negate
+[beads-eval]   outputs: {"result": 7}
+[beads-eval]   oracles: {"all_pass": true, "results": [{"text": "result = 7", "pass": true, "reason": "deterministic: 7 vs 7"}]}
+[step 1] freeze negate → result=7
+[beads-eval] QUIESCENT after 2 steps — all beads closed
+
+[beads-eval] Final state:
+
+  ✓ ⊢ check-sign [ce-fm8l]: closed → names=['sign'], sign='negative'
+  ✓ ⊢ negate [ce-lx9m]: closed → names=['result'], result=7
+  ⊥ ⊢ pass-through [ce-fomc]: closed → names=['result'], result=None
+
+[beads-eval] Summary: 2 frozen, 1 bottom, 0 pending (of 3 cells)
+[beads-eval] All cells resolved (some ⊥)

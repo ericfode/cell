@@ -164,6 +164,14 @@ def eval_hard(expr: str, bindings: dict, yield_names: list[str]) -> dict:
 
     # Convert to Python
     py_expr = resolved
+    # Convert Cell if/then/else to Python ternary (inside-out for nested)
+    def _cell_ternary(text):
+        # Find innermost if/then/else (one with no nested 'if' in condition or then)
+        pat = re.compile(r'\bif\s+((?:(?!\bif\b).)+?)\s+then\s+((?:(?!\bif\b).)+?)\s+else\s+')
+        while pat.search(text):
+            text = pat.sub(lambda m: f'({m.group(2).strip()}) if ({m.group(1).strip()}) else ', text)
+        return text
+    py_expr = _cell_ternary(py_expr)
     py_expr = re.sub(r'\beval\(', '(', py_expr)
     py_expr = re.sub(r'(?<![!<>=])=(?!=)', '==', py_expr)
     py_expr = re.sub(r'\btrue\b', 'True', py_expr)
