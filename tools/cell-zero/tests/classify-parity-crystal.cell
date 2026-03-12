@@ -1,0 +1,31 @@
+-- classify-parity-crystal.cell: even/odd classifier with guard routing
+
+⊢ check-parity
+  given n ≡ 7
+  yield parity
+
+  ∴ Is «n» even or odd? Return "even" or "odd".
+
+  ⊨ parity = "odd"
+
+⊢ handle-even
+  given check-parity→parity where parity = "even"
+  given n ≡ 7
+  yield message
+
+  ⊢= message ← "The number is even"
+
+⊢ handle-odd
+  given check-parity→parity where parity = "odd"
+  given n ≡ 7
+  yield message
+
+  ⊢= message ← "The number is odd"
+
+⊢ crystallize
+  given §check-parity
+  given check-parity→parity
+  yield §check-parity', is-faithful
+
+  ∴ Read «§check-parity». It classifies even/odd.
+    Write a ⊢= expression: if n % 2 = 0 then "even" else "odd"

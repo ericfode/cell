@@ -1,0 +1,32 @@
+-- sort-numbers-crystal.cell: sort a list, verify, crystallize
+
+⊢ sort-them
+  given numbers ≡ [5, 3, 8, 1, 9, 2, 7, 4, 6]
+  yield sorted
+
+  ∴ Sort «numbers» in ascending order.
+
+  ⊨ sorted = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+⊢ verify-sort
+  given sort-them→sorted
+  given numbers ≡ [5, 3, 8, 1, 9, 2, 7, 4, 6]
+  yield is-permutation, is-ordered
+
+  ⊢= is-permutation ← len(sort-them→sorted) = len(numbers)
+  ⊢= is-ordered ← sort-them→sorted = sort(numbers)
+
+  ⊨ is-permutation = true
+  ⊨ is-ordered = true
+
+⊢ crystallize
+  given §sort-them
+  given sort-them→sorted
+  given verify-sort→is-ordered
+  yield §sort-them', is-faithful
+
+  ∴ Read «§sort-them». It sorts numbers ascending.
+    Write a ⊢= expression: sort(numbers)
+    Return the crystallized cell and faithfulness.
+
+  ⊨ if is-faithful then §sort-them' may replace §sort-them

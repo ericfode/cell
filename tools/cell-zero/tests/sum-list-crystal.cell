@@ -1,0 +1,27 @@
+-- sum-list-crystal.cell: sum a list of numbers
+
+⊢ total
+  given values ≡ [10, 20, 30, 40, 50]
+  yield sum-result
+
+  ∴ Compute the sum of all numbers in «values».
+
+  ⊨ sum-result = 150
+
+⊢ crystallize
+  given §total
+  given total→sum-result
+  yield §total', is-faithful
+
+  ∴ Read «§total». It sums a list.
+    Write a ⊢= expression: sum(values)
+
+⊢ verify-crystal
+  given §total'
+  given crystallize→is-faithful
+  given total→sum-result
+  yield approved
+
+  ∴ Does «§total'» produce 150 for [10, 20, 30, 40, 50]?
+
+  ⊨ if approved and crystallize→is-faithful then §total' may replace §total

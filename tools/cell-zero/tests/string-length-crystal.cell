@@ -1,0 +1,27 @@
+-- string-length-crystal.cell: trivial crystallization
+
+⊢ measure
+  given text ≡ "pneumonoultramicroscopicsilicovolcanoconiosis"
+  yield char-count
+
+  ∴ Count the number of characters in «text».
+
+  ⊨ char-count = 45
+
+⊢ crystallize
+  given §measure
+  given measure→char-count
+  yield §measure', is-faithful
+
+  ∴ Read «§measure». It counts characters.
+    Write a ⊢= expression: length(text)
+
+⊢ verify-crystal
+  given §measure'
+  given crystallize→is-faithful
+  given measure→char-count
+  yield approved
+
+  ∴ Does «§measure'» produce 45 for the test input?
+
+  ⊨ if approved and crystallize→is-faithful then §measure' may replace §measure

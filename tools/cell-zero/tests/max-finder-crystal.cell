@@ -1,0 +1,28 @@
+-- max-finder-crystal.cell: find max in a list
+
+⊢ find-max
+  given items ≡ [42, 17, 93, 8, 65, 31]
+  yield maximum
+
+  ∴ Find the largest number in «items».
+
+  ⊨ maximum = 93
+
+⊢ crystallize
+  given §find-max
+  given find-max→maximum
+  yield §find-max', is-faithful
+
+  ∴ Read «§find-max». It finds the maximum of a list.
+    Write a ⊢= expression: max(items)
+    Return the crystallized cell and faithfulness.
+
+⊢ verify-crystal
+  given §find-max'
+  given crystallize→is-faithful
+  given find-max→maximum
+  yield approved
+
+  ∴ Does «§find-max'» produce 93 for the input [42, 17, 93, 8, 65, 31]?
+
+  ⊨ if approved and crystallize→is-faithful then §find-max' may replace §find-max

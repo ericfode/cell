@@ -1,0 +1,31 @@
+-- reverse-string-crystal.cell: string reversal crystallization
+-- LLM reverses a string, then crystallize proposes ⊢= form
+
+⊢ reverse
+  given text ≡ "hello world"
+  yield reversed
+
+  ∴ Reverse the characters in «text».
+    "hello" → "olleh"
+
+  ⊨ reversed = "dlrow olleh"
+
+⊢ crystallize
+  given §reverse
+  given reverse→reversed
+  yield §reverse', is-faithful
+
+  ∴ Read «§reverse». It reverses a string character by character.
+    Write a ⊢= expression that does the same thing.
+    Return the crystallized cell and whether the transformation is faithful.
+
+⊢ verify-crystal
+  given §reverse'
+  given crystallize→is-faithful
+  given reverse→reversed
+  yield approved
+
+  ∴ Does «§reverse'» produce "dlrow olleh" for input "hello world"?
+    Compare against the original output «reverse→reversed».
+
+  ⊨ if approved and crystallize→is-faithful then §reverse' may replace §reverse
