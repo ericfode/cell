@@ -1,0 +1,10 @@
+{
+  "program": "tools/cell-zero/tests/sort-numbers-crystal.cell",
+  "cell_order": [
+    "sort-them",
+    "verify-permutation",
+    "verify-ordered",
+    "crystallize"
+  ],
+  "step": 4
+}

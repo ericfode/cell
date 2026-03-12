@@ -1,0 +1,10 @@
+{
+  "program": "tools/cell-zero/tests/diamond-deps.cell",
+  "cell_order": [
+    "source",
+    "left",
+    "right",
+    "merge"
+  ],
+  "step": 4
+}

@@ -1,0 +1,28 @@
+{
+  "name": "unknown",
+  "turnstile": "⊢",
+  "givens": [
+    {
+      "name": "signal",
+      "source_cell": "get-color",
+      "source_field": "signal",
+      "has_default": false,
+      "guard_expr": "signal = \"flashing\"",
+      "optional": false
+    }
+  ],
+  "yield_names": [
+    "action"
+  ],
+  "body": "action ← \"treat as stop sign\"",
+  "body_type": "hard",
+  "oracles": [],
+  "recovery": null,
+  "frozen": false,
+  "yield_values": {
+    "action": null
+  },
+  "is_bottom": true,
+  "retries": 0,
+  "max_retries": 3
+}

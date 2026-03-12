@@ -1,0 +1,38 @@
+{
+  "name": "step0",
+  "turnstile": "⊢",
+  "givens": [
+    {
+      "name": "a",
+      "default": 48,
+      "has_default": true,
+      "guard_expr": null,
+      "optional": false
+    },
+    {
+      "name": "b",
+      "default": 18,
+      "has_default": true,
+      "guard_expr": null,
+      "optional": false
+    }
+  ],
+  "yield_names": [
+    "remainder"
+  ],
+  "body": "remainder ← a % b",
+  "body_type": "hard",
+  "oracles": [
+    {
+      "text": "remainder = 12"
+    }
+  ],
+  "recovery": null,
+  "frozen": true,
+  "yield_values": {
+    "remainder": 12
+  },
+  "is_bottom": false,
+  "retries": 0,
+  "max_retries": 3
+}

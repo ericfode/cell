@@ -1,0 +1,32 @@
+{
+  "name": "handle-fizzbuzz",
+  "turnstile": "⊢",
+  "givens": [
+    {
+      "name": "label",
+      "source_cell": "classify",
+      "source_field": "label",
+      "has_default": false,
+      "guard_expr": "label = \"fizzbuzz\"",
+      "optional": false
+    }
+  ],
+  "yield_names": [
+    "output"
+  ],
+  "body": "output ← \"FizzBuzz!\"",
+  "body_type": "hard",
+  "oracles": [
+    {
+      "text": "output = \"FizzBuzz!\""
+    }
+  ],
+  "recovery": null,
+  "frozen": true,
+  "yield_values": {
+    "output": "FizzBuzz!"
+  },
+  "is_bottom": false,
+  "retries": 0,
+  "max_retries": 3
+}

@@ -1,0 +1,28 @@
+{
+  "name": "handle-buzz",
+  "turnstile": "⊢",
+  "givens": [
+    {
+      "name": "label",
+      "source_cell": "classify",
+      "source_field": "label",
+      "has_default": false,
+      "guard_expr": "label = \"buzz\"",
+      "optional": false
+    }
+  ],
+  "yield_names": [
+    "output"
+  ],
+  "body": "output ← \"Buzz\"",
+  "body_type": "hard",
+  "oracles": [],
+  "recovery": null,
+  "frozen": false,
+  "yield_values": {
+    "output": null
+  },
+  "is_bottom": true,
+  "retries": 0,
+  "max_retries": 3
+}

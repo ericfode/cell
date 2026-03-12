@@ -1,0 +1,32 @@
+{
+  "name": "verify-ordered",
+  "turnstile": "⊢",
+  "givens": [
+    {
+      "name": "sorted",
+      "source_cell": "sort-them",
+      "source_field": "sorted",
+      "has_default": false,
+      "guard_expr": null,
+      "optional": false
+    }
+  ],
+  "yield_names": [
+    "is-ordered"
+  ],
+  "body": "Check that each element in «sort-them→sorted» is less than or\nequal to the next element. Return true or false.",
+  "body_type": "soft",
+  "oracles": [
+    {
+      "text": "is-ordered = true"
+    }
+  ],
+  "recovery": null,
+  "frozen": true,
+  "yield_values": {
+    "is-ordered": true
+  },
+  "is_bottom": false,
+  "retries": 0,
+  "max_retries": 3
+}

@@ -275,13 +275,30 @@ def main():
     bindings = resolve_bindings(cell, cells)
 
     if cell["body_type"] == "hard":
-        result = eval_hard(cell["body"], bindings)
-        if len(cell["yield_names"]) == 1:
-            outputs = {cell["yield_names"][0]: result}
-        elif isinstance(result, dict):
-            outputs = result
+        # Handle multi-expression bodies (newline-separated ⊢= lines)
+        body_lines = cell["body"].split("\n")
+        if len(body_lines) > 1:
+            outputs = {}
+            for line in body_lines:
+                line = line.strip()
+                if not line:
+                    continue
+                bm = re.match(r'^(\w[\w-]*)\s*←\s*(.+)$', line, re.DOTALL)
+                if bm:
+                    name = bm.group(1)
+                    val = eval_hard(bm.group(2).strip(), bindings)
+                    outputs[name] = val
+                else:
+                    val = eval_hard(line, bindings)
+                    outputs[cell["yield_names"][len(outputs)]] = val
         else:
-            outputs = {cell["yield_names"][0]: result}
+            result = eval_hard(cell["body"], bindings)
+            if len(cell["yield_names"]) == 1:
+                outputs = {cell["yield_names"][0]: result}
+            elif isinstance(result, dict):
+                outputs = result
+            else:
+                outputs = {cell["yield_names"][0]: result}
 
     elif cell["body_type"] == "soft":
         if not dry_run and not os.environ.get("ANTHROPIC_API_KEY"):

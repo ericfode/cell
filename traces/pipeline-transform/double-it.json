@@ -1,0 +1,32 @@
+{
+  "name": "double-it",
+  "turnstile": "⊢",
+  "givens": [
+    {
+      "name": "num",
+      "source_cell": "parse-number",
+      "source_field": "num",
+      "has_default": false,
+      "guard_expr": null,
+      "optional": false
+    }
+  ],
+  "yield_names": [
+    "doubled"
+  ],
+  "body": "doubled ← parse-number→num * 2",
+  "body_type": "hard",
+  "oracles": [
+    {
+      "text": "doubled = 84"
+    }
+  ],
+  "recovery": null,
+  "frozen": true,
+  "yield_values": {
+    "doubled": 84
+  },
+  "is_bottom": false,
+  "retries": 0,
+  "max_retries": 3
+}

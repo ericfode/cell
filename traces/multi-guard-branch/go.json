@@ -1,0 +1,32 @@
+{
+  "name": "go",
+  "turnstile": "⊢",
+  "givens": [
+    {
+      "name": "signal",
+      "source_cell": "get-color",
+      "source_field": "signal",
+      "has_default": false,
+      "guard_expr": "signal = \"green\"",
+      "optional": false
+    }
+  ],
+  "yield_names": [
+    "action"
+  ],
+  "body": "action ← \"proceed\"",
+  "body_type": "hard",
+  "oracles": [
+    {
+      "text": "action = \"proceed\""
+    }
+  ],
+  "recovery": null,
+  "frozen": true,
+  "yield_values": {
+    "action": "proceed"
+  },
+  "is_bottom": false,
+  "retries": 0,
+  "max_retries": 3
+}

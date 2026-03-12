@@ -1,0 +1,28 @@
+{
+  "name": "handle-a",
+  "turnstile": "⊢",
+  "givens": [
+    {
+      "name": "grade",
+      "source_cell": "assign-grade",
+      "source_field": "grade",
+      "has_default": false,
+      "guard_expr": "grade = \"A\"",
+      "optional": false
+    }
+  ],
+  "yield_names": [
+    "feedback"
+  ],
+  "body": "feedback ← \"Excellent work!\"",
+  "body_type": "hard",
+  "oracles": [],
+  "recovery": null,
+  "frozen": false,
+  "yield_values": {
+    "feedback": null
+  },
+  "is_bottom": true,
+  "retries": 0,
+  "max_retries": 3
+}

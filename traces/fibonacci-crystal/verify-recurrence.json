@@ -1,0 +1,48 @@
+{
+  "name": "verify-recurrence",
+  "turnstile": "⊢",
+  "givens": [
+    {
+      "name": "result",
+      "source_cell": "fib",
+      "source_field": "result",
+      "has_default": false,
+      "guard_expr": null,
+      "optional": false
+    },
+    {
+      "name": "prev",
+      "source_cell": "fib-prev",
+      "source_field": "result",
+      "has_default": false,
+      "guard_expr": null,
+      "optional": false
+    },
+    {
+      "name": "prev2",
+      "source_cell": "fib-prev2",
+      "source_field": "result",
+      "has_default": false,
+      "guard_expr": null,
+      "optional": false
+    }
+  ],
+  "yield_names": [
+    "holds"
+  ],
+  "body": "holds ← fib→result = fib-prev→result + fib-prev2→result",
+  "body_type": "hard",
+  "oracles": [
+    {
+      "text": "holds = true"
+    }
+  ],
+  "recovery": null,
+  "frozen": true,
+  "yield_values": {
+    "holds": true
+  },
+  "is_bottom": false,
+  "retries": 0,
+  "max_retries": 3
+}

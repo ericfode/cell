@@ -1,0 +1,31 @@
+{
+  "name": "get-color",
+  "turnstile": "⊢",
+  "givens": [
+    {
+      "name": "color",
+      "default": "green",
+      "has_default": true,
+      "guard_expr": null,
+      "optional": false
+    }
+  ],
+  "yield_names": [
+    "signal"
+  ],
+  "body": "signal ← color",
+  "body_type": "hard",
+  "oracles": [
+    {
+      "text": "signal = \"green\""
+    }
+  ],
+  "recovery": null,
+  "frozen": true,
+  "yield_values": {
+    "signal": "green"
+  },
+  "is_bottom": false,
+  "retries": 0,
+  "max_retries": 3
+}

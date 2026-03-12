@@ -1,0 +1,28 @@
+{
+  "name": "handle-fizz",
+  "turnstile": "⊢",
+  "givens": [
+    {
+      "name": "label",
+      "source_cell": "classify",
+      "source_field": "label",
+      "has_default": false,
+      "guard_expr": "label = \"fizz\"",
+      "optional": false
+    }
+  ],
+  "yield_names": [
+    "output"
+  ],
+  "body": "output ← \"Fizz\"",
+  "body_type": "hard",
+  "oracles": [],
+  "recovery": null,
+  "frozen": false,
+  "yield_values": {
+    "output": null
+  },
+  "is_bottom": true,
+  "retries": 0,
+  "max_retries": 3
+}

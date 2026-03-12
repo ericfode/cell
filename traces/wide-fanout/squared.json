@@ -1,0 +1,32 @@
+{
+  "name": "squared",
+  "turnstile": "⊢",
+  "givens": [
+    {
+      "name": "val",
+      "source_cell": "source",
+      "source_field": "val",
+      "has_default": false,
+      "guard_expr": null,
+      "optional": false
+    }
+  ],
+  "yield_names": [
+    "result"
+  ],
+  "body": "result ← source→val * source→val",
+  "body_type": "hard",
+  "oracles": [
+    {
+      "text": "result = 100"
+    }
+  ],
+  "recovery": null,
+  "frozen": true,
+  "yield_values": {
+    "result": 100
+  },
+  "is_bottom": false,
+  "retries": 0,
+  "max_retries": 3
+}

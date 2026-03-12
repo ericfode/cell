@@ -1,0 +1,32 @@
+{
+  "name": "right",
+  "turnstile": "⊢",
+  "givens": [
+    {
+      "name": "x",
+      "source_cell": "source",
+      "source_field": "x",
+      "has_default": false,
+      "guard_expr": null,
+      "optional": false
+    }
+  ],
+  "yield_names": [
+    "tripled"
+  ],
+  "body": "tripled ← source→x * 3",
+  "body_type": "hard",
+  "oracles": [
+    {
+      "text": "tripled = 30"
+    }
+  ],
+  "recovery": null,
+  "frozen": true,
+  "yield_values": {
+    "tripled": 30
+  },
+  "is_bottom": false,
+  "retries": 0,
+  "max_retries": 3
+}

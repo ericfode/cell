@@ -1,0 +1,11 @@
+{
+  "program": "tools/cell-zero/tests/grade-calculator.cell",
+  "cell_order": [
+    "assign-grade",
+    "handle-a",
+    "handle-b",
+    "handle-c",
+    "handle-fail"
+  ],
+  "step": 2
+}

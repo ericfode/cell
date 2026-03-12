@@ -1,0 +1,31 @@
+{
+  "name": "acc0",
+  "turnstile": "⊢",
+  "givens": [
+    {
+      "name": "start",
+      "default": 0,
+      "has_default": true,
+      "guard_expr": null,
+      "optional": false
+    }
+  ],
+  "yield_names": [
+    "total"
+  ],
+  "body": "total ← start + 1",
+  "body_type": "hard",
+  "oracles": [
+    {
+      "text": "total = 1"
+    }
+  ],
+  "recovery": null,
+  "frozen": true,
+  "yield_values": {
+    "total": 1
+  },
+  "is_bottom": false,
+  "retries": 0,
+  "max_retries": 3
+}

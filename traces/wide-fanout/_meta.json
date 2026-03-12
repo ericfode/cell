@@ -1,0 +1,13 @@
+{
+  "program": "tools/cell-zero/tests/wide-fanout.cell",
+  "cell_order": [
+    "source",
+    "plus-one",
+    "times-two",
+    "squared",
+    "negated",
+    "halved",
+    "merge-all"
+  ],
+  "step": 7
+}

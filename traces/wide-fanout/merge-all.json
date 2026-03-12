@@ -1,0 +1,64 @@
+{
+  "name": "merge-all",
+  "turnstile": "⊢",
+  "givens": [
+    {
+      "name": "result",
+      "source_cell": "plus-one",
+      "source_field": "result",
+      "has_default": false,
+      "guard_expr": null,
+      "optional": false
+    },
+    {
+      "name": "result",
+      "source_cell": "times-two",
+      "source_field": "result",
+      "has_default": false,
+      "guard_expr": null,
+      "optional": false
+    },
+    {
+      "name": "result",
+      "source_cell": "squared",
+      "source_field": "result",
+      "has_default": false,
+      "guard_expr": null,
+      "optional": false
+    },
+    {
+      "name": "result",
+      "source_cell": "negated",
+      "source_field": "result",
+      "has_default": false,
+      "guard_expr": null,
+      "optional": false
+    },
+    {
+      "name": "result",
+      "source_cell": "halved",
+      "source_field": "result",
+      "has_default": false,
+      "guard_expr": null,
+      "optional": false
+    }
+  ],
+  "yield_names": [
+    "total"
+  ],
+  "body": "total ← plus-one→result + times-two→result + squared→result + negated→result + halved→result",
+  "body_type": "hard",
+  "oracles": [
+    {
+      "text": "total = 126"
+    }
+  ],
+  "recovery": null,
+  "frozen": true,
+  "yield_values": {
+    "total": 126.0
+  },
+  "is_bottom": false,
+  "retries": 0,
+  "max_retries": 3
+}

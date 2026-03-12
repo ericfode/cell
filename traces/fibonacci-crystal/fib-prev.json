@@ -1,0 +1,27 @@
+{
+  "name": "fib-prev",
+  "turnstile": "⊢",
+  "givens": [
+    {
+      "name": "n",
+      "default": 9,
+      "has_default": true,
+      "guard_expr": null,
+      "optional": false
+    }
+  ],
+  "yield_names": [
+    "result"
+  ],
+  "body": "Compute the «n»th Fibonacci number.\nfib(0)=0, fib(1)=1, fib(n)=fib(n-1)+fib(n-2).",
+  "body_type": "soft",
+  "oracles": [],
+  "recovery": null,
+  "frozen": true,
+  "yield_values": {
+    "result": 34
+  },
+  "is_bottom": false,
+  "retries": 0,
+  "max_retries": 3
+}

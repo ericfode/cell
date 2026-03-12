@@ -33,7 +33,10 @@ def eval_guard(expr: str, var_name: str, val) -> bool:
         return str(val) == m.group(2)
     m = re.match(r'(\w[\w-]*)\s*=\s*(\w+)', expr)
     if m:
-        return str(val) == m.group(2)
+        expected = m.group(2)
+        # Normalize Python bools to Cell bools for comparison
+        actual = str(val).lower() if isinstance(val, bool) else str(val)
+        return actual == expected
     m = re.match(r'(\w[\w-]*)\s*!=\s*"([^"]*)"', expr)
     if m:
         return str(val) != m.group(2)

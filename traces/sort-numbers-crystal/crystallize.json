@@ -1,0 +1,49 @@
+{
+  "name": "crystallize",
+  "turnstile": "⊢",
+  "givens": [
+    {
+      "name": "§sort-them",
+      "has_default": true,
+      "guard_expr": null,
+      "optional": false,
+      "default": "§sort-them"
+    },
+    {
+      "name": "same-sum",
+      "source_cell": "verify-permutation",
+      "source_field": "same-sum",
+      "has_default": false,
+      "guard_expr": "same-sum = true",
+      "optional": false
+    },
+    {
+      "name": "is-ordered",
+      "source_cell": "verify-ordered",
+      "source_field": "is-ordered",
+      "has_default": false,
+      "guard_expr": "is-ordered = true",
+      "optional": false
+    }
+  ],
+  "yield_names": [
+    "§sort-them'",
+    "is-faithful"
+  ],
+  "body": "Read «§sort-them». It sorts numbers ascending.\nWrite a ⊢= expression: sort(numbers)",
+  "body_type": "soft",
+  "oracles": [
+    {
+      "text": "if is-faithful then §sort-them' may replace §sort-them"
+    }
+  ],
+  "recovery": null,
+  "frozen": true,
+  "yield_values": {
+    "§sort-them'": "⊢= sorted ← sorted(numbers)",
+    "is-faithful": true
+  },
+  "is_bottom": false,
+  "retries": 0,
+  "max_retries": 3
+}

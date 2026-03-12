@@ -1,0 +1,40 @@
+{
+  "name": "report",
+  "turnstile": "⊢",
+  "givens": [
+    {
+      "name": "text",
+      "source_cell": "stringify",
+      "source_field": "text",
+      "has_default": false,
+      "guard_expr": null,
+      "optional": false
+    },
+    {
+      "name": "doubled",
+      "source_cell": "double-it",
+      "source_field": "doubled",
+      "has_default": false,
+      "guard_expr": null,
+      "optional": false
+    }
+  ],
+  "yield_names": [
+    "message"
+  ],
+  "body": "message ← \"Result: \" + stringify→text",
+  "body_type": "hard",
+  "oracles": [
+    {
+      "text": "message = \"Result: 84\""
+    }
+  ],
+  "recovery": null,
+  "frozen": true,
+  "yield_values": {
+    "message": "Result: 84"
+  },
+  "is_bottom": false,
+  "retries": 0,
+  "max_retries": 3
+}

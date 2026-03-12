@@ -1,0 +1,37 @@
+{
+  "name": "crystallize",
+  "turnstile": "⊢",
+  "givens": [
+    {
+      "name": "§fib",
+      "has_default": true,
+      "guard_expr": null,
+      "optional": false,
+      "default": "§fib"
+    },
+    {
+      "name": "holds",
+      "source_cell": "verify-recurrence",
+      "source_field": "holds",
+      "has_default": false,
+      "guard_expr": "holds = true",
+      "optional": false
+    }
+  ],
+  "yield_names": [
+    "§fib'",
+    "is-faithful"
+  ],
+  "body": "Read «§fib». It computes Fibonacci numbers.\nWrite a ⊢= expression using Cell primitives.",
+  "body_type": "soft",
+  "oracles": [],
+  "recovery": null,
+  "frozen": true,
+  "yield_values": {
+    "§fib'": "⊢= result ← if n <= 1 then n else fib(n-1) + fib(n-2)",
+    "is-faithful": true
+  },
+  "is_bottom": false,
+  "retries": 0,
+  "max_retries": 3
+}

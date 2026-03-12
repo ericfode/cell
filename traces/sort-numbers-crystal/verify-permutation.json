@@ -1,0 +1,54 @@
+{
+  "name": "verify-permutation",
+  "turnstile": "⊢",
+  "givens": [
+    {
+      "name": "sorted",
+      "source_cell": "sort-them",
+      "source_field": "sorted",
+      "has_default": false,
+      "guard_expr": null,
+      "optional": false
+    },
+    {
+      "name": "numbers",
+      "default": [
+        5,
+        3,
+        8,
+        1,
+        9,
+        2,
+        7,
+        4,
+        6
+      ],
+      "has_default": true,
+      "guard_expr": null,
+      "optional": false
+    }
+  ],
+  "yield_names": [
+    "same-length",
+    "same-sum"
+  ],
+  "body": "same-length ← len(sort-them→sorted) = len(numbers)\nsame-sum ← sum(sort-them→sorted) = sum(numbers)",
+  "body_type": "hard",
+  "oracles": [
+    {
+      "text": "same-length = true"
+    },
+    {
+      "text": "same-sum = true"
+    }
+  ],
+  "recovery": null,
+  "frozen": true,
+  "yield_values": {
+    "same-length": true,
+    "same-sum": true
+  },
+  "is_bottom": false,
+  "retries": 0,
+  "max_retries": 3
+}

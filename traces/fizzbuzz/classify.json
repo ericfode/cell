@@ -1,0 +1,31 @@
+{
+  "name": "classify",
+  "turnstile": "⊢",
+  "givens": [
+    {
+      "name": "n",
+      "default": 15,
+      "has_default": true,
+      "guard_expr": null,
+      "optional": false
+    }
+  ],
+  "yield_names": [
+    "label"
+  ],
+  "body": "label ← if n % 15 == 0 then \"fizzbuzz\" else if n % 3 == 0 then \"fizz\" else if n % 5 == 0 then \"buzz\" else \"number\"",
+  "body_type": "hard",
+  "oracles": [
+    {
+      "text": "label = \"fizzbuzz\""
+    }
+  ],
+  "recovery": null,
+  "frozen": true,
+  "yield_values": {
+    "label": "fizzbuzz"
+  },
+  "is_bottom": false,
+  "retries": 0,
+  "max_retries": 3
+}

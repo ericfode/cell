@@ -1,0 +1,39 @@
+{
+  "name": "step1",
+  "turnstile": "⊢",
+  "givens": [
+    {
+      "name": "prev-b",
+      "default": 18,
+      "has_default": true,
+      "guard_expr": null,
+      "optional": false
+    },
+    {
+      "name": "remainder",
+      "source_cell": "step0",
+      "source_field": "remainder",
+      "has_default": false,
+      "guard_expr": null,
+      "optional": false
+    }
+  ],
+  "yield_names": [
+    "remainder"
+  ],
+  "body": "remainder ← prev-b % step0→remainder",
+  "body_type": "hard",
+  "oracles": [
+    {
+      "text": "remainder = 6"
+    }
+  ],
+  "recovery": null,
+  "frozen": true,
+  "yield_values": {
+    "remainder": 6
+  },
+  "is_bottom": false,
+  "retries": 0,
+  "max_retries": 3
+}

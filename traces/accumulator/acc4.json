@@ -1,0 +1,32 @@
+{
+  "name": "acc4",
+  "turnstile": "⊢",
+  "givens": [
+    {
+      "name": "total",
+      "source_cell": "acc3",
+      "source_field": "total",
+      "has_default": false,
+      "guard_expr": null,
+      "optional": false
+    }
+  ],
+  "yield_names": [
+    "total"
+  ],
+  "body": "total ← acc3→total + 5",
+  "body_type": "hard",
+  "oracles": [
+    {
+      "text": "total = 15"
+    }
+  ],
+  "recovery": null,
+  "frozen": true,
+  "yield_values": {
+    "total": 15
+  },
+  "is_bottom": false,
+  "retries": 0,
+  "max_retries": 3
+}

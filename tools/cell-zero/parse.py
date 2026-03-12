@@ -118,7 +118,10 @@ def parse_cell_file(text: str) -> list[dict]:
             # ⊢= inside a cell body (not a new cell)
             if indent > 0 and current is not None and ts == "⊢=":
                 expr_part = stripped[len("⊢= "):]
-                current["body"] = expr_part
+                if current["body_type"] == "hard" and current["body"]:
+                    current["body"] = current["body"] + "\n" + expr_part
+                else:
+                    current["body"] = expr_part
                 current["body_type"] = "hard"
                 continue
 
@@ -193,13 +196,18 @@ def parse_cell_file(text: str) -> list[dict]:
             current["oracles"].append({"text": stripped[len("⊨"):].strip()})
             continue
 
-        # ⊢= expression body (indented)
+        # ⊢= expression body (indented) — accumulate multiple expressions
         if stripped.startswith("⊢="):
             if in_body and body_lines:
                 current["body"] = "\n".join(body_lines).strip()
                 in_body = False
                 body_lines = []
-            current["body"] = stripped[len("⊢="):].strip()
+            expr = stripped[len("⊢="):].strip()
+            if current["body_type"] == "hard" and current["body"]:
+                # Multiple ⊢= lines: accumulate as newline-separated expressions
+                current["body"] = current["body"] + "\n" + expr
+            else:
+                current["body"] = expr
             current["body_type"] = "hard"
             continue
 
