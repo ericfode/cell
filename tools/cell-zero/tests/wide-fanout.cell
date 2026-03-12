@@ -1,0 +1,62 @@
+-- wide-fanout.cell: one source feeds 5 independent consumers, then merge
+-- Tests: wide parallel dependency, fan-out/fan-in pattern
+
+⊢ source
+  given n ≡ 10
+  yield val
+
+  ⊢= val ← n
+
+  ⊨ val = 10
+
+⊢ plus-one
+  given source→val
+  yield result
+
+  ⊢= result ← source→val + 1
+
+  ⊨ result = 11
+
+⊢ times-two
+  given source→val
+  yield result
+
+  ⊢= result ← source→val * 2
+
+  ⊨ result = 20
+
+⊢ squared
+  given source→val
+  yield result
+
+  ⊢= result ← source→val * source→val
+
+  ⊨ result = 100
+
+⊢ negated
+  given source→val
+  yield result
+
+  ⊢= result ← 0 - source→val
+
+  ⊨ result = -10
+
+⊢ halved
+  given source→val
+  yield result
+
+  ⊢= result ← source→val / 2
+
+  ⊨ result = 5
+
+⊢ merge-all
+  given plus-one→result
+  given times-two→result
+  given squared→result
+  given negated→result
+  given halved→result
+  yield total
+
+  ⊢= total ← plus-one→result + times-two→result + squared→result + negated→result + halved→result
+
+  ⊨ total = 126

@@ -1,0 +1,19 @@
+-- triangle-area.cell: triangle area + classification
+-- Tests: arithmetic, conditional chains, multi-cell pipeline
+
+⊢ compute-area
+  given base ≡ 6
+  given height ≡ 8
+  yield area
+
+  ⊢= area ← base * height / 2
+
+  ⊨ area = 24
+
+⊢ classify-size
+  given compute-area→area
+  yield size
+
+  ⊢= size ← if compute-area→area > 50 then "large" else if compute-area→area > 10 then "medium" else "small"
+
+  ⊨ size = "medium"

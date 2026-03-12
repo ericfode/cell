@@ -64,6 +64,77 @@ def interpolate(text: str, bindings: dict[str, any]) -> str:
     return re.sub(r'«([^»]+)»', replacer, text)
 
 
+# ─── If/then/else converter ──────────────────────────────────────
+
+def _convert_if_then_else(expr: str) -> str:
+    """Convert Cell if/then/else to Python ternary, handling nesting."""
+    # Find the first 'if' keyword (word boundary)
+    m = re.search(r'\bif\b', expr)
+    if not m:
+        return expr
+
+    start = m.start()
+    rest = expr[m.end():]
+
+    # Find matching 'then' (not nested)
+    then_pos = _find_keyword(rest, 'then')
+    if then_pos is None:
+        return expr
+
+    cond = rest[:then_pos].strip()
+    after_then = rest[then_pos + 4:].strip()
+
+    # Find matching 'else' — skip nested if/then/else
+    else_pos = _find_top_else(after_then)
+    if else_pos is None:
+        return expr
+
+    then_branch = after_then[:else_pos].strip()
+    else_branch = after_then[else_pos + 4:].strip()
+
+    # Recursively convert branches
+    then_py = _convert_if_then_else(then_branch)
+    else_py = _convert_if_then_else(else_branch)
+
+    converted = f"(({then_py}) if ({cond}) else ({else_py}))"
+    return expr[:start] + converted
+
+
+def _find_keyword(text: str, kw: str) -> int | None:
+    """Find keyword at word boundary, not inside strings."""
+    pat = re.compile(r'\b' + kw + r'\b')
+    m = pat.search(text)
+    return m.start() if m else None
+
+
+def _find_top_else(text: str) -> int | None:
+    """Find the 'else' that matches the current if, skipping nested if/then/else."""
+    depth = 0
+    i = 0
+    while i < len(text):
+        # Check for 'if' keyword (increases nesting)
+        if text[i:].startswith('if') and (i == 0 or not text[i-1].isalnum()) and (i + 2 >= len(text) or not text[i+2].isalnum()):
+            depth += 1
+            i += 2
+            continue
+        # Check for 'else' keyword
+        if text[i:].startswith('else') and (i == 0 or not text[i-1].isalnum()) and (i + 4 >= len(text) or not text[i+4].isalnum()):
+            if depth == 0:
+                return i
+            depth -= 1
+            i += 4
+            continue
+        # Skip strings
+        if text[i] == '"':
+            i += 1
+            while i < len(text) and text[i] != '"':
+                i += 1
+            i += 1
+            continue
+        i += 1
+    return None
+
+
 # ─── Hard expression evaluator ───────────────────────────────────
 
 def eval_hard(expr: str, bindings: dict[str, any]) -> any:
@@ -86,13 +157,38 @@ def eval_hard(expr: str, bindings: dict[str, any]) -> any:
     py_expr = re.sub(r'\btrue\b', 'True', py_expr)
     py_expr = re.sub(r'\bfalse\b', 'False', py_expr)
 
+    # Convert Cell if/then/else to Python ternary (recursive)
+    py_expr = _convert_if_then_else(py_expr)
+
+    # Replace hyphenated binding names with underscored Python identifiers
+    for k in bindings:
+        if "-" in k and "→" not in k:
+            safe = k.replace("-", "_")
+            py_expr = re.sub(r'\b' + re.escape(k) + r'\b', safe, py_expr)
+
     ns = {}
     for k, v in bindings.items():
         safe_k = k.replace("→", "_").replace("-", "_")
         ns[safe_k] = v
     ns.update({"len": len, "split": lambda s, d: s.split(d),
                "join": lambda lst, d: d.join(lst), "min": min, "max": max,
-               "sum": sum, "sorted": sorted, "True": True, "False": False})
+               "sum": sum, "sorted": sorted, "True": True, "False": False,
+               "abs": abs, "upper": lambda s: s.upper(), "lower": lambda s: s.lower(),
+               "str": str, "int": int, "float": float,
+               "reversed": lambda x: list(reversed(x)),
+               "filter": lambda lst, fn: [x for x in lst if fn(x)],
+               "map": lambda lst, fn: [fn(x) for x in lst],
+               "contains": lambda s, sub: sub in s,
+               "starts_with": lambda s, p: s.startswith(p),
+               "ends_with": lambda s, p: s.endswith(p),
+               "trim": lambda s: s.strip(),
+               "concat": lambda a, b: a + b,
+               "flatten": lambda lst: [x for sub in lst for x in sub],
+               "zip": lambda a, b: list(zip(a, b)),
+               "any": any, "all": all, "count": lambda lst, fn: sum(1 for x in lst if fn(x)),
+               "range": range, "list": list,
+               "None": None,
+               })
 
     try:
         return eval(py_expr, {"__builtins__": {}}, ns)

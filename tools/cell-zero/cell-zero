@@ -122,6 +122,8 @@ cell_path.write_text(json.dumps(cell, indent=2, ensure_ascii=False))
 "
             log_step "$step" "${DIM}skip${RESET} $skipped_name (guard false → ⊥)"
         done <<< "$skipped_list"
+        # Re-check: cascading bottoms may unlock more skips
+        continue
     fi
 
     if [[ -z "$ready_list" ]]; then

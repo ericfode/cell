@@ -1,0 +1,38 @@
+-- gcd-steps.cell: GCD via Euclidean algorithm unrolled as cell chain
+-- Tests: modular arithmetic, conditional termination, deep chain
+
+⊢ step0
+  given a ≡ 48
+  given b ≡ 18
+  yield remainder
+
+  ⊢= remainder ← a % b
+
+  ⊨ remainder = 12
+
+⊢ step1
+  given prev-b ≡ 18
+  given step0→remainder
+  yield remainder
+
+  ⊢= remainder ← prev-b % step0→remainder
+
+  ⊨ remainder = 6
+
+⊢ step2
+  given prev-b ≡ 12
+  given step1→remainder
+  yield remainder
+
+  ⊢= remainder ← prev-b % step1→remainder
+
+  ⊨ remainder = 0
+
+⊢ result
+  given step2→remainder
+  given step1→remainder
+  yield gcd
+
+  ⊢= gcd ← if step2→remainder == 0 then step1→remainder else step2→remainder
+
+  ⊨ gcd = 6

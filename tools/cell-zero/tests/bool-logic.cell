@@ -1,0 +1,29 @@
+-- bool-logic.cell: boolean logic gates (all hard cells)
+-- Tests: boolean operators, conditional expressions, diamond deps
+
+⊢ and-gate
+  given a ≡ true
+  given b ≡ false
+  yield result
+
+  ⊢= result ← a and b
+
+  ⊨ result = false
+
+⊢ or-gate
+  given a ≡ true
+  given b ≡ false
+  yield result
+
+  ⊢= result ← a or b
+
+  ⊨ result = true
+
+⊢ xor-gate
+  given and-gate→result
+  given or-gate→result
+  yield result
+
+  ⊢= result ← or-gate→result and not and-gate→result
+
+  ⊨ result = true

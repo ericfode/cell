@@ -1,0 +1,28 @@
+-- list-filter-crystal.cell: filter even numbers from a list
+-- Tests: list filtering, crystallization
+
+⊢ filter-evens
+  given numbers ≡ [1, 2, 3, 4, 5, 6, 7, 8]
+  yield evens
+
+  ∴ Filter «numbers» to keep only even numbers.
+
+  ⊨ evens = [2, 4, 6, 8]
+
+⊢ crystallize
+  given §filter-evens
+  given filter-evens→evens
+  yield §filter-evens', is-faithful
+
+  ∴ Read «§filter-evens». It filters even numbers.
+    Write a ⊢= expression: filter(numbers, n -> n % 2 == 0)
+    Return crystallized definition and faithfulness check.
+
+⊢ verify-crystal
+  given §filter-evens'
+  given crystallize→is-faithful
+  yield approved
+
+  ∴ Check: does «§filter-evens'» produce [2, 4, 6, 8] for [1, 2, 3, 4, 5, 6, 7, 8]?
+
+  ⊨ approved = true

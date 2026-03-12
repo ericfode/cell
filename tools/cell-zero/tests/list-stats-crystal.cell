@@ -1,0 +1,28 @@
+-- list-stats-crystal.cell: compute mean of a list, crystallize
+-- Tests: arithmetic on list values, sum/len, crystallization
+
+⊢ compute-mean
+  given values ≡ [10, 20, 30, 40, 50]
+  yield mean
+
+  ∴ Compute the arithmetic mean of «values».
+
+  ⊨ mean = 30
+
+⊢ crystallize
+  given §compute-mean
+  given compute-mean→mean
+  yield §compute-mean', is-faithful
+
+  ∴ Read «§compute-mean». It computes the mean by summing and dividing by count.
+    Write a ⊢= expression: sum(values) / len(values)
+    Return the crystallized definition and faithfulness.
+
+⊢ verify-crystal
+  given §compute-mean'
+  given crystallize→is-faithful
+  yield approved
+
+  ∴ Does «§compute-mean'» produce 30 for [10, 20, 30, 40, 50]?
+
+  ⊨ approved = true

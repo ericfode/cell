@@ -1,0 +1,36 @@
+-- grade-calculator.cell: score to letter grade with 5-way guard dispatch
+-- Tests: many guards, complex if/then/else, string output
+
+⊢ assign-grade
+  given score ≡ 85
+  yield grade
+
+  ⊢= grade ← if score >= 90 then "A" else if score >= 80 then "B" else if score >= 70 then "C" else if score >= 60 then "D" else "F"
+
+  ⊨ grade = "B"
+
+⊢ handle-a
+  given assign-grade→grade where grade = "A"
+  yield feedback
+
+  ⊢= feedback ← "Excellent work!"
+
+⊢ handle-b
+  given assign-grade→grade where grade = "B"
+  yield feedback
+
+  ⊢= feedback ← "Good job!"
+
+  ⊨ feedback = "Good job!"
+
+⊢ handle-c
+  given assign-grade→grade where grade = "C"
+  yield feedback
+
+  ⊢= feedback ← "Satisfactory."
+
+⊢ handle-fail
+  given assign-grade→grade where grade = "F"
+  yield feedback
+
+  ⊢= feedback ← "Please see instructor."

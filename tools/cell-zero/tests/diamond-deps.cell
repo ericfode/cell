@@ -1,0 +1,35 @@
+-- diamond-deps.cell: diamond dependency pattern (A → B, A → C, B+C → D)
+-- Tests: convergent dependencies, parallel readiness
+
+⊢ source
+  given val ≡ 10
+  yield x
+
+  ⊢= x ← val
+
+  ⊨ x = 10
+
+⊢ left
+  given source→x
+  yield doubled
+
+  ⊢= doubled ← source→x * 2
+
+  ⊨ doubled = 20
+
+⊢ right
+  given source→x
+  yield tripled
+
+  ⊢= tripled ← source→x * 3
+
+  ⊨ tripled = 30
+
+⊢ merge
+  given left→doubled
+  given right→tripled
+  yield total
+
+  ⊢= total ← left→doubled + right→tripled
+
+  ⊨ total = 50

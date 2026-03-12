@@ -1,0 +1,22 @@
+-- clamp-value.cell: clamp a value to [lo, hi] range
+-- Tests: nested conditionals, min/max logic
+
+⊢ clamp
+  given val ≡ 150
+  given lo ≡ 0
+  given hi ≡ 100
+  yield result
+
+  ⊢= result ← if val < lo then lo else if val > hi then hi else val
+
+  ⊨ result = 100
+
+⊢ in-range-check
+  given clamp→result
+  given lo ≡ 0
+  given hi ≡ 100
+  yield in-range
+
+  ⊢= in-range ← clamp→result >= lo and clamp→result <= hi
+
+  ⊨ in-range = true

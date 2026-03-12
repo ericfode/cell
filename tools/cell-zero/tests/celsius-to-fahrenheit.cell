@@ -1,0 +1,18 @@
+-- celsius-to-fahrenheit.cell: temperature conversion chain
+-- Tests: arithmetic expressions, multi-step hard cell chain
+
+⊢ convert
+  given celsius ≡ 100
+  yield fahrenheit
+
+  ⊢= fahrenheit ← celsius * 9 / 5 + 32
+
+  ⊨ fahrenheit = 212
+
+⊢ classify-temp
+  given convert→fahrenheit
+  yield label
+
+  ⊢= label ← if convert→fahrenheit > 100 then "hot" else "cold"
+
+  ⊨ label = "hot"

@@ -1,0 +1,66 @@
+-- power-of-two.cell: compute powers of 2 in a chain
+-- Tests: exponential growth through cell chain, large numbers
+
+⊢ p0
+  given base ≡ 1
+  yield val
+
+  ⊢= val ← base
+
+  ⊨ val = 1
+
+⊢ p1
+  given p0→val
+  yield val
+
+  ⊢= val ← p0→val * 2
+
+  ⊨ val = 2
+
+⊢ p2
+  given p1→val
+  yield val
+
+  ⊢= val ← p1→val * 2
+
+  ⊨ val = 4
+
+⊢ p3
+  given p2→val
+  yield val
+
+  ⊢= val ← p2→val * 2
+
+  ⊨ val = 8
+
+⊢ p4
+  given p3→val
+  yield val
+
+  ⊢= val ← p3→val * 2
+
+  ⊨ val = 16
+
+⊢ p5
+  given p4→val
+  yield val
+
+  ⊢= val ← p4→val * 2
+
+  ⊨ val = 32
+
+⊢ p6
+  given p5→val
+  yield val
+
+  ⊢= val ← p5→val * 2
+
+  ⊨ val = 64
+
+⊢ p7
+  given p6→val
+  yield val
+
+  ⊢= val ← p6→val * 2
+
+  ⊨ val = 128

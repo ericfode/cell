@@ -1,0 +1,28 @@
+-- string-trim-lower-crystal.cell: trim whitespace + lowercase, crystallize
+-- Tests: chained string operations, crystallization
+
+⊢ clean-text
+  given text ≡ "  HELLO WORLD  "
+  yield cleaned
+
+  ∴ Remove leading/trailing whitespace from «text» and convert to lowercase.
+
+  ⊨ cleaned = "hello world"
+
+⊢ crystallize
+  given §clean-text
+  given clean-text→cleaned
+  yield §clean-text', is-faithful
+
+  ∴ Read «§clean-text». It trims whitespace and lowercases.
+    Write a ⊢= expression: lower(trim(text))
+    Return the crystallized definition and faithfulness.
+
+⊢ verify-crystal
+  given §clean-text'
+  given crystallize→is-faithful
+  yield approved
+
+  ∴ Does «§clean-text'» produce "hello world" for "  HELLO WORLD  "?
+
+  ⊨ approved = true

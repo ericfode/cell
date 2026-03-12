@@ -1,0 +1,19 @@
+-- collatz-step.cell: one step of the Collatz conjecture
+-- Tests: conditional arithmetic, modular operation
+
+⊢ check-even
+  given n ≡ 7
+  yield is-even
+
+  ⊢= is-even ← n % 2 == 0
+
+  ⊨ is-even = false
+
+⊢ collatz
+  given n ≡ 7
+  given check-even→is-even
+  yield next
+
+  ⊢= next ← if check-even→is-even then n / 2 else n * 3 + 1
+
+  ⊨ next = 22

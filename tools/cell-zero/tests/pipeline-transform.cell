@@ -1,0 +1,41 @@
+-- pipeline-transform.cell: multi-stage data transformation pipeline
+-- Tests: 5-stage pipeline, string + number ops, mixed types
+
+⊢ input-data
+  given raw ≡ "42"
+  yield text
+
+  ⊢= text ← raw
+
+⊢ parse-number
+  given input-data→text
+  yield num
+
+  ⊢= num ← int(input-data→text)
+
+  ⊨ num = 42
+
+⊢ double-it
+  given parse-number→num
+  yield doubled
+
+  ⊢= doubled ← parse-number→num * 2
+
+  ⊨ doubled = 84
+
+⊢ stringify
+  given double-it→doubled
+  yield text
+
+  ⊢= text ← str(double-it→doubled)
+
+  ⊨ text = "84"
+
+⊢ report
+  given stringify→text
+  given double-it→doubled
+  yield message
+
+  ⊢= message ← "Result: " + stringify→text
+
+  ⊨ message = "Result: 84"

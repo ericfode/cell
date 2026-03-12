@@ -1,0 +1,28 @@
+-- string-upper-crystal.cell: uppercase conversion crystallization
+-- Tests: soft→hard crystallization, string ops
+
+⊢ to-upper
+  given text ≡ "hello world"
+  yield result
+
+  ∴ Convert «text» to uppercase.
+
+  ⊨ result = "HELLO WORLD"
+
+⊢ crystallize
+  given §to-upper
+  given to-upper→result
+  yield §to-upper', is-faithful
+
+  ∴ Read «§to-upper». It converts text to uppercase.
+    Write a ⊢= expression using Cell primitives: upper(text)
+    Return the crystallized cell definition and whether it's faithful.
+
+⊢ verify-crystal
+  given §to-upper'
+  given crystallize→is-faithful
+  yield approved
+
+  ∴ Check: does «§to-upper'» produce "HELLO WORLD" for input "hello world"?
+
+  ⊨ approved = true

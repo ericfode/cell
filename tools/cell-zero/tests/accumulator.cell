@@ -1,0 +1,50 @@
+-- accumulator.cell: running sum through a chain of cells
+-- Tests: deep linear dependency, arithmetic accumulation
+
+⊢ acc0
+  given start ≡ 0
+  yield total
+
+  ⊢= total ← start + 1
+
+  ⊨ total = 1
+
+⊢ acc1
+  given acc0→total
+  yield total
+
+  ⊢= total ← acc0→total + 2
+
+  ⊨ total = 3
+
+⊢ acc2
+  given acc1→total
+  yield total
+
+  ⊢= total ← acc1→total + 3
+
+  ⊨ total = 6
+
+⊢ acc3
+  given acc2→total
+  yield total
+
+  ⊢= total ← acc2→total + 4
+
+  ⊨ total = 10
+
+⊢ acc4
+  given acc3→total
+  yield total
+
+  ⊢= total ← acc3→total + 5
+
+  ⊨ total = 15
+
+⊢ verify-sum
+  given acc4→total
+  yield correct
+
+  ⊢= correct ← acc4→total == 15
+
+  ⊨ correct = true

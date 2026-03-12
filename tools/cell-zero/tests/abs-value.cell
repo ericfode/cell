@@ -1,0 +1,26 @@
+-- abs-value.cell: absolute value with guard-based sign dispatch
+-- Tests: guards, bottom propagation, conditional branching
+
+⊢ check-sign
+  given n ≡ -7
+  yield sign
+
+  ⊢= sign ← if n < 0 then "negative" else "positive"
+
+  ⊨ sign = "negative"
+
+⊢ negate
+  given check-sign→sign where sign = "negative"
+  given n ≡ -7
+  yield result
+
+  ⊢= result ← 0 - n
+
+  ⊨ result = 7
+
+⊢ pass-through
+  given check-sign→sign where sign = "positive"
+  given n ≡ -7
+  yield result
+
+  ⊢= result ← n

@@ -1,0 +1,36 @@
+-- multi-guard-branch.cell: 4-way guard dispatch (traffic light)
+-- Tests: multiple guards from same source, exhaustive branching
+
+⊢ get-color
+  given color ≡ "green"
+  yield signal
+
+  ⊢= signal ← color
+
+  ⊨ signal = "green"
+
+⊢ stop
+  given get-color→signal where signal = "red"
+  yield action
+
+  ⊢= action ← "stop the car"
+
+⊢ caution
+  given get-color→signal where signal = "yellow"
+  yield action
+
+  ⊢= action ← "slow down"
+
+⊢ go
+  given get-color→signal where signal = "green"
+  yield action
+
+  ⊢= action ← "proceed"
+
+  ⊨ action = "proceed"
+
+⊢ unknown
+  given get-color→signal where signal = "flashing"
+  yield action
+
+  ⊢= action ← "treat as stop sign"

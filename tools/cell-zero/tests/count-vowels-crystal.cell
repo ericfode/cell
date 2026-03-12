@@ -1,0 +1,28 @@
+-- count-vowels-crystal.cell: count vowels in a string, crystallize
+-- Tests: character-level string analysis, crystallization
+
+⊢ count-vowels
+  given text ≡ "hello world"
+  yield count
+
+  ∴ Count the number of vowels (a, e, i, o, u) in «text».
+
+  ⊨ count = 3
+
+⊢ crystallize
+  given §count-vowels
+  given count-vowels→count
+  yield §count-vowels', is-faithful
+
+  ∴ Read «§count-vowels». It counts vowels (a,e,i,o,u) in text.
+    Write a ⊢= expression that counts characters matching vowels.
+    Return the crystallized definition and faithfulness.
+
+⊢ verify-crystal
+  given §count-vowels'
+  given crystallize→is-faithful
+  yield approved
+
+  ∴ Does «§count-vowels'» produce 3 for "hello world"?
+
+  ⊨ approved = true

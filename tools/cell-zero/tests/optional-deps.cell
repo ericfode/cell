@@ -1,0 +1,25 @@
+-- optional-deps.cell: test given? (optional dependencies with bottom tolerance)
+-- Tests: optional givens, ⊥ handling, fallback logic
+
+⊢ primary
+  given val ≡ 42
+  yield result
+
+  ⊢= result ← val
+
+  ⊨ result = 42
+
+⊢ broken
+  given impossible ≡ "anything"
+  yield data
+
+  ⊢= data ← 1 / 0
+
+⊢ consumer
+  given primary→result
+  given? broken→data
+  yield output
+
+  ⊢= output ← primary→result
+
+  ⊨ output = 42

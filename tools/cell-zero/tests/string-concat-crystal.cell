@@ -1,0 +1,29 @@
+-- string-concat-crystal.cell: string concatenation + crystallization
+-- Tests: multi-given soft cell, string join, crystallization
+
+⊢ concat-parts
+  given first ≡ "hello"
+  given second ≡ "world"
+  yield result
+
+  ∴ Join «first» and «second» with a space between them.
+
+  ⊨ result = "hello world"
+
+⊢ crystallize
+  given §concat-parts
+  given concat-parts→result
+  yield §concat-parts', is-faithful
+
+  ∴ Read «§concat-parts». It joins two strings with a space.
+    Write a ⊢= expression: join([first, second], " ")
+    Return the crystallized cell definition and faithfulness.
+
+⊢ verify-crystal
+  given §concat-parts'
+  given crystallize→is-faithful
+  yield approved
+
+  ∴ Check: does «§concat-parts'» produce "hello world" for "hello" and "world"?
+
+  ⊨ approved = true

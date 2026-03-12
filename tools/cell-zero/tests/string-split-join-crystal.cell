@@ -1,0 +1,28 @@
+-- string-split-join-crystal.cell: split string into words, rejoin with comma
+-- Tests: split/join primitives, crystallization
+
+⊢ transform
+  given text ≡ "one two three four"
+  yield result
+
+  ∴ Split «text» by spaces, then rejoin with commas.
+
+  ⊨ result = "one,two,three,four"
+
+⊢ crystallize
+  given §transform
+  given transform→result
+  yield §transform', is-faithful
+
+  ∴ Read «§transform». It splits text on spaces and joins with commas.
+    Write a ⊢= expression: join(split(text, " "), ",")
+    Return the crystallized definition and faithfulness.
+
+⊢ verify-crystal
+  given §transform'
+  given crystallize→is-faithful
+  yield approved
+
+  ∴ Does «§transform'» produce "one,two,three,four" for "one two three four"?
+
+  ⊨ approved = true

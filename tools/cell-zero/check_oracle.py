@@ -40,6 +40,11 @@ def parse_value(s: str):
     s = s.strip()
     if s.startswith('"') and s.endswith('"'):
         return s[1:-1]
+    if s.startswith("[") and s.endswith("]"):
+        inner = s[1:-1].strip()
+        if not inner:
+            return []
+        return [parse_value(x.strip()) for x in inner.split(",")]
     if s == "true":
         return True
     if s == "false":

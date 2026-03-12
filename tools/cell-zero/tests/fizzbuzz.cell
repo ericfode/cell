@@ -1,0 +1,37 @@
+-- fizzbuzz.cell: classic fizzbuzz with conditional dispatch
+-- Tests: nested if/then/else, modular arithmetic, guards
+
+⊢ classify
+  given n ≡ 15
+  yield label
+
+  ⊢= label ← if n % 15 == 0 then "fizzbuzz" else if n % 3 == 0 then "fizz" else if n % 5 == 0 then "buzz" else "number"
+
+  ⊨ label = "fizzbuzz"
+
+⊢ handle-fizzbuzz
+  given classify→label where label = "fizzbuzz"
+  yield output
+
+  ⊢= output ← "FizzBuzz!"
+
+  ⊨ output = "FizzBuzz!"
+
+⊢ handle-fizz
+  given classify→label where label = "fizz"
+  yield output
+
+  ⊢= output ← "Fizz"
+
+⊢ handle-buzz
+  given classify→label where label = "buzz"
+  yield output
+
+  ⊢= output ← "Buzz"
+
+⊢ handle-number
+  given classify→label where label = "number"
+  given n ≡ 15
+  yield output
+
+  ⊢= output ← n

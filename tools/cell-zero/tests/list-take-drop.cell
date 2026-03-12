@@ -1,0 +1,27 @@
+-- list-take-drop.cell: list length and slicing
+-- Tests: len, sorted, list operations
+
+⊢ measure
+  given items ≡ [10, 20, 30, 40, 50]
+  yield length
+
+  ⊢= length ← len(items)
+
+  ⊨ length = 5
+
+⊢ sort-check
+  given items ≡ [50, 10, 40, 20, 30]
+  yield sorted-items
+
+  ⊢= sorted-items ← sorted(items)
+
+  ⊨ sorted-items = [10, 20, 30, 40, 50]
+
+⊢ total
+  given measure→length
+  given sort-check→sorted-items
+  yield sum-val
+
+  ⊢= sum-val ← sum(sort-check→sorted-items)
+
+  ⊨ sum-val = 150

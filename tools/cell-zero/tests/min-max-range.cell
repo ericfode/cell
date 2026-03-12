@@ -1,0 +1,27 @@
+-- min-max-range.cell: compute min, max, and range of a list
+-- Tests: list primitives, multi-cell dependency chain
+
+⊢ find-min
+  given values ≡ [3, 1, 4, 1, 5, 9, 2, 6]
+  yield minimum
+
+  ⊢= minimum ← min(values)
+
+  ⊨ minimum = 1
+
+⊢ find-max
+  given values ≡ [3, 1, 4, 1, 5, 9, 2, 6]
+  yield maximum
+
+  ⊢= maximum ← max(values)
+
+  ⊨ maximum = 9
+
+⊢ compute-range
+  given find-min→minimum
+  given find-max→maximum
+  yield range
+
+  ⊢= range ← find-max→maximum - find-min→minimum
+
+  ⊨ range = 8

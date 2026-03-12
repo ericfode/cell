@@ -1,0 +1,35 @@
+-- chain-four.cell: 4-cell linear dependency chain (all hard)
+-- Tests: deep dependency resolution, multi-step evaluation
+
+⊢ step1
+  given x ≡ 2
+  yield a
+
+  ⊢= a ← x * 3
+
+  ⊨ a = 6
+
+⊢ step2
+  given step1→a
+  yield b
+
+  ⊢= b ← step1→a + 10
+
+  ⊨ b = 16
+
+⊢ step3
+  given step2→b
+  yield c
+
+  ⊢= c ← step2→b * 2
+
+  ⊨ c = 32
+
+⊢ step4
+  given step3→c
+  given step1→a
+  yield d
+
+  ⊢= d ← step3→c - step1→a
+
+  ⊨ d = 26

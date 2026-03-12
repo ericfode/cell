@@ -1,0 +1,29 @@
+-- palindrome-crystal.cell: check if string is palindrome
+-- Tests: string reversal, comparison, crystallization
+
+⊢ check-palindrome
+  given text ≡ "racecar"
+  yield is-palindrome
+
+  ∴ Check if «text» reads the same forwards and backwards.
+    Return true if it is a palindrome, false otherwise.
+
+  ⊨ is-palindrome = true
+
+⊢ crystallize
+  given §check-palindrome
+  given check-palindrome→is-palindrome
+  yield §check-palindrome', is-faithful
+
+  ∴ Read «§check-palindrome». It checks if text is a palindrome.
+    Write a ⊢= expression: text == join(reversed(split(text, "")), "")
+    Return the crystallized definition and faithfulness.
+
+⊢ verify-crystal
+  given §check-palindrome'
+  given crystallize→is-faithful
+  yield approved
+
+  ∴ Does «§check-palindrome'» return true for "racecar" and false for "hello"?
+
+  ⊨ approved = true
