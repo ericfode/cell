@@ -1,0 +1,594 @@
+-- cell-zero.cell: the evaluation kernel for Cell
+--
+-- Built backwards from the sink node. Each cell exists because
+-- something downstream needs it. The dependency graph IS the design.
+--
+-- [ENV] = substrate-provided (fixed interface, swappable body)
+-- [CRYST] = crystallization candidate (∴ now, ⊢= eventually)
+-- [PERM-SOFT] = permanently soft (requires LLM forever)
+--
+-- Three acceptance oracles on the sink define "cell-zero works."
+-- Everything else exists to satisfy them.
+
+-- ═══════════════════════════════════════════════════════════════
+-- LAYER 0: THE SINK
+-- "cell-zero works" = these three oracles pass
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ run
+  given program-path
+  given eval-loop→§final-state
+  yield §quiescent-state
+
+  ⊢= §quiescent-state ← eval-loop→§final-state
+
+  ⊨ no cell in §quiescent-state is ready
+  ⊨ every frozen yield in §quiescent-state passed its oracles
+  ⊨ every ⊥ in §quiescent-state traces to exhaustion or ⊥?-handler
+
+
+-- ═══════════════════════════════════════════════════════════════
+-- LAYER 0: PROGRAM LOADING
+-- run needs a §graph. That means reading + parsing.
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ load                                                         -- [ENV]
+  given run→program-path
+  yield contents
+
+  ∴ Read the file at «program-path» and return its text.
+
+  ⊨ contents is a string or ⊥ (file not found)
+
+  -- single-claude: human pastes the file
+  -- hybrid:        ⊢= contents ← fs.read(program-path)
+  -- gastown:       ⊢= contents ← git.show(program-path)
+
+⊢ parse                                                        -- [CRYST]
+  given load→contents
+  yield §graph
+
+  ∴ Parse «contents» as a Cell program.
+    Extract cell declarations (⊢ ⊢= ⊢⊢ ⊢∘), dependency edges
+    (given/yield), oracles (⊨), guards (where), handlers (⊥?).
+    Return the full graph structure.
+
+  ⊨ each cell in §graph.cells has: name, kind, givens[], yields[], body, oracles[], guards[]
+  ⊨ each edge in §graph.edges has: from-cell, from-field, to-cell, to-field
+  ⊨ no duplicate cell names in §graph
+
+  -- This is THE crystallization target. When parse becomes ⊢=,
+  -- cell-zero has bootstrapped its own parser. That's Phase 5.
+
+
+-- ═══════════════════════════════════════════════════════════════
+-- LAYER 0: THE LOOP
+-- eval-loop is a ⊢⊢ spawner. It iterates eval-step until
+-- no cells are ready. State threads across iterations.
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ init-state
+  given parse→§graph
+  yield §state
+
+  ⊢= §state ← { graph: §graph, frozen: {}, bindings: {} }
+
+  ⊨ §state.frozen is empty
+  ⊨ §state.graph = §graph
+
+⊢⊢ eval-loop
+  given init-state→§state
+  yield §final-state
+  until eval-step→§state-out where find-ready→ready = []
+  max 10000
+
+  ∴ Repeatedly: find ready cells, pick one, evaluate it,
+    check oracles, commit or retry, handle ⊥, update state.
+    Each iteration consumes §state-in and produces §state-out.
+    Stop when no cells are ready (quiescence).
+
+  ⊨ §final-state extends init-state→§state (monotonicity: only adds bindings)
+  ⊨ §final-state preserves all values frozen in any prior iteration
+
+
+-- ═══════════════════════════════════════════════════════════════
+-- LAYER 1: ONE EVAL STEP
+-- eval-step is the unit of work. It takes a state in and
+-- produces a state out with exactly one cell advanced.
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ find-ready                                                   -- [CRYST]
+  given §state
+  yield ready[], blocked[]
+
+  ∴ For each cell in «§state.graph.cells»:
+    - Resolve all given references against «§state.bindings»
+    - Evaluate guard clauses (where) against frozen values
+    - Cell is READY if: all givens bound, all guards true, not yet frozen
+    - Cell is BLOCKED if: any given unbound or any guard false
+    - If a given references ⊥: check for given? (optional) or ⊥? handler
+
+  ⊢= ready ← filter(§state.graph.cells, c =>
+    all(c.givens, g => bound(g, §state)) and
+    all(c.guards, g => eval-guard(g, §state)) and
+    not frozen(c, §state))
+
+  ⊨ ready ∪ blocked = all non-frozen cells in §state.graph
+  ⊨ every cell in ready has all givens bound in §state
+
+  -- Both ∴ and ⊢= bodies shown. The ⊢= is the crystallized form.
+  -- In single-claude mode, the LLM uses the ∴.
+  -- In hybrid/gastown mode, the runtime uses the ⊢=.
+  -- The ⊨ oracles hold for BOTH.
+
+⊢ pick-cell                                                    -- [CRYST]
+  given find-ready→ready
+  yield §target
+
+  ∴ Choose one cell from «ready». Prefer cells with fewer
+    unresolved dependencies (leaf-first). If tied, any choice
+    is valid — confluence guarantees same final result.
+
+  ⊨ §target ∈ find-ready→ready
+
+  -- Crystallized form is topological sort. Any valid choice works.
+  -- gastown: this is where priority/assignment logic could plug in
+
+
+-- ═══════════════════════════════════════════════════════════════
+-- LAYER 1: DISPATCH
+-- The heart of cell-zero. Dispatch looks at the target cell's
+-- kind and routes to the appropriate evaluator.
+--
+-- THIS IS WHERE § BECOMES STRUCTURALLY NECESSARY.
+-- Dispatch must construct cell definitions (for spawners,
+-- claims, handlers) and insert them into the graph.
+--
+-- THIS IS WHERE RECURSION BECOMES STRUCTURALLY NECESSARY.
+-- Dispatch encountering ⊢∘ needs eval-loop. Check-claims
+-- needs dispatch. Cell-zero must invoke itself.
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ dispatch                                                     -- [PERM-SOFT]
+  given pick-cell→§target
+  given §state
+  yield tentative-outputs, §graph-updates[]
+
+  ∴ Evaluate «§target» based on its kind:
+    - ⊢ with ∴ body  → invoke-substrate (semantic eval)
+    - ⊢ with ⊢= body → eval-expression (deterministic)
+    - ⊢⊢ (spawner)   → spawn-children (§ construction + graph insert)
+    - ⊢∘ (evolution)  → evolution-loop (recursive eval-loop!)
+    - ⊢∘ co-evolve    → co-evolution-loop (recursive, parallel)
+
+    For ∴ bodies: resolve «» interpolations from §state.bindings,
+    send to substrate, receive tentative output.
+
+    For ⊢= bodies: evaluate the expression using the ⊢= calculus.
+
+    For ⊢⊢: construct new §cell-definitions from the spawner's
+    template and add them to §graph-updates.
+
+    For ⊢∘: enter a sub-eval-loop over the target cell, threading
+    through the `through` chain, checking `until`, respecting `max`.
+
+  ⊨ |tentative-outputs| = |§target.yields|
+  ⊨ §graph-updates are well-formed cell definitions (if any)
+  ⊨ dispatch is total: every cell kind is handled
+
+
+-- ─────────────────────────────────────────────────────────────
+-- dispatch delegates to these sub-cells:
+-- ─────────────────────────────────────────────────────────────
+
+⊢ invoke-substrate                                             -- [ENV]
+  given §target, §state
+  given §target.body where §target.kind = "soft"
+  yield response
+
+  ∴ Resolve all «» interpolations in «§target.body» using
+    «§state.bindings». Send the resolved prompt to the semantic
+    substrate. Return the response.
+
+  ⊨ response is compatible with §target.yields
+
+  -- single-claude: LLM reads the ∴ body in-context and produces output
+  -- hybrid:        ⊢= response ← api.call(resolve(§target.body, §state))
+  -- gastown:       ⊢= response ← sling(§target, polecat) |> await
+  --
+  -- In gastown, confluence means we can sling MULTIPLE ready cells
+  -- to different polecats simultaneously. This is parallel eval-one.
+
+⊢ eval-expression                                              -- [CRYST]
+  given §target, §state
+  given §target.body where §target.kind = "hard"
+  yield result
+
+  ∴ Evaluate the ⊢= expression in «§target.body» using the
+    defined calculus: arithmetic, comparison, boolean, string ops,
+    list ops (filter, map, count, any, all, sort, zip...),
+    field access (→), conditionals (if/then/else).
+    Resolve all cell references from «§state.bindings».
+
+  ⊢= result ← eval(§target.body, §state.bindings)
+
+  ⊨ result is deterministic given §state.bindings
+  ⊨ §target.body uses only ⊢= primitives (no semantic content)
+
+  -- THIS is the ⊢= expression calculus from the spec.
+  -- Crystallizing eval-expression = building the expression evaluator.
+  -- After crystallization, ⊢= cells never touch the LLM.
+
+⊢ spawn-children                                               -- [CRYST]
+  given §target, §state
+  given §target where §target.kind = "spawner"
+  yield §new-cells[], §new-edges[]
+
+  ∴ Read the spawner template in «§target».
+    For each item in the iteration source:
+    - Construct a new cell definition (§) from the template
+    - Bind the iteration variable
+    - Name it according to the spawner's `as` clause (or convention)
+    - Generate edges connecting the new cell to the graph
+
+    Respect the spawner mode:
+    - accumulate: new cells join existing spawned cells
+    - replace: new cells replace previous iteration's cells
+
+  ⊨ each §new-cell has same yields as the spawner template
+  ⊨ §new-cells are well-formed cell declarations
+  ⊨ no name collisions with existing cells in §state.graph
+
+  -- § IS REQUIRED HERE. spawn-children constructs cell definitions
+  -- as data values. Without cell-as-data, spawners cannot work.
+  -- This is the first structural requirement for § quotation.
+
+⊢ evolution-loop                                                -- [PERM-SOFT]
+  given §target, §state
+  given §target where §target.kind = "evolution"
+  yield §evolved-outputs, §updated-state
+
+  ∴ Execute a ⊢∘ evolution loop on «§target»:
+    1. Evaluate the target cell (via dispatch — RECURSIVE)
+    2. Run the `through` chain cells (via dispatch — RECURSIVE)
+    3. Check the `until` condition
+    4. If met or max reached: return current outputs
+    5. If not: re-evaluate target with feedback, go to 1
+
+    For ⊢∘ co-evolve: evaluate all co-targets in parallel on
+    iteration 0 with ⊥ for missing peer inputs, then iterate
+    with peer outputs available.
+
+    Respect `accumulate`/`replace` for any spawners within.
+
+  ⊨ §evolved-outputs satisfy §target's oracles (aspirational → convergent)
+  ⊨ iteration count ≤ §target.max
+  ⊨ §target interface (given/yield) preserved across iterations
+
+  -- RECURSION IS REQUIRED HERE. evolution-loop calls dispatch,
+  -- which calls eval-step, which IS cell-zero's own eval logic.
+  -- This is the metacircular requirement — it falls out of ⊢∘.
+
+
+-- ═══════════════════════════════════════════════════════════════
+-- LAYER 1: ORACLE PROTOCOL
+-- After dispatch produces tentative outputs, we check them.
+-- This is where § is required AGAIN (claim cell construction)
+-- and where dispatch is required AGAIN (claim cell evaluation).
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ spawn-claims                                                 -- [CRYST]
+  given §target
+  given dispatch→tentative-outputs
+  yield §claim-cells[]
+
+  ∴ For each oracle (⊨) on «§target», construct a claim cell:
+    - Deterministic oracle → §claim with ⊢= body
+    - Structural oracle   → §claim with ⊢= body
+    - Semantic oracle     → §claim with ∴ body
+    - Conditional oracle  → check antecedent; if false, skip (vacuous pass)
+
+    Each claim cell has:
+      given: the tentative outputs + relevant §state bindings
+      yield: pass (boolean)
+      body:  the oracle check
+
+  ⊨ |§claim-cells| = |§target.oracles| (minus vacuously satisfied conditionals)
+  ⊨ each §claim-cell references dispatch→tentative-outputs
+
+  -- § IS REQUIRED HERE (second structural requirement).
+  -- spawn-claims constructs cell definitions from oracle assertions.
+  -- Oracles ARE cells — this is where that principle becomes concrete.
+
+⊢ check-claims                                                 -- [PERM-SOFT]
+  given spawn-claims→§claim-cells
+  yield all-pass, failed[], retry-context
+
+  ∴ Evaluate each claim cell in «§claim-cells»:
+    - For ⊢= claims: evaluate the expression (deterministic)
+    - For ∴ claims: invoke the semantic substrate
+    Collect pass/fail results.
+
+  ⊢= all-pass ← all(§claim-cells, c => c.pass)
+  ⊢= retry-context ← if all-pass then ""
+    else "Failed oracles: " ++ join(filter(§claim-cells, c => not c.pass), ", ")
+
+  ⊨ all-pass ↔ |failed| = 0
+
+  -- DISPATCH IS REQUIRED HERE (second recursive requirement).
+  -- Claim cells have bodies (⊢= or ∴). Evaluating them IS dispatch.
+  -- check-claims needs cell-zero's own evaluation capability.
+
+
+-- ═══════════════════════════════════════════════════════════════
+-- LAYER 1: COMMIT
+-- Decide what to do with the oracle results, then propagate.
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ decide                                                       -- [CRYST]
+  given check-claims→all-pass
+  given check-claims→retry-context
+  given dispatch→tentative-outputs
+  given §target
+  given §state
+  yield action, §state-out
+
+  ∴ Based on oracle results for «§target»:
+
+    FREEZE (all-pass = true):
+      Bind tentative-outputs as yield ≡ values in §state.
+      Mark §target as frozen. Downstream cells may become ready.
+
+    RETRY (all-pass = false, retries remain per ⊨? policy):
+      Rewrite §target with «retry-context» appended to its ∴ body.
+      Do NOT freeze. Return to find-ready (eval-loop continues).
+
+    BOTTOM (all-pass = false, retries exhausted):
+      Freeze §target with all yields = ⊥.
+      Apply exhaustion policy: error-value(⊥) or partial-accept.
+
+  ⊢= action ← if all-pass then "freeze"
+    else if retries-remaining(§target, §state) > 0 then "retry"
+    else "bottom"
+
+  ⊨ action ∈ {"freeze", "retry", "bottom"}
+  ⊨ if action = "freeze" then §state-out has new yield ≡ bindings
+  ⊨ if action = "bottom" then all yields of §target = ⊥ in §state-out
+  ⊨ if action = "retry" then §state-out.frozen = §state.frozen (nothing new frozen)
+  ⊨ §state-out extends §state (monotonicity)
+
+⊢ handle-bottom                                                -- [CRYST]
+  given decide→§state-out
+  given decide→action
+  yield §state-after-bottom
+
+  ∴ If «action» = "bottom" or any newly-frozen cell has ⊥ yields:
+    For each downstream cell that depends on a ⊥ value:
+    - If it has ⊥? skip with: construct a handler cell (§),
+      evaluate it, freeze the cell with handler outputs
+    - If it has ⊥? error-value(⊥): freeze with ⊥
+    - If no ⊥? handler: leave blocked (⊥ propagates naturally)
+
+  ⊨ §state-after-bottom extends decide→§state-out
+  ⊨ no cell with a ⊥? handler remains blocked on ⊥ input
+
+  -- § IS REQUIRED HERE (third structural requirement).
+  -- handle-bottom constructs handler cells from ⊥? declarations.
+  -- ⊥? handlers ARE cells — this is where that principle becomes concrete.
+
+⊢ apply-graph-updates                                          -- [CRYST]
+  given dispatch→§graph-updates
+  given decide→§state-out
+  yield §state-with-new-cells
+
+  ∴ If dispatch produced §graph-updates (from spawners):
+    Add new cells and edges to the graph.
+    Update the state so find-ready sees them on the next iteration.
+
+  ⊢= §state-with-new-cells ← merge(§state-out,
+    { graph: add-cells(§state-out.graph, §graph-updates) })
+
+  ⊨ all cells from §state-out.graph are preserved
+  ⊨ new cells are added to §state-with-new-cells.graph
+  ⊨ no frozen cells are modified
+
+
+-- ═══════════════════════════════════════════════════════════════
+-- LAYER 1: EVAL-STEP (composition of one iteration)
+-- This cell wires the above into a single step:
+-- find → pick → dispatch → claims → decide → bottom → update
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ eval-step
+  given §state-in
+  yield §state-out
+
+  given find-ready→ready where ready != []
+  given pick-cell→§target
+  given dispatch→tentative-outputs, dispatch→§graph-updates
+  given check-claims→all-pass
+  given decide→§state-out as decide-state
+  given handle-bottom→§state-after-bottom
+  given apply-graph-updates→§state-with-new-cells
+
+  ⊢= §state-out ← apply-graph-updates→§state-with-new-cells
+
+  ⊨ §state-out extends §state-in (monotonicity)
+  ⊨ §state-out differs from §state-in by exactly one cell advanced
+    (frozen, retried, or ⊥-ed) plus any spawner additions
+
+
+-- ═══════════════════════════════════════════════════════════════
+-- LAYER 3: CRYSTALLIZATION
+-- These cells are what makes cell-zero BECOME a runtime tool.
+-- Without them, cell-zero works but stays slow (all ∴, all LLM).
+-- With them, deterministic cells graduate to ⊢= and the LLM
+-- is only invoked for genuinely semantic work.
+--
+-- Crystallization is self-application: cell-zero observing its
+-- own cells and replacing ∴ with ⊢= where possible.
+-- ═══════════════════════════════════════════════════════════════
+
+⊢ observe-execution                                            -- [CRYST]
+  given §target
+  given dispatch→tentative-outputs
+  given check-claims→all-pass
+  yield §execution-record
+
+  ⊢= §execution-record ← {
+    cell: §target.name,
+    inputs: resolve-inputs(§target, §state),
+    outputs: tentative-outputs,
+    oracles-passed: all-pass,
+    substrate: §target.kind
+  }
+
+  ⊨ §execution-record captures complete input→output mapping
+
+  -- Content-addressable: hash(inputs) → outputs.
+  -- Same inputs = same hash. If outputs are always the same
+  -- for the same hash, the cell is deterministic → crystallizable.
+
+⊢ detect-pattern                                               -- [PERM-SOFT]
+  given observe-execution→§execution-record
+  given §execution-history                                     -- accumulated records
+  yield classification, §candidate-expression
+
+  ∴ Given the execution history for this cell:
+    - Are outputs always identical for identical inputs? → "constant"
+    - Is there a learnable input→output mapping? → "pattern"
+    - Do outputs vary unpredictably? → "semantic"
+
+    If "constant" or "pattern": generate a ⊢= expression that
+    reproduces the observed mapping.
+
+  ⊨ classification ∈ {"constant", "pattern", "semantic"}
+  ⊨ if classification != "semantic" then §candidate-expression is defined
+
+  -- detect-pattern is permanently soft because generating ⊢=
+  -- from observed behavior IS semantic work. This is the
+  -- "crystallize" cell from the spec — the stem cell that
+  -- can never itself go cold.
+
+⊢ shadow-verify                                                -- [CRYST]
+  given detect-pattern→§candidate-expression
+  given §target
+  given §state
+  yield match, §shadow-output
+
+  ∴ Run both the original cell (via dispatch) and the candidate
+    ⊢= expression on the same inputs. Compare outputs.
+
+  ⊢= §shadow-output ← eval(§candidate-expression, resolve-inputs(§target, §state))
+  ⊢= match ← (§shadow-output = dispatch→tentative-outputs)
+
+  ⊨ shadow-verify does not modify §state (read-only comparison)
+
+⊢ promote                                                      -- [CRYST]
+  given shadow-verify→match
+  given detect-pattern→§candidate-expression
+  given §target
+  given §state
+  yield §promoted-cell, §state-after-promotion
+
+  ∴ If «match» has been true for N consecutive executions
+    (threshold, e.g. 20):
+    Replace §target's ∴ body with the candidate ⊢= expression.
+    The cell's interface (given/yield/⊨) is preserved.
+    The cell's kind changes from "soft" to "hard".
+
+  ⊨ §promoted-cell has same givens and yields as §target
+  ⊨ §promoted-cell.oracles = §target.oracles (oracles preserved)
+  ⊨ §promoted-cell.kind = "hard"
+
+  -- This is "may replace" from the spec — permission, not equality.
+  -- The ∴ body is never discarded, it becomes the specification
+  -- that the ⊢= body was verified against.
+
+
+-- ═══════════════════════════════════════════════════════════════
+-- LAYER 3: SELF-APPLICATION
+-- cell-zero applied to itself. This closes the metacircular loop.
+-- ═══════════════════════════════════════════════════════════════
+
+-- cell-zero can evaluate §cell-zero:
+--
+--   run(program-path ≡ "cell-zero.cell")
+--
+-- When this happens:
+--   parse reads cell-zero.cell → §graph of cell-zero's own cells
+--   find-ready finds which cell-zero cells are ready
+--   dispatch evaluates them
+--   observe-execution records cell-zero evaluating itself
+--   detect-pattern notices: find-ready always produces the same
+--     output for the same graph state → classification = "pattern"
+--   shadow-verify confirms a ⊢= graph-traversal matches
+--   promote replaces find-ready's ∴ with ⊢= topological sort
+--
+-- This is how cell-zero bootstraps its own parser, its own
+-- ready-set computation, its own expression evaluator.
+-- Each crystallization makes cell-zero faster and cheaper.
+-- The limit: a classical runtime that calls LLM only for ∴ bodies.
+
+
+-- ═══════════════════════════════════════════════════════════════
+-- ENVIRONMENT CONTRACT
+-- ═══════════════════════════════════════════════════════════════
+--
+-- An environment provides implementations for [ENV] cells:
+--
+--   ⊢ env
+--     given environment-name
+--     yield §load, §invoke-substrate
+--
+-- The oracles on load and invoke-substrate are INVARIANT across
+-- environments. Only the bodies change.
+--
+-- | Cell               | single-claude      | hybrid            | gastown              |
+-- |--------------------|--------------------|-------------------|----------------------|
+-- | load               | human pastes text  | fs.read()         | git.show()           |
+-- | invoke-substrate   | LLM does it inline | api.call(claude)  | sling → polecat      |
+-- | find-ready         | LLM scans doc      | ⊢= topo-sort      | ⊢= bd ready          |
+-- | pick-cell          | LLM chooses        | ⊢= priority queue | ⊢= assignment logic  |
+-- | eval-expression    | LLM computes       | ⊢= evaluator      | ⊢= evaluator         |
+-- | spawn-children     | LLM describes      | ⊢= template inst  | ⊢= bd create         |
+-- | spawn-claims       | LLM describes      | ⊢= from oracles   | ⊢= bd create         |
+-- | handle-bottom      | LLM propagates     | ⊢= graph walk     | ⊢= bd update         |
+-- | apply-graph-updates| LLM modifies doc   | ⊢= graph merge    | ⊢= bd create + wire  |
+-- | observe-execution  | LLM notes it       | ⊢= content hash   | ⊢= bead recording    |
+-- | shadow-verify      | LLM compares       | ⊢= comparison     | ⊢= comparison        |
+-- | promote            | LLM rewrites cell  | ⊢= AST transform  | ⊢= AST transform    |
+--
+-- The "single-claude" column is ALL ∴ (soft). Everything else is
+-- the crystallization path. The rightmost column is Gas Town, where
+-- cell-zero's graph ops map directly to beads infrastructure:
+--   find-ready = bd ready
+--   spawn-children = bd create
+--   apply-graph-updates = bd create + bd dep add
+--   observe-execution = bead recording (already built)
+--
+-- Gas Town was cell-zero's crystallized form before cell-zero existed.
+
+
+-- ═══════════════════════════════════════════════════════════════
+-- STRUCTURAL REQUIREMENTS SUMMARY
+-- ═══════════════════════════════════════════════════════════════
+--
+-- § quotation required in three places:
+--   1. spawn-children — constructs cell definitions for ⊢⊢ spawners
+--   2. spawn-claims   — constructs claim cells from ⊨ oracles
+--   3. handle-bottom  — constructs handler cells from ⊥? declarations
+--
+-- Recursive self-reference required in two places:
+--   1. evolution-loop — ⊢∘ requires eval-loop (cell-zero invoking itself)
+--   2. check-claims   — evaluating claim cells requires dispatch
+--
+-- Crystallization required for:
+--   cell-zero to stop being an LLM interpreter and become a runtime tool
+--
+-- Permanently soft cells (never crystallize):
+--   dispatch — handles arbitrary ∴ bodies
+--   invoke-substrate — IS the semantic substrate call
+--   evolution-loop — recursive dispatch over arbitrary cells
+--   check-claims — evaluates semantic oracles (∴ claim cells)
+--   detect-pattern — generating ⊢= from observed behavior IS semantic
