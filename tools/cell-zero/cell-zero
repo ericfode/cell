@@ -1,0 +1,242 @@
+#!/usr/bin/env bash
+# cell-zero: evaluate a .cell program
+#
+# Usage:
+#   cell-zero <program.cell> [state-dir] [--dry-run] [--simulate <file>] [--max-steps N] [--verbose]
+#
+# Implements the eval-loop from cell-zero.cell:
+#   parse → init-state → (find-ready → pick → dispatch → check-oracle → decide)* → quiescence
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# ─── Parse arguments ──────────────────────────────────────────
+PROGRAM=""
+STATE_DIR=""
+DRY_RUN=""
+SIMULATE=""
+MAX_STEPS=100
+VERBOSE=false
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --dry-run)    DRY_RUN="--dry-run"; shift ;;
+        --simulate)   SIMULATE="--simulate $2"; shift 2 ;;
+        --max-steps)  MAX_STEPS="$2"; shift 2 ;;
+        --verbose|-v) VERBOSE=true; shift ;;
+        --help|-h)
+            echo "Usage: cell-zero <program.cell> [state-dir] [--dry-run] [--simulate <file>] [--max-steps N] [--verbose]"
+            exit 0
+            ;;
+        *)
+            if [[ -z "$PROGRAM" ]]; then
+                PROGRAM="$1"
+            elif [[ -z "$STATE_DIR" ]]; then
+                STATE_DIR="$1"
+            else
+                echo "ERROR: unexpected argument: $1" >&2
+                exit 1
+            fi
+            shift
+            ;;
+    esac
+done
+
+if [[ -z "$PROGRAM" ]]; then
+    echo "ERROR: no program specified" >&2
+    echo "Usage: cell-zero <program.cell> [state-dir] [--dry-run]" >&2
+    exit 1
+fi
+
+if [[ ! -f "$PROGRAM" ]]; then
+    echo "ERROR: file not found: $PROGRAM" >&2
+    exit 1
+fi
+
+# Default state dir
+if [[ -z "$STATE_DIR" ]]; then
+    STATE_DIR="/tmp/cell-zero-state-$$"
+fi
+
+# ─── Colors ───────────────────────────────────────────────────
+if [[ -t 1 ]]; then
+    BOLD='\033[1m'
+    DIM='\033[2m'
+    GREEN='\033[32m'
+    YELLOW='\033[33m'
+    RED='\033[31m'
+    CYAN='\033[36m'
+    RESET='\033[0m'
+else
+    BOLD="" DIM="" GREEN="" YELLOW="" RED="" CYAN="" RESET=""
+fi
+
+log() { echo -e "${DIM}[cell-zero]${RESET} $*"; }
+log_step() { echo -e "${CYAN}[step $1]${RESET} $2"; }
+
+# ─── PHASE 1: Parse ──────────────────────────────────────────
+log "${BOLD}Loading:${RESET} $PROGRAM → $STATE_DIR"
+parse_output=$(python3 "$SCRIPT_DIR/parse.py" "$PROGRAM" "$STATE_DIR" 2>&1)
+echo "$parse_output" | head -n -1  # Print cell summary, not the JSON line
+cell_order=$(echo "$parse_output" | tail -1)
+
+log "${GREEN}Parsed${RESET} $(echo "$cell_order" | python3 -c "import sys,json; print(len(json.load(sys.stdin)))" 2>/dev/null || echo "?") cells"
+
+# ─── PHASE 2: Eval Loop ──────────────────────────────────────
+log "${BOLD}Entering eval-loop${RESET} (max $MAX_STEPS steps)"
+
+step=0
+retries_this_cell=0
+last_target=""
+
+while [[ $step -lt $MAX_STEPS ]]; do
+    # ── find-ready ──
+    ready_json=$(python3 "$SCRIPT_DIR/find_ready.py" "$STATE_DIR")
+    ready_list=$(echo "$ready_json" | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+for name in data['ready']:
+    print(name)
+")
+
+    # ── handle skipped cells (guard clause → ⊥) ──
+    skipped_list=$(echo "$ready_json" | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+for name in data.get('skipped', []):
+    print(name)
+" 2>/dev/null)
+
+    if [[ -n "$skipped_list" ]]; then
+        while IFS= read -r skipped_name; do
+            # Bottom the skipped cell
+            python3 -c "
+import json, sys
+from pathlib import Path
+cell_path = Path('$STATE_DIR') / '$skipped_name.json'
+cell = json.loads(cell_path.read_text())
+cell['is_bottom'] = True
+cell['yield_values'] = {n: None for n in cell['yield_names']}
+cell_path.write_text(json.dumps(cell, indent=2, ensure_ascii=False))
+"
+            log_step "$step" "${DIM}skip${RESET} $skipped_name (guard false → ⊥)"
+        done <<< "$skipped_list"
+    fi
+
+    if [[ -z "$ready_list" ]]; then
+        log "${GREEN}${BOLD}QUIESCENT${RESET} after $step steps"
+        break
+    fi
+
+    # ── pick-cell (first ready — leaf-first by parse order) ──
+    target=$(echo "$ready_list" | head -1)
+
+    if $VERBOSE; then
+        blocked=$(echo "$ready_json" | python3 -c "import sys,json; print(' '.join(json.load(sys.stdin)['blocked']))")
+        log_step "$step" "ready=[$(echo "$ready_list" | tr '\n' ',' | sed 's/,$//')] blocked=[$blocked]"
+    fi
+
+    # ── dispatch ──
+    dispatch_args="$STATE_DIR $target $DRY_RUN $SIMULATE"
+    outputs=$(python3 "$SCRIPT_DIR/dispatch.py" $dispatch_args 2>/dev/null) || {
+        log "${RED}dispatch FAILED${RESET} for $target"
+        # Bottom this cell
+        empty_outputs="{}"
+        empty_oracle='{"all_pass": false, "results": [{"text": "dispatch error", "pass": false, "reason": "dispatch crashed"}]}'
+        python3 "$SCRIPT_DIR/decide.py" "$STATE_DIR" "$target" "$empty_outputs" "$empty_oracle" > /dev/null
+        step=$((step + 1))
+        continue
+    }
+
+    if $VERBOSE; then
+        log "  outputs: $outputs"
+    fi
+
+    # ── check-oracle ──
+    oracle_result=$(python3 "$SCRIPT_DIR/check_oracle.py" "$STATE_DIR" "$target" "$outputs" $DRY_RUN 2>/dev/null) || {
+        oracle_result='{"all_pass": true, "results": []}'
+    }
+
+    if $VERBOSE; then
+        log "  oracles: $oracle_result"
+    fi
+
+    # ── decide ──
+    action=$(python3 "$SCRIPT_DIR/decide.py" "$STATE_DIR" "$target" "$outputs" "$oracle_result")
+
+    case "$action" in
+        freeze)
+            log_step "$step" "${GREEN}freeze${RESET} $target → $(echo "$outputs" | python3 -c "import sys,json; d=json.load(sys.stdin); print(', '.join(f'{k}={v!r}' for k,v in d.items()))" 2>/dev/null || echo "$outputs")"
+            step=$((step + 1))
+            retries_this_cell=0
+            ;;
+        retry)
+            retries_this_cell=$((retries_this_cell + 1))
+            log_step "$step" "${YELLOW}retry${RESET} $target (attempt $retries_this_cell)"
+            # Don't increment step on retry — retry is re-evaluation
+            ;;
+        bottom)
+            log_step "$step" "${RED}bottom${RESET} $target (exhausted)"
+            step=$((step + 1))
+            retries_this_cell=0
+            ;;
+        *)
+            log "${RED}ERROR: unknown action: $action${RESET}"
+            exit 1
+            ;;
+    esac
+done
+
+if [[ $step -ge $MAX_STEPS ]]; then
+    log "${RED}${BOLD}HALTED${RESET}: max steps ($MAX_STEPS) reached"
+fi
+
+# ─── PHASE 3: Report ─────────────────────────────────────────
+echo ""
+log "${BOLD}Final state:${RESET} $STATE_DIR"
+echo ""
+
+# Print final state summary
+python3 -c "
+import json, os, sys
+state_dir = '$STATE_DIR'
+meta = json.loads(open(os.path.join(state_dir, '_meta.json')).read())
+for name in meta['cell_order']:
+    cell = json.loads(open(os.path.join(state_dir, f'{name}.json')).read())
+    status = 'FROZEN' if cell['frozen'] else ('BOTTOM' if cell['is_bottom'] else 'PENDING')
+    icon = {'FROZEN': '${GREEN}frozen${RESET}', 'BOTTOM': '${RED}bottom${RESET}', 'PENDING': '${DIM}pending${RESET}'}[status]
+    yields = ''
+    if cell['yield_values']:
+        yields = ' → ' + ', '.join(f'{k}={v!r}' for k, v in cell['yield_values'].items())
+    print(f'  {cell[\"turnstile\"]} {name}: {icon}{yields}')
+"
+
+# Check acceptance oracles (from cell-zero.cell)
+echo ""
+frozen_count=$(python3 -c "
+import json, os
+state_dir = '$STATE_DIR'
+meta = json.loads(open(os.path.join(state_dir, '_meta.json')).read())
+frozen = sum(1 for name in meta['cell_order']
+             if json.loads(open(os.path.join(state_dir, f'{name}.json')).read())['frozen'])
+bottom = sum(1 for name in meta['cell_order']
+             if json.loads(open(os.path.join(state_dir, f'{name}.json')).read())['is_bottom'])
+total = len(meta['cell_order'])
+pending = total - frozen - bottom
+print(f'{frozen} {bottom} {pending} {total}')
+")
+
+read frozen bottom pending total <<< "$frozen_count"
+log "${BOLD}Summary:${RESET} $frozen frozen, $bottom bottom, $pending pending (of $total cells)"
+
+if [[ "$pending" -eq 0 && "$bottom" -eq 0 ]]; then
+    log "${GREEN}${BOLD}ALL CELLS FROZEN — program complete${RESET}"
+    exit 0
+elif [[ "$pending" -eq 0 ]]; then
+    log "${YELLOW}All cells resolved (some ⊥)${RESET}"
+    exit 0
+else
+    log "${YELLOW}Some cells still pending${RESET}"
+    exit 1
+fi

@@ -1,0 +1,24 @@
+-- guard-branch.cell: test guard clauses + bottom propagation
+-- Only one branch should fire; others get skipped
+
+⊢ classify
+  given text ≡ "I love this product!"
+  yield label
+
+  ⊢= label ← "positive"
+
+  ⊨ label = "positive"
+
+⊢ handle-positive
+  given classify→label where label = "positive"
+  given text ≡ "I love this product!"
+  yield response
+
+  ⊢= response ← "Thank you for the kind words!"
+
+⊢ handle-negative
+  given classify→label where label = "negative"
+  given text ≡ "I love this product!"
+  yield response
+
+  ⊢= response ← "We're sorry to hear that."

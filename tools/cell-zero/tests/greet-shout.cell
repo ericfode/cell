@@ -1,0 +1,17 @@
+-- greet-shout.cell: soft + hard cell test (needs LLM or --dry-run)
+-- Tests: soft dispatch, oracle checking, binding propagation
+
+⊢ greet
+  given name ≡ "Alice"
+  yield message
+
+  ∴ Generate a short, friendly greeting for «name».
+    Just one sentence, e.g. "Hello Alice, welcome!"
+
+  ⊨ message is a string
+
+⊢ count-words
+  given greet→message
+  yield count
+
+  ⊢= count ← len(split(greet→message, " "))

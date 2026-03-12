@@ -1,0 +1,19 @@
+-- add-double.cell: minimal 2-cell test program (pure hard cells)
+-- Tests: parse → find-ready → dispatch → oracle → decide → quiescence
+
+⊢ add
+  given a ≡ 3
+  given b ≡ 5
+  yield sum
+
+  ⊢= sum ← a + b
+
+  ⊨ sum = 8
+
+⊢ double
+  given add→sum
+  yield result
+
+  ⊢= result ← add→sum * 2
+
+  ⊨ result = 16
