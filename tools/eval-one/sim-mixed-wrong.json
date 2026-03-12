@@ -1,0 +1,9 @@
+{
+  "solve": {
+    "x": 5,
+    "proof": ["2x + 3 = 11", "2x = 11 - 3", "2x = 8", "x = 8/3", "x ≈ 5"]
+  },
+  "explain": {
+    "explanation": "The solution x=5 is WRONG because substitution failed. Plugging x=5 into 2x+3 gives 13, not 11."
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "solve": {
+    "x": 4,
+    "proof": ["2x + 3 = 11", "2x = 11 - 3", "2x = 8", "x = 8/2", "x = 4"]
+  },
+  "explain": {
+    "explanation": "The equation 2x + 3 = 11 is solved by first subtracting 3 from both sides to get 2x = 8, then dividing both sides by 2 to find x = 4. Substituting back: 2(4) + 3 = 11 confirms the answer is correct."
+  }
+}
