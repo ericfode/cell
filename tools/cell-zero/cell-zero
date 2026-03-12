@@ -232,6 +232,12 @@ print(f'{frozen} {bottom} {pending} {total}')
 read frozen bottom pending total <<< "$frozen_count"
 log "${BOLD}Summary:${RESET} $frozen frozen, $bottom bottom, $pending pending (of $total cells)"
 
+# ─── PHASE 4: Trace ──────────────────────────────────────────
+# Emit .trace.cell — the executed program in Cell format
+trace_file="${PROGRAM%.cell}.trace.cell"
+python3 "$SCRIPT_DIR/trace.py" "$STATE_DIR" --source "$PROGRAM" > "$trace_file"
+log "${BOLD}Trace:${RESET} $trace_file"
+
 if [[ "$pending" -eq 0 && "$bottom" -eq 0 ]]; then
     log "${GREEN}${BOLD}ALL CELLS FROZEN — program complete${RESET}"
     exit 0

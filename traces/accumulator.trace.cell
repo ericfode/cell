@@ -1,0 +1,53 @@
+-- TRACE: 6 frozen, 0 ⊥, 6 total
+
+-- accumulator.cell: running sum through a chain of cells
+-- Tests: deep linear dependency, arithmetic accumulation
+
+⊢ acc0  -- ✓ frozen
+  given start ≡ 0
+  yield total ≡ 1
+
+  ⊢= total ← start + 1
+
+  ⊨ total = 1  -- ✓
+
+⊢ acc1  -- ✓ frozen
+  given acc0→total
+  yield total ≡ 3
+
+  ⊢= total ← acc0→total + 2
+
+  ⊨ total = 3  -- ✓
+
+⊢ acc2  -- ✓ frozen
+  given acc1→total
+  yield total ≡ 6
+
+  ⊢= total ← acc1→total + 3
+
+  ⊨ total = 6  -- ✓
+
+⊢ acc3  -- ✓ frozen
+  given acc2→total
+  yield total ≡ 10
+
+  ⊢= total ← acc2→total + 4
+
+  ⊨ total = 10  -- ✓
+
+⊢ acc4  -- ✓ frozen
+  given acc3→total
+  yield total ≡ 15
+
+  ⊢= total ← acc3→total + 5
+
+  ⊨ total = 15  -- ✓
+
+⊢ verify-sum  -- ✓ frozen
+  given acc4→total
+  yield correct ≡ true
+
+  ⊢= correct ← acc4→total == 15
+
+  ⊨ correct = true  -- ✓
+

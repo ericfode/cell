@@ -1,0 +1,39 @@
+-- TRACE: 2 frozen, 3 ⊥, 5 total
+
+-- grade-calculator.cell: score to letter grade with 5-way guard dispatch
+-- Tests: many guards, complex if/then/else, string output
+
+⊢ assign-grade  -- ✓ frozen
+  given score ≡ 85
+  yield grade ≡ "B"
+
+  ⊢= grade ← if score >= 90 then "A" else if score >= 80 then "B" else if score >= 70 then "C" else if score >= 60 then "D" else "F"
+
+  ⊨ grade = "B"  -- ✓
+
+⊢ handle-a  -- ⊥
+  given assign-grade→grade where grade = "A"  -- guard ✗
+  yield feedback ≡ ⊥
+
+  ⊢= feedback ← "Excellent work!"
+
+⊢ handle-b  -- ✓ frozen
+  given assign-grade→grade where grade = "B"
+  yield feedback ≡ "Good job!"
+
+  ⊢= feedback ← "Good job!"
+
+  ⊨ feedback = "Good job!"  -- ✓
+
+⊢ handle-c  -- ⊥
+  given assign-grade→grade where grade = "C"  -- guard ✗
+  yield feedback ≡ ⊥
+
+  ⊢= feedback ← "Satisfactory."
+
+⊢ handle-fail  -- ⊥
+  given assign-grade→grade where grade = "F"  -- guard ✗
+  yield feedback ≡ ⊥
+
+  ⊢= feedback ← "Please see instructor."
+

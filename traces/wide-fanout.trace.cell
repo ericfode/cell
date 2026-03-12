@@ -1,0 +1,65 @@
+-- TRACE: 7 frozen, 0 ⊥, 7 total
+
+-- wide-fanout.cell: one source feeds 5 independent consumers, then merge
+-- Tests: wide parallel dependency, fan-out/fan-in pattern
+
+⊢ source  -- ✓ frozen
+  given n ≡ 10
+  yield val ≡ 10
+
+  ⊢= val ← n
+
+  ⊨ val = 10  -- ✓
+
+⊢ plus-one  -- ✓ frozen
+  given source→val
+  yield result ≡ 11
+
+  ⊢= result ← source→val + 1
+
+  ⊨ result = 11  -- ✓
+
+⊢ times-two  -- ✓ frozen
+  given source→val
+  yield result ≡ 20
+
+  ⊢= result ← source→val * 2
+
+  ⊨ result = 20  -- ✓
+
+⊢ squared  -- ✓ frozen
+  given source→val
+  yield result ≡ 100
+
+  ⊢= result ← source→val * source→val
+
+  ⊨ result = 100  -- ✓
+
+⊢ negated  -- ✓ frozen
+  given source→val
+  yield result ≡ -10
+
+  ⊢= result ← 0 - source→val
+
+  ⊨ result = -10  -- ✓
+
+⊢ halved  -- ✓ frozen
+  given source→val
+  yield result ≡ 5.0
+
+  ⊢= result ← source→val / 2
+
+  ⊨ result = 5  -- ✓
+
+⊢ merge-all  -- ✓ frozen
+  given plus-one→result
+  given times-two→result
+  given squared→result
+  given negated→result
+  given halved→result
+  yield total ≡ 126.0
+
+  ⊢= total ← plus-one→result + times-two→result + squared→result + negated→result + halved→result
+
+  ⊨ total = 126  -- ✓
+

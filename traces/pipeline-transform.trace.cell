@@ -1,0 +1,44 @@
+-- TRACE: 5 frozen, 0 ⊥, 5 total
+
+-- pipeline-transform.cell: multi-stage data transformation pipeline
+-- Tests: 5-stage pipeline, string + number ops, mixed types
+
+⊢ input-data  -- ✓ frozen
+  given raw ≡ "42"
+  yield text ≡ "42"
+
+  ⊢= text ← raw
+
+⊢ parse-number  -- ✓ frozen
+  given input-data→text
+  yield num ≡ 42
+
+  ⊢= num ← int(input-data→text)
+
+  ⊨ num = 42  -- ✓
+
+⊢ double-it  -- ✓ frozen
+  given parse-number→num
+  yield doubled ≡ 84
+
+  ⊢= doubled ← parse-number→num * 2
+
+  ⊨ doubled = 84  -- ✓
+
+⊢ stringify  -- ✓ frozen
+  given double-it→doubled
+  yield text ≡ "84"
+
+  ⊢= text ← str(double-it→doubled)
+
+  ⊨ text = "84"  -- ✓
+
+⊢ report  -- ✓ frozen
+  given stringify→text
+  given double-it→doubled
+  yield message ≡ "Result: 84"
+
+  ⊢= message ← "Result: " + stringify→text
+
+  ⊨ message = "Result: 84"  -- ✓
+

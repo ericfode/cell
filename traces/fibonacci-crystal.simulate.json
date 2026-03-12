@@ -1,7 +1,0 @@
-{
-  "fib": {"result": 55},
-  "fib-prev": {"result": 34},
-  "fib-prev2": {"result": 21},
-  "crystallize": {"§fib'": "⊢= result ← if n <= 1 then n else fib(n-1) + fib(n-2)", "is-faithful": true},
-  "verify-crystal": {"approved": true}
-}

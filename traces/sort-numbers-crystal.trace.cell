@@ -1,0 +1,42 @@
+-- TRACE: 4 frozen, 0 ⊥, 4 total
+
+-- sort-numbers-crystal.cell: sort a list, verify by properties
+-- Oracles: is a permutation (same length + same sum) AND is ordered
+
+⊢ sort-them  -- ✓ frozen
+  given numbers ≡ [5, 3, 8, 1, 9, 2, 7, 4, 6]
+  yield sorted ≡ [1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+  ∴ Sort «numbers» in ascending order.
+
+⊢ verify-permutation  -- ✓ frozen
+  given sort-them→sorted
+  given numbers ≡ [5, 3, 8, 1, 9, 2, 7, 4, 6]
+  yield same-length ≡ true, same-sum ≡ true
+
+  ⊢= same-length ← len(sort-them→sorted) = len(numbers)
+  ⊢= same-sum ← sum(sort-them→sorted) = sum(numbers)
+
+  ⊨ same-length = true  -- ✓
+  ⊨ same-sum = true  -- ✓
+
+⊢ verify-ordered  -- ✓ frozen
+  given sort-them→sorted
+  yield is-ordered ≡ true
+
+  ∴ Check that each element in «sort-them→sorted» is less than or
+    equal to the next element. Return true or false.
+
+  ⊨ is-ordered = true  -- ✓
+
+⊢ crystallize  -- ✓ frozen
+  given §sort-them
+  given verify-permutation→same-sum where same-sum = true
+  given verify-ordered→is-ordered where is-ordered = true
+  yield §sort-them' ≡ "⊢= sorted ← sorted(numbers)", is-faithful ≡ true
+
+  ∴ Read «§sort-them». It sorts numbers ascending.
+    Write a ⊢= expression: sort(numbers)
+
+  ⊨ if is-faithful then §sort-them' may replace §sort-them  -- ✓
+

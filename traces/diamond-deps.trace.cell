@@ -1,0 +1,38 @@
+-- TRACE: 4 frozen, 0 ⊥, 4 total
+
+-- diamond-deps.cell: diamond dependency pattern (A → B, A → C, B+C → D)
+-- Tests: convergent dependencies, parallel readiness
+
+⊢ source  -- ✓ frozen
+  given val ≡ 10
+  yield x ≡ 10
+
+  ⊢= x ← val
+
+  ⊨ x = 10  -- ✓
+
+⊢ left  -- ✓ frozen
+  given source→x
+  yield doubled ≡ 20
+
+  ⊢= doubled ← source→x * 2
+
+  ⊨ doubled = 20  -- ✓
+
+⊢ right  -- ✓ frozen
+  given source→x
+  yield tripled ≡ 30
+
+  ⊢= tripled ← source→x * 3
+
+  ⊨ tripled = 30  -- ✓
+
+⊢ merge  -- ✓ frozen
+  given left→doubled
+  given right→tripled
+  yield total ≡ 50
+
+  ⊢= total ← left→doubled + right→tripled
+
+  ⊨ total = 50  -- ✓
+

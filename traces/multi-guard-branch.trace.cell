@@ -1,0 +1,39 @@
+-- TRACE: 2 frozen, 3 ⊥, 5 total
+
+-- multi-guard-branch.cell: 4-way guard dispatch (traffic light)
+-- Tests: multiple guards from same source, exhaustive branching
+
+⊢ get-color  -- ✓ frozen
+  given color ≡ "green"
+  yield signal ≡ "green"
+
+  ⊢= signal ← color
+
+  ⊨ signal = "green"  -- ✓
+
+⊢ stop  -- ⊥
+  given get-color→signal where signal = "red"  -- guard ✗
+  yield action ≡ ⊥
+
+  ⊢= action ← "stop the car"
+
+⊢ caution  -- ⊥
+  given get-color→signal where signal = "yellow"  -- guard ✗
+  yield action ≡ ⊥
+
+  ⊢= action ← "slow down"
+
+⊢ go  -- ✓ frozen
+  given get-color→signal where signal = "green"
+  yield action ≡ "proceed"
+
+  ⊢= action ← "proceed"
+
+  ⊨ action = "proceed"  -- ✓
+
+⊢ unknown  -- ⊥
+  given get-color→signal where signal = "flashing"  -- guard ✗
+  yield action ≡ ⊥
+
+  ⊢= action ← "treat as stop sign"
+

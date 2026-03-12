@@ -1,0 +1,40 @@
+-- TRACE: 2 frozen, 3 ⊥, 5 total
+
+-- fizzbuzz.cell: classic fizzbuzz with conditional dispatch
+-- Tests: nested if/then/else, modular arithmetic, guards
+
+⊢ classify  -- ✓ frozen
+  given n ≡ 15
+  yield label ≡ "fizzbuzz"
+
+  ⊢= label ← if n % 15 == 0 then "fizzbuzz" else if n % 3 == 0 then "fizz" else if n % 5 == 0 then "buzz" else "number"
+
+  ⊨ label = "fizzbuzz"  -- ✓
+
+⊢ handle-fizzbuzz  -- ✓ frozen
+  given classify→label where label = "fizzbuzz"
+  yield output ≡ "FizzBuzz!"
+
+  ⊢= output ← "FizzBuzz!"
+
+  ⊨ output = "FizzBuzz!"  -- ✓
+
+⊢ handle-fizz  -- ⊥
+  given classify→label where label = "fizz"  -- guard ✗
+  yield output ≡ ⊥
+
+  ⊢= output ← "Fizz"
+
+⊢ handle-buzz  -- ⊥
+  given classify→label where label = "buzz"  -- guard ✗
+  yield output ≡ ⊥
+
+  ⊢= output ← "Buzz"
+
+⊢ handle-number  -- ⊥
+  given classify→label where label = "number"  -- guard ✗
+  given n ≡ 15
+  yield output ≡ ⊥
+
+  ⊢= output ← n
+
