@@ -2,39 +2,68 @@
 -- Demonstrates Cell's killer pattern: LLM solves (NP), code verifies (P).
 --
 -- This program has three cells on the crystallization spectrum:
---   solve     (⊢  soft)  — LLM finds x such that 2x+3=11
---   substitute (⊢= hard) — deterministic substitution check
---   explain   (⊢  soft)  — LLM interprets the result
+--   solve      (llm)    — LLM finds x such that 2x+3=11
+--   substitute (script) — deterministic substitution check
+--   explain    (llm)    — LLM interprets the result
 --
 -- The hard cell (substitute) catches wrong answers that the soft
 -- cells might produce. This is proof-carrying computation:
 -- the proof (verification) is cheaper than the search.
 
-⊢ solve
-  given equation ≡ "2x + 3 = 11"
-  yield x, proof[]
+## mixed-hard-soft
 
-  ∴ Solve «equation» for x. Show your work as «proof» (list of steps).
+  input param.equation : str default("2x + 3 = 11")
 
-  ⊨ x is a number
+  -- Step 1: LLM solves the equation (NP — search is hard)
+  # solve : llm
+    system>
+      You are a math tutor. Solve equations step by step.
+    user>
+      Solve {{param.equation}} for x.
+      Show your work as a list of steps.
+    format> solution
+      { x: number, proof: [str] }
 
-⊢= substitute
-  given solve→x
-  given equation ≡ "2x + 3 = 11"
-  yield holds
+    ```oracle
+    assert typeof(output.x) == "number";
+    ```
+  #/
 
-  ⊢= holds ← eval(2 * solve→x + 3) = 11
+  -- Step 2: Deterministic verification (P — checking is cheap)
+  # substitute : script
+    - solve
+    ```python
+    import json, sys
+    x = {{solve.x}}
+    holds = (2 * x + 3) == 11
+    print(json.dumps({"holds": holds}))
+    ```
 
-  ⊨ holds = true
+    ```oracle
+    assert output.holds == true;
+    ```
+  #/
 
-⊢ explain
-  given solve→x
-  given solve→proof
-  given substitute→holds
-  yield explanation
+  -- Step 3: LLM explains the result
+  # explain : llm
+    - solve
+    - substitute
+    system>
+      You explain math solutions clearly.
+    user>
+      The equation {{param.equation}} was solved: x = {{solve.x}}.
+      Verification: {{substitute.holds}}.
+      Steps: {{solve.proof}}
+      If verification passed, explain the solution in plain English.
+      If it failed, say "The solution x={{solve.x}} is WRONG because substitution failed."
+    format> explanation
+      { text: str }
 
-  ∴ If «substitute→holds» is true, explain the solution «solve→proof» in plain English.
-    If false, say "The solution x=«solve→x» is WRONG because substitution failed."
+    ```oracle
+    assert len(output.text) > 0;
+    ```
+  #/
 
-  ⊨ explanation mentions the value of x
-  ⊨ if substitute→holds then explanation is positive
+  solve -> substitute -> explain
+
+##/
