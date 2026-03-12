@@ -170,7 +170,7 @@ def eval_hard(expr: str, bindings: dict[str, any]) -> any:
     for k, v in bindings.items():
         safe_k = k.replace("→", "_").replace("-", "_")
         ns[safe_k] = v
-    ns.update({"len": len, "split": lambda s, d: s.split(d),
+    ns.update({"len": len, "length": len, "split": lambda s, d: s.split(d),
                "join": lambda lst, d: d.join(lst), "min": min, "max": max,
                "sum": sum, "sorted": sorted, "True": True, "False": False,
                "abs": abs, "upper": lambda s: s.upper(), "lower": lambda s: s.lower(),

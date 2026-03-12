@@ -42,13 +42,24 @@ def parse_given(text: str, optional: bool) -> dict:
 
     if "→" in text:
         parts = text.split("→", 1)
+        field_part = parts[1].strip()
+        # Handle "as alias" syntax: given cell→field as alias
+        alias = None
+        am = re.match(r'^(\S+)\s+as\s+(\S+)$', field_part)
+        if am:
+            field_part = am.group(1)
+            alias = am.group(2)
         return {
-            "name": parts[1].strip(), "source_cell": parts[0].strip(),
-            "source_field": parts[1].strip(), "has_default": False,
+            "name": alias or field_part, "source_cell": parts[0].strip(),
+            "source_field": field_part, "has_default": False,
             "guard_expr": guard, "optional": optional,
         }
 
-    return {"name": text.strip(), "has_default": False, "guard_expr": guard, "optional": optional}
+    name = text.strip()
+    # §cell-name references (quotation) are metadata — always available
+    is_quotation = name.startswith("§")
+    return {"name": name, "has_default": is_quotation, "guard_expr": guard, "optional": optional,
+            **({"default": name} if is_quotation else {})}
 
 
 def parse_value(s: str):
