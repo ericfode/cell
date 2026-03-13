@@ -37,7 +37,7 @@
 ⊢ crystallize  -- ✓ frozen
   given §fib
   given verify-recurrence→holds where holds = true
-  yield §fib' ≡ "⊢= result ← if n <= 1 then n else fib(n-1) + fib(n-2)", is-faithful ≡ true
+  yield §fib' ≡ "⊢= result ← reduce(range(n), [0, 1], lambda acc, _: [acc[1], acc[0] + acc[1]])[0]", is-faithful ≡ true
 
   ∴ Read «§fib». It computes Fibonacci numbers.
     Write a ⊢= expression using Cell primitives.

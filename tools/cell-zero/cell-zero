@@ -16,6 +16,7 @@ PROGRAM=""
 STATE_DIR=""
 DRY_RUN=""
 SIMULATE=""
+INTERACTIVE=""
 MAX_STEPS=100
 VERBOSE=false
 
@@ -23,10 +24,11 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --dry-run)    DRY_RUN="--dry-run"; shift ;;
         --simulate)   SIMULATE="--simulate $2"; shift 2 ;;
+        --interactive) INTERACTIVE="--interactive"; shift ;;
         --max-steps)  MAX_STEPS="$2"; shift 2 ;;
         --verbose|-v) VERBOSE=true; shift ;;
         --help|-h)
-            echo "Usage: cell-zero <program.cell> [state-dir] [--dry-run] [--simulate <file>] [--max-steps N] [--verbose]"
+            echo "Usage: cell-zero <program.cell> [state-dir] [--dry-run] [--simulate <file>] [--interactive] [--max-steps N] [--verbose]"
             exit 0
             ;;
         *)
@@ -140,8 +142,10 @@ cell_path.write_text(json.dumps(cell, indent=2, ensure_ascii=False))
     fi
 
     # ── dispatch ──
-    dispatch_args="$STATE_DIR $target $DRY_RUN $SIMULATE"
-    outputs=$(python3 "$SCRIPT_DIR/dispatch.py" $dispatch_args 2>/dev/null) || {
+    dispatch_args="$STATE_DIR $target $DRY_RUN $SIMULATE $INTERACTIVE"
+    dispatch_stderr="/dev/null"
+    [[ -n "$INTERACTIVE" ]] && dispatch_stderr="/dev/stderr"
+    outputs=$(python3 "$SCRIPT_DIR/dispatch.py" $dispatch_args 2>"$dispatch_stderr") || {
         log "${RED}dispatch FAILED${RESET} for $target"
         # Bottom this cell
         empty_outputs="{}"

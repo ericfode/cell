@@ -199,8 +199,51 @@ def eval_hard(expr: str, bindings: dict[str, any]) -> any:
 
 # ─── Soft cell evaluator (Anthropic API) ─────────────────────────
 
+def eval_soft_interactive(cell: dict, bindings: dict[str, any]) -> dict[str, any]:
+    """Evaluate a soft cell interactively via stdin/stdout.
+
+    Prints the cell prompt to stderr (so it shows in terminal),
+    reads JSON response from stdin. This lets the calling Claude session
+    BE the semantic substrate.
+    """
+    body = interpolate(cell["body"], bindings)
+    yield_names = cell["yield_names"]
+
+    # Print prompt to stderr (visible to caller)
+    prompt = f"\n{'='*60}\n"
+    prompt += f"SOFT CELL: {cell['name']}\n"
+    prompt += f"{'='*60}\n"
+    for g in cell["givens"]:
+        key = g["name"]
+        val = bindings.get(key)
+        prompt += f"  {key} = {json.dumps(val)}\n"
+    prompt += f"\nTask:\n  {body}\n"
+    prompt += f"\nYield: {', '.join(yield_names)}\n"
+    field_hints = ", ".join(f'"{n}": ...' for n in yield_names)
+    prompt += f"\nRespond with JSON: {{{field_hints}}}\n"
+    prompt += f"{'='*60}\n"
+    print(prompt, file=sys.stderr)
+
+    # Read JSON from stdin
+    line = input().strip()
+    line = re.sub(r'^```\w*\n?', '', line)
+    line = re.sub(r'\n?```$', '', line)
+    line = line.strip()
+
+    try:
+        data = json.loads(line)
+        if isinstance(data, dict):
+            return {k: data[k] for k in yield_names if k in data}
+    except json.JSONDecodeError:
+        pass
+
+    if len(yield_names) == 1:
+        return {yield_names[0]: line}
+    return {n: line for n in yield_names}
+
+
 def eval_soft(cell: dict, bindings: dict[str, any], dry_run: bool = False,
-              simulate: dict | None = None) -> dict[str, any]:
+              simulate: dict | None = None, interactive: bool = False) -> dict[str, any]:
     """Evaluate a soft cell via LLM."""
     body = interpolate(cell["body"], bindings)
     yield_names = cell["yield_names"]
@@ -213,6 +256,10 @@ def eval_soft(cell: dict, bindings: dict[str, any], dry_run: bool = False,
     # Dry-run mode
     if dry_run:
         return {n: f"<dry-run-{cell['name']}-{n}>" for n in yield_names}
+
+    # Interactive mode — caller IS the substrate
+    if interactive:
+        return eval_soft_interactive(cell, bindings)
 
     # Live API call
     import anthropic
@@ -264,6 +311,7 @@ def main():
     state_dir = Path(sys.argv[1])
     cell_name = sys.argv[2]
     dry_run = "--dry-run" in sys.argv
+    interactive = "--interactive" in sys.argv
     simulate = None
 
     for i, arg in enumerate(sys.argv):
@@ -301,10 +349,11 @@ def main():
                 outputs = {cell["yield_names"][0]: result}
 
     elif cell["body_type"] == "soft":
-        if not dry_run and not os.environ.get("ANTHROPIC_API_KEY"):
+        if not dry_run and not interactive and not os.environ.get("ANTHROPIC_API_KEY"):
             dry_run = True
             print("WARN: no ANTHROPIC_API_KEY, using dry-run", file=sys.stderr)
-        outputs = eval_soft(cell, bindings, dry_run=dry_run, simulate=simulate)
+        outputs = eval_soft(cell, bindings, dry_run=dry_run, simulate=simulate,
+                            interactive=interactive)
 
     elif cell["body_type"] == "passthrough":
         outputs = {}
