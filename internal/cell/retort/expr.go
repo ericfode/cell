@@ -3,6 +3,7 @@ package retort
 import (
 	"fmt"
 	"math"
+	"regexp"
 	"strconv"
 	"strings"
 	"unicode"
@@ -609,6 +610,21 @@ func (p *exprParser) parseIdentOrCall() (interface{}, error) {
 
 func (p *exprParser) parseCall(name string) (interface{}, error) {
 	p.advance() // consume '('
+
+	// Special forms: all(var, expr), any(var, expr), filter(list, var, expr),
+	// map(list, var, expr), count(list, var, expr)
+	// These need lazy evaluation of the expression with a bound variable.
+	switch name {
+	case "all", "any":
+		return p.parseIteratorPredicate(name)
+	case "filter":
+		return p.parseIteratorTransform(name)
+	case "map":
+		return p.parseIteratorTransform(name)
+	case "count":
+		return p.parseIteratorTransform(name)
+	}
+
 	var args []interface{}
 	for p.peek().kind != tokRParen && p.peek().kind != tokEOF {
 		val, err := p.parseExpr(0)
@@ -624,6 +640,248 @@ func (p *exprParser) parseCall(name string) (interface{}, error) {
 		p.advance()
 	}
 	return callBuiltin(name, args)
+}
+
+// parseIteratorPredicate handles all(var, expr) and any(var, expr).
+// Two forms:
+//   all(list)         — check all elements truthy
+//   all(var, expr)    — bind var to each index, check expr
+func (p *exprParser) parseIteratorPredicate(name string) (interface{}, error) {
+	// Try to detect if first arg is a variable name followed by comma
+	// Save parser state to backtrack if needed
+	savedPos := p.pos
+	savedPeeked := p.peeked
+
+	// Check if first token is an identifier followed by comma (iterator form)
+	firstTok := p.peek()
+	if firstTok.kind == tokIdent {
+		// Check if this identifier is NOT in bindings (meaning it's a loop variable)
+		if _, exists := p.bindings[firstTok.sval]; !exists {
+			p.advance() // consume the variable name
+			if p.peek().kind == tokComma {
+				p.advance() // consume comma
+				return p.evalIteratorPredicate(name, firstTok.sval)
+			}
+		}
+	}
+
+	// Backtrack — it's the simple form: all(list) or all(expr)
+	p.pos = savedPos
+	p.peeked = savedPeeked
+
+	val, err := p.parseExpr(0)
+	if err != nil {
+		return nil, err
+	}
+	if p.peek().kind == tokRParen {
+		p.advance()
+	}
+
+	// Simple form: all(list) / any(list)
+	lst, ok := val.([]interface{})
+	if !ok {
+		return toBool(val), nil
+	}
+	if name == "all" {
+		for _, v := range lst {
+			if !toBool(v) {
+				return false, nil
+			}
+		}
+		return true, nil
+	}
+	// any
+	for _, v := range lst {
+		if toBool(v) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// evalIteratorPredicate evaluates all(var, expr) or any(var, expr).
+// The expression is captured as raw text and re-parsed for each iteration.
+func (p *exprParser) evalIteratorPredicate(name, varName string) (interface{}, error) {
+	// Capture the expression text from current position to closing paren
+	exprText := p.captureUntilCloseParen()
+
+	// We need to figure out the iteration range.
+	// Heuristic: look at the expression for patterns like var[something] or list[var]
+	// The iteration variable typically ranges over indices of some list in bindings.
+	// Find the list by looking for `listname[varName]` patterns in the expression.
+	iterList := findIterableList(exprText, varName, p.bindings)
+	if iterList == nil {
+		return nil, fmt.Errorf("%s: cannot determine iteration range for variable %s", name, varName)
+	}
+
+	// For all(i, sorted[i] <= sorted[i+1]), iterate i from 0 to len-2
+	// (because sorted[i+1] needs i+1 to be valid)
+	maxIdx := len(iterList)
+	// Check if expression references varName+1 (like i+1)
+	if strings.Contains(exprText, varName+"+1") || strings.Contains(exprText, varName+" + 1") {
+		maxIdx = len(iterList) - 1
+	}
+
+	for idx := 0; idx < maxIdx; idx++ {
+		// Create bindings with the loop variable
+		localBindings := make(map[string]interface{})
+		for k, v := range p.bindings {
+			localBindings[k] = v
+		}
+		localBindings[varName] = float64(idx)
+
+		result, err := evalSingle(exprText, localBindings)
+		if err != nil {
+			return nil, fmt.Errorf("%s iteration %d: %w", name, idx, err)
+		}
+
+		if name == "all" && !toBool(result) {
+			return false, nil
+		}
+		if name == "any" && toBool(result) {
+			return true, nil
+		}
+	}
+
+	if name == "all" {
+		return true, nil
+	}
+	return false, nil // any: no element matched
+}
+
+// parseIteratorTransform handles filter(list, var, expr), map(list, var, expr), count(list, var, expr).
+func (p *exprParser) parseIteratorTransform(name string) (interface{}, error) {
+	// First arg: the list (evaluated)
+	listVal, err := p.parseExpr(0)
+	if err != nil {
+		return nil, err
+	}
+	if p.peek().kind == tokComma {
+		p.advance()
+	}
+
+	lst, ok := listVal.([]interface{})
+	if !ok {
+		if p.peek().kind == tokRParen {
+			p.advance()
+		}
+		return nil, fmt.Errorf("%s: first argument must be a list", name)
+	}
+
+	// Check if next token is a variable name (iterator form) or end
+	if p.peek().kind == tokRParen {
+		p.advance()
+		// No predicate — just return list operations on the list
+		switch name {
+		case "count":
+			return float64(len(lst)), nil
+		default:
+			return lst, nil
+		}
+	}
+
+	// Second arg: variable name
+	varTok := p.advance()
+	if varTok.kind != tokIdent {
+		return nil, fmt.Errorf("%s: expected variable name, got %v", name, varTok)
+	}
+	varName := varTok.sval
+
+	if p.peek().kind == tokComma {
+		p.advance()
+	}
+
+	// Third arg: expression (captured as text)
+	exprText := p.captureUntilCloseParen()
+
+	var result []interface{}
+	countN := 0.0
+
+	for _, elem := range lst {
+		localBindings := make(map[string]interface{})
+		for k, v := range p.bindings {
+			localBindings[k] = v
+		}
+		localBindings[varName] = elem
+
+		val, err := evalSingle(exprText, localBindings)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", name, err)
+		}
+
+		switch name {
+		case "filter":
+			if toBool(val) {
+				result = append(result, elem)
+			}
+		case "map":
+			result = append(result, val)
+		case "count":
+			if toBool(val) {
+				countN++
+			}
+		}
+	}
+
+	switch name {
+	case "count":
+		return countN, nil
+	default:
+		if result == nil {
+			result = []interface{}{}
+		}
+		return result, nil
+	}
+}
+
+// captureUntilCloseParen captures raw expression text until the matching ')'.
+func (p *exprParser) captureUntilCloseParen() string {
+	start := p.pos
+	depth := 1
+	for p.pos < len(p.input) && depth > 0 {
+		ch := p.input[p.pos]
+		if ch == '(' {
+			depth++
+		} else if ch == ')' {
+			depth--
+			if depth == 0 {
+				text := strings.TrimSpace(p.input[start:p.pos])
+				p.pos++ // consume ')'
+				p.peeked = nil
+				return text
+			}
+		}
+		p.pos++
+	}
+	text := strings.TrimSpace(p.input[start:p.pos])
+	p.peeked = nil
+	return text
+}
+
+// findIterableList looks for a list in bindings that the expression indexes with the given variable.
+func findIterableList(expr, varName string, bindings map[string]interface{}) []interface{} {
+	// Look for patterns like "listname[varName" in the expression
+	// e.g., "sorted[i]" → look for "sorted" in bindings
+	pattern := regexp.MustCompile(`(\w[\w-]*)(?:→(\w[\w-]*))?\[` + regexp.QuoteMeta(varName))
+	matches := pattern.FindAllStringSubmatch(expr, -1)
+	for _, m := range matches {
+		name := m[1]
+		if m[2] != "" {
+			name = m[1] + "→" + m[2]
+		}
+		if val, ok := bindings[name]; ok {
+			if lst, ok := val.([]interface{}); ok {
+				return lst
+			}
+		}
+	}
+	// Try all list-valued bindings as fallback
+	for _, v := range bindings {
+		if lst, ok := v.([]interface{}); ok {
+			return lst
+		}
+	}
+	return nil
 }
 
 // --- Built-in functions ---
@@ -968,6 +1226,48 @@ func callBuiltin(name string, args []interface{}) (interface{}, error) {
 			result[i] = []interface{}{a[i], b[i]}
 		}
 		return result, nil
+
+	case "take":
+		if len(args) != 2 {
+			return nil, fmt.Errorf("take: expected 2 args (list, count)")
+		}
+		lst, _ := args[0].([]interface{})
+		n, _ := toFloat(args[1])
+		count := int(n)
+		if count > len(lst) {
+			count = len(lst)
+		}
+		if count < 0 {
+			count = 0
+		}
+		return append([]interface{}{}, lst[:count]...), nil
+
+	case "drop":
+		if len(args) != 2 {
+			return nil, fmt.Errorf("drop: expected 2 args (list, count)")
+		}
+		lst, _ := args[0].([]interface{})
+		n, _ := toFloat(args[1])
+		count := int(n)
+		if count > len(lst) {
+			count = len(lst)
+		}
+		if count < 0 {
+			count = 0
+		}
+		return append([]interface{}{}, lst[count:]...), nil
+
+	case "matches":
+		if len(args) != 2 {
+			return nil, fmt.Errorf("matches: expected 2 args (string, pattern)")
+		}
+		s, _ := args[0].(string)
+		pat, _ := args[1].(string)
+		re, err := regexp.Compile(pat)
+		if err != nil {
+			return nil, fmt.Errorf("matches: invalid regex %q: %w", pat, err)
+		}
+		return re.MatchString(s), nil
 
 	default:
 		return nil, fmt.Errorf("unknown function: %s", name)

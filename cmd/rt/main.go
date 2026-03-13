@@ -138,7 +138,8 @@ func cmdLoad(ctx context.Context, args []string) {
 func cmdEval(ctx context.Context, args []string) {
 	fs := flag.NewFlagSet("eval", flag.ExitOnError)
 	program := fs.String("program", "", "Program name (uses most recent if empty)")
-	mode := fs.String("mode", "dryrun", "Dispatch mode: live or dryrun")
+	mode := fs.String("mode", "dryrun", "Dispatch mode: live, dryrun, simulate, interactive")
+	simFile := fs.String("simulate", "", "Simulation data file (JSON)")
 	maxSteps := fs.Int("max-steps", 100, "Maximum eval steps")
 	verbose := fs.Bool("v", false, "Verbose output")
 	fs.Parse(args)
@@ -152,10 +153,7 @@ func cmdEval(ctx context.Context, args []string) {
 		os.Exit(1)
 	}
 
-	dispatchMode := retort.ModeDryRun
-	if *mode == "live" {
-		dispatchMode = retort.ModeLive
-	}
+	dispatchMode := parseDispatchMode(*mode, *simFile)
 
 	engine := &retort.Engine{
 		DB:       db,
@@ -184,7 +182,8 @@ func cmdEval(ctx context.Context, args []string) {
 func cmdEvalOne(ctx context.Context, args []string) {
 	fs := flag.NewFlagSet("eval-one", flag.ExitOnError)
 	program := fs.String("program", "", "Program name")
-	mode := fs.String("mode", "dryrun", "Dispatch mode: live or dryrun")
+	mode := fs.String("mode", "dryrun", "Dispatch mode: live, dryrun, simulate, interactive")
+	simFile := fs.String("simulate", "", "Simulation data file (JSON)")
 	fs.Parse(args)
 
 	db := openDB(ctx)
@@ -196,10 +195,7 @@ func cmdEvalOne(ctx context.Context, args []string) {
 		os.Exit(1)
 	}
 
-	dispatchMode := retort.ModeDryRun
-	if *mode == "live" {
-		dispatchMode = retort.ModeLive
-	}
+	dispatchMode := parseDispatchMode(*mode, *simFile)
 
 	engine := &retort.Engine{
 		DB:   db,
@@ -407,6 +403,32 @@ func cmdSQL(args []string) {
 }
 
 // --- Helpers ---
+
+func parseDispatchMode(mode, simFile string) retort.DispatchMode {
+	switch mode {
+	case "live":
+		return retort.ModeLive
+	case "simulate":
+		if simFile != "" {
+			data, err := os.ReadFile(simFile)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "error reading simulation file: %v\n", err)
+				os.Exit(1)
+			}
+			var sim map[string]map[string]interface{}
+			if err := json.Unmarshal(data, &sim); err != nil {
+				fmt.Fprintf(os.Stderr, "error parsing simulation file: %v\n", err)
+				os.Exit(1)
+			}
+			retort.SimulationData = sim
+		}
+		return retort.ModeSimulate
+	case "interactive":
+		return retort.ModeInteractive
+	default:
+		return retort.ModeDryRun
+	}
+}
 
 func resolveProgram(ctx context.Context, db *retort.DB, name string) (string, error) {
 	if name != "" {

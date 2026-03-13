@@ -832,6 +832,467 @@ func TestDecideRecovery(t *testing.T) {
 	}
 }
 
+// --- Iterator predicate tests ---
+
+func TestEvalExprAllPredicate(t *testing.T) {
+	// all(i, sorted[i] <= sorted[i+1]) — the sort-proof pattern
+	sorted := []interface{}{1.0, 2.0, 3.0, 4.0, 5.0}
+	bindings := map[string]interface{}{"sorted": sorted}
+
+	result, err := EvalExpr("all(i, sorted[i] <= sorted[i+1])", bindings)
+	if err != nil {
+		t.Fatalf("EvalExpr: %v", err)
+	}
+	if result != true {
+		t.Errorf("expected true for sorted list, got %v", result)
+	}
+
+	// Unsorted list should fail
+	unsorted := []interface{}{3.0, 1.0, 2.0}
+	bindings["sorted"] = unsorted
+	result, err = EvalExpr("all(i, sorted[i] <= sorted[i+1])", bindings)
+	if err != nil {
+		t.Fatalf("EvalExpr: %v", err)
+	}
+	if result != false {
+		t.Errorf("expected false for unsorted list, got %v", result)
+	}
+}
+
+func TestEvalExprAnyPredicate(t *testing.T) {
+	items := []interface{}{1.0, 2.0, 5.0, 3.0}
+	bindings := map[string]interface{}{"items": items}
+
+	result, err := EvalExpr("any(i, items[i] > 4)", bindings)
+	if err != nil {
+		t.Fatalf("EvalExpr: %v", err)
+	}
+	if result != true {
+		t.Errorf("expected true (5 > 4), got %v", result)
+	}
+
+	small := []interface{}{1.0, 2.0, 3.0}
+	bindings["items"] = small
+	result, err = EvalExpr("any(i, items[i] > 4)", bindings)
+	if err != nil {
+		t.Fatalf("EvalExpr: %v", err)
+	}
+	if result != false {
+		t.Errorf("expected false (no element > 4), got %v", result)
+	}
+}
+
+func TestEvalExprAllSimpleForm(t *testing.T) {
+	// all([true, true, true]) — simple form
+	result, err := EvalExpr("all([true, true, true])", nil)
+	if err != nil {
+		t.Fatalf("EvalExpr: %v", err)
+	}
+	if result != true {
+		t.Errorf("expected true, got %v", result)
+	}
+
+	result, err = EvalExpr("all([true, false, true])", nil)
+	if err != nil {
+		t.Fatalf("EvalExpr: %v", err)
+	}
+	if result != false {
+		t.Errorf("expected false, got %v", result)
+	}
+}
+
+func TestEvalExprFilterMapCount(t *testing.T) {
+	items := []interface{}{1.0, 2.0, 3.0, 4.0, 5.0}
+	bindings := map[string]interface{}{"items": items}
+
+	// filter(items, x, x > 3) → [4, 5]
+	result, err := EvalExpr("filter(items, x, x > 3)", bindings)
+	if err != nil {
+		t.Fatalf("filter: %v", err)
+	}
+	lst, ok := result.([]interface{})
+	if !ok {
+		t.Fatalf("filter: expected list, got %T", result)
+	}
+	if len(lst) != 2 {
+		t.Errorf("filter: expected 2 elements, got %d: %v", len(lst), lst)
+	}
+
+	// map(items, x, x * 2) → [2, 4, 6, 8, 10]
+	result, err = EvalExpr("map(items, x, x * 2)", bindings)
+	if err != nil {
+		t.Fatalf("map: %v", err)
+	}
+	lst, ok = result.([]interface{})
+	if !ok {
+		t.Fatalf("map: expected list, got %T", result)
+	}
+	if len(lst) != 5 {
+		t.Errorf("map: expected 5 elements, got %d", len(lst))
+	} else {
+		first, _ := toFloat(lst[0])
+		last, _ := toFloat(lst[4])
+		if first != 2 || last != 10 {
+			t.Errorf("map: expected [2,...,10], got %v", lst)
+		}
+	}
+
+	// count(items, x, x > 3) → 2
+	result, err = EvalExpr("count(items, x, x > 3)", bindings)
+	if err != nil {
+		t.Fatalf("count: %v", err)
+	}
+	countVal, _ := toFloat(result)
+	if countVal != 2 {
+		t.Errorf("count: expected 2, got %v", result)
+	}
+}
+
+func TestEvalExprMultiset(t *testing.T) {
+	// multiset([3,1,2]) = multiset([1,2,3]) — permutation check
+	bindings := map[string]interface{}{
+		"a": []interface{}{3.0, 1.0, 2.0},
+		"b": []interface{}{1.0, 2.0, 3.0},
+	}
+	result, err := EvalExpr("multiset(a) = multiset(b)", bindings)
+	if err != nil {
+		t.Fatalf("EvalExpr: %v", err)
+	}
+	if result != true {
+		t.Errorf("expected true for same multiset, got %v", result)
+	}
+}
+
+func TestEvalExprRange(t *testing.T) {
+	result, err := EvalExpr("range(5)", nil)
+	if err != nil {
+		t.Fatalf("range: %v", err)
+	}
+	lst, ok := result.([]interface{})
+	if !ok {
+		t.Fatalf("range: expected list, got %T", result)
+	}
+	if len(lst) != 5 {
+		t.Errorf("range: expected 5 elements, got %d", len(lst))
+	}
+}
+
+func TestEvalExprFlatten(t *testing.T) {
+	bindings := map[string]interface{}{
+		"nested": []interface{}{
+			[]interface{}{1.0, 2.0},
+			[]interface{}{3.0, 4.0},
+		},
+	}
+	result, err := EvalExpr("flatten(nested)", bindings)
+	if err != nil {
+		t.Fatalf("flatten: %v", err)
+	}
+	lst, ok := result.([]interface{})
+	if !ok {
+		t.Fatalf("flatten: expected list, got %T", result)
+	}
+	if len(lst) != 4 {
+		t.Errorf("flatten: expected 4 elements, got %d: %v", len(lst), lst)
+	}
+}
+
+func TestEvalExprTakeDrop(t *testing.T) {
+	bindings := map[string]interface{}{
+		"items": []interface{}{1.0, 2.0, 3.0, 4.0, 5.0},
+	}
+
+	// take(items, 3) → [1, 2, 3]
+	result, err := EvalExpr("take(items, 3)", bindings)
+	if err != nil {
+		t.Fatalf("take: %v", err)
+	}
+	lst, ok := result.([]interface{})
+	if !ok || len(lst) != 3 {
+		t.Errorf("take: expected 3 elements, got %v", result)
+	}
+
+	// drop(items, 2) → [3, 4, 5]
+	result, err = EvalExpr("drop(items, 2)", bindings)
+	if err != nil {
+		t.Fatalf("drop: %v", err)
+	}
+	lst, ok = result.([]interface{})
+	if !ok || len(lst) != 3 {
+		t.Errorf("drop: expected 3 elements, got %v", result)
+	}
+}
+
+func TestEvalExprMatches(t *testing.T) {
+	bindings := map[string]interface{}{"s": "hello world 42"}
+
+	result, err := EvalExpr(`matches(s, "\\d+")`, bindings)
+	if err != nil {
+		t.Fatalf("matches: %v", err)
+	}
+	if result != true {
+		t.Errorf("expected true for digit match, got %v", result)
+	}
+
+	result, err = EvalExpr(`matches(s, "^[A-Z]")`, bindings)
+	if err != nil {
+		t.Fatalf("matches: %v", err)
+	}
+	if result != false {
+		t.Errorf("expected false (no uppercase start), got %v", result)
+	}
+}
+
+// --- Full pipeline: sort-proof (hard cells only, simulates sorted output) ---
+
+func TestFullPipelineSortProof(t *testing.T) {
+	source := `⊢ data
+  yield items ≡ [4, 1, 7, 3, 9, 2]
+
+⊢ verify-permutation
+  given sort→sorted
+  given data→items
+  yield is-permutation
+  ⊢= is-permutation ← multiset(sorted) = multiset(items)
+  ⊨ is-permutation = true
+
+⊢ verify-order
+  given sort→sorted
+  yield is-ordered
+  ⊢= is-ordered ← all(i, sorted[i] <= sorted[i+1])
+  ⊨ is-ordered = true
+
+⊢ certificate
+  given sort→sorted
+  given verify-permutation→is-permutation
+  given verify-order→is-ordered
+  yield proof-status
+  ⊢= proof-status ← if is-permutation and is-ordered then "certified" else "rejected"
+  ⊨ proof-status = "certified"`
+
+	prog, err := ParseTurnstile(source)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	// data cell yields items = [4,1,7,3,9,2] (frozen on load via ≡)
+	dataItems := []interface{}{4.0, 1.0, 7.0, 3.0, 9.0, 2.0}
+
+	// Simulate the soft 'sort' cell having produced correct sorted output
+	sortedItems := []interface{}{1.0, 2.0, 3.0, 4.0, 7.0, 9.0}
+
+	// verify-permutation: multiset(sorted) = multiset(items)
+	vpCell := prog.Cells[1]
+	vpBindings := map[string]interface{}{
+		"sorted":     sortedItems,
+		"items":      dataItems,
+		"sort→sorted": sortedItems,
+		"data→items":  dataItems,
+	}
+	vpCellRow := &CellRow{Name: vpCell.Name, BodyType: string(vpCell.BodyType), Body: vpCell.Body}
+	vpYields := []YieldRow{{FieldName: "is-permutation"}}
+	vpResult := Dispatch(nil, vpCellRow, vpYields, vpBindings, ModeDryRun)
+	if vpResult.Err != nil {
+		t.Fatalf("dispatch verify-permutation: %v", vpResult.Err)
+	}
+	isPerm := vpResult.Outputs["is-permutation"]
+	if isPerm != true {
+		t.Errorf("verify-permutation: expected true, got %v (%T)", isPerm, isPerm)
+	}
+
+	// verify-order: all(i, sorted[i] <= sorted[i+1])
+	voCell := prog.Cells[2]
+	voBindings := map[string]interface{}{
+		"sorted":     sortedItems,
+		"sort→sorted": sortedItems,
+	}
+	voCellRow := &CellRow{Name: voCell.Name, BodyType: string(voCell.BodyType), Body: voCell.Body}
+	voYields := []YieldRow{{FieldName: "is-ordered"}}
+	voResult := Dispatch(nil, voCellRow, voYields, voBindings, ModeDryRun)
+	if voResult.Err != nil {
+		t.Fatalf("dispatch verify-order: %v", voResult.Err)
+	}
+	isOrdered := voResult.Outputs["is-ordered"]
+	if isOrdered != true {
+		t.Errorf("verify-order: expected true, got %v (%T)", isOrdered, isOrdered)
+	}
+
+	// certificate: if is-permutation and is-ordered then "certified" else "rejected"
+	certCell := prog.Cells[3]
+	certBindings := map[string]interface{}{
+		"is-permutation":               isPerm,
+		"is-ordered":                    isOrdered,
+		"sort→sorted":                   sortedItems,
+		"verify-permutation→is-permutation": isPerm,
+		"verify-order→is-ordered":       isOrdered,
+	}
+	certCellRow := &CellRow{Name: certCell.Name, BodyType: string(certCell.BodyType), Body: certCell.Body}
+	certYields := []YieldRow{{FieldName: "proof-status"}}
+	certResult := Dispatch(nil, certCellRow, certYields, certBindings, ModeDryRun)
+	if certResult.Err != nil {
+		t.Fatalf("dispatch certificate: %v", certResult.Err)
+	}
+	status := certResult.Outputs["proof-status"]
+	if status != "certified" {
+		t.Errorf("certificate: expected 'certified', got %v", status)
+	}
+
+	// Now test with a WRONG sort (not a permutation) — should get "rejected"
+	wrongSorted := []interface{}{1.0, 2.0, 3.0, 4.0, 5.0, 6.0}
+	vpBindings["sorted"] = wrongSorted
+	vpBindings["sort→sorted"] = wrongSorted
+	vpResult = Dispatch(nil, vpCellRow, vpYields, vpBindings, ModeDryRun)
+	if vpResult.Err != nil {
+		t.Fatalf("dispatch verify-permutation (wrong): %v", vpResult.Err)
+	}
+	if vpResult.Outputs["is-permutation"] != false {
+		t.Errorf("verify-permutation with wrong sort: expected false, got %v", vpResult.Outputs["is-permutation"])
+	}
+}
+
+// --- Full sort-proof with simulate mode (the real deal) ---
+
+func TestFullPipelineSortProofSimulated(t *testing.T) {
+	// This test proves the complete sort-proof Cell program works end-to-end
+	// with a simulated LLM providing the sort output.
+	source := `⊢ data
+  yield items ≡ [4, 1, 7, 3, 9, 2]
+
+⊢ sort
+  given data→items
+  yield sorted
+  ∴ Sort «items» in ascending order.
+  ⊨ sorted is a permutation of «data→items»
+  ⊨ sorted is in ascending order
+  ⊨? on failure:
+    retry with «oracle.failures» appended to prompt
+    max 2
+
+⊢ verify-permutation
+  given sort→sorted
+  given data→items
+  yield is-permutation
+  ⊢= is-permutation ← multiset(sorted) = multiset(items)
+  ⊨ is-permutation = true
+
+⊢ verify-order
+  given sort→sorted
+  yield is-ordered
+  ⊢= is-ordered ← all(i, sorted[i] <= sorted[i+1])
+  ⊨ is-ordered = true
+
+⊢ certificate
+  given sort→sorted
+  given verify-permutation→is-permutation
+  given verify-order→is-ordered
+  yield proof-status
+  ⊢= proof-status ← if is-permutation and is-ordered then "certified" else "rejected"
+  ⊨ proof-status = "certified"`
+
+	prog, err := ParseTurnstile(source)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	if len(prog.Cells) != 5 {
+		t.Fatalf("expected 5 cells, got %d", len(prog.Cells))
+	}
+
+	// Set up simulation data for the soft 'sort' cell
+	SimulationData = map[string]map[string]interface{}{
+		"sort": {"sorted": []interface{}{1.0, 2.0, 3.0, 4.0, 7.0, 9.0}},
+	}
+	defer func() { SimulationData = nil }()
+
+	// Step through the program manually:
+	// 1. data cell → frozen on load (yield items ≡ [4,1,7,3,9,2])
+	dataItems := []interface{}{4.0, 1.0, 7.0, 3.0, 9.0, 2.0}
+
+	// 2. sort cell → simulated soft dispatch
+	sortCell := &CellRow{Name: "sort", BodyType: "soft", Body: prog.Cells[1].Body}
+	sortYields := []YieldRow{{FieldName: "sorted"}}
+	sortBindings := map[string]interface{}{"items": dataItems, "data→items": dataItems}
+	sortResult := Dispatch(nil, sortCell, sortYields, sortBindings, ModeSimulate)
+	if sortResult.Err != nil {
+		t.Fatalf("sort dispatch: %v", sortResult.Err)
+	}
+	sortedItems := sortResult.Outputs["sorted"].([]interface{})
+
+	// 3. verify-permutation → hard dispatch
+	vpBindings := map[string]interface{}{
+		"sorted": sortedItems, "items": dataItems,
+		"sort→sorted": sortedItems, "data→items": dataItems,
+	}
+	vpCell := &CellRow{Name: "verify-permutation", BodyType: "hard", Body: prog.Cells[2].Body}
+	vpResult := Dispatch(nil, vpCell, []YieldRow{{FieldName: "is-permutation"}}, vpBindings, ModeSimulate)
+	if vpResult.Err != nil {
+		t.Fatalf("verify-perm: %v", vpResult.Err)
+	}
+	if vpResult.Outputs["is-permutation"] != true {
+		t.Fatalf("expected is-permutation=true, got %v", vpResult.Outputs["is-permutation"])
+	}
+
+	// 4. verify-order → hard dispatch (uses all(i, sorted[i] <= sorted[i+1]))
+	voBindings := map[string]interface{}{"sorted": sortedItems, "sort→sorted": sortedItems}
+	voCell := &CellRow{Name: "verify-order", BodyType: "hard", Body: prog.Cells[3].Body}
+	voResult := Dispatch(nil, voCell, []YieldRow{{FieldName: "is-ordered"}}, voBindings, ModeSimulate)
+	if voResult.Err != nil {
+		t.Fatalf("verify-order: %v", voResult.Err)
+	}
+	if voResult.Outputs["is-ordered"] != true {
+		t.Fatalf("expected is-ordered=true, got %v", voResult.Outputs["is-ordered"])
+	}
+
+	// 5. certificate → hard dispatch
+	certBindings := map[string]interface{}{
+		"is-permutation": true, "is-ordered": true,
+		"sort→sorted": sortedItems,
+		"verify-permutation→is-permutation": true,
+		"verify-order→is-ordered":           true,
+	}
+	certCell := &CellRow{Name: "certificate", BodyType: "hard", Body: prog.Cells[4].Body}
+	certResult := Dispatch(nil, certCell, []YieldRow{{FieldName: "proof-status"}}, certBindings, ModeSimulate)
+	if certResult.Err != nil {
+		t.Fatalf("certificate: %v", certResult.Err)
+	}
+	if certResult.Outputs["proof-status"] != "certified" {
+		t.Fatalf("expected 'certified', got %v", certResult.Outputs["proof-status"])
+	}
+
+	// 6. Check oracles
+	certOracles := []OracleRow{{OracleType: "deterministic", Assertion: `proof-status = "certified"`}}
+	pass, _ := CheckOracles(certOracles, certResult.Outputs, certBindings)
+	if !pass {
+		t.Error("certificate oracle failed")
+	}
+}
+
+// --- Simulate mode ---
+
+func TestDispatchSoftSimulate(t *testing.T) {
+	SimulationData = map[string]map[string]interface{}{
+		"sort": {"sorted": []interface{}{1.0, 2.0, 3.0}},
+	}
+	defer func() { SimulationData = nil }()
+
+	cell := &CellRow{
+		Name:     "sort",
+		BodyType: "soft",
+		Body:     "Sort «items» ascending",
+	}
+	yields := []YieldRow{{FieldName: "sorted"}}
+	bindings := map[string]interface{}{"items": []interface{}{3.0, 1.0, 2.0}}
+
+	result := Dispatch(nil, cell, yields, bindings, ModeSimulate)
+	if result.Err != nil {
+		t.Fatalf("simulate dispatch: %v", result.Err)
+	}
+	sorted, ok := result.Outputs["sorted"].([]interface{})
+	if !ok || len(sorted) != 3 {
+		t.Errorf("expected [1,2,3], got %v", result.Outputs["sorted"])
+	}
+}
+
 // --- Helper ---
 func strPtr(s string) *string {
 	return &s

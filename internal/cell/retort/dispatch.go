@@ -1,6 +1,7 @@
 package retort
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -15,9 +16,15 @@ import (
 type DispatchMode string
 
 const (
-	ModeLive   DispatchMode = "live"   // Call Anthropic API
-	ModeDryRun DispatchMode = "dryrun" // Return placeholder values
+	ModeLive        DispatchMode = "live"        // Call Anthropic API
+	ModeDryRun      DispatchMode = "dryrun"      // Return placeholder values
+	ModeSimulate    DispatchMode = "simulate"    // Use pre-loaded simulation data
+	ModeInteractive DispatchMode = "interactive" // Caller is the substrate (stdin/stdout)
 )
+
+// SimulationData holds pre-loaded outputs keyed by cell name.
+// Used with ModeSimulate.
+var SimulationData map[string]map[string]interface{}
 
 // DispatchResult is the output of dispatching a single cell.
 type DispatchResult struct {
@@ -105,18 +112,40 @@ func dispatchHard(cell *CellRow, yieldNames []string, bindings map[string]interf
 func dispatchSoft(ctx context.Context, cell *CellRow, yieldNames []string, bindings map[string]interface{}, mode DispatchMode) DispatchResult {
 	body := Interpolate(cell.Body, bindings)
 
-	if mode == ModeDryRun {
+	switch mode {
+	case ModeDryRun:
 		outputs := make(map[string]interface{})
 		for _, name := range yieldNames {
 			outputs[name] = fmt.Sprintf("<dry-run-%s-%s>", cell.Name, name)
 		}
 		return DispatchResult{Outputs: outputs}
+
+	case ModeSimulate:
+		if SimulationData != nil {
+			if cellSim, ok := SimulationData[cell.Name]; ok {
+				outputs := make(map[string]interface{})
+				for _, name := range yieldNames {
+					if val, ok := cellSim[name]; ok {
+						outputs[name] = val
+					}
+				}
+				return DispatchResult{Outputs: outputs}
+			}
+		}
+		// Fall through to dry-run if no simulation data for this cell
+		outputs := make(map[string]interface{})
+		for _, name := range yieldNames {
+			outputs[name] = fmt.Sprintf("<no-sim-%s-%s>", cell.Name, name)
+		}
+		return DispatchResult{Outputs: outputs}
+
+	case ModeInteractive:
+		return dispatchInteractive(cell, yieldNames, bindings, body)
 	}
 
 	// Live API call
 	apiKey := os.Getenv("ANTHROPIC_API_KEY")
 	if apiKey == "" {
-		// Fallback to dry-run if no API key
 		outputs := make(map[string]interface{})
 		for _, name := range yieldNames {
 			outputs[name] = fmt.Sprintf("<no-api-key-%s-%s>", cell.Name, name)
@@ -127,6 +156,58 @@ func dispatchSoft(ctx context.Context, cell *CellRow, yieldNames []string, bindi
 	outputs, err := callAnthropic(ctx, apiKey, cell.Name, body, bindings, yieldNames)
 	if err != nil {
 		return DispatchResult{Err: err}
+	}
+	return DispatchResult{Outputs: outputs}
+}
+
+func dispatchInteractive(cell *CellRow, yieldNames []string, bindings map[string]interface{}, body string) DispatchResult {
+	// Print prompt to stderr (visible to caller)
+	sep := strings.Repeat("=", 60)
+	fmt.Fprintf(os.Stderr, "\n%s\nSOFT CELL: %s\n%s\n", sep, cell.Name, sep)
+	for k, v := range bindings {
+		if !strings.Contains(k, "→") {
+			vJSON, _ := json.Marshal(v)
+			fmt.Fprintf(os.Stderr, "  %s = %s\n", k, string(vJSON))
+		}
+	}
+	fmt.Fprintf(os.Stderr, "\nTask:\n  %s\n", body)
+	fmt.Fprintf(os.Stderr, "\nYield: %s\n", strings.Join(yieldNames, ", "))
+	fieldHints := make([]string, len(yieldNames))
+	for i, n := range yieldNames {
+		fieldHints[i] = fmt.Sprintf(`"%s": ...`, n)
+	}
+	fmt.Fprintf(os.Stderr, "\nRespond with JSON: {%s}\n%s\n", strings.Join(fieldHints, ", "), sep)
+
+	// Read JSON from stdin
+	scanner := bufio.NewScanner(os.Stdin)
+	if !scanner.Scan() {
+		return DispatchResult{Err: fmt.Errorf("interactive: no input")}
+	}
+	line := strings.TrimSpace(scanner.Text())
+	// Strip markdown code fences
+	line = strings.TrimPrefix(line, "```json")
+	line = strings.TrimPrefix(line, "```")
+	line = strings.TrimSuffix(line, "```")
+	line = strings.TrimSpace(line)
+
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(line), &data); err == nil {
+		outputs := make(map[string]interface{})
+		for _, name := range yieldNames {
+			if val, ok := data[name]; ok {
+				outputs[name] = val
+			}
+		}
+		return DispatchResult{Outputs: outputs}
+	}
+
+	// Single yield: use raw text
+	if len(yieldNames) == 1 {
+		return DispatchResult{Outputs: map[string]interface{}{yieldNames[0]: line}}
+	}
+	outputs := make(map[string]interface{})
+	for _, name := range yieldNames {
+		outputs[name] = line
 	}
 	return DispatchResult{Outputs: outputs}
 }
