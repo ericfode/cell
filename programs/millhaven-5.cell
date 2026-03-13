@@ -1,0 +1,212 @@
+-- millhaven-5.cell: Gate 1 — 5 citizens + 1 analyst in Millhaven
+-- Each citizen lives a day in the city. The analyst studies them.
+
+-- City context: shared world-state that all citizens inhabit
+⊢ city
+  yield description ≡ "Millhaven is a small coastal town of about 5,000 people. It has a harbor district with fishing boats and seafood restaurants, a main street with shops and a library, a residential hill with Victorian houses, a community park with a bandstand, and an old lighthouse on the point. The weather today is overcast with occasional drizzle. It is a Tuesday in early March."
+  yield population ≡ 5
+  yield day ≡ "Tuesday, March 4"
+
+-- Citizen 1: Rosa, a librarian
+⊢ citizen-rosa
+  given city→description
+  given city→day
+  yield name ≡ "Rosa Delgado"
+  yield age ≡ 52
+  yield occupation ≡ "head librarian"
+  yield morning
+  yield afternoon
+  yield evening
+  yield thoughts
+  ∴ You are «name», age «age», the «occupation» of Millhaven Public Library.
+    You live in Millhaven: «description»
+    Today is «day».
+
+    Live your day. Describe what you do in the morning, afternoon, and evening.
+    Also share your private thoughts — what's on your mind today?
+
+    Be specific about places in Millhaven you visit, people you interact with,
+    and things you notice. Stay in character. Be concise but vivid.
+  ⊨ morning is a string
+  ⊨ afternoon is a string
+  ⊨ evening is a string
+  ⊨ thoughts is a string
+
+-- Citizen 2: Tom, a fisherman
+⊢ citizen-tom
+  given city→description
+  given city→day
+  yield name ≡ "Tom Harwick"
+  yield age ≡ 38
+  yield occupation ≡ "commercial fisherman"
+  yield morning
+  yield afternoon
+  yield evening
+  yield thoughts
+  ∴ You are «name», age «age», a «occupation» who docks at Millhaven harbor.
+    You live in Millhaven: «description»
+    Today is «day».
+
+    Live your day. Describe what you do in the morning, afternoon, and evening.
+    Also share your private thoughts — what's on your mind today?
+
+    Be specific about places in Millhaven you visit, people you interact with,
+    and things you notice. Stay in character. Be concise but vivid.
+  ⊨ morning is a string
+  ⊨ afternoon is a string
+  ⊨ evening is a string
+  ⊨ thoughts is a string
+
+-- Citizen 3: Maya, a high school student
+⊢ citizen-maya
+  given city→description
+  given city→day
+  yield name ≡ "Maya Chen"
+  yield age ≡ 17
+  yield occupation ≡ "high school junior"
+  yield morning
+  yield afternoon
+  yield evening
+  yield thoughts
+  ∴ You are «name», age «age», a «occupation» at Millhaven High.
+    You live in Millhaven: «description»
+    Today is «day».
+
+    Live your day. Describe what you do in the morning, afternoon, and evening.
+    Also share your private thoughts — what's on your mind today?
+
+    Be specific about places in Millhaven you visit, people you interact with,
+    and things you notice. Stay in character. Be concise but vivid.
+  ⊨ morning is a string
+  ⊨ afternoon is a string
+  ⊨ evening is a string
+  ⊨ thoughts is a string
+
+-- Citizen 4: Gerald, a retired mayor
+⊢ citizen-gerald
+  given city→description
+  given city→day
+  yield name ≡ "Gerald Oates"
+  yield age ≡ 71
+  yield occupation ≡ "retired mayor of Millhaven"
+  yield morning
+  yield afternoon
+  yield evening
+  yield thoughts
+  ∴ You are «name», age «age», the «occupation».
+    You live in Millhaven: «description»
+    Today is «day».
+
+    Live your day. Describe what you do in the morning, afternoon, and evening.
+    Also share your private thoughts — what's on your mind today?
+
+    Be specific about places in Millhaven you visit, people you interact with,
+    and things you notice. Stay in character. Be concise but vivid.
+  ⊨ morning is a string
+  ⊨ afternoon is a string
+  ⊨ evening is a string
+  ⊨ thoughts is a string
+
+-- Citizen 5: Priya, a restaurant owner
+⊢ citizen-priya
+  given city→description
+  given city→day
+  yield name ≡ "Priya Sharma"
+  yield age ≡ 44
+  yield occupation ≡ "owner of The Salt Cellar restaurant"
+  yield morning
+  yield afternoon
+  yield evening
+  yield thoughts
+  ∴ You are «name», age «age», «occupation» in the harbor district.
+    You live in Millhaven: «description»
+    Today is «day».
+
+    Live your day. Describe what you do in the morning, afternoon, and evening.
+    Also share your private thoughts — what's on your mind today?
+
+    Be specific about places in Millhaven you visit, people you interact with,
+    and things you notice. Stay in character. Be concise but vivid.
+  ⊨ morning is a string
+  ⊨ afternoon is a string
+  ⊨ evening is a string
+  ⊨ thoughts is a string
+
+-- Analyst: studies the population
+⊢ analyst
+  given citizen-rosa→name
+  given citizen-rosa→morning
+  given citizen-rosa→afternoon
+  given citizen-rosa→evening
+  given citizen-rosa→thoughts
+  given citizen-tom→name
+  given citizen-tom→morning
+  given citizen-tom→afternoon
+  given citizen-tom→evening
+  given citizen-tom→thoughts
+  given citizen-maya→name
+  given citizen-maya→morning
+  given citizen-maya→afternoon
+  given citizen-maya→evening
+  given citizen-maya→thoughts
+  given citizen-gerald→name
+  given citizen-gerald→morning
+  given citizen-gerald→afternoon
+  given citizen-gerald→evening
+  given citizen-gerald→thoughts
+  given citizen-priya→name
+  given citizen-priya→morning
+  given citizen-priya→afternoon
+  given citizen-priya→evening
+  given citizen-priya→thoughts
+  yield social-patterns
+  yield emotional-themes
+  yield spatial-analysis
+  yield notable-interactions
+  yield hypothesis
+  ∴ You are Dr. Elena Vasquez, a computational social scientist studying the
+    population of Millhaven through daily observation data.
+
+    Here are the daily logs of 5 citizens:
+
+    === «citizen-rosa→name» ===
+    Morning: «citizen-rosa→morning»
+    Afternoon: «citizen-rosa→afternoon»
+    Evening: «citizen-rosa→evening»
+    Private thoughts: «citizen-rosa→thoughts»
+
+    === «citizen-tom→name» ===
+    Morning: «citizen-tom→morning»
+    Afternoon: «citizen-tom→afternoon»
+    Evening: «citizen-tom→evening»
+    Private thoughts: «citizen-tom→thoughts»
+
+    === «citizen-maya→name» ===
+    Morning: «citizen-maya→morning»
+    Afternoon: «citizen-maya→afternoon»
+    Evening: «citizen-maya→evening»
+    Private thoughts: «citizen-maya→thoughts»
+
+    === «citizen-gerald→name» ===
+    Morning: «citizen-gerald→morning»
+    Afternoon: «citizen-gerald→afternoon»
+    Evening: «citizen-gerald→evening»
+    Private thoughts: «citizen-gerald→thoughts»
+
+    === «citizen-priya→name» ===
+    Morning: «citizen-priya→morning»
+    Afternoon: «citizen-priya→afternoon»
+    Evening: «citizen-priya→evening»
+    Private thoughts: «citizen-priya→thoughts»
+
+    Analyze this day's data. Produce:
+    1. social-patterns: What social dynamics and relationships do you observe?
+    2. emotional-themes: What emotional undercurrents run through the population?
+    3. spatial-analysis: How do citizens use and move through the town's spaces?
+    4. notable-interactions: Any surprising or noteworthy citizen behaviors?
+    5. hypothesis: A testable hypothesis about this community for further study.
+  ⊨ social-patterns is a string
+  ⊨ emotional-themes is a string
+  ⊨ spatial-analysis is a string
+  ⊨ notable-interactions is a string
+  ⊨ hypothesis is a string

@@ -1,0 +1,39 @@
+{
+  "citizen-rosa": {
+    "morning": "Opened the library at 8am. The heating was acting up again so I called maintenance. A few regulars came in — old Mr. Petrosky for his newspapers, Maya Chen looking for books on marine biology. I reorganized the new arrivals shelf.",
+    "afternoon": "Hosted the Tuesday reading circle in the community room. Five attendees today, including Gerald Oates who always has strong opinions about the book picks. Processed three new library card applications. Rain started around 2pm.",
+    "evening": "Closed up at 6pm. Walked home up the hill in the drizzle. Made lentil soup. Read for an hour, then called my sister in Portland. The lighthouse beam swept across my window as I fell asleep.",
+    "thoughts": "Worried about the library's funding — the town council meeting is next week and I've heard rumors about budget cuts. Maya seems like a bright kid, I should suggest she apply for the summer internship. The reading circle is losing members."
+  },
+  "citizen-tom": {
+    "morning": "Up at 4am, down to the harbor by 4:30. Took the Elaine Marie out past the point. Fog was thick — couldn't see the lighthouse until we were almost on top of it. Pulled in a decent haul of cod and some pollock. Back by 10am.",
+    "afternoon": "Sold most of the catch to Priya at The Salt Cellar — she's been buying more lately, which is good. Spent the rest of the afternoon mending nets in the boathouse. Had coffee with Danny Reeves who works the other trawler.",
+    "evening": "Stopped by The Rusty Anchor for a beer. Gerald was there talking about the old days when the fleet was twenty boats. Walked home along the harbor wall. The town looks lonely from the water side at night.",
+    "thoughts": "The catch has been getting smaller each year. I'm wondering if I should diversify — maybe run charter trips for tourists in summer. The boat payment is due and I'm short. Don't want to ask dad for money again."
+  },
+  "citizen-maya": {
+    "morning": "Mom drove me to school because of the rain. Had AP Biology first period — we're studying ecosystems. I asked Ms. Torres about marine food webs and she said I should look into the college program at Oceanside. Ate lunch with Jade and Sam.",
+    "afternoon": "After school I went to the library. Mrs. Delgado helped me find three books on marine biology. Spent an hour reading about bioluminescent organisms. Then walked down to the harbor to sketch the fishing boats for my art class portfolio.",
+    "evening": "Came home, did homework, argued with my brother about the TV. Dad made stir fry for dinner. Texted Jade about the spring formal. I can see the lighthouse from my bedroom window — tonight it looked extra bright through the fog.",
+    "thoughts": "I don't want to stay in Millhaven forever but I feel guilty about it. Everyone talks about leaving but most people don't. I think I could study marine biology somewhere — maybe Oregon State. But the application deadline is coming up and I haven't started my essay."
+  },
+  "citizen-gerald": {
+    "morning": "Woke up early as always — old habits from thirty years of civic duty. Read the Millhaven Gazette over coffee. The front page had an article about the proposed waterfront development that I think is a terrible idea. Walked to the post office.",
+    "afternoon": "Went to Rosa's reading circle at the library. We're reading a novel about a fishing village — ironic. Had a good debate about whether the author understands small-town life. Afterward, walked through the park. The bandstand needs painting again.",
+    "evening": "Stopped at The Rusty Anchor — saw Tom Harwick there looking tired. We talked about the old fleet days. Had dinner alone at home — heated up yesterday's chicken. Watched the news. The town feels quieter than it used to be.",
+    "thoughts": "I miss Helen. Three years now and the house still feels wrong without her. I worry about this town — the young people leave, the fishing industry shrinks, and the council keeps making short-sighted decisions. Maybe I should run for council again, but I'm tired."
+  },
+  "citizen-priya": {
+    "morning": "At the restaurant by 6am to receive deliveries. Tom brought fresh cod which looked excellent — I bought the whole lot for tonight's special. Prepped the lunch menu. The new sous chef called in sick, so I had to cover her station.",
+    "afternoon": "Lunch service was steady — about 30 covers. The harbor-view tables are popular even in rain. A couple from Portland asked if we do catering for weddings. I should follow up on that. Inventoried the wine cellar between services.",
+    "evening": "Dinner service was busier than expected for a Tuesday. The cod special was a hit — sold out by 8pm. Gerald Oates didn't come tonight, which is unusual. Closed up at 10pm. Counted receipts — a good day. Drove home exhausted.",
+    "thoughts": "The restaurant is doing well but I'm stretched thin. I need to hire another server. The rent increase that the harbor authority announced is going to hurt. Thinking about whether to expand the outdoor seating for summer. Miss my parents in Delhi — haven't called in two weeks."
+  },
+  "analyst": {
+    "social-patterns": "The community exhibits a hub-and-spoke social structure with shared spaces (library, harbor, The Rusty Anchor) serving as connection points. Cross-generational interactions are frequent but shallow — Gerald and Tom share drinks but don't discuss their respective anxieties. Rosa acts as an information broker through the library. Economic relationships (Tom→Priya fish supply chain) create structural dependencies.",
+    "emotional-themes": "Pervasive undercurrent of nostalgia and decline anxiety. Three of five citizens explicitly worry about Millhaven's future (Tom: fishing decline, Gerald: depopulation, Maya: desire to leave). Loneliness manifests differently by generation — Gerald's is grief-based, Tom's is economic isolation, Maya's is aspirational restlessness. Priya shows immigrant dual-consciousness (local success vs. distant family).",
+    "spatial-analysis": "The harbor district is the economic center (Tom's livelihood, Priya's restaurant). The library serves as civic commons. Main Street connects the functional spaces. The hill is residential/private. The lighthouse functions as a shared orienting symbol — three citizens reference it independently. Citizens' paths overlap at The Rusty Anchor (evening convergence point) and the harbor (daytime economic hub).",
+    "notable-interactions": "Rosa-Maya mentorship is developing organically through library visits but neither party has named it. Tom-Priya economic relationship could become a social one (daily fish sales as contact ritual). Gerald's absence from The Salt Cellar tonight was noticed by Priya — suggesting he's a regular whose patterns others track. The reading circle creates unlikely social mixing (Gerald + Rosa).",
+    "hypothesis": "The lighthouse-as-symbol hypothesis: Citizens who reference the lighthouse in their evening reflections (Rosa, Maya, Tom) may share a common emotional orientation toward 'beyond' — whether that's memory, aspiration, or economic anxiety about the outside world. Testing: track lighthouse references across multiple days and correlate with expressed future-orientation in private thoughts."
+  }
+}

@@ -18,3 +18,5 @@ __pycache__/
 
 # Gas Town (added by gt)
 state.json
+/rt
+/millhaven-gen

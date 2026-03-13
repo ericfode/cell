@@ -1,6 +1,8 @@
 package retort
 
 import (
+	"encoding/json"
+	"os"
 	"strings"
 	"testing"
 )
@@ -1291,6 +1293,184 @@ func TestDispatchSoftSimulate(t *testing.T) {
 	if !ok || len(sorted) != 3 {
 		t.Errorf("expected [1,2,3], got %v", result.Outputs["sorted"])
 	}
+}
+
+// --- Gate 1: Millhaven 5-citizen city simulation ---
+
+func TestMillhaven5Parse(t *testing.T) {
+	source, err := os.ReadFile("../../../programs/millhaven-5.cell")
+	if err != nil {
+		t.Skipf("skipping: %v", err)
+	}
+
+	prog, err := ParseTurnstile(string(source))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	if len(prog.Cells) != 7 {
+		t.Fatalf("expected 7 cells (city + 5 citizens + analyst), got %d", len(prog.Cells))
+	}
+
+	// Verify cell names
+	names := make([]string, len(prog.Cells))
+	for i, c := range prog.Cells {
+		names[i] = c.Name
+	}
+	expected := []string{"city", "citizen-rosa", "citizen-tom", "citizen-maya",
+		"citizen-gerald", "citizen-priya", "analyst"}
+	for i, want := range expected {
+		if names[i] != want {
+			t.Errorf("cell %d: name = %q, want %q", i, names[i], want)
+		}
+	}
+
+	// Verify city is passthrough with data yields
+	city := prog.Cells[0]
+	if city.BodyType != BodyPassthrough {
+		t.Errorf("city body type = %q, want passthrough", city.BodyType)
+	}
+	if len(city.Yields) != 3 {
+		t.Errorf("city yields = %d, want 3", len(city.Yields))
+	}
+
+	// Verify citizens are soft cells
+	for _, c := range prog.Cells[1:6] {
+		if c.BodyType != BodySoft {
+			t.Errorf("%s: body type = %q, want soft", c.Name, c.BodyType)
+		}
+		// Each citizen should have 7 yields (name, age, occupation, morning, afternoon, evening, thoughts)
+		if len(c.Yields) != 7 {
+			t.Errorf("%s: yields = %d, want 7", c.Name, len(c.Yields))
+		}
+	}
+
+	// Verify analyst depends on all 5 citizens
+	analyst := prog.Cells[6]
+	if analyst.BodyType != BodySoft {
+		t.Errorf("analyst body type = %q, want soft", analyst.BodyType)
+	}
+	if len(analyst.Givens) != 25 {
+		t.Errorf("analyst givens = %d, want 25 (5 citizens * 5 fields each)", len(analyst.Givens))
+	}
+}
+
+func TestMillhaven5Simulate(t *testing.T) {
+	source, err := os.ReadFile("../../../programs/millhaven-5.cell")
+	if err != nil {
+		t.Skipf("skipping: %v", err)
+	}
+
+	simData, err := os.ReadFile("../../../programs/millhaven-5-sim.json")
+	if err != nil {
+		t.Skipf("skipping sim data: %v", err)
+	}
+
+	prog, err := ParseTurnstile(string(source))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	// Load simulation data
+	var sim map[string]map[string]interface{}
+	if err := json.Unmarshal(simData, &sim); err != nil {
+		t.Fatalf("unmarshal sim: %v", err)
+	}
+	SimulationData = sim
+	defer func() { SimulationData = nil }()
+
+	// Step 1: city cell → data yields, frozen on load
+	cityDesc := "Millhaven is a small coastal town of about 5,000 people. It has a harbor district with fishing boats and seafood restaurants, a main street with shops and a library, a residential hill with Victorian houses, a community park with a bandstand, and an old lighthouse on the point. The weather today is overcast with occasional drizzle. It is a Tuesday in early March."
+	cityDay := "Tuesday, March 4"
+
+	// Step 2: dispatch all 5 citizens (they only depend on city, not each other)
+	citizenOutputs := make(map[string]map[string]interface{})
+	for _, c := range prog.Cells[1:6] {
+		bindings := map[string]interface{}{
+			"description":    cityDesc,
+			"day":            cityDay,
+			"city→description": cityDesc,
+			"city→day":        cityDay,
+		}
+		// Add data yield defaults as bindings
+		for _, y := range c.Yields {
+			if y.DefaultValue != nil {
+				bindings[y.Name] = parseStoredValue(*y.DefaultValue)
+			}
+		}
+
+		yieldRows := make([]YieldRow, 0)
+		for _, y := range c.Yields {
+			if y.DefaultValue == nil {
+				yieldRows = append(yieldRows, YieldRow{FieldName: y.Name})
+			}
+		}
+
+		cellRow := &CellRow{Name: c.Name, BodyType: string(c.BodyType), Body: c.Body}
+		result := Dispatch(nil, cellRow, yieldRows, bindings, ModeSimulate)
+		if result.Err != nil {
+			t.Fatalf("dispatch %s: %v", c.Name, result.Err)
+		}
+
+		// Merge data yields + dispatched outputs
+		outputs := make(map[string]interface{})
+		for _, y := range c.Yields {
+			if y.DefaultValue != nil {
+				outputs[y.Name] = parseStoredValue(*y.DefaultValue)
+			}
+		}
+		for k, v := range result.Outputs {
+			outputs[k] = v
+		}
+		citizenOutputs[c.Name] = outputs
+
+		// Verify we got the key fields
+		if _, ok := outputs["morning"]; !ok {
+			t.Errorf("%s: missing morning", c.Name)
+		}
+		if _, ok := outputs["thoughts"]; !ok {
+			t.Errorf("%s: missing thoughts", c.Name)
+		}
+	}
+
+	// Step 3: dispatch analyst (depends on all citizens)
+	analystBindings := make(map[string]interface{})
+	for citizenName, outputs := range citizenOutputs {
+		for field, val := range outputs {
+			analystBindings[citizenName+"→"+field] = val
+			analystBindings[field] = val // last-wins for short names
+		}
+	}
+
+	analyst := prog.Cells[6]
+	analystYields := make([]YieldRow, len(analyst.Yields))
+	for i, y := range analyst.Yields {
+		analystYields[i] = YieldRow{FieldName: y.Name}
+	}
+
+	analystCell := &CellRow{Name: analyst.Name, BodyType: string(analyst.BodyType), Body: analyst.Body}
+	analystResult := Dispatch(nil, analystCell, analystYields, analystBindings, ModeSimulate)
+	if analystResult.Err != nil {
+		t.Fatalf("dispatch analyst: %v", analystResult.Err)
+	}
+
+	// Verify analyst outputs
+	expectedFields := []string{"social-patterns", "emotional-themes", "spatial-analysis",
+		"notable-interactions", "hypothesis"}
+	for _, field := range expectedFields {
+		val, ok := analystResult.Outputs[field]
+		if !ok {
+			t.Errorf("analyst missing %s", field)
+			continue
+		}
+		s, ok := val.(string)
+		if !ok || len(s) < 10 {
+			t.Errorf("analyst %s: expected substantial string, got %v", field, val)
+		}
+	}
+
+	t.Logf("Millhaven-5 simulate: all 7 cells dispatched successfully")
+	t.Logf("  Analyst hypothesis: %s", analystResult.Outputs["hypothesis"])
 }
 
 // --- Helper ---
