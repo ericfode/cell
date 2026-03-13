@@ -16,10 +16,11 @@ import (
 type DispatchMode string
 
 const (
-	ModeLive        DispatchMode = "live"        // Call Anthropic API
+	ModeLive        DispatchMode = "live"        // Call Anthropic API directly
 	ModeDryRun      DispatchMode = "dryrun"      // Return placeholder values
 	ModeSimulate    DispatchMode = "simulate"    // Use pre-loaded simulation data
 	ModeInteractive DispatchMode = "interactive" // Caller is the substrate (stdin/stdout)
+	ModeBead        DispatchMode = "bead"        // Create beads for slinging to polecats
 )
 
 // SimulationData holds pre-loaded outputs keyed by cell name.

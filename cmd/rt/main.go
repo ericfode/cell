@@ -43,6 +43,10 @@ func main() {
 		cmdSource(ctx, args)
 	case "sql":
 		cmdSQL(args)
+	case "sling":
+		cmdSling(ctx, args)
+	case "collect":
+		cmdCollect(ctx, args)
 	case "help", "--help", "-h":
 		usage()
 	default:
@@ -67,6 +71,8 @@ Commands:
   trace [--program <name>]      Show execution trace
   source <cell-name>            Decompile cell to turnstile syntax
   sql <file.cell>               Emit SQL INSERTs to stdout
+  sling [--program <name>]      Eval hard cells, output soft cells as prompts to sling
+  collect [--program <name>]    Read results JSON from stdin, freeze yields
 `)
 }
 
@@ -375,6 +381,116 @@ func cmdSource(ctx context.Context, args []string) {
 		}
 		fmt.Print(source)
 	}
+}
+
+func cmdSling(ctx context.Context, args []string) {
+	fs := flag.NewFlagSet("sling", flag.ExitOnError)
+	program := fs.String("program", "", "Program name")
+	fs.Parse(args)
+
+	db := openDB(ctx)
+	defer db.Close()
+
+	programID, err := resolveProgram(ctx, db, *program)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+
+	engine := &retort.Engine{
+		DB:  db,
+		Log: func(msg string) { fmt.Fprintf(os.Stderr, "[retort] %s\n", msg) },
+	}
+
+	work, result := engine.Sling(ctx, programID)
+	if result.Error != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", result.Error)
+		os.Exit(1)
+	}
+
+	if len(work) == 0 {
+		fmt.Fprintf(os.Stderr, "No soft cells to sling (%d frozen, %d pending)\n",
+			result.Frozen, result.Pending)
+		return
+	}
+
+	// Output each cell's prompt as a JSON object for the operator to sling
+	fmt.Fprintf(os.Stderr, "%d soft cells ready for dispatch:\n\n", len(work))
+
+	for _, w := range work {
+		fmt.Fprintf(os.Stderr, "=== %s ===\n", w.CellName)
+		fmt.Fprintf(os.Stderr, "Yields: %s\n\n", joinCLIStrings(w.YieldNames))
+
+		// Output the sling-ready JSON to stdout
+		slingData := map[string]interface{}{
+			"cell":   w.CellName,
+			"prompt": w.Prompt,
+			"yields": w.YieldNames,
+		}
+		enc := json.NewEncoder(os.Stdout)
+		enc.Encode(slingData)
+	}
+
+	fmt.Fprintf(os.Stderr, "\nSling these, then run: rt collect < results.json\n")
+}
+
+func cmdCollect(ctx context.Context, args []string) {
+	fs := flag.NewFlagSet("collect", flag.ExitOnError)
+	program := fs.String("program", "", "Program name")
+	resultsFile := fs.String("results", "", "Results JSON file (or stdin)")
+	fs.Parse(args)
+
+	db := openDB(ctx)
+	defer db.Close()
+
+	programID, err := resolveProgram(ctx, db, *program)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Read results from file or stdin
+	var resultsData []byte
+	if *resultsFile != "" {
+		resultsData, err = os.ReadFile(*resultsFile)
+	} else if fs.NArg() > 0 {
+		resultsData, err = os.ReadFile(fs.Arg(0))
+	} else {
+		fmt.Fprintf(os.Stderr, "usage: rt collect --results <file.json>\n")
+		os.Exit(1)
+	}
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error reading results: %v\n", err)
+		os.Exit(1)
+	}
+
+	var results map[string]map[string]interface{}
+	if err := json.Unmarshal(resultsData, &results); err != nil {
+		fmt.Fprintf(os.Stderr, "error parsing results JSON: %v\n", err)
+		os.Exit(1)
+	}
+
+	engine := &retort.Engine{
+		DB:  db,
+		Log: func(msg string) { fmt.Printf("[retort] %s\n", msg) },
+	}
+
+	result := engine.Collect(ctx, programID, results)
+	if result.Error != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", result.Error)
+		os.Exit(1)
+	}
+
+	fmt.Printf("\n%s: %d frozen, %d bottom, %d pending\n",
+		strings.ToUpper(result.Status), result.Frozen, result.Bottom, result.Pending)
+
+	if result.Pending > 0 {
+		fmt.Println("\nRun 'rt sling' again to dispatch newly-ready cells.")
+	}
+}
+
+func joinCLIStrings(ss []string) string {
+	return strings.Join(ss, ", ")
 }
 
 func cmdSQL(args []string) {

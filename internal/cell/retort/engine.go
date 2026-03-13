@@ -329,3 +329,201 @@ func joinStrings(ss []string, sep string) string {
 	}
 	return result
 }
+
+// BeadWork represents a soft cell that needs to be slung to a polecat.
+type BeadWork struct {
+	CellName   string
+	CellID     string
+	BeadID     string // bead ID from bd create
+	Prompt     string // the fully interpolated prompt
+	YieldNames []string
+}
+
+// Sling finds all ready soft cells, creates beads for them, and returns
+// the list of work that needs to be dispatched via polecats.
+// Hard cells are evaluated inline. Only soft cells become beads.
+func (e *Engine) Sling(ctx context.Context, programID string) ([]BeadWork, EvalResult) {
+	// First evaluate any ready hard cells
+	for {
+		ready, err := e.DB.FindReadyCells(ctx, programID)
+		if err != nil {
+			return nil, EvalResult{Error: err}
+		}
+
+		// Handle guard-skipped cells
+		if len(ready) == 0 {
+			skipped, err := e.skipGuardFailed(ctx, programID)
+			if err != nil {
+				return nil, EvalResult{Error: err}
+			}
+			if skipped > 0 {
+				ready, _ = e.DB.FindReadyCells(ctx, programID)
+			}
+		}
+
+		if len(ready) == 0 {
+			break
+		}
+
+		// Find first hard cell to eval inline
+		hardIdx := -1
+		for i, c := range ready {
+			if c.BodyType == "hard" || c.BodyType == "passthrough" {
+				hardIdx = i
+				break
+			}
+		}
+		if hardIdx < 0 {
+			break // only soft cells left
+		}
+
+		// Eval the hard cell inline
+		target := ready[hardIdx]
+		e.log("sling: eval hard cell %s inline", target.Name)
+
+		bindings, _, err := e.DB.ResolveGivens(ctx, programID, target.ID)
+		if err != nil {
+			return nil, EvalResult{Error: fmt.Errorf("resolve givens for %s: %w", target.Name, err)}
+		}
+		guardsPass, _ := e.DB.CheckGuards(ctx, programID, target.ID, bindings)
+		if !guardsPass {
+			e.bottomCell(ctx, &target, programID, -1)
+			continue
+		}
+
+		e.DB.SetCellState(ctx, target.ID, "computing")
+		yields, _ := e.DB.GetYields(ctx, target.ID)
+		result := Dispatch(ctx, &target, yields, bindings, ModeDryRun) // hard cells don't need mode
+		if result.Err != nil {
+			return nil, EvalResult{Error: result.Err}
+		}
+
+		// Freeze
+		for _, y := range yields {
+			if val, ok := result.Outputs[y.FieldName]; ok {
+				e.DB.FreezeYield(ctx, target.ID, y.FieldName, val)
+			}
+		}
+		e.DB.SetCellState(ctx, target.ID, "frozen")
+		e.DB.DoltCommit(ctx, fmt.Sprintf("sling: freeze hard cell %s", target.Name))
+	}
+
+	// Now find ready soft cells and create beads
+	ready, err := e.DB.FindReadyCells(ctx, programID)
+	if err != nil {
+		return nil, EvalResult{Error: err}
+	}
+
+	var work []BeadWork
+	for _, cell := range ready {
+		if cell.BodyType != "soft" {
+			continue
+		}
+
+		bindings, _, err := e.DB.ResolveGivens(ctx, programID, cell.ID)
+		if err != nil {
+			e.log("sling: skip %s (resolve error: %v)", cell.Name, err)
+			continue
+		}
+
+		yields, _ := e.DB.GetYields(ctx, cell.ID)
+
+		// Include yield defaults (data yields like `yield name ≡ "Rosa"`) in bindings
+		// so that «name», «age», «occupation» etc. resolve during interpolation
+		for _, y := range yields {
+			if y.DefaultValue != "" {
+				bindings[y.FieldName] = parseStoredValue(y.DefaultValue)
+			}
+		}
+
+		// Build the fully interpolated prompt
+		prompt := Interpolate(cell.Body, bindings)
+		yieldNames := make([]string, 0, len(yields))
+		for _, y := range yields {
+			// Skip yields that already have defaults (data yields)
+			if y.IsFrozen {
+				continue
+			}
+			yieldNames = append(yieldNames, y.FieldName)
+		}
+
+		if len(yieldNames) == 0 {
+			continue
+		}
+
+		// Set cell to computing
+		e.DB.SetCellState(ctx, cell.ID, "computing")
+
+		work = append(work, BeadWork{
+			CellName:   cell.Name,
+			CellID:     cell.ID,
+			Prompt:     prompt,
+			YieldNames: yieldNames,
+		})
+	}
+
+	if len(work) > 0 {
+		e.DB.DoltCommit(ctx, fmt.Sprintf("sling: %d soft cells awaiting dispatch", len(work)))
+	}
+
+	return work, e.summarize(ctx, programID, 0, false)
+}
+
+// Collect reads results for cells in "computing" state whose beads are done.
+// resultsJSON maps cell names to their yield outputs.
+func (e *Engine) Collect(ctx context.Context, programID string, results map[string]map[string]interface{}) EvalResult {
+	cells, err := e.DB.GetAllCells(ctx, programID)
+	if err != nil {
+		return EvalResult{Error: err}
+	}
+
+	step := 0
+	for _, cell := range cells {
+		if cell.State != "computing" {
+			continue
+		}
+
+		outputs, ok := results[cell.Name]
+		if !ok {
+			continue
+		}
+
+		yields, _ := e.DB.GetYields(ctx, cell.ID)
+
+		// Set tentative
+		for _, y := range yields {
+			if val, ok := outputs[y.FieldName]; ok {
+				e.DB.SetTentativeValue(ctx, cell.ID, y.FieldName, fmt.Sprintf("%v", val))
+			}
+		}
+		e.DB.SetCellState(ctx, cell.ID, "tentative")
+
+		// Check oracles
+		oracles, _ := e.DB.GetOracles(ctx, cell.ID)
+		bindings, _, _ := e.DB.ResolveGivens(ctx, programID, cell.ID)
+		allPass, oracleResults := CheckOracles(oracles, outputs, bindings)
+
+		if allPass {
+			for _, y := range yields {
+				if val, ok := outputs[y.FieldName]; ok {
+					e.DB.FreezeYield(ctx, cell.ID, y.FieldName, val)
+				}
+			}
+			e.DB.SetCellState(ctx, cell.ID, "frozen")
+			e.log("collect: freeze %s", cell.Name)
+			e.DB.InsertTrace(ctx, programID, step, cell.ID, "freeze",
+				formatOutputs(outputs), 0)
+		} else {
+			decision := DecideRecovery(&cell, oracleResults)
+			e.log("collect: %s %s (%s)", decision.Action, cell.Name, decision.Message)
+			ApplyRecovery(ctx, e.DB, &cell, decision)
+		}
+
+		e.DB.DoltCommit(ctx, fmt.Sprintf("collect step %d: %s", step, cell.Name))
+		step++
+	}
+
+	// After collecting, try to sling any newly-ready soft cells or eval hard cells
+	// This handles the analyst becoming ready after citizens are frozen
+	return e.summarize(ctx, programID, step, false)
+}
