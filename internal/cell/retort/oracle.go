@@ -236,6 +236,20 @@ func parseLiteralValue(s string) interface{} {
 		return nil
 	}
 
+	// List literal: [1, 2, 3] or [1, 2, 3, 4, 5]
+	if len(s) >= 2 && s[0] == '[' && s[len(s)-1] == ']' {
+		inner := strings.TrimSpace(s[1 : len(s)-1])
+		if inner == "" {
+			return []interface{}{}
+		}
+		parts := splitListElements(inner)
+		result := make([]interface{}, 0, len(parts))
+		for _, p := range parts {
+			result = append(result, parseLiteralValue(strings.TrimSpace(p)))
+		}
+		return result
+	}
+
 	// Number
 	var f float64
 	if n, err := fmt.Sscanf(s, "%g", &f); n == 1 && err == nil {
@@ -243,4 +257,26 @@ func parseLiteralValue(s string) interface{} {
 	}
 
 	return s
+}
+
+// splitListElements splits on commas, respecting nested brackets.
+func splitListElements(s string) []string {
+	var parts []string
+	depth := 0
+	start := 0
+	for i := 0; i < len(s); i++ {
+		switch s[i] {
+		case '[':
+			depth++
+		case ']':
+			depth--
+		case ',':
+			if depth == 0 {
+				parts = append(parts, s[start:i])
+				start = i + 1
+			}
+		}
+	}
+	parts = append(parts, s[start:])
+	return parts
 }

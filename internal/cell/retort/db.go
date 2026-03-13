@@ -81,6 +81,20 @@ func (d *DB) ensureDatabase(ctx context.Context) error {
 	return nil
 }
 
+// ResetDB drops and recreates all Retort tables.
+func (d *DB) ResetDB(ctx context.Context) error {
+	tables := []string{
+		"trace", "bead_bridge", "evolution_loops", "recovery_policies",
+		"oracles", "yields", "givens", "cells", "programs",
+		"config", "metadata",
+	}
+	for _, t := range tables {
+		d.conn.ExecContext(ctx, "DROP TABLE IF EXISTS `"+t+"`")
+	}
+	d.conn.ExecContext(ctx, "DROP VIEW IF EXISTS ready_cells")
+	return d.InitSchema(ctx)
+}
+
 // Close closes the database connection.
 func (d *DB) Close() error {
 	return d.conn.Close()
@@ -637,17 +651,19 @@ func (d *DB) ResolveGivens(ctx context.Context, programID, cellID string) (map[s
 				return nil, false, err
 			}
 			if isBottom {
+				// Source is bottom — set to nil
+				bindings[g.ParamName] = nil
 				if !g.IsOptional {
-					bindings[g.ParamName] = nil
 					bindings[g.SourceCell+"→"+g.SourceField] = nil
-				} else {
-					bindings[g.ParamName] = nil
 				}
 			} else if val != nil {
 				bindings[g.ParamName] = val
 				bindings[g.SourceCell+"→"+g.SourceField] = val
 				d.MarkGivenResolved(ctx, g.ID)
-			} else if !g.IsOptional && !g.HasDefault {
+			} else if g.IsOptional {
+				// Optional dep not resolved yet — treat as null
+				bindings[g.ParamName] = nil
+			} else if !g.HasDefault {
 				allResolved = false
 			}
 		}

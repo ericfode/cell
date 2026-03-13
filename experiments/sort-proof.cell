@@ -1,0 +1,39 @@
+-- sort-proof.cell: Experiment 1 — The canonical Cell proof pipeline
+-- A hard cell sorts, another verifies, a third certifies.
+-- Tests: multi-step hard pipeline, iterator predicates, chained oracles
+-- Run: rt load experiments/sort-proof.cell && rt eval
+
+⊢ input
+  yield numbers ≡ [8, 3, 1, 9, 4, 7, 2, 6, 5]
+  yield expected-length ≡ 9
+
+⊢ sorter
+  given input→numbers
+  yield sorted
+  ⊢= sorted(numbers)
+  ⊨ sorted = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+⊢ verifier
+  given sorter→sorted
+  given input→numbers
+  given input→expected-length
+  yield is-sorted
+  yield same-length
+  yield same-elements
+  ⊢= is-sorted ← all(i, sorted[i] <= sorted[i+1])
+      same-length ← len(sorted) = expected-length
+      same-elements ← multiset(sorted) = multiset(numbers)
+  ⊨ is-sorted = true
+  ⊨ same-length = true
+  ⊨ same-elements = true
+
+⊢ certifier
+  given verifier→is-sorted
+  given verifier→same-length
+  given verifier→same-elements
+  yield certified
+  yield verdict
+  ⊢= certified ← is-sorted and same-length and same-elements
+      verdict ← if certified then "PROOF VALID" else "PROOF FAILED"
+  ⊨ certified = true
+  ⊨ verdict = "PROOF VALID"

@@ -1,0 +1,151 @@
+-- day-two.cell: Experiment 4 — Multi-day continuity
+-- Citizens live Day 2 informed by Day 1 outcomes.
+-- Tests: chaining programs, using prior results as inputs, temporal coherence
+-- Prerequisite: Run millhaven-5.cell first, collect results into day-one-results
+
+⊢ city
+  yield description ≡ "Millhaven is a small coastal town of about 5,000 people. Harbor district, main street, residential hill, lighthouse on the point. Wednesday in early March. Yesterday's drizzle has cleared to cold sunshine."
+  yield day ≡ "Wednesday, March 5"
+  yield yesterday ≡ "Tuesday, March 4"
+
+-- Day 1 summaries (data cells — would be populated from prior run)
+⊢ day-one-rosa
+  yield name ≡ "Rosa Delgado"
+  yield age ≡ 52
+  yield occupation ≡ "head librarian"
+  yield yesterday-summary ≡ "Opened library early, dealt with leaking east window. Mrs. Patel returned a mystery. Children's reading group read Island of the Blue Dolphins. Helped Marco Reyes with lighthouse project. Ate chowder at Carla's. Worried about Thursday's budget meeting."
+
+⊢ day-one-tom
+  yield name ≡ "Tom Harwick"
+  yield age ≡ 38
+  yield occupation ≡ "commercial fisherman"
+  yield yesterday-summary ≡ "Light haul of Dungeness crab. Sold to Pelletier's. Ran into Dale Hutchins who may be selling his boat. Returned a library book. Engine maintenance on the Ellie Mae. Worried about thin crab season and whether to cut Danny's hours."
+
+⊢ day-one-maya
+  yield name ≡ "Maya Chen"
+  yield age ≡ 17
+  yield occupation ≡ "high school junior"
+  yield yesterday-summary ≡ "AP History class, ate lunch alone in the library. Walked to Anchor Bakery for sourdough. Sketched the lighthouse from the overlook bench. Texted Destiny about English essay. Thinking about college applications and whether leaving Millhaven is brave or restless. Jaden smiled at her in the hallway."
+
+-- Day 2 citizens — they remember yesterday
+⊢ rosa-day2
+  given city→description
+  given city→day
+  given day-one-rosa→name
+  given day-one-rosa→age
+  given day-one-rosa→occupation
+  given day-one-rosa→yesterday-summary
+  yield morning
+  yield afternoon
+  yield evening
+  yield thoughts
+  yield what-changed
+  ∴ You are «name», age «age», the «occupation» of Millhaven Public Library.
+    Town: «description». Today is «day».
+
+    YESTERDAY: «yesterday-summary»
+
+    Live today. What do you do in the morning, afternoon, evening?
+    What has changed since yesterday? What carries forward?
+    Share your private thoughts.
+
+    Be specific. Reference yesterday's events where they naturally connect.
+  ⊨ morning is a string
+  ⊨ what-changed is a string
+
+⊢ tom-day2
+  given city→description
+  given city→day
+  given day-one-tom→name
+  given day-one-tom→age
+  given day-one-tom→occupation
+  given day-one-tom→yesterday-summary
+  yield morning
+  yield afternoon
+  yield evening
+  yield thoughts
+  yield what-changed
+  ∴ You are «name», age «age», a «occupation» who docks at Millhaven harbor.
+    Town: «description». Today is «day».
+
+    YESTERDAY: «yesterday-summary»
+
+    Live today. What do you do in the morning, afternoon, evening?
+    What has changed since yesterday? What carries forward?
+    Share your private thoughts.
+
+    Be specific. Reference yesterday's events where they naturally connect.
+  ⊨ morning is a string
+  ⊨ what-changed is a string
+
+⊢ maya-day2
+  given city→description
+  given city→day
+  given day-one-maya→name
+  given day-one-maya→age
+  given day-one-maya→occupation
+  given day-one-maya→yesterday-summary
+  yield morning
+  yield afternoon
+  yield evening
+  yield thoughts
+  yield what-changed
+  ∴ You are «name», age «age», a «occupation» at Millhaven High.
+    Town: «description». Today is «day».
+
+    YESTERDAY: «yesterday-summary»
+
+    Live today. What do you do in the morning, afternoon, evening?
+    What has changed since yesterday? What carries forward?
+    Share your private thoughts.
+
+    Be specific. Reference yesterday's events where they naturally connect.
+  ⊨ morning is a string
+  ⊨ what-changed is a string
+
+-- Continuity analyst
+⊢ continuity-analyst
+  given rosa-day2→morning
+  given rosa-day2→what-changed
+  given rosa-day2→thoughts
+  given tom-day2→morning
+  given tom-day2→what-changed
+  given tom-day2→thoughts
+  given maya-day2→morning
+  given maya-day2→what-changed
+  given maya-day2→thoughts
+  given day-one-rosa→yesterday-summary
+  given day-one-tom→yesterday-summary
+  given day-one-maya→yesterday-summary
+  yield continuity-score
+  yield carried-threads
+  yield dropped-threads
+  yield emergent-developments
+  ∴ You are a narrative continuity analyst comparing Day 1 and Day 2 of a
+    simulated population.
+
+    DAY 1 SUMMARIES:
+    Rosa: «day-one-rosa→yesterday-summary»
+    Tom: «day-one-tom→yesterday-summary»
+    Maya: «day-one-maya→yesterday-summary»
+
+    DAY 2 DATA:
+    Rosa morning: «rosa-day2→morning»
+    Rosa changed: «rosa-day2→what-changed»
+    Rosa thoughts: «rosa-day2→thoughts»
+
+    Tom morning: «tom-day2→morning»
+    Tom changed: «tom-day2→what-changed»
+    Tom thoughts: «tom-day2→thoughts»
+
+    Maya morning: «maya-day2→morning»
+    Maya changed: «maya-day2→what-changed»
+    Maya thoughts: «maya-day2→thoughts»
+
+    Analyze:
+    1. continuity-score: Rate 1-10 how well Day 2 follows from Day 1
+    2. carried-threads: What story threads from Day 1 are continued?
+    3. dropped-threads: What Day 1 elements were forgotten or contradicted?
+    4. emergent-developments: What new plot threads emerged on Day 2?
+  ⊨ continuity-score is a string
+  ⊨ carried-threads is a string

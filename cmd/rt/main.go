@@ -88,10 +88,20 @@ func openDB(ctx context.Context) *retort.DB {
 }
 
 func cmdInit(ctx context.Context, args []string) {
+	fs := flag.NewFlagSet("init", flag.ExitOnError)
+	force := fs.Bool("force", false, "Drop and recreate all tables")
+	fs.Parse(args)
+
 	db := openDB(ctx)
 	defer db.Close()
 
-	if err := db.InitSchema(ctx); err != nil {
+	var err error
+	if *force {
+		err = db.ResetDB(ctx)
+	} else {
+		err = db.InitSchema(ctx)
+	}
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
@@ -144,7 +154,7 @@ func cmdLoad(ctx context.Context, args []string) {
 func cmdEval(ctx context.Context, args []string) {
 	fs := flag.NewFlagSet("eval", flag.ExitOnError)
 	program := fs.String("program", "", "Program name (uses most recent if empty)")
-	mode := fs.String("mode", "dryrun", "Dispatch mode: live, dryrun, simulate, interactive")
+	mode := fs.String("mode", "live", "Dispatch mode: live, interactive")
 	simFile := fs.String("simulate", "", "Simulation data file (JSON)")
 	maxSteps := fs.Int("max-steps", 100, "Maximum eval steps")
 	verbose := fs.Bool("v", false, "Verbose output")
@@ -188,7 +198,7 @@ func cmdEval(ctx context.Context, args []string) {
 func cmdEvalOne(ctx context.Context, args []string) {
 	fs := flag.NewFlagSet("eval-one", flag.ExitOnError)
 	program := fs.String("program", "", "Program name")
-	mode := fs.String("mode", "dryrun", "Dispatch mode: live, dryrun, simulate, interactive")
+	mode := fs.String("mode", "live", "Dispatch mode: live, interactive")
 	simFile := fs.String("simulate", "", "Simulation data file (JSON)")
 	fs.Parse(args)
 
@@ -525,24 +535,19 @@ func parseDispatchMode(mode, simFile string) retort.DispatchMode {
 	case "live":
 		return retort.ModeLive
 	case "simulate":
-		if simFile != "" {
-			data, err := os.ReadFile(simFile)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "error reading simulation file: %v\n", err)
-				os.Exit(1)
-			}
-			var sim map[string]map[string]interface{}
-			if err := json.Unmarshal(data, &sim); err != nil {
-				fmt.Fprintf(os.Stderr, "error parsing simulation file: %v\n", err)
-				os.Exit(1)
-			}
-			retort.SimulationData = sim
-		}
-		return retort.ModeSimulate
+		fmt.Fprintf(os.Stderr, "ERROR: simulate mode is disabled. ONLY REAL EXECUTION.\n")
+		fmt.Fprintf(os.Stderr, "Use 'rt sling' to get prompts, dispatch them yourself, then 'rt collect'.\n")
+		os.Exit(1)
+		return retort.ModeDryRun // unreachable
+	case "dryrun":
+		fmt.Fprintf(os.Stderr, "ERROR: dryrun mode is disabled. ONLY REAL EXECUTION.\n")
+		fmt.Fprintf(os.Stderr, "Use 'rt sling' to get prompts, dispatch them yourself, then 'rt collect'.\n")
+		os.Exit(1)
+		return retort.ModeDryRun // unreachable
 	case "interactive":
 		return retort.ModeInteractive
 	default:
-		return retort.ModeDryRun
+		return retort.ModeLive
 	}
 }
 

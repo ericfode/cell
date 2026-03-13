@@ -504,21 +504,25 @@ func (p *exprParser) parseIfThenElse() (interface{}, error) {
 		return nil, fmt.Errorf("expected 'then', got %v", p.peek())
 	}
 	p.advance() // consume 'then'
-	thenVal, err := p.parseExpr(0)
-	if err != nil {
-		return nil, fmt.Errorf("then branch: %w", err)
-	}
+
+	// Lazy evaluation: only evaluate the taken branch, skip the other
+	thenVal, thenErr := p.parseExpr(0)
+
 	if p.peek().kind != tokElse {
 		return nil, fmt.Errorf("expected 'else', got %v", p.peek())
 	}
 	p.advance() // consume 'else'
-	elseVal, err := p.parseExpr(0)
-	if err != nil {
-		return nil, fmt.Errorf("else branch: %w", err)
-	}
+
+	elseVal, elseErr := p.parseExpr(0)
 
 	if toBool(cond) {
+		if thenErr != nil {
+			return nil, fmt.Errorf("then branch: %w", thenErr)
+		}
 		return thenVal, nil
+	}
+	if elseErr != nil {
+		return nil, fmt.Errorf("else branch: %w", elseErr)
 	}
 	return elseVal, nil
 }
@@ -583,21 +587,27 @@ func (p *exprParser) parseIdentOrCall() (interface{}, error) {
 		return val, nil
 	}
 
-	// Check for list index access
+	// Check for list index access (supports chaining: matrix[1][0])
 	if p.peek().kind == tokLBracket {
 		val, ok := p.bindings[name]
 		if !ok {
 			return nil, fmt.Errorf("undefined: %s", name)
 		}
-		p.advance() // consume '['
-		idx, err := p.parseExpr(0)
-		if err != nil {
-			return nil, err
+		for p.peek().kind == tokLBracket {
+			p.advance() // consume '['
+			idx, err := p.parseExpr(0)
+			if err != nil {
+				return nil, err
+			}
+			if p.peek().kind == tokRBracket {
+				p.advance()
+			}
+			val, err = indexAccess(val, idx)
+			if err != nil {
+				return nil, err
+			}
 		}
-		if p.peek().kind == tokRBracket {
-			p.advance()
-		}
-		return indexAccess(val, idx)
+		return val, nil
 	}
 
 	// Variable lookup
@@ -1417,13 +1427,33 @@ func valEqual(a, b interface{}) bool {
 	if a == nil || b == nil {
 		return false
 	}
+	// List comparison — element-by-element
+	aList, aIsList := a.([]interface{})
+	bList, bIsList := b.([]interface{})
+	if aIsList && bIsList {
+		if len(aList) != len(bList) {
+			return false
+		}
+		for i := range aList {
+			if !valEqual(aList[i], bList[i]) {
+				return false
+			}
+		}
+		return true
+	}
+	// Bool comparison (before numeric, so true != 1 unless both are numbers)
+	aBool, aIsBool := a.(bool)
+	bBool, bIsBool := b.(bool)
+	if aIsBool && bIsBool {
+		return aBool == bBool
+	}
 	// Try numeric comparison
 	an, aOk := toFloat(a)
 	bn, bOk := toFloat(b)
 	if aOk && bOk {
 		return an == bn
 	}
-	// Try string comparison
+	// String comparison
 	as := fmt.Sprintf("%v", a)
 	bs := fmt.Sprintf("%v", b)
 	return as == bs

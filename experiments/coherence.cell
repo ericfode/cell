@@ -1,0 +1,118 @@
+-- coherence.cell: Experiment 2 — Cross-reference coherence test
+-- 3 citizens who KNOW each other. Analyst checks if their stories are consistent.
+-- Tests: soft cell dispatch, cross-referencing, analyst coherence detection
+-- Run: rt load && rt sling → dispatch citizens → rt collect → rt sling → dispatch analyst → rt collect
+
+⊢ city
+  yield description ≡ "Millhaven is a small coastal town. Harbor district with fishing boats. Main street with shops and a library. Residential hill with Victorian houses. Old lighthouse on the point. Overcast Tuesday in March."
+  yield day ≡ "Tuesday, March 4"
+  yield shared-event ≡ "A fishing boat ran aground on the rocks near the lighthouse at dawn. The coast guard arrived by 8 AM. Half the town came to watch."
+
+⊢ witness-anna
+  given city→description
+  given city→day
+  given city→shared-event
+  yield name ≡ "Anna Kowalski"
+  yield age ≡ 34
+  yield occupation ≡ "harbor patrol officer"
+  yield morning
+  yield afternoon
+  yield evening
+  yield account-of-event
+  ∴ You are «name», age «age», the «occupation» of Millhaven.
+    Town: «description». Today is «day».
+
+    IMPORTANT EVENT TODAY: «shared-event»
+    You were ON DUTY when this happened. You were one of the first responders.
+
+    Live your day. Describe morning, afternoon, evening.
+    Also give your detailed account of the boat grounding — what you saw,
+    who you talked to, what happened. Be specific about times and people.
+  ⊨ morning is a string
+  ⊨ account-of-event is a string
+
+⊢ witness-carlos
+  given city→description
+  given city→day
+  given city→shared-event
+  yield name ≡ "Carlos Reyes"
+  yield age ≡ 52
+  yield occupation ≡ "lighthouse keeper"
+  yield morning
+  yield afternoon
+  yield evening
+  yield account-of-event
+  ∴ You are «name», age «age», the «occupation» of Millhaven.
+    Town: «description». Today is «day».
+
+    IMPORTANT EVENT TODAY: «shared-event»
+    You were AT THE LIGHTHOUSE when this happened. You saw it from above.
+
+    Live your day. Describe morning, afternoon, evening.
+    Also give your detailed account of the boat grounding — what you saw
+    from the lighthouse, who arrived, what happened. Be specific.
+  ⊨ morning is a string
+  ⊨ account-of-event is a string
+
+⊢ witness-elena
+  given city→description
+  given city→day
+  given city→shared-event
+  yield name ≡ "Elena Marsh"
+  yield age ≡ 67
+  yield occupation ≡ "retired teacher who walks the shore every morning"
+  yield morning
+  yield afternoon
+  yield evening
+  yield account-of-event
+  ∴ You are «name», age «age», a «occupation» in Millhaven.
+    Town: «description». Today is «day».
+
+    IMPORTANT EVENT TODAY: «shared-event»
+    You were ON YOUR MORNING WALK on the shore when this happened.
+    You saw it unfold from the beach.
+
+    Live your day. Describe morning, afternoon, evening.
+    Also give your detailed account of the boat grounding — what you saw
+    from the shore, who you talked to afterward. Be specific.
+  ⊨ morning is a string
+  ⊨ account-of-event is a string
+
+⊢ coherence-analyst
+  given witness-anna→name
+  given witness-anna→occupation
+  given witness-anna→account-of-event
+  given witness-carlos→name
+  given witness-carlos→occupation
+  given witness-carlos→account-of-event
+  given witness-elena→name
+  given witness-elena→occupation
+  given witness-elena→account-of-event
+  yield timeline-reconstruction
+  yield contradictions
+  yield corroborations
+  yield reliability-ranking
+  yield coherence-score
+  ∴ You are a forensic analyst comparing three witness accounts of the same event:
+    a fishing boat running aground near the Millhaven lighthouse at dawn.
+
+    === «witness-anna→name» («witness-anna→occupation») ===
+    «witness-anna→account-of-event»
+
+    === «witness-carlos→name» («witness-carlos→occupation») ===
+    «witness-carlos→account-of-event»
+
+    === «witness-elena→name» («witness-elena→occupation») ===
+    «witness-elena→account-of-event»
+
+    Analyze:
+    1. timeline-reconstruction: Reconstruct a single timeline from all three accounts.
+    2. contradictions: List any contradictions between accounts (times, people, details).
+    3. corroborations: List details that multiple witnesses agree on.
+    4. reliability-ranking: Rank the three witnesses by reliability, with reasoning.
+    5. coherence-score: Rate 1-10 how coherent these three accounts are together.
+       10 = perfectly consistent, 1 = wildly contradictory.
+  ⊨ timeline-reconstruction is a string
+  ⊨ contradictions is a string
+  ⊨ corroborations is a string
+  ⊨ coherence-score is a string

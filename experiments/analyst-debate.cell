@@ -1,0 +1,199 @@
+-- analyst-debate.cell: Experiment 3 — Multi-analyst synthesis
+-- Two analysts study the same citizen data from different theoretical frameworks.
+-- A third synthesizer reconciles their findings.
+-- Tests: multi-layer soft cell dispatch, parallel analysts, synthesis step
+
+⊢ city
+  yield description ≡ "Millhaven, a small coastal town. Harbor, main street, residential hill, lighthouse."
+  yield day ≡ "Tuesday, March 4"
+
+⊢ citizen-sam
+  given city→description
+  given city→day
+  yield name ≡ "Sam Okafor"
+  yield age ≡ 45
+  yield occupation ≡ "owner of the hardware store on Main Street"
+  yield morning
+  yield afternoon
+  yield evening
+  yield thoughts
+  ∴ You are «name», age «age», «occupation» in Millhaven.
+    Town: «description». Today is «day».
+    Live your day. Morning, afternoon, evening. Share your private thoughts.
+    Be specific about places and people. Concise but vivid.
+  ⊨ morning is a string
+  ⊨ thoughts is a string
+
+⊢ citizen-iris
+  given city→description
+  given city→day
+  yield name ≡ "Iris Johansson"
+  yield age ≡ 28
+  yield occupation ≡ "marine biologist studying the harbor ecosystem"
+  yield morning
+  yield afternoon
+  yield evening
+  yield thoughts
+  ∴ You are «name», age «age», a «occupation» in Millhaven.
+    Town: «description». Today is «day».
+    Live your day. Morning, afternoon, evening. Share your private thoughts.
+    Be specific about places and people. Concise but vivid.
+  ⊨ morning is a string
+  ⊨ thoughts is a string
+
+⊢ citizen-margaret
+  given city→description
+  given city→day
+  yield name ≡ "Margaret Oates"
+  yield age ≡ 79
+  yield occupation ≡ "retired schoolteacher, volunteers at the library"
+  yield morning
+  yield afternoon
+  yield evening
+  yield thoughts
+  ∴ You are «name», age «age», a «occupation» in Millhaven.
+    Town: «description». Today is «day».
+    Live your day. Morning, afternoon, evening. Share your private thoughts.
+    Be specific about places and people. Concise but vivid.
+  ⊨ morning is a string
+  ⊨ thoughts is a string
+
+-- Analyst A: Marxist political economy lens
+⊢ analyst-marxist
+  given citizen-sam→name
+  given citizen-sam→morning
+  given citizen-sam→afternoon
+  given citizen-sam→evening
+  given citizen-sam→thoughts
+  given citizen-iris→name
+  given citizen-iris→morning
+  given citizen-iris→afternoon
+  given citizen-iris→evening
+  given citizen-iris→thoughts
+  given citizen-margaret→name
+  given citizen-margaret→morning
+  given citizen-margaret→afternoon
+  given citizen-margaret→evening
+  given citizen-margaret→thoughts
+  yield class-analysis
+  yield labor-relations
+  yield power-structures
+  yield prediction
+  ∴ You are Dr. Friedrich Bauer, a political economist who analyzes communities
+    through the lens of class relations, labor, and capital.
+
+    Citizen data:
+    === «citizen-sam→name» ===
+    Morning: «citizen-sam→morning»
+    Afternoon: «citizen-sam→afternoon»
+    Evening: «citizen-sam→evening»
+    Thoughts: «citizen-sam→thoughts»
+
+    === «citizen-iris→name» ===
+    Morning: «citizen-iris→morning»
+    Afternoon: «citizen-iris→afternoon»
+    Evening: «citizen-iris→evening»
+    Thoughts: «citizen-iris→thoughts»
+
+    === «citizen-margaret→name» ===
+    Morning: «citizen-margaret→morning»
+    Afternoon: «citizen-margaret→afternoon»
+    Evening: «citizen-margaret→evening»
+    Thoughts: «citizen-margaret→thoughts»
+
+    Analyze through your theoretical framework. Produce:
+    1. class-analysis: Class positions and economic relations between citizens
+    2. labor-relations: How labor is organized and valued in this community
+    3. power-structures: Who holds power and how it operates
+    4. prediction: What will happen to this community economically in 5 years
+  ⊨ class-analysis is a string
+  ⊨ prediction is a string
+
+-- Analyst B: Phenomenological psychology lens
+⊢ analyst-phenomenologist
+  given citizen-sam→name
+  given citizen-sam→morning
+  given citizen-sam→afternoon
+  given citizen-sam→evening
+  given citizen-sam→thoughts
+  given citizen-iris→name
+  given citizen-iris→morning
+  given citizen-iris→afternoon
+  given citizen-iris→evening
+  given citizen-iris→thoughts
+  given citizen-margaret→name
+  given citizen-margaret→morning
+  given citizen-margaret→afternoon
+  given citizen-margaret→evening
+  given citizen-margaret→thoughts
+  yield lived-experience
+  yield intersubjectivity
+  yield temporal-horizons
+  yield prediction
+  ∴ You are Dr. Maren Kessler, a phenomenological psychologist who studies
+    communities through the lens of lived experience, intentionality, and meaning.
+
+    Citizen data:
+    === «citizen-sam→name» ===
+    Morning: «citizen-sam→morning»
+    Afternoon: «citizen-sam→afternoon»
+    Evening: «citizen-sam→evening»
+    Thoughts: «citizen-sam→thoughts»
+
+    === «citizen-iris→name» ===
+    Morning: «citizen-iris→morning»
+    Afternoon: «citizen-iris→afternoon»
+    Evening: «citizen-iris→evening»
+    Thoughts: «citizen-iris→thoughts»
+
+    === «citizen-margaret→name» ===
+    Morning: «citizen-margaret→morning»
+    Afternoon: «citizen-margaret→afternoon»
+    Evening: «citizen-margaret→evening»
+    Thoughts: «citizen-margaret→thoughts»
+
+    Analyze through your theoretical framework. Produce:
+    1. lived-experience: The qualitative texture of daily life for each citizen
+    2. intersubjectivity: How citizens construct shared meaning and mutual recognition
+    3. temporal-horizons: Each citizen's relationship to past, present, and future
+    4. prediction: What will happen to these citizens' sense of meaning in 5 years
+  ⊨ lived-experience is a string
+  ⊨ prediction is a string
+
+-- Synthesizer: Reconciles both analyses
+⊢ synthesizer
+  given analyst-marxist→class-analysis
+  given analyst-marxist→labor-relations
+  given analyst-marxist→power-structures
+  given analyst-marxist→prediction as marxist-prediction
+  given analyst-phenomenologist→lived-experience
+  given analyst-phenomenologist→intersubjectivity
+  given analyst-phenomenologist→temporal-horizons
+  given analyst-phenomenologist→prediction as phenom-prediction
+  yield agreements
+  yield productive-tensions
+  yield blind-spots
+  yield integrated-forecast
+  ∴ You are Dr. Yuki Tanaka, an interdisciplinary social scientist tasked with
+    synthesizing two competing analyses of the same community.
+
+    === Marxist Analysis (Dr. Friedrich Bauer) ===
+    Class analysis: «analyst-marxist→class-analysis»
+    Labor relations: «analyst-marxist→labor-relations»
+    Power structures: «analyst-marxist→power-structures»
+    Prediction: «marxist-prediction»
+
+    === Phenomenological Analysis (Dr. Maren Kessler) ===
+    Lived experience: «analyst-phenomenologist→lived-experience»
+    Intersubjectivity: «analyst-phenomenologist→intersubjectivity»
+    Temporal horizons: «analyst-phenomenologist→temporal-horizons»
+    Prediction: «phenom-prediction»
+
+    Synthesize. Produce:
+    1. agreements: Where both frameworks reach the same conclusions
+    2. productive-tensions: Where they disagree in illuminating ways
+    3. blind-spots: What each framework misses that the other catches
+    4. integrated-forecast: Your own prediction combining both perspectives
+  ⊨ agreements is a string
+  ⊨ productive-tensions is a string
+  ⊨ integrated-forecast is a string

@@ -66,7 +66,19 @@ func (e *Engine) evalOne(ctx context.Context, programID string, step int) (EvalR
 		return EvalResult{Error: err}, true
 	}
 
-	// 2. Handle guard-skipped cells before checking emptiness
+	// 2. Propagate bottom: cells with required bottom deps become bottom
+	bottomPropagated, err := e.propagateBottom(ctx, programID)
+	if err != nil {
+		return EvalResult{Error: err}, true
+	}
+	if bottomPropagated > 0 {
+		ready, err = e.DB.FindReadyCells(ctx, programID)
+		if err != nil {
+			return EvalResult{Error: err}, true
+		}
+	}
+
+	// 3. Handle guard-skipped cells before checking emptiness
 	if len(ready) == 0 {
 		skipped, err := e.skipGuardFailed(ctx, programID)
 		if err != nil {
@@ -117,6 +129,13 @@ func (e *Engine) evalOne(ctx context.Context, programID string, step int) (EvalR
 	yields, err := e.DB.GetYields(ctx, target.ID)
 	if err != nil {
 		return EvalResult{Error: err}, true
+	}
+
+	// Include yield defaults (data yields like `yield name ≡ "value"`) in bindings
+	for _, y := range yields {
+		if y.DefaultValue != "" {
+			bindings[y.FieldName] = parseStoredValue(y.DefaultValue)
+		}
 	}
 
 	start := time.Now()
@@ -190,6 +209,52 @@ func (e *Engine) evalOne(ctx context.Context, programID string, step int) (EvalR
 	}
 
 	return EvalResult{Steps: step + 1}, false
+}
+
+// propagateBottom marks declared cells as bottom when any required (non-optional)
+// dependency is bottom. Returns the number of cells bottomed.
+func (e *Engine) propagateBottom(ctx context.Context, programID string) (int, error) {
+	cells, err := e.DB.GetAllCells(ctx, programID)
+	if err != nil {
+		return 0, err
+	}
+
+	bottomed := 0
+	for _, cell := range cells {
+		if cell.State != "declared" {
+			continue
+		}
+
+		givens, err := e.DB.GetGivens(ctx, cell.ID)
+		if err != nil {
+			return bottomed, err
+		}
+
+		hasBottomDep := false
+		for _, g := range givens {
+			if g.SourceCell == "" || g.IsOptional {
+				continue
+			}
+			srcCell, err := e.DB.GetCellByName(ctx, programID, g.SourceCell)
+			if err != nil {
+				continue
+			}
+			if srcCell.State == "bottom" {
+				hasBottomDep = true
+				break
+			}
+		}
+
+		if hasBottomDep {
+			e.log("bottom %s (required dependency is ⊥)", cell.Name)
+			if err := e.bottomCell(ctx, &cell, programID, -1); err != nil {
+				return bottomed, err
+			}
+			bottomed++
+		}
+	}
+
+	return bottomed, nil
 }
 
 // skipGuardFailed checks all declared cells with all deps satisfied
@@ -345,6 +410,9 @@ type BeadWork struct {
 func (e *Engine) Sling(ctx context.Context, programID string) ([]BeadWork, EvalResult) {
 	// First evaluate any ready hard cells
 	for {
+		// Propagate bottom from upstream
+		e.propagateBottom(ctx, programID)
+
 		ready, err := e.DB.FindReadyCells(ctx, programID)
 		if err != nil {
 			return nil, EvalResult{Error: err}
@@ -393,9 +461,21 @@ func (e *Engine) Sling(ctx context.Context, programID string) ([]BeadWork, EvalR
 
 		e.DB.SetCellState(ctx, target.ID, "computing")
 		yields, _ := e.DB.GetYields(ctx, target.ID)
-		result := Dispatch(ctx, &target, yields, bindings, ModeDryRun) // hard cells don't need mode
+		// Include yield defaults in bindings for hard cell eval
+		for _, y := range yields {
+			if y.DefaultValue != "" {
+				bindings[y.FieldName] = parseStoredValue(y.DefaultValue)
+			}
+		}
+		result := Dispatch(ctx, &target, yields, bindings, ModeLive) // hard cells eval inline regardless
 		if result.Err != nil {
-			return nil, EvalResult{Error: result.Err}
+			e.log("sling: dispatch error for %s: %v", target.Name, result.Err)
+			decision := DecideRecovery(&target, nil)
+			if err := ApplyRecovery(ctx, e.DB, &target, decision); err != nil {
+				return nil, EvalResult{Error: err}
+			}
+			e.DB.DoltCommit(ctx, fmt.Sprintf("sling: dispatch error %s", target.Name))
+			continue
 		}
 
 		// Freeze

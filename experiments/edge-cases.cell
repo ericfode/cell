@@ -1,0 +1,153 @@
+-- edge-cases.cell: Experiment 5 — Edge cases and stress tests
+-- Tests: empty lists, zero division guards, optional deps, bottom propagation,
+--        deep chains, wide fanout, string edge cases
+-- Run: rt load experiments/edge-cases.cell && rt eval
+
+-- Empty list handling
+⊢ empty-list
+  yield items ≡ []
+  yield count
+  yield total
+  ⊢= count ← len(items)
+      total ← sum(items)
+  ⊨ count = 0
+  ⊨ total = 0
+
+-- Division by zero guarded
+⊢ divisor
+  yield value ≡ 0
+
+⊢ safe-divide
+  given divisor→value where value != 0
+  yield result
+  ⊢= 100 / value
+
+⊢ guarded-divide
+  given divisor→value
+  yield result
+  ⊢= if value = 0 then "undefined" else 100 / value
+  ⊨ result = "undefined"
+
+-- Bottom propagation: safe-divide should bottom (guard fails),
+-- and anything depending on it should also bottom
+⊢ depends-on-bottom
+  given safe-divide→result
+  yield doubled
+  ⊢= result * 2
+
+-- Optional dependency — should proceed even if upstream is bottom
+⊢ optional-consumer
+  given? safe-divide→result
+  given guarded-divide→result as safe-result
+  yield status
+  ⊢= if result = null then "used fallback: " ++ safe-result else "got result: " ++ str(result)
+
+-- Deep chain (6 steps)
+⊢ chain-1
+  yield value ≡ 1
+
+⊢ chain-2
+  given chain-1→value
+  yield value
+  ⊢= value + 1
+  ⊨ value = 2
+
+⊢ chain-3
+  given chain-2→value
+  yield value
+  ⊢= value + 1
+  ⊨ value = 3
+
+⊢ chain-4
+  given chain-3→value
+  yield value
+  ⊢= value + 1
+  ⊨ value = 4
+
+⊢ chain-5
+  given chain-4→value
+  yield value
+  ⊢= value + 1
+  ⊨ value = 5
+
+⊢ chain-6
+  given chain-5→value
+  yield value
+  ⊢= value + 1
+  ⊨ value = 6
+
+-- Wide fanout: one source, many consumers
+⊢ source
+  yield data ≡ [10, 20, 30, 40, 50]
+
+⊢ fan-sum
+  given source→data
+  yield result
+  ⊢= sum(data)
+  ⊨ result = 150
+
+⊢ fan-min
+  given source→data
+  yield result
+  ⊢= min(data)
+  ⊨ result = 10
+
+⊢ fan-max
+  given source→data
+  yield result
+  ⊢= max(data)
+  ⊨ result = 50
+
+⊢ fan-len
+  given source→data
+  yield result
+  ⊢= len(data)
+  ⊨ result = 5
+
+⊢ fan-sorted
+  given source→data
+  yield result
+  ⊢= all(i, data[i] <= data[i+1])
+  ⊨ result = true
+
+-- String edge cases
+⊢ string-tests
+  yield empty ≡ ""
+  yield spaces ≡ "  hello  "
+  yield trimmed
+  yield empty-len
+  yield empty-split
+  ⊢= trimmed ← trim(spaces)
+      empty-len ← len(empty)
+      empty-split ← split(empty, ",")
+  ⊨ trimmed = "hello"
+  ⊨ empty-len = 0
+
+-- Boolean algebra
+⊢ bool-tests
+  yield a ≡ true
+  yield b ≡ false
+  yield and-result
+  yield or-result
+  yield not-result
+  yield complex
+  ⊢= and-result ← a and b
+      or-result ← a or b
+      not-result ← not a
+      complex ← (a or b) and not (a and b)
+  ⊨ and-result = false
+  ⊨ or-result = true
+  ⊨ not-result = false
+  ⊨ complex = true
+
+-- Nested list operations
+⊢ nested-lists
+  yield matrix ≡ [[1, 2], [3, 4], [5, 6]]
+  yield flat
+  yield first-row
+  yield element
+  ⊢= flat ← flatten(matrix)
+      first-row ← matrix[0]
+      element ← matrix[1][0]
+  ⊨ flat = [1, 2, 3, 4, 5, 6]
+  ⊨ element = 3

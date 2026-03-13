@@ -50,12 +50,12 @@ func parseTurnstileCells(text string) []RetortCell {
 
 			// ⊢= inside a cell body (indented, not a new cell)
 			if indent > 0 && current != nil && ts == "⊢=" {
-				exprPart := stripped[len("⊢= "):]
-				if current.BodyType == BodyHard && current.Body != "" {
-					current.Body = current.Body + "\n" + exprPart
-				} else {
-					current.Body = exprPart
+				if inBody && len(bodyLines) > 0 {
+					current.Body = strings.TrimSpace(strings.Join(bodyLines, "\n"))
 				}
+				exprPart := stripped[len("⊢= "):]
+				bodyLines = []string{exprPart}
+				inBody = true
 				current.BodyType = BodyHard
 				continue
 			}
@@ -158,16 +158,13 @@ func parseTurnstileCells(text string) []RetortCell {
 				bodyLines = nil
 			}
 			expr := strings.TrimSpace(stripped[len("⊢="):])
-			if current.BodyType == BodyHard && current.Body != "" {
-				current.Body = current.Body + "\n" + expr
-			} else {
-				current.Body = expr
-			}
+			bodyLines = []string{expr}
+			inBody = true
 			current.BodyType = BodyHard
 			continue
 		}
 
-		// Continuation of ∴ body
+		// Continuation of ∴ or multi-line ⊢= body
 		if inBody {
 			bodyLines = append(bodyLines, stripped)
 			continue

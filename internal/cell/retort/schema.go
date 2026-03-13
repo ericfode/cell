@@ -159,6 +159,7 @@ WHERE c.state = 'declared'
   AND c.id NOT IN (
     SELECT g.cell_id FROM givens g
     JOIN cells src ON src.name = g.source_cell
+      AND src.program_id = (SELECT program_id FROM cells WHERE id = g.cell_id)
     JOIN yields y ON y.cell_id = src.id AND y.field_name = g.source_field
     WHERE g.is_optional = 0
       AND g.source_cell IS NOT NULL

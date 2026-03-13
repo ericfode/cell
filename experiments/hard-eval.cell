@@ -1,0 +1,90 @@
+-- hard-eval.cell: Experiment 0 — Verify the hard cell expression evaluator
+-- Tests: arithmetic, lists, guards, conditionals, builtins, oracles
+-- Expected: all cells freeze with correct values, no oracle failures
+-- Run: rt load experiments/hard-eval.cell && rt eval
+
+-- Basic arithmetic
+⊢ arithmetic
+  yield sum
+  yield product
+  yield modulo
+  ⊢= sum ← 3 + 5
+      product ← 7 * 6
+      modulo ← 17 % 5
+  ⊨ sum = 8
+  ⊨ product = 42
+  ⊨ modulo = 2
+
+-- List operations
+⊢ lists
+  yield original ≡ [5, 3, 1, 4, 2]
+  yield sorted
+  yield reversed
+  yield total
+  yield length
+  ⊢= sorted ← sorted(original)
+      reversed ← reversed(original)
+      total ← sum(original)
+      length ← len(original)
+  ⊨ sorted = [1, 2, 3, 4, 5]
+  ⊨ total = 15
+  ⊨ length = 5
+
+-- String operations
+⊢ strings
+  yield greeting ≡ "hello world"
+  yield upper
+  yield words
+  yield joined
+  ⊢= upper ← upper(greeting)
+      words ← split(greeting, " ")
+      joined ← join(words, "-")
+  ⊨ upper = "HELLO WORLD"
+  ⊨ joined = "hello-world"
+
+-- Conditional logic
+⊢ conditionals
+  given arithmetic→sum
+  yield classified
+  yield sign
+  ⊢= classified ← if sum > 5 then "big" else "small"
+      sign ← if sum > 0 then "positive" else if sum = 0 then "zero" else "negative"
+  ⊨ classified = "big"
+  ⊨ sign = "positive"
+
+-- Guard branches — only one should fire
+⊢ positive-path
+  given arithmetic→sum where sum > 0
+  yield label
+  ⊢= "sum is positive"
+  ⊨ label = "sum is positive"
+
+⊢ negative-path
+  given arithmetic→sum where sum < 0
+  yield label
+  ⊢= "sum is negative"
+
+-- Iterator predicates
+⊢ verification
+  given lists→sorted
+  yield is-sorted
+  yield has-positives
+  yield count-gt-2
+  ⊢= is-sorted ← all(i, sorted[i] <= sorted[i+1])
+      has-positives ← any(i, sorted[i] > 0)
+      count-gt-2 ← count(sorted, x, x > 2)
+  ⊨ is-sorted = true
+  ⊨ has-positives = true
+  ⊨ count-gt-2 = 3
+
+-- Downstream aggregation
+⊢ summary
+  given arithmetic→sum
+  given arithmetic→product
+  given lists→total
+  given strings→upper
+  given conditionals→classified
+  given verification→is-sorted
+  yield all-passed
+  ⊢= all([sum = 8, product = 42, total = 15, upper = "HELLO WORLD", classified = "big", is-sorted = true])
+  ⊨ all-passed = true
