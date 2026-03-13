@@ -139,31 +139,28 @@ var DDL = []string{
 // 1. It's declared
 // 2. All required source-cell givens have their upstream yields frozen
 // 3. No required upstream yields are bottom
+// NOTE: Uses NOT IN instead of correlated NOT EXISTS due to Dolt view bug.
 const ReadyCellsView = `
 CREATE OR REPLACE VIEW ready_cells AS
 SELECT c.* FROM cells c
 WHERE c.state = 'declared'
-  -- All required source-cell givens must have upstream yields frozen
-  AND NOT EXISTS (
-    SELECT 1 FROM givens g
-    WHERE g.cell_id = c.id
-      AND g.is_optional = 0
+  AND c.id NOT IN (
+    SELECT g.cell_id FROM givens g
+    WHERE g.is_optional = 0
       AND g.source_cell IS NOT NULL
       AND NOT EXISTS (
         SELECT 1 FROM cells src
         JOIN yields y ON y.cell_id = src.id AND y.field_name = g.source_field
-        WHERE src.program_id = c.program_id
+        WHERE src.program_id = (SELECT program_id FROM cells WHERE id = g.cell_id)
           AND src.name = g.source_cell
           AND y.is_frozen = 1
       )
   )
-  -- No required upstream yields are bottom
-  AND NOT EXISTS (
-    SELECT 1 FROM givens g
-    JOIN cells src ON src.program_id = c.program_id AND src.name = g.source_cell
+  AND c.id NOT IN (
+    SELECT g.cell_id FROM givens g
+    JOIN cells src ON src.name = g.source_cell
     JOIN yields y ON y.cell_id = src.id AND y.field_name = g.source_field
-    WHERE g.cell_id = c.id
-      AND g.is_optional = 0
+    WHERE g.is_optional = 0
       AND g.source_cell IS NOT NULL
       AND y.is_bottom = 1
   )
