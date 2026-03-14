@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/ericfode/cell/internal/cell/retort"
@@ -39,6 +40,8 @@ func main() {
 		cmdYields(ctx, args)
 	case "trace":
 		cmdTrace(ctx, args)
+	case "sling":
+		cmdSling(ctx, args)
 	case "source":
 		cmdSource(ctx, args)
 	case "sql":
@@ -65,6 +68,7 @@ Commands:
   ready [--program <name>]      Show ready cells
   yields [--program <name>]     Show frozen yields
   trace [--program <name>]      Show execution trace
+  sling --formula <file.cell>   Generate Gas Town formula TOML from Cell program
   source <cell-name>            Decompile cell to turnstile syntax
   sql <file.cell>               Emit SQL INSERTs to stdout
 `)
@@ -379,6 +383,44 @@ func cmdSource(ctx context.Context, args []string) {
 		}
 		fmt.Print(source)
 	}
+}
+
+func cmdSling(_ context.Context, args []string) {
+	fs := flag.NewFlagSet("sling", flag.ExitOnError)
+	formula := fs.Bool("formula", false, "Output Gas Town formula TOML")
+	program := fs.String("program", "", "Program name (defaults to filename)")
+	fs.Parse(args)
+
+	if fs.NArg() < 1 {
+		fmt.Fprintf(os.Stderr, "usage: rt sling --formula <file.cell>\n")
+		os.Exit(1)
+	}
+	path := fs.Arg(0)
+
+	if !*formula {
+		fmt.Fprintf(os.Stderr, "error: --formula flag is required (JSONL output not yet implemented)\n")
+		os.Exit(1)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+
+	prog, err := retort.Parse(string(data))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+
+	name := *program
+	if name == "" {
+		name = strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
+	}
+	prog.Name = name
+
+	fmt.Print(retort.SlingFormula(prog, name))
 }
 
 func cmdSQL(args []string) {
