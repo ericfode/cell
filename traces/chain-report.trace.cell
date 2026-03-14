@@ -1,0 +1,47 @@
+-- TRACE: 4 frozen, 0 ⊥, 4 total
+
+-- chain-report.cell: results reporting stage for chain test
+-- Tests: chain consumption, status aggregation, final report
+-- Chain: step 3 of 3 (gather → transform → report)
+
+⊢ receive-gathered  -- ✓ frozen
+  given average ≡ 32
+  given label ≡ "gathered"
+  yield data_ready ≡ true
+
+  ⊢= data_ready ← label = "gathered"
+
+  ⊨ data_ready = true  -- ✓
+
+⊢ check-steps  -- ✓ frozen
+  given receive-gathered→data_ready
+  given step_count ≡ 3
+  given steps_completed ≡ 3
+  yield all_done ≡ true
+
+  ⊢= all_done ← steps_completed = step_count
+
+  ⊨ all_done = true  -- ✓
+
+⊢ compute-result  -- ✓ frozen
+  given receive-gathered→data_ready
+  given check-steps→all_done
+  given average ≡ 32
+  yield status ≡ "pass"
+  yield verified_value ≡ 32
+
+  ⊢= status ← if(receive-gathered→data_ready, if(check-steps→all_done, "pass", "incomplete"), "no_data")
+  ⊢= verified_value ← average
+
+  ⊨ status = "pass"  -- ✓
+  ⊨ verified_value = 32  -- ✓
+
+⊢ report  -- ✓ frozen
+  given compute-result→status
+  given compute-result→verified_value
+  given check-steps→all_done
+  yield message ≡ "Chain test passed: 3/3 steps complete, verified average=32"
+
+  ⊢= message ← "Chain test " + compute-result→status + ": " + str(step_count) + "/" + str(step_count) + " steps complete, verified average=" + str(compute-result→verified_value)
+
+  ⊨ message = "Chain test passed: 3/3 steps complete, verified average=32"  -- ✓
