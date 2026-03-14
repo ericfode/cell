@@ -11,7 +11,6 @@
 *.db
 
 # Beads runtime files
-.beads/metadata.json
 .beads/dolt-server.port
 
 # Gas Town (added by gt)
