@@ -38,6 +38,8 @@ func main() {
 	case "dag":
 		requireFile()
 		runDAG(os.Args[2])
+	case "smoke":
+		runSmokeTest()
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command: %s\n", cmd)
 		printUsage()
@@ -55,6 +57,7 @@ Commands:
   ast        Dump the parsed AST as JSON
   run        Execute a .cell file (use --mode=mock|llm)
   dag        Show the dependency graph for a molecule
+  smoke      Run built-in hello-world smoke test
 
 Run options:
   --mode=mock|llm    Execution mode (default: mock)
@@ -294,6 +297,13 @@ func printProgramSummary(prog *parser.Program) {
 	}
 	if len(parts) > 0 {
 		fmt.Fprintln(os.Stderr, strings.Join(parts, "\n"))
+	}
+}
+
+func runSmokeTest() {
+	fmt.Fprintln(os.Stderr, "=== Cell Smoke Test ===")
+	if err := subzero.RunSmoke(os.Stderr); err != nil {
+		os.Exit(1)
 	}
 }
 
