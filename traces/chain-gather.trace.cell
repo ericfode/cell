@@ -1,0 +1,45 @@
+-- TRACE: 4 frozen, 0 ⊥, 4 total
+
+-- chain-gather.cell: data gathering stage for chain test
+-- Tests: multi-source collection, record assembly, chain output
+-- Chain: step 1 of 3 (gather → transform → verify)
+
+⊢ sensor-a  -- ✓ frozen
+  given raw ≡ 25
+  yield reading ≡ 25
+
+  ⊢= reading ← raw
+
+  ⊨ reading = 25  -- ✓
+
+⊢ sensor-b  -- ✓ frozen
+  given raw ≡ 40
+  yield reading ≡ 40
+
+  ⊢= reading ← raw
+
+  ⊨ reading = 40  -- ✓
+
+⊢ collect  -- ✓ frozen
+  given sensor-a→reading
+  given sensor-b→reading
+  yield total ≡ 65
+  yield count ≡ 2
+
+  ⊢= total ← sensor-a→reading + sensor-b→reading
+  ⊢= count ← 2
+
+  ⊨ total = 65  -- ✓
+  ⊨ count = 2  -- ✓
+
+⊢ summarize  -- ✓ frozen
+  given collect→total
+  given collect→count
+  yield average ≡ 32
+  yield label ≡ "gathered"
+
+  ⊢= average ← collect→total / collect→count
+  ⊢= label ← "gathered"
+
+  ⊨ average = 32  -- ✓
+  ⊨ label = "gathered"  -- ✓
