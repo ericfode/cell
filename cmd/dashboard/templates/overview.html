@@ -1,0 +1,36 @@
+{{define "overview.html"}}
+<div class="stats">
+  <div class="stat">
+    <div class="label">Programs</div>
+    <div class="value accent">{{.Programs}}</div>
+  </div>
+  <div class="stat">
+    <div class="label">Total Cells</div>
+    <div class="value">{{.TotalCells}}</div>
+  </div>
+  <div class="stat">
+    <div class="label">Frozen</div>
+    <div class="value green">{{.FrozenCells}}</div>
+  </div>
+  <div class="stat">
+    <div class="label">Computing</div>
+    <div class="value yellow">{{.ComputingCells}}</div>
+  </div>
+  <div class="stat">
+    <div class="label">Ready</div>
+    <div class="value cyan">{{.ReadyCells}}</div>
+  </div>
+  <div class="stat">
+    <div class="label">Declared</div>
+    <div class="value accent">{{.DeclaredCells}}</div>
+  </div>
+  <div class="stat">
+    <div class="label">Bottom</div>
+    <div class="value red">{{.BottomCells}}</div>
+  </div>
+  <div class="stat">
+    <div class="label">Trace Steps</div>
+    <div class="value purple">{{.TraceSteps}}</div>
+  </div>
+</div>
+{{end}}

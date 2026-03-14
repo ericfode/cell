@@ -1,0 +1,21 @@
+{{define "history.html"}}
+<div class="card">
+  <div class="card-header">Dolt Commit History (last 20)</div>
+  {{if .}}
+  <table>
+    <tr>
+      <th>Message</th>
+      <th>Date</th>
+    </tr>
+    {{range .}}
+    <tr>
+      <td>{{.Message}}</td>
+      <td style="color:var(--text-dim)">{{.Date}}</td>
+    </tr>
+    {{end}}
+  </table>
+  {{else}}
+  <div class="empty-state">No commit history</div>
+  {{end}}
+</div>
+{{end}}

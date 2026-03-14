@@ -1,0 +1,23 @@
+{{define "ready.html"}}
+<div class="card">
+  <div class="card-header">Ready Queue</div>
+  {{if .}}
+  <table>
+    <tr>
+      <th>Name</th>
+      <th>Body Type</th>
+      <th>State</th>
+    </tr>
+    {{range .}}
+    <tr>
+      <td><strong>{{.Name}}</strong></td>
+      <td style="color:var(--text-dim)">{{.BodyType}}</td>
+      <td><span class="badge state-declared">{{.State}}</span></td>
+    </tr>
+    {{end}}
+  </table>
+  {{else}}
+  <div class="empty-state">No cells ready for evaluation</div>
+  {{end}}
+</div>
+{{end}}

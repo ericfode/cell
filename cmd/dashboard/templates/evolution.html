@@ -1,0 +1,25 @@
+{{define "evolution.html"}}
+<div class="card">
+  <div class="card-header">Evolution Loops</div>
+  {{if .}}
+  <table>
+    <tr>
+      <th>Cell</th>
+      <th>Status</th>
+      <th>Progress</th>
+      <th>Until</th>
+    </tr>
+    {{range .}}
+    <tr>
+      <td><strong>{{.CellName}}</strong></td>
+      <td><span class="badge {{if eq .Status "converged"}}state-frozen{{else if eq .Status "running"}}state-computing{{else if eq .Status "exhausted"}}state-bottom{{else}}state-declared{{end}}">{{.Status}}</span></td>
+      <td>{{.CurrentIteration}}/{{.MaxIterations}}</td>
+      <td class="detail-text" style="color:var(--text-dim)" title="{{.UntilExpr}}">{{truncate 60 .UntilExpr}}</td>
+    </tr>
+    {{end}}
+  </table>
+  {{else}}
+  <div class="empty-state">No evolution loops</div>
+  {{end}}
+</div>
+{{end}}

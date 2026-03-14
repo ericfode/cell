@@ -1,0 +1,33 @@
+{{define "cells.html"}}
+<div class="card">
+  <div class="card-header">Cell Execution State</div>
+  {{if .}}
+  <table>
+    <tr>
+      <th>Name</th>
+      <th>Type</th>
+      <th>State</th>
+      <th>Retries</th>
+      <th>Yields (frozen/total)</th>
+    </tr>
+    {{range .}}
+    <tr>
+      <td><strong>{{.Name}}</strong></td>
+      <td style="color:var(--text-dim)">{{.BodyType}}</td>
+      <td><span class="badge {{stateClass .State}}">{{.State}}</span></td>
+      <td>
+        {{if gt .RetryCount 0}}
+          <span style="color:var(--yellow)">{{.RetryCount}}/{{.MaxRetries}}</span>
+        {{else}}
+          <span style="color:var(--text-dim)">0/{{.MaxRetries}}</span>
+        {{end}}
+      </td>
+      <td>{{.FrozenCount}}/{{.YieldCount}}</td>
+    </tr>
+    {{end}}
+  </table>
+  {{else}}
+  <div class="empty-state">No cells loaded</div>
+  {{end}}
+</div>
+{{end}}

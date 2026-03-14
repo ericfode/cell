@@ -1,0 +1,25 @@
+{{define "programs.html"}}
+<div class="card">
+  <div class="card-header">Programs</div>
+  {{if .}}
+  <table>
+    <tr>
+      <th>Name</th>
+      <th>Source</th>
+      <th>Status</th>
+      <th>Created</th>
+    </tr>
+    {{range .}}
+    <tr>
+      <td><strong>{{.Name}}</strong></td>
+      <td class="detail-text">{{.SourceFile}}</td>
+      <td><span class="badge {{statusClass .Status}}">{{.Status}}</span></td>
+      <td style="color:var(--text-dim)">{{.CreatedAt}}</td>
+    </tr>
+    {{end}}
+  </table>
+  {{else}}
+  <div class="empty-state">No programs loaded</div>
+  {{end}}
+</div>
+{{end}}

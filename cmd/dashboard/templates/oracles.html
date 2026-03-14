@@ -1,0 +1,33 @@
+{{define "oracles.html"}}
+<div class="card">
+  <div class="card-header">Oracles</div>
+  {{if .}}
+  <table>
+    <tr>
+      <th>Cell</th>
+      <th>Type</th>
+      <th>Assertion</th>
+      <th>Cell State</th>
+    </tr>
+    {{range .}}
+    <tr>
+      <td><strong>{{.CellName}}</strong></td>
+      <td style="color:var(--text-dim)">{{.OracleType}}</td>
+      <td class="detail-text" title="{{.Assertion}}">{{truncate 100 .Assertion}}</td>
+      <td>
+        {{if eq .CellState "frozen"}}
+          <span class="oracle-pass">PASS</span>
+        {{else if eq .CellState "bottom"}}
+          <span class="oracle-fail">FAIL</span>
+        {{else}}
+          <span class="oracle-pending">{{.CellState}}</span>
+        {{end}}
+      </td>
+    </tr>
+    {{end}}
+  </table>
+  {{else}}
+  <div class="empty-state">No oracles defined</div>
+  {{end}}
+</div>
+{{end}}

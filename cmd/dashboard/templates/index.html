@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Retort Dashboard</title>
+<script src="https://unpkg.com/htmx.org@2.0.4"></script>
+<script src="https://unpkg.com/htmx-ext-sse@2.2.2/sse.js"></script>
+<style>
+:root {
+  --bg: #0d1117;
+  --surface: #161b22;
+  --border: #30363d;
+  --text: #e6edf3;
+  --text-dim: #8b949e;
+  --accent: #58a6ff;
+  --green: #3fb950;
+  --yellow: #d29922;
+  --red: #f85149;
+  --purple: #bc8cff;
+  --cyan: #39d2c0;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+}
+header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+header h1 { font-size: 16px; font-weight: 600; }
+header .subtitle { color: var(--text-dim); font-size: 12px; }
+.live-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--green);
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+main { padding: 16px 24px; }
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.stat {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+.stat .label { color: var(--text-dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+.stat .value { font-size: 28px; font-weight: 700; margin-top: 4px; }
+.stat .value.green { color: var(--green); }
+.stat .value.yellow { color: var(--yellow); }
+.stat .value.red { color: var(--red); }
+.stat .value.cyan { color: var(--cyan); }
+.stat .value.purple { color: var(--purple); }
+.stat .value.accent { color: var(--accent); }
+
+.tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+.tab {
+  padding: 8px 16px;
+  cursor: pointer;
+  color: var(--text-dim);
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+  background: none;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+  font-family: inherit;
+  font-size: 13px;
+}
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+.panel { display: none; }
+.panel.active { display: block; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+.card-header {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+th {
+  text-align: left;
+  padding: 8px 12px;
+  color: var(--text-dim);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border);
+  font-weight: 500;
+}
+td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+tr:last-child td { border-bottom: none; }
+tr:hover { background: rgba(88,166,255,0.04); }
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+}
+.state-frozen { background: rgba(63,185,80,0.15); color: var(--green); }
+.state-computing { background: rgba(210,153,34,0.15); color: var(--yellow); }
+.state-tentative { background: rgba(188,140,255,0.15); color: var(--purple); }
+.state-bottom { background: rgba(248,81,73,0.15); color: var(--red); }
+.state-skipped { background: rgba(139,148,158,0.15); color: var(--text-dim); }
+.state-declared { background: rgba(88,166,255,0.15); color: var(--accent); }
+
+.status-ready { background: rgba(63,185,80,0.15); color: var(--green); }
+.status-running { background: rgba(210,153,34,0.15); color: var(--yellow); }
+.status-quiescent { background: rgba(88,166,255,0.15); color: var(--accent); }
+.status-error { background: rgba(248,81,73,0.15); color: var(--red); }
+.status-loading { background: rgba(139,148,158,0.15); color: var(--text-dim); }
+
+.oracle-pass { color: var(--green); }
+.oracle-fail { color: var(--red); }
+.oracle-pending { color: var(--text-dim); }
+
+.dep-edge {
+  color: var(--text-dim);
+  font-size: 12px;
+}
+.dep-arrow { color: var(--accent); margin: 0 4px; }
+.resolved { color: var(--green); }
+.unresolved { color: var(--yellow); }
+
+.progress-bar {
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+  width: 100px;
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 8px;
+}
+.progress-fill {
+  height: 100%;
+  background: var(--green);
+  border-radius: 3px;
+  transition: width 0.3s;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 32px;
+  color: var(--text-dim);
+}
+
+.detail-text {
+  max-width: 400px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.refresh-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+}
+.refresh-btn:hover { color: var(--text); border-color: var(--accent); }
+</style>
+</head>
+<body hx-ext="sse" sse-connect="/events">
+<header>
+  <div class="live-dot"></div>
+  <h1>Retort Dashboard</h1>
+  <span class="subtitle">Cell Execution Engine</span>
+</header>
+
+<main>
+  <div id="overview"
+       hx-get="/api/overview"
+       hx-trigger="load, sse:message"
+       hx-swap="innerHTML">
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="showPanel('cells')">Cells</button>
+    <button class="tab" onclick="showPanel('deps')">Dependencies</button>
+    <button class="tab" onclick="showPanel('trace')">Trace</button>
+    <button class="tab" onclick="showPanel('oracles')">Oracles</button>
+    <button class="tab" onclick="showPanel('ready')">Ready Queue</button>
+    <button class="tab" onclick="showPanel('evolution')">Evolution</button>
+    <button class="tab" onclick="showPanel('programs')">Programs</button>
+    <button class="tab" onclick="showPanel('history')">Dolt History</button>
+  </div>
+
+  <div id="panel-cells" class="panel active"
+       hx-get="/api/cells" hx-trigger="load, sse:message" hx-swap="innerHTML">
+  </div>
+  <div id="panel-deps" class="panel"
+       hx-get="/api/deps" hx-trigger="revealed, sse:message" hx-swap="innerHTML">
+  </div>
+  <div id="panel-trace" class="panel"
+       hx-get="/api/trace" hx-trigger="revealed, sse:message" hx-swap="innerHTML">
+  </div>
+  <div id="panel-oracles" class="panel"
+       hx-get="/api/oracles" hx-trigger="revealed, sse:message" hx-swap="innerHTML">
+  </div>
+  <div id="panel-ready" class="panel"
+       hx-get="/api/ready" hx-trigger="revealed, sse:message" hx-swap="innerHTML">
+  </div>
+  <div id="panel-evolution" class="panel"
+       hx-get="/api/evolution" hx-trigger="revealed, sse:message" hx-swap="innerHTML">
+  </div>
+  <div id="panel-programs" class="panel"
+       hx-get="/api/programs" hx-trigger="revealed, sse:message" hx-swap="innerHTML">
+  </div>
+  <div id="panel-history" class="panel"
+       hx-get="/api/history" hx-trigger="revealed, sse:message" hx-swap="innerHTML">
+  </div>
+</main>
+
+<script>
+function showPanel(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  const panel = document.getElementById('panel-' + name);
+  panel.classList.add('active');
+  event.target.classList.add('active');
+  htmx.trigger(panel, 'revealed');
+}
+</script>
+</body>
+</html>

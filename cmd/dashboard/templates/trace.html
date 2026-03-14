@@ -1,0 +1,29 @@
+{{define "trace.html"}}
+<div class="card">
+  <div class="card-header">Execution Trace (last 50 steps)</div>
+  {{if .}}
+  <table>
+    <tr>
+      <th>Step</th>
+      <th>Cell</th>
+      <th>Action</th>
+      <th>Duration</th>
+      <th>Detail</th>
+      <th>Time</th>
+    </tr>
+    {{range .}}
+    <tr>
+      <td style="color:var(--text-dim)">{{.Step}}</td>
+      <td><strong>{{.CellName}}</strong></td>
+      <td><span class="badge state-computing">{{.Action}}</span></td>
+      <td>{{if gt .DurationMs 0}}{{.DurationMs}}ms{{else}}-{{end}}</td>
+      <td class="detail-text" title="{{.Detail}}">{{truncate 80 .Detail}}</td>
+      <td style="color:var(--text-dim)">{{.CreatedAt}}</td>
+    </tr>
+    {{end}}
+  </table>
+  {{else}}
+  <div class="empty-state">No trace entries</div>
+  {{end}}
+</div>
+{{end}}

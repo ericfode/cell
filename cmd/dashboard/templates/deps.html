@@ -1,0 +1,35 @@
+{{define "deps.html"}}
+<div class="card">
+  <div class="card-header">Dependency Graph (Givens &rarr; Yields)</div>
+  {{if .}}
+  <table>
+    <tr>
+      <th>Consumer</th>
+      <th>Param</th>
+      <th></th>
+      <th>Producer</th>
+      <th>Field</th>
+      <th>Resolved</th>
+    </tr>
+    {{range .}}
+    <tr>
+      <td><strong>{{.Consumer}}</strong></td>
+      <td style="color:var(--text-dim)">{{.ParamName}}</td>
+      <td class="dep-arrow">&larr;</td>
+      <td>{{if .Producer}}<strong>{{.Producer}}</strong>{{else}}<span style="color:var(--text-dim)">(literal)</span>{{end}}</td>
+      <td style="color:var(--text-dim)">{{.SourceField}}</td>
+      <td>
+        {{if .Resolved}}
+          <span class="resolved">yes</span>
+        {{else}}
+          <span class="unresolved">pending</span>
+        {{end}}
+      </td>
+    </tr>
+    {{end}}
+  </table>
+  {{else}}
+  <div class="empty-state">No dependencies</div>
+  {{end}}
+</div>
+{{end}}
