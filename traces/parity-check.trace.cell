@@ -1,0 +1,29 @@
+-- TRACE: 3 frozen, 0 ⊥, 3 total
+
+-- parity-check.cell: even/odd classification with chained verification
+-- Tests: modular arithmetic, boolean logic, dependent verification
+
+⊢ classify  -- ✓ frozen
+  given n ≡ 7
+  yield is_even ≡ false
+
+  ⊢= is_even ← n % 2 == 0
+
+  ⊨ is_even = false  -- ✓
+
+⊢ label  -- ✓ frozen
+  given classify→is_even
+  yield text ≡ "odd"
+
+  ⊢= text ← if classify→is_even then "even" else "odd"
+
+  ⊨ text = "odd"  -- ✓
+
+⊢ verify  -- ✓ frozen
+  given label→text
+  given classify→is_even
+  yield consistent ≡ true
+
+  ⊢= consistent ← (label→text == "odd") == (classify→is_even == false)
+
+  ⊨ consistent = true  -- ✓
