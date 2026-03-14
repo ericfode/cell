@@ -1,9 +1,23 @@
 package retort
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
+
+// dispatchDryRun is a test helper that dispatches a cell with dry-run
+// behavior for soft cells (returns placeholder values instead of calling the API).
+func dispatchDryRun(cell *CellRow, yields []YieldRow, bindings map[string]interface{}) DispatchResult {
+	if cell.BodyType == "soft" {
+		outputs := make(map[string]interface{})
+		for _, y := range yields {
+			outputs[y.FieldName] = fmt.Sprintf("<dry-run-%s-%s>", cell.Name, y.FieldName)
+		}
+		return DispatchResult{Outputs: outputs}
+	}
+	return Dispatch(nil, cell, yields, bindings)
+}
 
 // --- Expression evaluator tests ---
 
@@ -478,7 +492,7 @@ func TestDispatchHardAddDouble(t *testing.T) {
 	addYields := []YieldRow{{FieldName: "sum"}}
 	addBindings := map[string]interface{}{"a": 3.0, "b": 5.0}
 
-	result := Dispatch(nil, addCell, addYields, addBindings, ModeDryRun)
+	result := Dispatch(nil, addCell, addYields, addBindings)
 	if result.Err != nil {
 		t.Fatalf("dispatch add: %v", result.Err)
 	}
@@ -496,7 +510,7 @@ func TestDispatchHardAddDouble(t *testing.T) {
 	doubleYields := []YieldRow{{FieldName: "result"}}
 	doubleBindings := map[string]interface{}{"add→sum": 8.0}
 
-	result = Dispatch(nil, doubleCell, doubleYields, doubleBindings, ModeDryRun)
+	result = Dispatch(nil, doubleCell, doubleYields, doubleBindings)
 	if result.Err != nil {
 		t.Fatalf("dispatch double: %v", result.Err)
 	}
@@ -516,7 +530,7 @@ func TestDispatchHardAbsValue(t *testing.T) {
 	yields := []YieldRow{{FieldName: "sign"}}
 	bindings := map[string]interface{}{"n": -7.0}
 
-	result := Dispatch(nil, cell, yields, bindings, ModeDryRun)
+	result := Dispatch(nil, cell, yields, bindings)
 	if result.Err != nil {
 		t.Fatalf("dispatch check-sign: %v", result.Err)
 	}
@@ -533,7 +547,7 @@ func TestDispatchHardAbsValue(t *testing.T) {
 	negYields := []YieldRow{{FieldName: "result"}}
 	negBindings := map[string]interface{}{"n": -7.0}
 
-	result = Dispatch(nil, negCell, negYields, negBindings, ModeDryRun)
+	result = Dispatch(nil, negCell, negYields, negBindings)
 	if result.Err != nil {
 		t.Fatalf("dispatch negate: %v", result.Err)
 	}
@@ -552,7 +566,7 @@ func TestDispatchSoftDryRun(t *testing.T) {
 	yields := []YieldRow{{FieldName: "message"}}
 	bindings := map[string]interface{}{"name": "Alice"}
 
-	result := Dispatch(nil, cell, yields, bindings, ModeDryRun)
+	result := dispatchDryRun(cell, yields, bindings)
 	if result.Err != nil {
 		t.Fatalf("dispatch greet: %v", result.Err)
 	}
@@ -656,7 +670,7 @@ func TestFullPipelineAddDouble(t *testing.T) {
 	}
 	addCell := &CellRow{Name: add.Name, BodyType: string(add.BodyType), Body: add.Body}
 	addYields := []YieldRow{{FieldName: "sum"}}
-	addResult := Dispatch(nil, addCell, addYields, addBindings, ModeDryRun)
+	addResult := Dispatch(nil, addCell, addYields, addBindings)
 	if addResult.Err != nil {
 		t.Fatalf("dispatch add: %v", addResult.Err)
 	}
@@ -677,7 +691,7 @@ func TestFullPipelineAddDouble(t *testing.T) {
 	dblBindings := map[string]interface{}{"add→sum": sumVal}
 	dblCell := &CellRow{Name: dbl.Name, BodyType: string(dbl.BodyType), Body: dbl.Body}
 	dblYields := []YieldRow{{FieldName: "result"}}
-	dblResult := Dispatch(nil, dblCell, dblYields, dblBindings, ModeDryRun)
+	dblResult := Dispatch(nil, dblCell, dblYields, dblBindings)
 	if dblResult.Err != nil {
 		t.Fatalf("dispatch double: %v", dblResult.Err)
 	}
@@ -726,7 +740,7 @@ func TestFullPipelineAbsValue(t *testing.T) {
 	}
 	csCell := &CellRow{Name: cs.Name, BodyType: string(cs.BodyType), Body: cs.Body}
 	csYields := []YieldRow{{FieldName: "sign"}}
-	csResult := Dispatch(nil, csCell, csYields, csBindings, ModeDryRun)
+	csResult := Dispatch(nil, csCell, csYields, csBindings)
 	if csResult.Err != nil {
 		t.Fatalf("dispatch check-sign: %v", csResult.Err)
 	}
@@ -753,7 +767,7 @@ func TestFullPipelineAbsValue(t *testing.T) {
 	neg := prog.Cells[1]
 	negCell := &CellRow{Name: neg.Name, BodyType: string(neg.BodyType), Body: neg.Body}
 	negYields := []YieldRow{{FieldName: "result"}}
-	negResult := Dispatch(nil, negCell, negYields, negBindings, ModeDryRun)
+	negResult := Dispatch(nil, negCell, negYields, negBindings)
 	if negResult.Err != nil {
 		t.Fatalf("dispatch negate: %v", negResult.Err)
 	}

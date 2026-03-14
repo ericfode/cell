@@ -9,7 +9,6 @@ import (
 // Engine orchestrates Cell program evaluation.
 type Engine struct {
 	DB       *DB
-	Mode     DispatchMode
 	MaxSteps int
 	Verbose  bool
 	Log      func(string) // optional logger
@@ -120,7 +119,7 @@ func (e *Engine) evalOne(ctx context.Context, programID string, step int) (EvalR
 	}
 
 	start := time.Now()
-	result := Dispatch(ctx, &target, yields, bindings, e.Mode)
+	result := Dispatch(ctx, &target, yields, bindings)
 	duration := time.Since(start)
 
 	if result.Err != nil {

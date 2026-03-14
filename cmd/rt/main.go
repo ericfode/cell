@@ -138,7 +138,6 @@ func cmdLoad(ctx context.Context, args []string) {
 func cmdEval(ctx context.Context, args []string) {
 	fs := flag.NewFlagSet("eval", flag.ExitOnError)
 	program := fs.String("program", "", "Program name (uses most recent if empty)")
-	mode := fs.String("mode", "dryrun", "Dispatch mode: live or dryrun")
 	maxSteps := fs.Int("max-steps", 100, "Maximum eval steps")
 	verbose := fs.Bool("v", false, "Verbose output")
 	fs.Parse(args)
@@ -152,14 +151,8 @@ func cmdEval(ctx context.Context, args []string) {
 		os.Exit(1)
 	}
 
-	dispatchMode := retort.ModeDryRun
-	if *mode == "live" {
-		dispatchMode = retort.ModeLive
-	}
-
 	engine := &retort.Engine{
 		DB:       db,
-		Mode:     dispatchMode,
 		MaxSteps: *maxSteps,
 		Verbose:  *verbose,
 		Log: func(msg string) {
@@ -184,7 +177,6 @@ func cmdEval(ctx context.Context, args []string) {
 func cmdEvalOne(ctx context.Context, args []string) {
 	fs := flag.NewFlagSet("eval-one", flag.ExitOnError)
 	program := fs.String("program", "", "Program name")
-	mode := fs.String("mode", "dryrun", "Dispatch mode: live or dryrun")
 	fs.Parse(args)
 
 	db := openDB(ctx)
@@ -196,14 +188,8 @@ func cmdEvalOne(ctx context.Context, args []string) {
 		os.Exit(1)
 	}
 
-	dispatchMode := retort.ModeDryRun
-	if *mode == "live" {
-		dispatchMode = retort.ModeLive
-	}
-
 	engine := &retort.Engine{
-		DB:   db,
-		Mode: dispatchMode,
+		DB: db,
 		Log: func(msg string) {
 			fmt.Printf("[retort] %s\n", msg)
 		},

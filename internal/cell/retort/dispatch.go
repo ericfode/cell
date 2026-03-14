@@ -11,14 +11,6 @@ import (
 	"strings"
 )
 
-// DispatchMode controls how soft cells are evaluated.
-type DispatchMode string
-
-const (
-	ModeLive   DispatchMode = "live"   // Call Anthropic API
-	ModeDryRun DispatchMode = "dryrun" // Return placeholder values
-)
-
 // DispatchResult is the output of dispatching a single cell.
 type DispatchResult struct {
 	Outputs map[string]interface{}
@@ -26,7 +18,7 @@ type DispatchResult struct {
 }
 
 // Dispatch evaluates a cell and returns its outputs.
-func Dispatch(ctx context.Context, cell *CellRow, yields []YieldRow, bindings map[string]interface{}, mode DispatchMode) DispatchResult {
+func Dispatch(ctx context.Context, cell *CellRow, yields []YieldRow, bindings map[string]interface{}) DispatchResult {
 	yieldNames := make([]string, len(yields))
 	for i, y := range yields {
 		yieldNames[i] = y.FieldName
@@ -36,7 +28,7 @@ func Dispatch(ctx context.Context, cell *CellRow, yields []YieldRow, bindings ma
 	case "hard":
 		return dispatchHard(cell, yieldNames, bindings)
 	case "soft":
-		return dispatchSoft(ctx, cell, yieldNames, bindings, mode)
+		return dispatchSoft(ctx, cell, yieldNames, bindings)
 	case "passthrough":
 		return dispatchPassthrough(yieldNames, bindings)
 	default:
@@ -102,18 +94,9 @@ func dispatchHard(cell *CellRow, yieldNames []string, bindings map[string]interf
 	return DispatchResult{Outputs: outputs}
 }
 
-func dispatchSoft(ctx context.Context, cell *CellRow, yieldNames []string, bindings map[string]interface{}, mode DispatchMode) DispatchResult {
+func dispatchSoft(ctx context.Context, cell *CellRow, yieldNames []string, bindings map[string]interface{}) DispatchResult {
 	body := Interpolate(cell.Body, bindings)
 
-	if mode == ModeDryRun {
-		outputs := make(map[string]interface{})
-		for _, name := range yieldNames {
-			outputs[name] = fmt.Sprintf("<dry-run-%s-%s>", cell.Name, name)
-		}
-		return DispatchResult{Outputs: outputs}
-	}
-
-	// Live API call
 	apiKey := os.Getenv("ANTHROPIC_API_KEY")
 	if apiKey == "" {
 		// Fallback to dry-run if no API key
