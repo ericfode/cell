@@ -69,6 +69,36 @@
    #:usage-output-size
    #:validate-program
    #:evaluate-program
+   ;; Homoiconic Cell-zero/2
+   #:make-homoiconic-evaluator-program
+   #:evaluate-homoiconic-program
+   #:homoiconic-evaluator-self-check
+   #:make-homoiconic-step-program
+   #:make-homoiconic-genesis-capsule
+   #:homoiconic-task-request
+   #:homoiconic-task-prompt
+   #:capsule-evaluator
+   #:capsule-step-program
+   #:capsule-state
+   #:capsule-policy
+   #:capsule-capability-names
+   #:capsule-valid-p
+   #:homoiconic-cell
+   #:make-homoiconic-cell
+   #:homoiconic-cell-store
+   #:homoiconic-cell-initial-root
+   #:homoiconic-cell-current-root
+   #:homoiconic-cell-current-capsule
+   #:homoiconic-cell-outputs
+   #:homoiconic-cell-trace
+   #:homoiconic-cell-lineage
+   #:homoiconic-cell-evaluation-steps
+   #:register-homoiconic-handler
+   #:submit-homoiconic-event
+   #:process-next-homoiconic-effect
+   #:run-homoiconic-until-idle
+   #:make-scripted-homoiconic-model-handler
+   #:make-scripted-homoiconic-runner-handler
    ;; Subzero
    #:subzero
    #:make-subzero

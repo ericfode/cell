@@ -34,14 +34,21 @@
   (steps 0)
   (max-depth 0))
 
+(defstruct (evaluator-closure
+             (:constructor make-evaluator-closure (parameters body environment)))
+  parameters
+  body
+  environment)
+
 (defparameter +primitive-signatures+
   '(("equal" 2 2) ("not" 1 1) ("present?" 1 1) ("nonempty?" 1 1)
-    ("integer+" 2 2) ("integer<=" 2 2) ("list" 0 nil) ("append" 2 2)
+    ("integer+" 2 2) ("integer<" 2 2) ("integer<=" 2 2)
+    ("list" 0 nil) ("append" 2 2)
     ("field" 2 2) ("put-field" 3 3) ("append-field" 3 3) ("tag" 1 1)
-    ("hash" 1 1) ("first" 1 1) ("second" 1 1) ("rest" 1 1)
+    ("hash" 1 1) ("first" 1 1) ("second" 1 1) ("third" 1 1) ("rest" 1 1)
     ("length" 1 1) ("find-by-field" 3 3) ("remove-by-field" 3 3)
     ("all-checks-pass" 2 2) ("first-failed-check" 2 2) ("subset?" 2 2)
-    ("term-size" 1 1)))
+    ("term-size" 1 1) ("string-concat" 2 2) ("apply-primitive" 2 2)))
 
 (defparameter +primitive-names+ (mapcar #'first +primitive-signatures+))
 
@@ -131,10 +138,22 @@
           (setf (gethash name fields) (second parts)))))))
 
 (defun validate-program (program &key (limits (make-evaluation-limits)) state)
-  "Validate the closed, first-order Cell-zero evaluator language within LIMITS.
-The language has quote, var, if, let*, and calls to a fixed pure primitive set."
+  "Validate the closed Cell-zero kernel language within LIMITS.
+Code and data are terms. Lambda, letrec, and apply provide the small recursive
+kernel needed to execute the evaluator represented inside a Cell-zero capsule."
   (let ((state (or state (make-evaluator-state :limits limits))))
-    (labels ((validate-expression (expression bound depth)
+    (labels ((parameter-names (parameters expression depth)
+               (let ((seen (make-hash-table :test #'equal)))
+                 (mapcar
+                  (lambda (parameter)
+                    (let ((name (symbol-term-name parameter expression)))
+                      (when (gethash name seen)
+                        (error 'evaluation-error :expression expression
+                               :reason "duplicate parameter"))
+                      (setf (gethash name seen) t)
+                      name))
+                  (validation-list-elements parameters state expression depth))))
+             (validate-expression (expression bound depth)
                (validation-step state expression depth)
                (unless (cell-p expression)
                  (error 'evaluation-error :expression expression
@@ -165,16 +184,62 @@ The language has quote, var, if, let*, and calls to a fixed pure primitive set."
                                 (validation-list-elements
                                  binding state binding (1+ depth))))
                           (unless (= (length binding-elements) 2)
-                            (error 'evaluation-error :expression binding
+                            (error 'evaluation-error
+                                   :expression binding
                                    :reason "let* binding must be (name expression)"))
-                          (validate-expression (second binding-elements) extended (1+ depth))
+                          (validate-expression
+                           (second binding-elements) extended (1+ depth))
                           (push (symbol-term-name (first binding-elements) binding)
                                 extended)))
                       (validate-expression (third elements) extended (1+ depth))))
+                   ((string= name "lambda")
+                    (ensure-arity expression elements 2 2)
+                    (let ((parameters
+                            (parameter-names (second elements) expression (1+ depth))))
+                      (validate-expression (third elements)
+                                           (append parameters bound)
+                                           (1+ depth))))
+                   ((string= name "letrec")
+                    (ensure-arity expression elements 2 2)
+                    (let* ((bindings
+                             (validation-list-elements
+                              (second elements) state expression (1+ depth)))
+                           (names
+                             (mapcar
+                              (lambda (binding)
+                                (let ((parts
+                                        (validation-list-elements
+                                         binding state binding (1+ depth))))
+                                  (unless (= (length parts) 2)
+                                    (error 'evaluation-error
+                                           :expression binding
+                                           :reason "letrec binding must be (name lambda)"))
+                                  (symbol-term-name (first parts) binding)))
+                              bindings))
+                           (extended (append names bound)))
+                      (unless (= (length names)
+                                 (length (remove-duplicates names :test #'string=)))
+                        (error 'evaluation-error :expression expression
+                               :reason "duplicate letrec binding"))
+                      (dolist (binding bindings)
+                        (let* ((parts (validation-list-elements
+                                      binding state binding (1+ depth)))
+                               (value (second parts)))
+                          (unless (string= (expression-name value) "lambda")
+                            (error 'evaluation-error :expression value
+                                   :reason "letrec values must be lambdas"))
+                          (validate-expression value extended (1+ depth))))
+                      (validate-expression (third elements) extended (1+ depth))))
+                   ((string= name "apply")
+                    (ensure-arity expression elements 1)
+                    (dolist (subexpression (rest elements))
+                      (validate-expression subexpression bound (1+ depth))))
                    ((string= name "call")
                     (ensure-arity expression elements 1)
                     (let ((primitive (symbol-term-name (second elements) expression)))
-                      (ensure-primitive-arity primitive (length (cddr elements)) expression))
+                      (ensure-primitive-arity primitive
+                                              (length (cddr elements))
+                                              expression))
                     (dolist (subexpression (cddr elements))
                       (validate-expression subexpression bound (1+ depth))))
                    (t
@@ -187,17 +252,7 @@ The language has quote, var, if, let*, and calls to a fixed pure primitive set."
             (unless (and parameters-present body-present)
               (error 'evaluation-error :expression program
                      :reason "program requires parameters and body fields"))
-            (let* ((parameters
-                     (validation-list-elements parameters-term state program 1))
-                   (names (mapcar (lambda (parameter)
-                                    (symbol-term-name parameter program))
-                                  parameters))
-                   (seen (make-hash-table :test #'equal)))
-              (dolist (name names)
-                (when (gethash name seen)
-                  (error 'evaluation-error :expression program
-                         :reason "duplicate program parameter"))
-                (setf (gethash name seen) t))
+            (let ((names (parameter-names parameters-term program 1)))
               (validate-expression body names 1)
               t)))))))
 
@@ -257,6 +312,11 @@ The language has quote, var, if, let*, and calls to a fixed pure primitive set."
     (error 'evaluation-error :expression expression :reason "expected an integer atom"))
   (atom-value term))
 
+(defun evaluator-string-value (term expression)
+  (unless (and (atom-p term) (eq (atom-kind term) :string))
+    (error 'evaluation-error :expression expression :reason "expected a string atom"))
+  (atom-value term))
+
 (defun proper-term-list (term expression)
   (handler-case
       (term-list-elements term)
@@ -305,6 +365,12 @@ The language has quote, var, if, let*, and calls to a fixed pure primitive set."
        (if (null (proper-term-list (first arguments) expression))
            (false-term)
            (true-term)))
+      ((string= name "integer<")
+       (arity 2 2)
+       (if (< (integer-term-value (first arguments) expression)
+              (integer-term-value (second arguments) expression))
+           (true-term)
+           (false-term)))
       ((string= name "integer+")
        (arity 2 2)
        (make-integer-atom (+ (integer-term-value (first arguments) expression)
@@ -315,6 +381,12 @@ The language has quote, var, if, let*, and calls to a fixed pure primitive set."
                (integer-term-value (second arguments) expression))
            (true-term)
            (false-term)))
+      ((string= name "string-concat")
+       (arity 2 2)
+       (make-string-atom
+        (concatenate 'string
+                     (evaluator-string-value (first arguments) expression)
+                     (evaluator-string-value (second arguments) expression))))
       ((string= name "list")
        (term-list-from-elements arguments))
       ((string= name "append")
@@ -348,6 +420,9 @@ The language has quote, var, if, let*, and calls to a fixed pure primitive set."
       ((string= name "second")
        (arity 1 1)
        (or (second (proper-term-list (first arguments) expression)) (empty-term)))
+      ((string= name "third")
+       (arity 1 1)
+       (or (third (proper-term-list (first arguments) expression)) (empty-term)))
       ((string= name "rest")
        (arity 1 1)
        (term-list-from-elements (rest (proper-term-list (first arguments) expression))))
@@ -403,6 +478,12 @@ The language has quote, var, if, let*, and calls to a fixed pure primitive set."
            (evaluator-step state expression depth)
            (unless (gethash (term-hash item) right)
              (return (false-term))))))
+      ((string= name "apply-primitive")
+       (arity 2 2)
+       (let ((primitive (symbol-term-name (first arguments) expression))
+             (nested-arguments (proper-term-list (second arguments) expression)))
+         (meter-primitive-arguments state nested-arguments expression depth)
+         (primitive-call primitive nested-arguments expression state depth)))
       ((string= name "term-size")
        (arity 1 1)
        (make-integer-atom (term-size (first arguments))))
@@ -424,12 +505,35 @@ The language has quote, var, if, let*, and calls to a fixed pure primitive set."
                  (push (cell-left term) stack)
                  (push (cell-right term) stack)))))
 
-(defun ensure-intermediate-size (state term expression)
-  (when (> (term-size term)
-           (evaluation-limits-max-output-size (evaluator-state-limits state)))
+(defun ensure-intermediate-size (state value expression)
+  (when (and (term-p value)
+             (> (term-size value)
+                (evaluation-limits-max-output-size (evaluator-state-limits state))))
     (error 'evaluation-budget-exhausted :expression expression
            :reason "intermediate size limit" :kind :output-size))
-  term)
+  value)
+
+(defun ensure-term-value (value expression)
+  (unless (term-p value)
+    (error 'evaluation-error :expression expression
+           :reason "primitive and conditional values must be terms"))
+  value)
+
+(defun apply-evaluator-closure (closure arguments expression state depth)
+  (unless (evaluator-closure-p closure)
+    (error 'evaluation-error :expression expression
+           :reason "apply expects a lambda value"))
+  (let ((parameters (evaluator-closure-parameters closure)))
+    (unless (= (length parameters) (length arguments))
+      (error 'evaluation-error :expression expression
+             :reason (format nil "lambda expects ~D arguments, got ~D"
+                             (length parameters) (length arguments))))
+    (evaluate-expression
+     (evaluator-closure-body closure)
+     (append (mapcar #'cons parameters arguments)
+             (evaluator-closure-environment closure))
+     state
+     (1+ depth))))
 
 (defun evaluate-expression (expression environment state depth)
   (evaluator-step state expression depth)
@@ -444,7 +548,9 @@ The language has quote, var, if, let*, and calls to a fixed pure primitive set."
                           expression))
       ((string= name "if")
        (if (term-truth-p
-            (evaluate-expression (second elements) environment state (1+ depth)))
+            (ensure-term-value
+             (evaluate-expression (second elements) environment state (1+ depth))
+             expression))
            (evaluate-expression (third elements) environment state (1+ depth))
            (evaluate-expression (fourth elements) environment state (1+ depth))))
       ((string= name "let*")
@@ -456,11 +562,51 @@ The language has quote, var, if, let*, and calls to a fixed pure primitive set."
                                               extended state (1+ depth)))
                    extended)))
          (evaluate-expression (third elements) extended state (1+ depth))))
+      ((string= name "lambda")
+       (make-evaluator-closure
+        (mapcar (lambda (parameter)
+                  (symbol-term-name parameter expression))
+                (proper-term-list (second elements) expression))
+        (third elements)
+        environment))
+      ((string= name "letrec")
+       (let* ((bindings (proper-term-list (second elements) expression))
+              (slots
+                (mapcar
+                 (lambda (binding)
+                   (let ((parts (proper-term-list binding expression)))
+                     (cons (symbol-term-name (first parts) binding) nil)))
+                 bindings))
+              (extended (append slots environment)))
+         (loop for binding in bindings
+               for slot in slots
+               for parts = (proper-term-list binding expression)
+               for value = (evaluate-expression (second parts)
+                                                extended state (1+ depth))
+               do (unless (evaluator-closure-p value)
+                    (error 'evaluation-error :expression (second parts)
+                           :reason "letrec values must evaluate to lambdas"))
+                  (setf (cdr slot) value))
+         (evaluate-expression (third elements) extended state (1+ depth))))
+      ((string= name "apply")
+       (let ((function
+               (evaluate-expression (second elements) environment state (1+ depth)))
+             (arguments
+               (mapcar (lambda (argument)
+                         (evaluate-expression argument environment state (1+ depth)))
+                       (cddr elements))))
+         (evaluator-step state expression depth)
+         (ensure-intermediate-size
+          state
+          (apply-evaluator-closure function arguments expression state depth)
+          expression)))
       ((string= name "call")
        (let* ((primitive (symbol-term-name (second elements) expression))
               (arguments
                 (mapcar (lambda (argument)
-                          (evaluate-expression argument environment state (1+ depth)))
+                          (ensure-term-value
+                           (evaluate-expression argument environment state (1+ depth))
+                           expression))
                         (cddr elements))))
          (evaluator-step state expression depth)
          (meter-primitive-arguments state arguments expression depth)
@@ -563,7 +709,10 @@ Returns the result term and an EVALUATION-USAGE value."
                                                         "missing term argument ~A" name)))
                                (cons name value)))
                            parameter-names))
-                 (result (evaluate-expression body environment state 1))
+                 (result
+                   (ensure-term-value
+                    (evaluate-expression body environment state 1)
+                    program))
                  (output-size (term-size result)))
             (when (> output-size (evaluation-limits-max-output-size limits))
               (error 'evaluation-budget-exhausted :expression program

@@ -1,8 +1,8 @@
 ;;;; cell-zero.asd
 
 (asdf:defsystem "cell-zero"
-  :description "Cell-zero/1: parent-gated, replayable evolutionary worlds"
-  :version "0.1.0"
+  :description "Cell-zero/2: homoiconic, parent-selected evolutionary capsules"
+  :version "0.2.0"
   :author "Eric Fode and Autolith"
   :license "MIT"
   :depends-on ("uiop")
@@ -12,7 +12,8 @@
                (:file "src/term")
                (:file "src/evaluator")
                (:file "src/subzero")
-               (:file "src/genesis"))
+               (:file "src/genesis")
+               (:file "src/homoiconic"))
   :in-order-to ((test-op (test-op "cell-zero/tests"))))
 
 (asdf:defsystem "cell-zero/tests"

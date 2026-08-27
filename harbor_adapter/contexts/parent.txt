@@ -1,0 +1,1 @@
+Make the smallest plausible implementation immediately. Do not inspect the supplied interface or run tests.

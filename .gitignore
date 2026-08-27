@@ -5,3 +5,6 @@
 *.so
 /build/
 /demo-store/
+/harbor-runs/
+__pycache__/
+*.pyc

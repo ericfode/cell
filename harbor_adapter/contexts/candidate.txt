@@ -1,0 +1,1 @@
+Inspect the supplied interface and tests before editing. Implement the full behavior, exercise interactive and control-key cases, then run the verifier and fix failures.

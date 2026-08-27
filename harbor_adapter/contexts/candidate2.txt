@@ -1,0 +1,1 @@
+Inspect the interface first. Implement a real PTY-backed interactive bash using pty.fork or os.forkpty. Keep verification commands short and separate, avoiding long nested shell or heredoc tests. Check startup files, interactive input, and Ctrl-C, then finish.

@@ -331,6 +331,116 @@
 (deftest durable-pending-requests-reopen-and-complete
   (exercise-durable-recovery "pending" t))
 
+(deftest homoiconic-evaluator-is-self-interpreting
+  (is (homoiconic-evaluator-self-check))
+  (let* ((evaluator (make-homoiconic-evaluator-program))
+         (program
+           (sexp->term
+            '(program
+              (parameters (items))
+              (body
+               (letrec
+                ((sum
+                  (lambda (rest total)
+                   (if (call nonempty? (var rest))
+                       (apply (var sum)
+                              (call rest (var rest))
+                              (call integer+ (var total)
+                                    (call first (var rest))))
+                       (var total)))))
+                (apply (var sum) (var items) (quote 0)))))))
+         (items (sexp->term '(1 2 3 4))))
+    (multiple-value-bind (result usage)
+        (evaluate-homoiconic-program
+         evaluator program (list (cons 'items items)))
+      (is (= 10 (cell-zero::integer-term-value/protocol result)))
+      (is (plusp (usage-steps usage))))))
+
+(defun run-homoiconic-selection-test (parent candidate parent-score candidate-score)
+  (let* ((store (make-term-store))
+         (cell (make-homoiconic-cell store parent)))
+    (register-homoiconic-handler
+     cell "model" (make-scripted-homoiconic-model-handler candidate))
+    (register-homoiconic-handler
+     cell "runner"
+     (make-scripted-homoiconic-runner-handler
+      (lambda (capsule event)
+        (declare (ignore event))
+        (values t
+                (if (term-equal capsule candidate)
+                    candidate-score
+                    parent-score)
+                (empty-term)))))
+    (submit-homoiconic-event
+     cell (sexp->term '(event (kind evolve) (objective "improve"))))
+    (run-homoiconic-until-idle cell)
+    cell))
+
+(deftest homoiconic-capsule-is-closed-and-parent-selected
+  (let* ((parent (make-homoiconic-genesis-capsule))
+         (candidate
+           (make-homoiconic-genesis-capsule
+            :task-context "Inspect first, edit narrowly, and run the verifier."))
+          (broken (put-term-field parent "evaluator" (empty-term)))
+          (wrong-evaluator
+            (put-term-field
+             parent "evaluator"
+             (sexp->term
+              '(program (parameters (value)) (body (var value))))))
+          (cell (run-homoiconic-selection-test parent candidate 1 2))
+          (selection (first (homoiconic-cell-outputs cell))))
+    (is (capsule-valid-p parent))
+    (is (not (capsule-valid-p broken)))
+    (is (not (capsule-valid-p wrong-evaluator)))
+    (is (term-equal candidate (homoiconic-cell-current-capsule cell)))
+    (is (= 1 (length (homoiconic-cell-lineage cell))))
+    (is (string= "promote"
+                 (cell-zero::symbol-term-value
+                  (term-field selection "decision"))))
+    (is (plusp (homoiconic-cell-evaluation-steps cell)))))
+
+(deftest homoiconic-host-rejects-structurally-invalid-successor
+  (let* ((parent (make-homoiconic-genesis-capsule))
+         (broken (put-term-field parent "evaluator" (empty-term)))
+         (cell (run-homoiconic-selection-test parent broken 0 1))
+         (current (homoiconic-cell-current-capsule cell))
+         (selection (first (homoiconic-cell-outputs cell)))
+         (lineage-entry (first (homoiconic-cell-lineage cell))))
+    (is (capsule-valid-p current))
+    (is (term-equal (capsule-evaluator parent)
+                    (capsule-evaluator current)))
+    (is (string= "promote"
+                 (cell-zero::symbol-term-value
+                  (term-field selection "decision"))))
+    (is (string= "structurally-rejected"
+                 (cell-zero::symbol-term-value
+                  (term-field lineage-entry "decision"))))))
+
+(deftest homoiconic-selection-policy-is-hereditary
+  (let* ((candidate
+           (make-homoiconic-genesis-capsule
+            :task-context "Candidate policy"))
+         (strict
+           (run-homoiconic-selection-test
+            (make-homoiconic-genesis-capsule :accept-equal nil)
+            candidate 1 1))
+         (permissive
+           (run-homoiconic-selection-test
+            (make-homoiconic-genesis-capsule :accept-equal t)
+            candidate 1 1))
+         (strict-selection (first (homoiconic-cell-outputs strict)))
+         (permissive-selection (first (homoiconic-cell-outputs permissive))))
+    (is (string= "retain"
+                 (cell-zero::symbol-term-value
+                  (term-field strict-selection "decision"))))
+    (is (string= "promote"
+                 (cell-zero::symbol-term-value
+                  (term-field permissive-selection "decision"))))
+    (is (not (term-equal candidate
+                         (homoiconic-cell-current-capsule strict))))
+    (is (term-equal candidate
+                    (homoiconic-cell-current-capsule permissive)))))
+
 (defun run-tests ()
   (setf *assertions* 0)
   (let ((failures nil))
