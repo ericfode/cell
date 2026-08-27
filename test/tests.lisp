@@ -441,6 +441,14 @@
     (is (term-equal candidate
                     (homoiconic-cell-current-capsule permissive)))))
 
+(deftest malformed-input-is-rejected-before-commit
+  (let* ((store (make-term-store))
+         (subzero (make-subzero store (make-genesis-world)))
+         (before (subzero-log-root subzero)))
+    (is (signals protocol-error
+          (submit-event subzero (sexp->term '(not-an-event (kind task))))))
+    (is (string= before (subzero-log-root subzero)))))
+
 (defun run-tests ()
   (setf *assertions* 0)
   (let ((failures nil))

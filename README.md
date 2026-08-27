@@ -87,3 +87,9 @@ PYTHONPATH=. harbor run \
 `scripts/select-harbor-successor.lisp` feeds paired Harbor rewards back through the capsule's runner capability and writes the selected complete capsule plus a content-addressed evolution record.
 
 The reproducible Terminal-Bench run metadata and strict tie-retention result are recorded in [`evidence/`](evidence/README.md). Harbor decimal rewards are normalized to exact integer terms before the hereditary comparison.
+
+## Ecological challenge laboratory
+
+`cell-zero-lab.asd` is an external laboratory system. It keeps hidden generators outside the organism, applies lexicographic promotion gates, maintains separate durable `organism/current` and `lab/champion` refs, and requires three fresh lineages before stage advancement.
+
+C0, Event Eater, passed three independently generated 10,000-history distributions with zero replay mismatches, replay-time effect calls, lost committed events, malformed-event skips, or laboratory errors. The public challenge and sanitized attestations are in [`evidence/ecology/`](evidence/ecology/README.md).

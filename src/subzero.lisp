@@ -442,9 +442,11 @@
           (values reaction usage))))))
 
 (defun submit-event (subzero event)
-  "Append EVENT before delivering it to the current genome."
+  "Validate and append EVENT before delivering it to the current genome."
   (unless (eq (subzero-mode subzero) :live)
     (error 'protocol-error :datum subzero :reason "cannot submit live events during replay"))
+  (unless (valid-event-p event)
+    (error 'protocol-error :datum event :reason "malformed event"))
   (when (or (subzero-effect-queue subzero)
             (subzero-pending-effect subzero))
     (error 'protocol-error :datum subzero
