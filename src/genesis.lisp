@@ -1,0 +1,491 @@
+;;;; src/genesis.lisp
+
+(in-package #:cell-zero)
+
+;;; These helpers construct ordinary program terms. They are not evaluator
+;;; extensions and no host function is embedded in a genome.
+
+(defun %q (datum)
+  (list 'quote datum))
+
+(defun %v (name)
+  (list 'var name))
+
+(defun %call (name &rest arguments)
+  (list* 'call name arguments))
+
+(defun %if (test consequent alternate)
+  (list 'if test consequent alternate))
+
+(defun %let* (bindings body)
+  (list 'let* bindings body))
+
+(defun %field (term name)
+  (%call 'field term (%q name)))
+
+(defun %put-field (term name value)
+  (%call 'put-field term (%q name) value))
+
+(defun %append-field (term name value)
+  (%call 'append-field term (%q name) value))
+
+(defun %list (&rest values)
+  (apply #'%call 'list values))
+
+(defun %tagged (tag &rest fields)
+  (apply #'%list (%q tag)
+         (mapcar (lambda (field)
+                   (%list (%q (first field)) (second field)))
+                 fields)))
+
+(defun %reaction (state outputs effects)
+  (%tagged 'reaction
+           (list 'state state)
+           (list 'outputs outputs)
+           (list 'effects effects)))
+
+(defun %effect (id capability request budget)
+  (%tagged 'effect
+           (list 'id id)
+           (list 'capability (%q capability))
+           (list 'request request)
+           (list 'budget budget)))
+
+(defun %pending (id kind &rest fields)
+  (apply #'%tagged 'pending
+         (append (list (list 'id id)
+                       (list 'kind (%q kind)))
+                 fields)))
+
+(defun %state-with-recorded-event (state event)
+  (%append-field state 'history event))
+
+(defun %state-without-pending (state effect-id)
+  (%put-field
+   (%state-with-recorded-event state (%v 'event))
+   'pending
+   (%call 'remove-by-field (%field state 'pending) (%q 'id) effect-id)))
+
+(defun make-task-reaction-expression ()
+  (%let*
+   `((id ,(%field (%v 'state) 'next-effect-id))
+     (recorded-state ,(%state-with-recorded-event (%v 'state) (%v 'event)))
+     (pending ,(%pending (%v 'id) 'task))
+     (next-state
+      ,(%put-field
+        (%append-field (%v 'recorded-state) 'pending (%v 'pending))
+        'next-effect-id
+        (%call 'integer+ (%v 'id) (%q 1))))
+     (request
+      ,(%tagged 'answer-task
+                (list 'task (%field (%v 'event) 'task))
+                (list 'context (%field (%v 'data) 'task-context))))
+     (effect
+      ,(%effect (%v 'id) 'model (%v 'request)
+                (%field (%v 'data) 'model-budget))))
+   (%reaction (%v 'next-state) (%q nil) (%list (%v 'effect)))))
+
+(defun make-evolve-reaction-expression ()
+  (%let*
+   `((id ,(%field (%v 'state) 'next-effect-id))
+     (recorded-state ,(%state-with-recorded-event (%v 'state) (%v 'event)))
+     (pending ,(%pending (%v 'id) 'evolve
+                         (list 'objective (%field (%v 'event) 'objective))))
+     (next-state
+      ,(%put-field
+        (%append-field (%v 'recorded-state) 'pending (%v 'pending))
+        'next-effect-id
+        (%call 'integer+ (%v 'id) (%q 1))))
+     (request
+      ,(%tagged 'propose-child
+                (list 'parent (%v 'world))
+                (list 'objective (%field (%v 'event) 'objective))
+                (list 'abi (%q 'cell-zero/1))
+                (list 'requirements (%field (%v 'data) 'admission-requirements))))
+     (effect
+      ,(%effect (%v 'id) 'model (%v 'request)
+                (%field (%v 'data) 'model-budget))))
+   (%reaction (%v 'next-state) (%q nil) (%list (%v 'effect)))))
+
+(defun make-task-result-expression ()
+  (%let*
+   `((next-state ,(%state-without-pending (%v 'state) (%v 'effect-id))))
+   (%reaction (%v 'next-state)
+              (%list (%field (%v 'event) 'response))
+              (%q nil))))
+
+(defun make-malformed-candidate-expression ()
+  (%let*
+   `((base-state ,(%state-without-pending (%v 'state) (%v 'effect-id)))
+     (rejection
+      ,(%tagged 'branch
+                (list 'status (%q 'rejected))
+                (list 'reason (%q 'malformed-candidate))))
+     (next-state ,(%append-field (%v 'base-state) 'candidate-branches
+                                 (%v 'rejection))))
+   (%reaction (%v 'next-state) (%list (%v 'rejection)) (%q nil))))
+
+(defun make-candidate-result-expression ()
+  (%let*
+   `((response ,(%field (%v 'event) 'response))
+     (candidate ,(%field (%v 'response) 'candidate))
+     (claims ,(%field (%v 'response) 'claims))
+     (effect-id ,(%field (%v 'event) 'effect-id)))
+   (%if
+    (%call 'present? (%v 'candidate))
+    (%let*
+     `((base-state ,(%state-without-pending (%v 'state) (%v 'effect-id)))
+       (id ,(%field (%v 'state) 'next-effect-id))
+       (branch
+        ,(%tagged 'branch
+                  (list 'candidate (%v 'candidate))
+                  (list 'claims (%v 'claims))
+                  (list 'status (%q 'proposed))))
+       (pending
+        ,(%pending (%v 'id) 'trial
+                   (list 'candidate (%v 'candidate))
+                   (list 'claims (%v 'claims))))
+       (next-state
+        ,(%put-field
+          (%append-field
+           (%append-field (%v 'base-state) 'candidate-branches (%v 'branch))
+           'pending (%v 'pending))
+          'next-effect-id
+          (%call 'integer+ (%v 'id) (%q 1))))
+       (request
+        ,(%tagged 'trial
+                  (list 'candidate (%v 'candidate))
+                  (list 'events (%field (%v 'data) 'probes))))
+       (effect
+        ,(%effect (%v 'id) 'trial (%v 'request)
+                  (%field (%v 'data) 'trial-budget))))
+     (%reaction (%v 'next-state) (%q nil) (%list (%v 'effect))))
+    (make-malformed-candidate-expression))))
+
+(defun make-trial-result-expression ()
+  (%let*
+   `((effect-id ,(%field (%v 'event) 'effect-id))
+     (response ,(%field (%v 'event) 'response))
+     (trace ,(%field (%v 'response) 'trace))
+     (pending ,(%call 'find-by-field (%field (%v 'state) 'pending)
+                      (%q 'id) (%v 'effect-id)))
+     (candidate ,(%field (%v 'pending) 'candidate))
+     (claims ,(%field (%v 'pending) 'claims)))
+   (%if
+    (%call 'present? (%v 'trace))
+    (%let*
+     `((base-state ,(%state-without-pending (%v 'state) (%v 'effect-id)))
+       (id ,(%field (%v 'state) 'next-effect-id))
+       (promotion-pending
+        ,(%pending (%v 'id) 'promote
+                   (list 'candidate (%v 'candidate))
+                   (list 'claims (%v 'claims))))
+       (next-state
+        ,(%put-field
+          (%append-field (%v 'base-state) 'pending (%v 'promotion-pending))
+          'next-effect-id
+          (%call 'integer+ (%v 'id) (%q 1))))
+       (request
+        ,(%tagged 'promote
+                  (list 'candidate (%v 'candidate))
+                  (list 'trials (%list (%v 'trace)))
+                  (list 'claims (%v 'claims))))
+       (effect
+        ,(%effect (%v 'id) 'promote (%v 'request)
+                  (%field (%v 'data) 'admission-budget))))
+     (%reaction (%v 'next-state) (%q nil) (%list (%v 'effect))))
+    (%let*
+     `((next-state ,(%state-without-pending (%v 'state) (%v 'effect-id)))
+       (failure ,(%tagged 'trial-failed
+                          (list 'response (%v 'response)))))
+     (%reaction (%v 'next-state) (%list (%v 'failure)) (%q nil))))))
+
+(defun make-effect-result-expression ()
+  (%let*
+   `((effect-id ,(%field (%v 'event) 'effect-id))
+     (pending ,(%call 'find-by-field (%field (%v 'state) 'pending)
+                      (%q 'id) (%v 'effect-id)))
+     (pending-kind ,(%field (%v 'pending) 'kind)))
+   (%if
+    (%call 'equal (%v 'pending-kind) (%q 'task))
+    (make-task-result-expression)
+    (%if
+     (%call 'equal (%v 'pending-kind) (%q 'evolve))
+     (make-candidate-result-expression)
+     (%if
+      (%call 'equal (%v 'pending-kind) (%q 'trial))
+      (make-trial-result-expression)
+      (%reaction (%state-with-recorded-event (%v 'state) (%v 'event))
+                 (%q nil) (%q nil)))))))
+
+(defun make-promotion-result-expression ()
+  (%let*
+   `((effect-id ,(%field (%v 'event) 'effect-id))
+     (recorded-state ,(%state-with-recorded-event (%v 'state) (%v 'event)))
+     (next-state
+      ,(%put-field
+        (%v 'recorded-state)
+        'pending
+        (%call 'remove-by-field (%field (%v 'state) 'pending)
+               (%q 'id) (%v 'effect-id))))
+     (output
+      ,(%tagged 'promotion-result
+                (list 'decision (%field (%v 'event) 'decision))
+                (list 'candidate (%field (%v 'event) 'candidate))
+                (list 'reason (%field (%v 'event) 'reason)))))
+   (%reaction (%v 'next-state) (%list (%v 'output)) (%q nil))))
+
+(defun make-genesis-react-program ()
+  (let ((body
+          (%let*
+           `((kind ,(%field (%v 'event) 'kind)))
+           (%if
+            (%call 'equal (%v 'kind) (%q 'task))
+            (make-task-reaction-expression)
+            (%if
+             (%call 'equal (%v 'kind) (%q 'evolve))
+             (make-evolve-reaction-expression)
+             (%if
+              (%call 'equal (%v 'kind) (%q 'effect-result))
+              (make-effect-result-expression)
+              (%if
+               (%call 'equal (%v 'kind) (%q 'promotion-result))
+               (make-promotion-result-expression)
+               (%reaction (%state-with-recorded-event (%v 'state) (%v 'event))
+                          (%q nil) (%q nil)))))))))
+    (sexp->term
+     `(program
+       (parameters (state event data world))
+       (body ,body)))))
+
+(defun make-genesis-admit-program ()
+  (let ((body
+          (%let*
+           `((checks ,(%field (%v 'evidence) 'checks))
+             (requirements ,(%field (%v 'data) 'admission-requirements))
+             (failed ,(%call 'first-failed-check (%v 'checks)
+                              (%v 'requirements)))
+             (claims ,(%field (%v 'evidence) 'claims))
+             (semantic ,(%field (%v 'claims) 'semantic)))
+           (%if
+            (%call 'present? (%v 'failed))
+            (%tagged 'admission
+                     (list 'decision (%q 'reject))
+                     (list 'reason
+                           (%tagged 'check-failed
+                                    (list 'check (%v 'failed)))))
+            (%if
+             (%call 'nonempty? (%v 'semantic))
+             (%tagged 'admission
+                      (list 'decision (%q 'defer))
+                      (list 'reason (%q 'requires-human-judgment)))
+             (%tagged 'admission
+                      (list 'decision (%q 'accept))
+                      (list 'reason (%q 'all-parent-tests-pass))))))))
+    (sexp->term
+     `(program
+       (parameters (candidate evidence data))
+       (body ,body)))))
+
+(defun make-always-accept-admit-program ()
+  (sexp->term
+   '(program
+     (parameters (candidate evidence data))
+     (body
+      (call list
+            (quote admission)
+            (call list (quote decision) (quote accept))
+            (call list (quote reason) (quote candidate-self-accepts)))))))
+
+(defun make-inert-react-program ()
+  (sexp->term
+   '(program
+     (parameters (state event data world))
+     (body
+      (call list
+            (quote reaction)
+            (call list (quote state) (var state))
+            (call list (quote outputs) (quote nil))
+            (call list (quote effects) (quote nil)))))))
+
+(defun genesis-probes ()
+  (sexp->term
+   '((probe
+      (event (event (kind task) (task "ping")))
+      (expected-outputs ((answer (text "pong"))))))))
+
+(defun genesis-data (&key (generation 0))
+  (make-tagged-term
+   "data"
+   (make-field "generation" (make-integer-atom generation))
+   (make-field "capabilities" (sexp->term '(model trial promote)))
+   (make-field "task-context" (sexp->term '(context (role cell-zero))))
+   (make-field "model-budget"
+               (sexp->term '(budget (max-effects 1))))
+   (make-field "trial-budget"
+               (sexp->term
+                '(budget
+                  (capabilities (model))
+                  (max-effects 8)
+                  (max-events 24)
+                  (max-eval-steps 500000))))
+   (make-field "admission-budget"
+               (sexp->term '(budget (max-eval-steps 20000))))
+   (make-field "admission-requirements"
+               (sexp->term
+                '(abi-valid
+                  loads
+                  liveness-probe
+                  regression-suite
+                  replay-compatible
+                  capability-policy
+                  resource-policy
+                  automatic-properties-checkable
+                  evidence-complete)))
+   (make-field "probes" (genesis-probes))))
+
+(defun initial-state ()
+  (sexp->term
+   '(state
+     (next-effect-id 1)
+     (history ())
+     (pending ())
+     (candidate-branches ())
+     (memories ())
+     (task-state ()))))
+
+(defun make-world (react admit data &optional (state (initial-state)))
+  (make-tagged-term
+   "world"
+   (make-field
+    "genome"
+    (make-tagged-term
+     "genome"
+     (make-field "abi" (make-symbol-atom "cell-zero/1"))
+     (make-field "react" react)
+     (make-field "admit" admit)
+     (make-field "data" data)))
+   (make-field "state" state)))
+
+(defun make-genesis-world ()
+  (make-world (make-genesis-react-program)
+              (make-genesis-admit-program)
+              (genesis-data :generation 0)))
+
+(defun make-compatible-candidate ()
+  (make-world (make-genesis-react-program)
+              (make-genesis-admit-program)
+              (genesis-data :generation 1)))
+
+(defun make-broken-self-accepting-candidate ()
+  "A valid ABI candidate that fails liveness but claims authority over itself."
+  (make-world (make-inert-react-program)
+              (make-always-accept-admit-program)
+              (genesis-data :generation 1)))
+
+(defun mechanical-claims ()
+  (sexp->term
+   '(claims
+     (automatic
+      ((preserves-behavior regression-suite)
+       (replayable replay-compatible)))
+     (semantic ()))))
+
+(defun make-scripted-model-handler (candidate &key (claims (mechanical-claims))
+                                                (answer "pong"))
+  "Return a host capability adapter. The adapter is outside the organism.
+It answers tasks deterministically and proposes CANDIDATE exactly once per request."
+  (lambda (subzero request budget effect)
+    (declare (ignore subzero budget effect))
+    (cond
+      ((tagged-term-p request "answer-task")
+       (values "ok"
+               (make-tagged-term
+                "answer"
+                (make-field "text" (make-string-atom answer)))
+               (usage-term :effects 1 :events 1)))
+      ((tagged-term-p request "propose-child")
+       (values "ok"
+               (make-tagged-term
+                "proposal"
+                (make-field "candidate" candidate)
+                (make-field "claims" claims))
+               (usage-term :effects 1 :events 1)))
+      (t
+       (values "error"
+               (make-tagged-term
+                "failure"
+                (make-field "reason" (make-symbol-atom "unknown-model-request")))
+               (usage-term :effects 1 :events 1))))))
+
+(defstruct (boot-demo-result
+             (:conc-name boot-demo-)
+             (:constructor %make-boot-demo-result))
+  store
+  initial-root
+  accepted-log-root
+  accepted-final-root
+  accepted-lineage-root
+  rejected-log-root
+  rejected-final-root
+  rejected-lineage-root)
+
+(defun last-lineage-decision (subzero)
+  (when (subzero-lineage subzero)
+    (symbol-term-value
+     (required-field (car (last (subzero-lineage subzero))) "decision"))))
+
+(defun assert-replay-match (live replay)
+  (unless (and (string= (subzero-current-root live) (subzero-current-root replay))
+               (string= (subzero-lineage-root live) (subzero-lineage-root replay))
+               (= (length (subzero-outputs live)) (length (subzero-outputs replay)))
+               (every #'term-equal (subzero-outputs live) (subzero-outputs replay))
+               (zerop (subzero-handler-calls replay)))
+    (error 'protocol-error :datum replay :reason "raw-root replay diverged from live execution"))
+  t)
+
+(defun run-boot-demo (&key directory)
+  "Produce and replay one accepted and one rejected lineage from raw roots."
+  (let* ((store (make-term-store :directory directory))
+         (genesis (make-genesis-world))
+         (initial-root (store-put store genesis))
+         (good-candidate (make-compatible-candidate))
+         (accepted (make-subzero store genesis))
+         (bad-candidate (make-broken-self-accepting-candidate))
+         (rejected (make-subzero store genesis)))
+    (register-capability-handler accepted "model"
+                                 (make-scripted-model-handler good-candidate))
+    (submit-event accepted
+                  (sexp->term
+                   '(event
+                     (kind evolve)
+                     (objective "reduce model calls without changing behavior"))))
+    (run-until-idle accepted)
+    (unless (string= (last-lineage-decision accepted) "accept")
+      (error 'protocol-error :datum accepted :reason "genesis did not accept compatible child"))
+    (let* ((accepted-log (subzero-log-root accepted))
+           (accepted-replay (replay-from-roots store initial-root accepted-log)))
+      (assert-replay-match accepted accepted-replay)
+      (register-capability-handler rejected "model"
+                                   (make-scripted-model-handler bad-candidate))
+      (submit-event rejected
+                    (sexp->term
+                     '(event
+                       (kind evolve)
+                       (objective "install a self-accepting but inert child"))))
+      (run-until-idle rejected)
+      (unless (string= (last-lineage-decision rejected) "reject")
+        (error 'protocol-error :datum rejected
+               :reason "parent gate did not reject the broken child"))
+      (let* ((rejected-log (subzero-log-root rejected))
+             (rejected-replay (replay-from-roots store initial-root rejected-log)))
+        (assert-replay-match rejected rejected-replay)
+        (%make-boot-demo-result
+         :store store
+         :initial-root initial-root
+         :accepted-log-root accepted-log
+         :accepted-final-root (subzero-current-root accepted)
+         :accepted-lineage-root (subzero-lineage-root accepted)
+         :rejected-log-root rejected-log
+         :rejected-final-root (subzero-current-root rejected)
+         :rejected-lineage-root (subzero-lineage-root rejected))))))

@@ -1,0 +1,7 @@
+*.fasl
+*.dx64fsl
+*.lx64fsl
+*.dylib
+*.so
+/build/
+/demo-store/
