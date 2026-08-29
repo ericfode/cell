@@ -364,6 +364,14 @@
            (write-char character stream))
   (write-char #\| stream))
 
+(defun write-escaped-string (string stream)
+  (write-char #\" stream)
+  (loop for character across string
+        do (when (find character "\"\\")
+             (write-char #\\ stream))
+           (write-char character stream))
+  (write-char #\" stream))
+
 (defun write-term (term &optional (stream *standard-output*))
   "Write the canonical readable S-expression projection of TERM."
   (labels ((write-one (value)
@@ -371,7 +379,7 @@
                ((atom-p value)
                 (ecase (atom-kind value)
                   (:symbol (write-escaped-symbol-name (atom-value value) stream))
-                  (:string (prin1 (atom-value value) stream))
+                  (:string (write-escaped-string (atom-value value) stream))
                   (:integer (write-string (canonical-integer-string (atom-value value)) stream))
                   (:bytes
                    (format stream "#(~{~D~^ ~})" (coerce (atom-value value) 'list)))))

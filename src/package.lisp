@@ -62,6 +62,40 @@
    #:store-put
    #:store-get
    #:store-exists-p
+   ;; Lisp-native temporal event database
+   #:event-database-error
+   #:event-database-error-reason
+   #:event-database
+   #:event-database-view
+   #:event-db-subscription
+   #:make-event-database
+   #:reopen-event-database
+   #:persist-event-database
+   #:event-db-store
+   #:event-db-name
+   #:event-db-head
+   #:event-db-root
+   #:event-db-transact
+   #:event-db-transactions
+   #:event-db-transaction-count
+   #:event-db-transaction-sequence
+   #:event-db-transaction-previous
+   #:event-db-transaction-source
+   #:event-db-transaction-datoms
+   #:event-datom-entity
+   #:event-datom-attribute
+   #:event-datom-value
+   #:event-datom-transaction
+   #:event-datom-operation
+   #:event-db-datoms
+   #:event-db-query
+   #:event-db-as-of
+   #:event-db-subscribe
+   #:event-db-tail
+   #:event-db-unsubscribe
+   #:event-db-subscription-id
+   #:event-db-subscription-active-p
+   #:event-db-project-log-root
    ;; Evaluator
    #:evaluation-limits
    #:make-evaluation-limits
@@ -213,6 +247,8 @@
    #:subzero-snapshot-root
    #:subzero-trace-roots
    #:subzero-handler-calls
+   #:subzero-event-database
+   #:subzero-event-scope
    #:subzero-ref-name
    #:subzero-manifest-root
    #:subzero-manifest-generation
