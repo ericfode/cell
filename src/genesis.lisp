@@ -57,6 +57,39 @@
                        (list 'kind (%q kind)))
                  fields)))
 
+(defun %model-text-part (value)
+  (%tagged 'text (list 'value value)))
+
+(defun %model-term-part (value)
+  (%tagged 'term (list 'value value)))
+
+(defun %model-request (parts)
+  (%tagged 'model-request
+           (list 'abi (%q 'model/v1))
+           (list 'kind (%q 'complete))
+           (list 'prompt parts)
+           (list 'limits
+                 (%tagged 'model-limits
+                          (list 'max-output-bytes
+                                (%field (%v 'data) 'model-max-output-bytes))))))
+
+(defun %model-pending (id kind request &rest fields)
+  (apply #'%pending id kind
+         (append (list (list 'request-hash (%call 'hash request))) fields)))
+
+(defun %model-result-matches-p (response pending event-status)
+  (%if
+   (%call 'equal event-status (%q 'ok))
+   (%if
+    (%call 'equal (%call 'tag response) (%q 'model-result))
+    (%if
+     (%call 'equal (%field response 'abi) (%q 'model/v1))
+     (%call 'equal (%field response 'request-hash)
+            (%field pending 'request-hash))
+     (%q 'false))
+    (%q 'false))
+   (%q 'false)))
+
 (defun %state-with-recorded-event (state event)
   (%append-field state 'history event))
 
@@ -70,16 +103,17 @@
   (%let*
    `((id ,(%field (%v 'state) 'next-effect-id))
      (recorded-state ,(%state-with-recorded-event (%v 'state) (%v 'event)))
-     (pending ,(%pending (%v 'id) 'task))
+     (request
+      ,(%model-request
+        (%list
+         (%model-text-part (%field (%v 'data) 'task-model-prompt))
+         (%model-term-part (%field (%v 'event) 'task)))))
+     (pending ,(%model-pending (%v 'id) 'task (%v 'request)))
      (next-state
       ,(%put-field
         (%append-field (%v 'recorded-state) 'pending (%v 'pending))
         'next-effect-id
         (%call 'integer+ (%v 'id) (%q 1))))
-     (request
-      ,(%tagged 'answer-task
-                (list 'task (%field (%v 'event) 'task))
-                (list 'context (%field (%v 'data) 'task-context))))
      (effect
       ,(%effect (%v 'id) 'model (%v 'request)
                 (%field (%v 'data) 'model-budget))))
@@ -89,19 +123,24 @@
   (%let*
    `((id ,(%field (%v 'state) 'next-effect-id))
      (recorded-state ,(%state-with-recorded-event (%v 'state) (%v 'event)))
-     (pending ,(%pending (%v 'id) 'evolve
-                         (list 'objective (%field (%v 'event) 'objective))))
+     (request
+      ,(%model-request
+        (%list
+         (%model-text-part (%field (%v 'data) 'evolution-model-prompt))
+         (%model-text-part (%q (format nil "Objective:~%")))
+         (%model-term-part (%field (%v 'event) 'objective))
+         (%model-text-part (%q (format nil "~%Parent world:~%")))
+         (%model-term-part (%v 'world))
+         (%model-text-part (%q (format nil "~%Admission requirements:~%")))
+         (%model-term-part
+          (%field (%v 'data) 'admission-requirements)))))
+     (pending ,(%model-pending (%v 'id) 'evolve (%v 'request)
+                               (list 'objective (%field (%v 'event) 'objective))))
      (next-state
       ,(%put-field
         (%append-field (%v 'recorded-state) 'pending (%v 'pending))
         'next-effect-id
         (%call 'integer+ (%v 'id) (%q 1))))
-     (request
-      ,(%tagged 'propose-child
-                (list 'parent (%v 'world))
-                (list 'objective (%field (%v 'event) 'objective))
-                (list 'abi (%q 'cell-zero/1))
-                (list 'requirements (%field (%v 'data) 'admission-requirements))))
      (effect
       ,(%effect (%v 'id) 'model (%v 'request)
                 (%field (%v 'data) 'model-budget))))
@@ -109,10 +148,24 @@
 
 (defun make-task-result-expression ()
   (%let*
-   `((next-state ,(%state-without-pending (%v 'state) (%v 'effect-id))))
-   (%reaction (%v 'next-state)
-              (%list (%field (%v 'event) 'response))
-              (%q nil))))
+   `((effect-id ,(%field (%v 'event) 'effect-id))
+     (pending ,(%call 'find-by-field (%field (%v 'state) 'pending)
+                      (%q 'id) (%v 'effect-id)))
+     (response ,(%field (%v 'event) 'response))
+     (next-state ,(%state-without-pending (%v 'state) (%v 'effect-id))))
+   (%if
+    (%model-result-matches-p
+     (%v 'response) (%v 'pending) (%field (%v 'event) 'status))
+    (%reaction
+     (%v 'next-state)
+     (%list (%tagged 'answer
+                     (list 'text (%field (%v 'response) 'text))))
+     (%q nil))
+    (%reaction
+     (%v 'next-state)
+     (%list (%tagged 'model-failure
+                     (list 'reason (%q 'invalid-model-result))))
+     (%q nil)))))
 
 (defun make-malformed-candidate-expression ()
   (%let*
@@ -128,38 +181,54 @@
 (defun make-candidate-result-expression ()
   (%let*
    `((response ,(%field (%v 'event) 'response))
-     (candidate ,(%field (%v 'response) 'candidate))
-     (claims ,(%field (%v 'response) 'claims))
-     (effect-id ,(%field (%v 'event) 'effect-id)))
+     (effect-id ,(%field (%v 'event) 'effect-id))
+     (pending ,(%call 'find-by-field (%field (%v 'state) 'pending)
+                      (%q 'id) (%v 'effect-id))))
    (%if
-    (%call 'present? (%v 'candidate))
+    (%model-result-matches-p
+     (%v 'response) (%v 'pending) (%field (%v 'event) 'status))
     (%let*
-     `((base-state ,(%state-without-pending (%v 'state) (%v 'effect-id)))
-       (id ,(%field (%v 'state) 'next-effect-id))
-       (branch
-        ,(%tagged 'branch
-                  (list 'candidate (%v 'candidate))
-                  (list 'claims (%v 'claims))
-                  (list 'status (%q 'proposed))))
-       (pending
-        ,(%pending (%v 'id) 'trial
-                   (list 'candidate (%v 'candidate))
-                   (list 'claims (%v 'claims))))
-       (next-state
-        ,(%put-field
-          (%append-field
-           (%append-field (%v 'base-state) 'candidate-branches (%v 'branch))
-           'pending (%v 'pending))
-          'next-effect-id
-          (%call 'integer+ (%v 'id) (%q 1))))
-       (request
-        ,(%tagged 'trial
-                  (list 'candidate (%v 'candidate))
-                  (list 'events (%field (%v 'data) 'probes))))
-       (effect
-        ,(%effect (%v 'id) 'trial (%v 'request)
-                  (%field (%v 'data) 'trial-budget))))
-     (%reaction (%v 'next-state) (%q nil) (%list (%v 'effect))))
+     `((parsed ,(%call 'parse-term (%field (%v 'response) 'text))))
+     (%if
+      (%call 'equal (%field (%v 'parsed) 'status) (%q 'ok))
+      (%let*
+       `((proposal ,(%field (%v 'parsed) 'value))
+         (candidate ,(%field (%v 'proposal) 'candidate))
+         (claims ,(%field (%v 'proposal) 'claims)))
+       (%if
+        (%call 'equal (%call 'tag (%v 'proposal)) (%q 'proposal))
+        (%if
+         (%call 'present? (%v 'candidate))
+         (%let*
+          `((base-state ,(%state-without-pending (%v 'state) (%v 'effect-id)))
+            (id ,(%field (%v 'state) 'next-effect-id))
+            (branch
+             ,(%tagged 'branch
+                       (list 'candidate (%v 'candidate))
+                       (list 'claims (%v 'claims))
+                       (list 'status (%q 'proposed))))
+            (trial-pending
+             ,(%pending (%v 'id) 'trial
+                        (list 'candidate (%v 'candidate))
+                        (list 'claims (%v 'claims))))
+            (next-state
+             ,(%put-field
+               (%append-field
+                (%append-field (%v 'base-state) 'candidate-branches (%v 'branch))
+                'pending (%v 'trial-pending))
+               'next-effect-id
+               (%call 'integer+ (%v 'id) (%q 1))))
+            (trial-request
+             ,(%tagged 'trial
+                       (list 'candidate (%v 'candidate))
+                       (list 'events (%field (%v 'data) 'probes))))
+            (effect
+             ,(%effect (%v 'id) 'trial (%v 'trial-request)
+                       (%field (%v 'data) 'trial-budget))))
+          (%reaction (%v 'next-state) (%q nil) (%list (%v 'effect))))
+         (make-malformed-candidate-expression))
+        (make-malformed-candidate-expression)))
+      (make-malformed-candidate-expression)))
     (make-malformed-candidate-expression))))
 
 (defun make-trial-result-expression ()
@@ -320,6 +389,15 @@
    (make-field "generation" (make-integer-atom generation))
    (make-field "capabilities" (sexp->term '(model trial promote)))
    (make-field "task-context" (sexp->term '(context (role cell-zero))))
+   (make-field "model-max-output-bytes" (make-integer-atom 262144))
+   (make-field
+    "task-model-prompt"
+    (make-string-atom
+     (format nil "MODE: answer-task~%Return only the answer text.~%Task:~%")))
+   (make-field
+    "evolution-model-prompt"
+    (make-string-atom
+     (format nil "MODE: propose-child~%Return exactly one canonical Cell-zero term and no prose: (proposal (candidate WORLD) (claims CLAIMS)). The candidate must be a complete cell-zero/1 world. Claims must separate automatic and semantic claims.~%")))
    (make-field "model-budget"
                (sexp->term '(budget (max-effects 1))))
    (make-field "trial-budget"
@@ -391,32 +469,35 @@
        (replayable replay-compatible)))
      (semantic ()))))
 
+(defun model-proposal-text (candidate claims)
+  (with-output-to-string (stream)
+    (write-term
+     (make-tagged-term
+      "proposal"
+      (make-field "candidate" candidate)
+      (make-field "claims" claims))
+     stream)))
+
 (defun make-scripted-model-handler (candidate &key (claims (mechanical-claims))
                                                 (answer "pong"))
-  "Return a host capability adapter. The adapter is outside the organism.
-It answers tasks deterministically and proposes CANDIDATE exactly once per request."
+  "Return a deterministic model/v1 transport that emits only raw result text."
   (lambda (subzero request budget effect)
     (declare (ignore subzero budget effect))
-    (cond
-      ((tagged-term-p request "answer-task")
-       (values "ok"
-               (make-tagged-term
-                "answer"
-                (make-field "text" (make-string-atom answer)))
-               (usage-term :effects 1 :events 1)))
-      ((tagged-term-p request "propose-child")
-       (values "ok"
-               (make-tagged-term
-                "proposal"
-                (make-field "candidate" candidate)
-                (make-field "claims" claims))
-               (usage-term :effects 1 :events 1)))
-      (t
-       (values "error"
-               (make-tagged-term
-                "failure"
-                (make-field "reason" (make-symbol-atom "unknown-model-request")))
-               (usage-term :effects 1 :events 1))))))
+    (let ((prompt (render-model-prompt request)))
+      (cond
+        ((uiop:string-prefix-p "MODE: answer-task" prompt)
+         (values "ok"
+                 (make-model-result request answer)
+                 (usage-term :effects 1 :events 1)))
+        ((uiop:string-prefix-p "MODE: propose-child" prompt)
+         (values "ok"
+                 (make-model-result request (model-proposal-text candidate claims))
+                 (usage-term :effects 1 :events 1)))
+        (t
+         (values "error"
+                 (make-model-failure request "unknown-request"
+                                     "unknown model/v1 prompt")
+                 (usage-term :effects 1 :events 1)))))))
 
 (defstruct (boot-demo-result
              (:conc-name boot-demo-)

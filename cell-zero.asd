@@ -12,6 +12,7 @@
                (:file "src/term")
                (:file "src/evaluator")
                (:file "src/subzero")
+               (:file "src/model")
                (:file "src/genesis")
                (:file "src/homoiconic"))
   :in-order-to ((test-op (test-op "cell-zero/tests"))))

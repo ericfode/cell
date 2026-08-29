@@ -19,6 +19,12 @@ Semantic behavior lives in the capsule. The Cell-zero/2 evaluator is a Cell Zero
 
 The Cell-zero/1 replayable-world API remains available for compatibility.
 
+## Stage 0 provider bridge
+
+The frozen [`model/v1`](docs/model-v1.md) ABI carries deterministic text-completion requests, bounded results, token usage, failures, and replay transcripts. Provider and credential selection stay outside Genesis. Genesis constructs requests and parses candidate terms through hereditary code.
+
+The initial Autolith adapter calls the low-level provider client directly. It does not enter Autolith's agent loop. A future `tutor/v1` capability can carry demonstrations, critiques, curricula, and bootstrap-compiler lessons as explicit replayable effects.
+
 ## Load and test
 
 ```lisp

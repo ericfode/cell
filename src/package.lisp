@@ -69,6 +69,39 @@
    #:usage-output-size
    #:validate-program
    #:evaluate-program
+   ;; Provider-neutral model/v1 ABI
+   #:model-v1-abi
+   #:make-model-text-part
+   #:make-model-term-part
+   #:model-part-kind
+   #:model-part-value
+   #:make-model-request
+   #:model-request-parts
+   #:model-request-max-output-bytes
+   #:model-request-valid-p
+   #:model-request-hash
+   #:render-model-prompt
+   #:make-model-usage
+   #:model-usage-input-tokens
+   #:model-usage-output-tokens
+   #:model-usage-valid-p
+   #:make-model-result
+   #:model-result-text
+   #:model-result-finish-reason
+   #:model-result-usage
+   #:model-result-valid-p
+   #:make-model-failure
+   #:model-failure-kind
+   #:model-failure-message
+   #:model-failure-valid-p
+   #:make-model-credential
+   #:model-credential-ref
+   #:model-credential-valid-p
+   #:make-model-transcript
+   #:model-transcript-exchanges
+   #:model-transcript-valid-p
+   #:make-recording-model-handler
+   #:make-model-fixture-handler
    ;; Homoiconic Cell-zero/2
    #:make-homoiconic-evaluator-program
    #:evaluate-homoiconic-program

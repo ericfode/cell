@@ -47,8 +47,9 @@
     ("field" 2 2) ("put-field" 3 3) ("append-field" 3 3) ("tag" 1 1)
     ("hash" 1 1) ("first" 1 1) ("second" 1 1) ("third" 1 1) ("rest" 1 1)
     ("length" 1 1) ("find-by-field" 3 3) ("remove-by-field" 3 3)
-    ("all-checks-pass" 2 2) ("first-failed-check" 2 2) ("subset?" 2 2)
-    ("term-size" 1 1) ("string-concat" 2 2) ("apply-primitive" 2 2)))
+     ("all-checks-pass" 2 2) ("first-failed-check" 2 2) ("subset?" 2 2)
+     ("term-size" 1 1) ("string-concat" 2 2) ("parse-term" 1 1)
+     ("apply-primitive" 2 2)))
 
 (defparameter +primitive-names+ (mapcar #'first +primitive-signatures+))
 
@@ -387,6 +388,28 @@ kernel needed to execute the evaluator represented inside a Cell-zero capsule."
         (concatenate 'string
                      (evaluator-string-value (first arguments) expression)
                      (evaluator-string-value (second arguments) expression))))
+       ((string= name "parse-term")
+        (arity 1 1)
+        (labels ((failure ()
+                   (term-list
+                    (make-symbol-atom "parse-result")
+                    (term-list (make-symbol-atom "status")
+                               (make-symbol-atom "error"))
+                    (term-list (make-symbol-atom "reason")
+                               (make-symbol-atom "malformed-term")))))
+          (handler-case
+              (let ((parsed
+                      (read-term
+                       (evaluator-string-value (first arguments) expression))))
+                (meter-primitive-arguments state (list parsed) expression depth)
+                (term-list
+                 (make-symbol-atom "parse-result")
+                 (term-list (make-symbol-atom "status")
+                            (make-symbol-atom "ok"))
+                 (term-list (make-symbol-atom "value") parsed)))
+            (malformed-term () (failure))
+            (reader-error () (failure))
+            (end-of-file () (failure)))))
       ((string= name "list")
        (term-list-from-elements arguments))
       ((string= name "append")

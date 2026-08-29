@@ -83,6 +83,104 @@
                             (list (cons 'x (make-integer-atom 4)))
                             :limits (make-evaluation-limits :max-steps 1))))))
 
+(deftest model-v1-request-result-and-credential-contract
+  (let* ((payload (sexp->term '(task (name "stage-zero"))))
+         (request
+           (make-model-request
+            (list (make-model-text-part "Task: ")
+                  (make-model-term-part payload))
+            :max-output-bytes 64))
+         (same
+           (make-model-request
+            (list (make-model-text-part "Task: ")
+                  (make-model-term-part payload))
+            :max-output-bytes 64))
+         (usage (make-model-usage :input-tokens 7 :output-tokens 3))
+         (result (make-model-result request "done" :usage usage))
+         (credential (make-model-credential "autolith/default")))
+    (is (model-request-valid-p request))
+    (is (string= (model-request-hash request) (model-request-hash same)))
+    (is (search "|task|" (render-model-prompt request)))
+    (is (model-result-valid-p result request))
+    (is (= 7 (model-usage-input-tokens (model-result-usage result))))
+    (is (= 3 (model-usage-output-tokens (model-result-usage result))))
+    (is (model-credential-valid-p credential))
+    (is (string= "autolith/default" (model-credential-ref credential)))
+    (is (signals protocol-error
+          (make-model-result request (make-string 65 :initial-element #\x))))))
+
+(deftest evaluator-parses-model-text-as-a-bounded-term
+  (let ((program
+          (sexp->term
+           '(program
+             (parameters (text))
+             (body (call parse-term (var text)))))))
+    (multiple-value-bind (parsed usage)
+        (evaluate-program program
+                          (list (cons 'text (make-string-atom "(|proposal| (|value| 7))"))))
+      (is (string= "ok"
+                   (cell-zero::symbol-term-value (term-field parsed "status"))))
+      (is (term-equal (sexp->term '(proposal (value 7)))
+                      (term-field parsed "value")))
+      (is (plusp (usage-steps usage))))
+    (let ((failed
+            (evaluate-program program
+                              (list (cons 'text (make-string-atom "("))))))
+      (is (string= "error"
+                   (cell-zero::symbol-term-value (term-field failed "status")))))))
+
+(defun run-genesis-task-with-model-handler (handler)
+  (let* ((store (make-term-store))
+         (world (make-genesis-world))
+         (subzero (make-subzero store world)))
+    (register-capability-handler subzero "model" handler)
+    (submit-event subzero
+                  (sexp->term '(event (kind task) (task "stage-zero"))))
+    (run-until-idle subzero)
+    subzero))
+
+(deftest recorded-model-transcript-runs-through-standalone-fixture
+  (multiple-value-bind (recording transcript-reader)
+      (make-recording-model-handler
+       (make-scripted-model-handler (make-compatible-candidate)
+                                    :answer "STAGE0_OK"))
+    (let* ((live (run-genesis-task-with-model-handler recording))
+           (transcript (funcall transcript-reader)))
+      (is (model-transcript-valid-p transcript))
+      (is (= 1 (length (model-transcript-exchanges transcript))))
+      (multiple-value-bind (fixture consumed-p)
+          (make-model-fixture-handler transcript)
+        (let ((replayed (run-genesis-task-with-model-handler fixture)))
+          (is (funcall consumed-p))
+          (is (string= (subzero-current-root live)
+                       (subzero-current-root replayed)))
+          (is (string= (subzero-log-root live)
+                       (subzero-log-root replayed)))
+          (is (every #'term-equal
+                     (subzero-outputs live)
+                     (subzero-outputs replayed))))))))
+
+(deftest genesis-constructs-candidate-from-raw-model-text
+  (let* ((store (make-term-store))
+         (candidate (make-compatible-candidate))
+         (subzero (make-subzero store (make-genesis-world))))
+    (multiple-value-bind (recording transcript-reader)
+        (make-recording-model-handler (make-scripted-model-handler candidate))
+      (register-capability-handler subzero "model" recording)
+      (submit-event subzero
+                    (sexp->term '(event (kind evolve) (objective "raw text child"))))
+      (run-until-idle subzero)
+      (let* ((transcript (funcall transcript-reader))
+             (exchange (first (model-transcript-exchanges transcript)))
+             (response (term-field exchange "response")))
+        (is (string= "model-result" (atom-value (term-tag response))))
+        (is (stringp (model-result-text response)))
+        (let ((missing (make-string-atom "missing")))
+          (is (term-equal missing
+                          (term-field response "candidate" missing))))
+        (is (equal '("accept")
+                   (lineage-decisions store (subzero-lineage-root subzero))))))))
+
 (deftest accepted-and-rejected-lineages-replay
   (let* ((demo (run-boot-demo))
          (store (boot-demo-store demo)))
