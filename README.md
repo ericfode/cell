@@ -11,6 +11,7 @@ The homoiconic Cell-zero/2 capsule system remains available as an optional exper
 - [`model/v1`](docs/model-v1.md) transports deterministic text-completion requests and results. Model text is used for task answers, not interpreted as a hereditary world.
 - [`tutor/v1`](docs/tutor-v1.md) transports explicit lessons and optional `candidate/v1` artifacts.
 - [`genome/v1`](docs/genome-v1.md) carries ordinary Common Lisp source files, source hashes, entry points, and canonical genome data.
+- The [temporal event database](docs/event-database.md) projects hash-chained Subzero activity into immutable EAV datoms with joins, as-of history, and live tails.
 - Subzero runs source genomes through a disposable compiler process and never loads candidate packages into the parent Lisp image.
 - Candidate trials and admission are authored by the current parent and enforced by Subzero.
 
@@ -63,6 +64,10 @@ The suite covers source-manifest validation, isolated compilation, model and tut
 The tutor returns a structured candidate artifact. The parent constructs the trial request, Subzero compiles and probes the candidate under intersected capabilities, replay verifies the trace, and the parent admission function decides `accept`, `reject`, or `defer`.
 
 `make-recording-tutor-handler` records a hosted run. `make-tutor-fixture-handler` replays the exact requests and artifacts standalone. Raw event-log replay invokes no capability handlers.
+
+## Event inspection
+
+Attach `:event-database` to `make-subzero` to project each authoritative log entry automatically. Model projections include the `model/v1` request hash, exact rendered prompt, status, response, resource usage, and separately marked provider telemetry. Nested trial runs are linked to their parent scope and share the same queryable history. See [`docs/event-database.md`](docs/event-database.md).
 
 ## Optional homoiconic lineage
 

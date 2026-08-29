@@ -2,7 +2,7 @@
 
 (asdf:defsystem "cell-zero"
   :description "Stage 0 source genomes with replayable parent-gated evolution"
-  :version "0.3.0"
+  :version "0.4.0"
   :author "Eric Fode and Autolith"
   :license "MIT"
   :depends-on ("uiop")
@@ -10,6 +10,7 @@
   :components ((:file "src/package")
                (:file "src/sha256")
                (:file "src/term")
+               (:file "src/event-db")
                (:file "src/evaluator")
                (:file "src/subzero")
                (:file "src/genome")
@@ -25,7 +26,8 @@
 (asdf:defsystem "cell-zero/tests"
   :depends-on ("cell-zero")
   :serial t
-  :components ((:file "test/tests"))
+  :components ((:file "test/tests")
+               (:file "test/event-db-tests"))
   :perform (test-op (operation component)
              (declare (ignore operation component))
              (unless (uiop:symbol-call :cell-zero.tests :run-tests)

@@ -132,6 +132,11 @@
 
 (defclass subzero ()
   ((store :initarg :store :reader subzero-store)
+   (event-database :initarg :event-database :initform nil
+                   :reader subzero-event-database)
+   (event-scope :initarg :event-scope :reader subzero-event-scope)
+   (event-parent-scope :initarg :event-parent-scope :initform nil
+                       :reader subzero-event-parent-scope)
    (initial-root :initarg :initial-root :reader subzero-initial-root)
    (current-root :initarg :current-root :accessor subzero-current-root)
    (entries :initform nil :accessor subzero-entries)
@@ -162,6 +167,7 @@
 
 (defun make-subzero (store world-or-root
                      &key capabilities handlers (mode :live) name
+                        event-database event-scope event-parent-scope
                        (max-effects most-positive-fixnum)
                        (max-events most-positive-fixnum)
                        (max-eval-steps most-positive-fixnum))
@@ -173,8 +179,13 @@
     (let* ((root (store-put store world))
            (grant (mapcar #'canonical-symbol-name
                           (or capabilities (world-capability-names world))))
+           (scope (or event-scope
+                      (format nil "subzero/~A~@[/~A~]" root name)))
            (subzero (make-instance 'subzero
                                    :store store
+                                   :event-database event-database
+                                   :event-scope scope
+                                   :event-parent-scope event-parent-scope
                                    :initial-root root
                                    :current-root root
                                    :capability-grant grant
@@ -185,6 +196,9 @@
                                    :mode mode)))
       (dolist (binding handlers)
         (register-capability-handler subzero (car binding) (cdr binding)))
+      (when event-database
+        (event-db-register-subzero-run event-database scope root mode
+                                       event-parent-scope))
       (when (and name (eq mode :live))
         (persist-subzero subzero))
       subzero)))
@@ -247,6 +261,10 @@
     (store-put (subzero-store subzero) entry)
     (setf (subzero-entries subzero)
           (append (subzero-entries subzero) (list entry)))
+    (when (subzero-event-database subzero)
+      (event-db-project-subzero-entry
+       (subzero-event-database subzero) (subzero-event-scope subzero) entry
+       :parent-scope (subzero-event-parent-scope subzero)))
     entry))
 
 (defun subzero-log-root (subzero)
@@ -354,7 +372,7 @@
                 (subzero-manifest-generation subzero) generation)
           root)))))
 
-(defun reopen-subzero (store name)
+(defun reopen-subzero (store name &key event-database)
   "Reconstruct a stable named world from its durable manifest and raw roots."
   (let ((manifest-root (read-subzero-ref store name)))
     (unless manifest-root
@@ -379,6 +397,12 @@
             (slot-value reopened 'mode) :live
             (subzero-manifest-root reopened) manifest-root
             (subzero-manifest-generation reopened) generation)
+      (when event-database
+        (let ((scope (format nil "subzero/~A/~A" initial-root name)))
+          (setf (slot-value reopened 'event-database) event-database
+                (slot-value reopened 'event-scope) scope)
+          (event-db-register-subzero-run event-database scope initial-root :live)
+          (event-db-project-log-root event-database log-root :scope scope)))
       reopened)))
 
 (defun valid-event-p (event)
@@ -666,6 +690,11 @@
     (when completed
       (setf trial (make-subzero (subzero-store subzero) candidate
                                 :capabilities trial-capabilities
+                                :event-database (subzero-event-database subzero)
+                                :event-scope
+                                (event-db-trial-scope
+                                 (subzero-event-scope subzero) (term-hash effect))
+                                :event-parent-scope (subzero-event-scope subzero)
                                 :max-effects max-effects
                                 :max-events max-events
                                 :max-eval-steps max-eval-steps
