@@ -71,6 +71,28 @@
    #:usage-output-size
    #:validate-program
    #:evaluate-program
+    ;; Objective-specific selection/v1
+    #:selection-v1-abi
+    #:make-trial-probe
+    #:trial-probe-event
+    #:trial-probe-expected-outputs
+    #:trial-probe-valid-p
+    #:make-selection-plan
+    #:selection-plan-objective
+    #:selection-plan-regression-probes
+    #:selection-plan-objective-probes
+    #:selection-plan-metric
+    #:selection-plan-objective-hash
+    #:selection-plan-regression-probes-hash
+    #:selection-plan-objective-probes-hash
+    #:selection-plan-metric-hash
+    #:selection-plan-valid-p
+    #:selection-plan-hash
+    #:make-selection-fitness
+    #:selection-fitness-score
+    #:selection-fitness-total
+    #:selection-fitness-valid-p
+    #:selection-fitness-improves-p
    ;; Ordinary source-bundle genome/v1 ABI
    #:genome-v1-abi
    #:make-genome-source
@@ -216,6 +238,8 @@
    #:make-compatible-candidate
    #:make-broken-self-accepting-candidate
    #:make-compatible-candidate-artifact
+    #:make-objective-improving-candidate
+    #:objective-improvement-probes
    #:make-scripted-tutor-handler
    #:make-scripted-model-handler
    #:run-boot-demo

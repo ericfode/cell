@@ -1,6 +1,6 @@
 # tutor/v1
 
-`tutor/v1` is the structured Stage 0 boundary between a heritable parent genome and an Autolith-hosted tutor. The tutor may return replayable lessons and one optional candidate artifact. It cannot mutate the running world, execute trials, decide admission, or install a successor.
+`tutor/v1` is the structured Stage 0 boundary between a heritable parent genome and an Autolith-hosted tutor. The tutor may return replayable lessons and one optional candidate artifact. It cannot mutate the running world, execute trials, alter the committed [`selection/v1`](selection-v1.md) plan, decide admission, or install a successor.
 
 ## Request
 
@@ -14,6 +14,16 @@
 ```
 
 The complete parent world includes its `genome/v1` source bundle and current state. `request-hash` values are the canonical `term-hash` of this exact request.
+
+For comparative evolution, Stage 0 first commits the selection plan and obtains an attested parent baseline. The tutor context then contains:
+
+```lisp
+(selection-context
+  (tutor-context <parent-defined context>)
+  (selection-plan <selection/v1 plan>))
+```
+
+The tutor sees the exact objective, regression probes, objective probes, and metric that will evaluate its candidate. Candidate generation cannot replace any of those fields.
 
 ## Lessons
 
@@ -59,7 +69,7 @@ The artifact separates a candidate genome and initial state from the tutor trans
   (message "safe durable message"))
 ```
 
-A valid candidate result causes the current parent genome to construct a trial effect. Subzero enforces the trial envelope and returns attested evidence. The current parent then constructs a promotion request and executes its own admission function.
+A valid candidate result causes the current parent genome to construct a trial effect under the same plan used for the parent baseline. Subzero enforces the trial envelope and returns attested comparative evidence. The current parent then constructs a promotion request and executes its own admission function.
 
 ## Hosted recording and standalone fixture
 

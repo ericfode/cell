@@ -2,7 +2,7 @@
 
 A replayable, parent-gated evolutionary substrate for ordinary Common Lisp source genomes.
 
-Stage 0 uses [`genome/v1`](docs/genome-v1.md): a content-bound source bundle with compiled `react` and `admit` entry points. Subzero owns canonical storage, effects, resource envelopes, evidence, replay, and lineage publication. The current genome owns requests, state transitions, trials, and admission policy.
+Stage 0 uses [`genome/v1`](docs/genome-v1.md), a content-bound source bundle with compiled `react` and `admit` entry points, and [`selection/v1`](docs/selection-v1.md), a committed comparative plan with an attested parent baseline. Subzero owns canonical storage, effects, resource envelopes, evidence, replay, and lineage publication. The current genome owns requests, state transitions, trials, and admission policy.
 
 The homoiconic Cell-zero/2 capsule system remains available as an optional experimental lineage.
 
@@ -10,6 +10,7 @@ The homoiconic Cell-zero/2 capsule system remains available as an optional exper
 
 - [`model/v1`](docs/model-v1.md) transports deterministic text-completion requests and results. Model text is used for task answers, not interpreted as a hereditary world.
 - [`tutor/v1`](docs/tutor-v1.md) transports explicit lessons and optional `candidate/v1` artifacts.
+- [`selection/v1`](docs/selection-v1.md) commits the objective, regression probes, objective probes, and metric before tutor invocation, then requires strict improvement over an attested parent baseline.
 - [`genome/v1`](docs/genome-v1.md) carries ordinary Common Lisp source files, source hashes, entry points, and canonical genome data.
 - Subzero runs source genomes through a disposable compiler process and never loads candidate packages into the parent Lisp image.
 - Candidate trials and admission are authored by the current parent and enforced by Subzero.
@@ -22,7 +23,7 @@ The homoiconic Cell-zero/2 capsule system remains available as an optional exper
 (asdf:test-system "cell-zero")
 ```
 
-The suite covers source-manifest validation, isolated compilation, model and tutor fixture replay, explicit lessons and artifacts, parent-owned trials and admission, accepted and rejected lineage replay, durable recovery, the legacy evaluator, and the optional homoiconic system.
+The suite covers source-manifest validation, isolated compilation, model and tutor fixture replay, comparative selection plans and fitness, explicit lessons and artifacts, parent-owned trials and admission, accepted and rejected lineage replay, durable recovery, the legacy evaluator, and the optional homoiconic system.
 
 ## Task execution
 
@@ -47,7 +48,7 @@ The suite covers source-manifest validation, isolated compilation, model and tut
 ```lisp
 (let* ((store (cell-zero:make-term-store))
        (parent (cell-zero:make-genesis-world))
-       (candidate (cell-zero:make-compatible-candidate))
+       (candidate (cell-zero:make-objective-improving-candidate))
        (cell (cell-zero:make-subzero store parent)))
   (cell-zero:register-capability-handler
    cell "model" (cell-zero:make-scripted-model-handler))
@@ -55,12 +56,15 @@ The suite covers source-manifest validation, isolated compilation, model and tut
    cell "tutor" (cell-zero:make-scripted-tutor-handler candidate))
   (cell-zero:submit-event
    cell (cell-zero:sexp->term
-         '(event (kind evolve) (objective "improve without regressions"))))
+         `(event
+            (kind evolve)
+            (objective "improve without regressions")
+            (objective-probes ,(cell-zero:objective-improvement-probes)))))
   (cell-zero:run-until-idle cell)
   (cell-zero:subzero-lineage-root cell))
 ```
 
-The tutor returns a structured candidate artifact. The parent constructs the trial request, Subzero compiles and probes the candidate under intersected capabilities, replay verifies the trace, and the parent admission function decides `accept`, `reject`, or `defer`.
+The parent commits a `selection/v1` plan and runs itself as the attested baseline before invoking the tutor. The tutor returns a structured candidate artifact. Subzero compiles and probes the candidate under the identical plan and intersected capabilities, replay verifies both fitness bindings, and the parent admission function decides `accept`, `reject`, or `defer`. Equal objective fitness is rejected.
 
 `make-recording-tutor-handler` records a hosted run. `make-tutor-fixture-handler` replays the exact requests and artifacts standalone. Raw event-log replay invokes no capability handlers.
 

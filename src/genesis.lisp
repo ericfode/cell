@@ -383,6 +383,14 @@
       (event (event (kind task) (task "ping")))
       (expected-outputs ((answer (text "pong"))))))))
 
+(defun objective-improvement-probes ()
+  "Return the objective probe used by the first comparative evolution path."
+  (term-list-from-elements
+   (list
+    (make-trial-probe
+     (sexp->term '(event (kind objective-probe)))
+     (list (sexp->term '(objective-result (status pass))))))))
+
 (defun genesis-data (&key (generation 0))
   (make-tagged-term
    "data"
@@ -424,6 +432,7 @@
                   replay-compatible
                   capability-policy
                   resource-policy
+                   objective-improvement
                   automatic-properties-checkable
                   evidence-complete)))
    (make-field "probes" (genesis-probes))))
@@ -466,6 +475,18 @@
    (make-genome-entry-point "CELL-ZERO.STAGE0.GENOME" "ADMIT")
    (genesis-data :generation generation)))
 
+(defun make-objective-improving-source-genome (&key (generation 1))
+  (make-source-genome
+   (list (make-genome-source "stage0.lisp"
+                             (bundled-source-text "genomes/stage0.lisp"))
+         (make-genome-source
+          "objective-improvement.lisp"
+          (bundled-source-text "genomes/objective-improvement.lisp")))
+   (make-genome-entry-point
+    "CELL-ZERO.STAGE0.GENOME" "REACT-WITH-OBJECTIVE-PROBE")
+   (make-genome-entry-point "CELL-ZERO.STAGE0.GENOME" "ADMIT")
+   (genesis-data :generation generation)))
+
 (defun make-inert-source-genome (&key (generation 1))
   (make-source-genome
    (list (make-genome-source "inert.lisp"
@@ -485,6 +506,9 @@
 
 (defun make-compatible-candidate ()
   (make-source-world (make-stage0-source-genome :generation 1)))
+
+(defun make-objective-improving-candidate ()
+  (make-source-world (make-objective-improving-source-genome :generation 1)))
 
 (defun make-broken-self-accepting-candidate ()
   "A loadable genome/v1 candidate that fails liveness but would admit itself."
@@ -587,28 +611,30 @@ CANDIDATE may be a source world, a candidate/v1 artifact, or NIL for lessons onl
   (let* ((store (make-term-store :directory directory))
          (genesis (make-genesis-world))
          (initial-root (store-put store genesis))
-         (good-candidate (make-compatible-candidate))
+         (good-candidate (make-objective-improving-candidate))
          (accepted (make-subzero store genesis))
          (bad-candidate (make-broken-self-accepting-candidate))
          (rejected (make-subzero store genesis)))
     (register-demo-handlers accepted good-candidate)
     (submit-event accepted
                   (sexp->term
-                   '(event
+                   `(event
                      (kind evolve)
-                     (objective "reduce model calls without changing behavior"))))
+                     (objective "handle the committed objective probe")
+                     (objective-probes ,(objective-improvement-probes)))))
     (run-until-idle accepted)
     (unless (string= (last-lineage-decision accepted) "accept")
-      (error 'protocol-error :datum accepted :reason "genesis did not accept compatible child"))
+      (error 'protocol-error :datum accepted :reason "genesis did not accept improving child"))
     (let* ((accepted-log (subzero-log-root accepted))
            (accepted-replay (replay-from-roots store initial-root accepted-log)))
       (assert-replay-match accepted accepted-replay)
       (register-demo-handlers rejected bad-candidate)
       (submit-event rejected
                     (sexp->term
-                     '(event
+                     `(event
                        (kind evolve)
-                       (objective "install a self-accepting but inert child"))))
+                       (objective "install a self-accepting but inert child")
+                       (objective-probes ,(objective-improvement-probes)))))
       (run-until-idle rejected)
       (unless (string= (last-lineage-decision rejected) "reject")
         (error 'protocol-error :datum rejected

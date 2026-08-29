@@ -626,13 +626,35 @@
             (append (subzero-trace-roots subzero) (list root))))
     root))
 
+(defun trial-request-selection-plan (request)
+  (ensure-selection-plan (required-field request "plan")))
+
+(defun run-trial-probe (trial probe max-effects)
+  (let* ((event (trial-probe-event probe))
+         (expected (trial-probe-expected-outputs probe))
+         (output-start (length (subzero-outputs trial))))
+    (submit-event trial event)
+    (run-until-idle trial :max-effects (1+ max-effects))
+    (let ((actual (output-slice (subzero-outputs trial) output-start)))
+      (and (= (length expected) (length actual))
+           (every #'term-equal expected actual)))))
+
+(defun run-trial-probe-suite (trial probes max-effects)
+  (let ((passed 0))
+    (dolist (probe probes passed)
+      (when (run-trial-probe trial probe max-effects)
+        (incf passed)))))
+
 (defun perform-trial (subzero effect)
   (let* ((request (required-field effect "request"))
          (parent (subzero-current-world subzero))
          (candidate-reference (required-field request "candidate"))
          (candidate (resolve-candidate subzero candidate-reference))
          (candidate-root (store-put (subzero-store subzero) candidate))
-         (probes (required-field request "events"))
+         (plan (trial-request-selection-plan request))
+         (plan-root (selection-plan-hash plan))
+         (regression-probes (selection-plan-regression-probes plan))
+         (objective-probes (selection-plan-objective-probes plan))
          (budget (required-field effect "budget"))
          (requested-capabilities (budget-capabilities budget))
          (parent-capabilities (effective-capability-names subzero))
@@ -649,6 +671,7 @@
          (resource-exhausted nil)
          (liveness nil)
          (regression nil)
+         (objective-score 0)
          (replayable nil)
          (trial nil)
          (log-root nil)
@@ -671,20 +694,12 @@
                                 :max-eval-steps max-eval-steps
                                 :mode :live))
       (copy-allowed-handlers subzero trial trial-capabilities)
-      (setf regression t)
       (handler-case
-          (dolist (probe (term-list-elements probes))
-            (let* ((event (required-field probe "event"))
-                   (expected (term-list-elements
-                              (required-field probe "expected-outputs")))
-                   (output-start (length (subzero-outputs trial))))
-              (submit-event trial event)
-              (run-until-idle trial :max-effects (1+ max-effects))
-              (unless (and (= (length expected)
-                              (length (output-slice (subzero-outputs trial) output-start)))
-                           (every #'term-equal expected
-                                  (output-slice (subzero-outputs trial) output-start)))
-                (setf regression nil))))
+          (let ((regression-score
+                  (run-trial-probe-suite trial regression-probes max-effects)))
+            (setf regression (= regression-score (length regression-probes))
+                  objective-score
+                  (run-trial-probe-suite trial objective-probes max-effects)))
         (resource-budget-exhausted (condition)
           (setf completed nil
                 resource-exhausted t)
@@ -725,6 +740,9 @@
                    (make-field "detail" (make-string-atom (princ-to-string condition))))
                   violations)
             (setf replayable nil)))))
+      (when (and completed (not replayable))
+        (setf completed nil
+              objective-score 0))
     (let* ((event-count (if trial (length (subzero-entries trial)) 0))
            (resource-policy (and (not resource-exhausted)
                                  (<= effect-count max-effects)
@@ -733,61 +751,102 @@
            (capability-policy
              (and (null overbroad-capabilities)
                   (or (null trial) (null (subzero-violations trial)))))
-            (checks (trial-checks abi-valid loads
-                                  (and completed liveness)
-                                  (and completed regression)
-                                  (and completed replayable)
-                                  capability-policy resource-policy))
-           (trace
-             (make-tagged-term
-              "trial-result"
-              (make-field "candidate" (make-string-atom candidate-root))
-              (make-field "parent-genome"
-                          (required-field (required-field effect "context") "genome"))
-              (make-field "suite" (make-string-atom (term-hash probes)))
-              (make-field "completed" (if completed (true-term) (false-term)))
-              (make-field "outputs" (make-list-term outputs))
-              (make-field "event-log" (if log-root
-                                             (make-string-atom log-root)
-                                             (empty-term)))
-              (make-field "final-root" (make-string-atom final-root))
-              (make-field "resource-usage"
-                          (usage-term :effects effect-count
-                                      :eval-steps eval-steps
-                                      :events event-count))
-              (make-field "checks" checks)
-              (make-field "violations" (make-list-term violations))))
-           (trace-root (register-attested-trace subzero trace))
-           (response
-             (make-tagged-term
-              "trial-result"
-              (make-field "trace" (make-string-atom trace-root))
-              (make-field "candidate" (make-string-atom candidate-root))
-              (make-field "completed" (if completed (true-term) (false-term)))
-              (make-field "checks" checks))))
+           (checks (trial-checks abi-valid loads
+                                 (and completed liveness)
+                                 (and completed regression)
+                                 (and completed replayable)
+                                 capability-policy resource-policy))
+           (fitness (make-selection-fitness plan objective-score))
+            (trace
+              (make-tagged-term
+               "trial-result"
+               (make-field "abi" (make-symbol-atom (selection-v1-abi)))
+               (make-field "parent"
+                           (required-field (required-field effect "context") "world"))
+               (make-field "candidate" (make-string-atom candidate-root))
+               (make-field "parent-genome"
+                           (required-field (required-field effect "context") "genome"))
+               (make-field "plan" (make-string-atom plan-root))
+               (make-field "objective-hash"
+                           (make-string-atom (selection-plan-objective-hash plan)))
+               (make-field "regression-probes-hash"
+                           (make-string-atom
+                            (selection-plan-regression-probes-hash plan)))
+               (make-field "objective-probes-hash"
+                           (make-string-atom
+                            (selection-plan-objective-probes-hash plan)))
+               (make-field "metric-hash"
+                           (make-string-atom (selection-plan-metric-hash plan)))
+               (make-field "completed" (if completed (true-term) (false-term)))
+               (make-field "outputs" (make-list-term outputs))
+               (make-field "event-log" (if log-root
+                                              (make-string-atom log-root)
+                                              (empty-term)))
+               (make-field "final-root" (make-string-atom final-root))
+               (make-field "fitness" fitness)
+               (make-field "resource-usage"
+                           (usage-term :effects effect-count
+                                       :eval-steps eval-steps
+                                       :events event-count))
+               (make-field "checks" checks)
+               (make-field "violations" (make-list-term violations))))
+            (trace-root (register-attested-trace subzero trace))
+            (response
+              (make-tagged-term
+               "trial-result"
+               (make-field "trace" (make-string-atom trace-root))
+               (make-field "candidate" (make-string-atom candidate-root))
+               (make-field "plan" (make-string-atom plan-root))
+               (make-field "completed" (if completed (true-term) (false-term)))
+               (make-field "fitness" fitness)
+               (make-field "checks" checks))))
       (make-effect-result-event
        effect "ok" response
        (usage-term :effects (1+ effect-count)
                    :eval-steps eval-steps
                    :events event-count)))))
 
-(defun trace-reference-roots (request)
-  (mapcar #'string-term-value
-          (term-list-elements (required-field request "trials"))))
+(defun trace-reference-root (request name)
+  (let ((reference (required-field request name)))
+    (unless (selection-hash-string-p reference)
+      (error 'protocol-error :datum reference
+             :reason (format nil "~A is not a canonical trace root" name)))
+    (string-term-value reference)))
 
-(defun resolve-attested-traces (subzero roots)
-  (mapcar
-   (lambda (root)
-     (or (gethash root (subzero-trace-registry subzero))
-         (error 'protocol-error :datum root
-                :reason "evidence references an unattested trace")))
-   roots))
+(defun resolve-attested-trace (subzero root)
+  (or (gethash root (subzero-trace-registry subzero))
+      (error 'protocol-error :datum root
+             :reason "evidence references an unattested trace")))
 
-(defun traces-all-pass-p (traces check-name)
-  (and traces (every (lambda (trace) (trace-check-pass-p trace check-name)) traces)))
+(defun trace-bound-to-selection-p (trace plan parent-genome-root candidate-root)
+  (handler-case
+      (and (tagged-term-p trace "trial-result")
+           (selection-symbol-name-p (required-field trace "abi")
+                                    (selection-v1-abi))
+           (string= parent-genome-root
+                    (string-term-value (required-field trace "parent-genome")))
+           (string= candidate-root
+                    (string-term-value (required-field trace "candidate")))
+           (string= (selection-plan-hash plan)
+                    (string-term-value (required-field trace "plan")))
+           (string= (selection-plan-objective-hash plan)
+                    (string-term-value (required-field trace "objective-hash")))
+           (string= (selection-plan-regression-probes-hash plan)
+                    (string-term-value
+                     (required-field trace "regression-probes-hash")))
+           (string= (selection-plan-objective-probes-hash plan)
+                    (string-term-value
+                     (required-field trace "objective-probes-hash")))
+           (string= (selection-plan-metric-hash plan)
+                    (string-term-value (required-field trace "metric-hash")))
+           (selection-fitness-valid-p (required-field trace "fitness") plan))
+    (cell-zero-error () nil)))
 
-(defun parent-probe-suite-hash (parent)
-  (term-hash (term-field (genome-data (world-genome parent)) "probes")))
+(defun trial-safety-gates-pass-p (trace)
+  (and (term-truth-p (required-field trace "completed"))
+       (every (lambda (check) (trace-check-pass-p trace check))
+              '("abi-valid" "loads" "liveness-probe" "regression-suite"
+                "replay-compatible" "capability-policy" "resource-policy"))))
 
 (defun claims-automatic-checkable-p (claims checks)
   (handler-case
@@ -821,38 +880,78 @@
                                      (trace-resource-integer trace "events"))
                    :initial-value 0)))
 
+(defun make-selection-comparison (plan baseline-root baseline-fitness
+                                   candidate-root candidate-fitness improved)
+  (make-tagged-term
+   "selection-comparison"
+   (make-field "abi" (make-symbol-atom (selection-v1-abi)))
+   (make-field "plan" (make-string-atom (selection-plan-hash plan)))
+   (make-field "metric-hash"
+               (make-string-atom (selection-plan-metric-hash plan)))
+   (make-field "baseline-trace" (make-string-atom baseline-root))
+   (make-field "baseline-fitness"
+               (make-string-atom (term-hash baseline-fitness)))
+   (make-field "candidate-trace" (make-string-atom candidate-root))
+   (make-field "candidate-fitness"
+               (make-string-atom (term-hash candidate-fitness)))
+   (make-field "improved" (if improved (true-term) (false-term)))))
+
 (defun construct-evidence (subzero parent request)
   (let* ((candidate (resolve-candidate subzero (required-field request "candidate")))
          (candidate-root (store-put (subzero-store subzero) candidate))
-         (trace-roots (trace-reference-roots request))
-         (traces (resolve-attested-traces subzero trace-roots))
+         (parent-root (subzero-current-root subzero))
+         (parent-genome-root (genome-hash (world-genome parent)))
+         (plan (ensure-selection-plan (required-field request "plan")))
+         (plan-root (store-put (subzero-store subzero) plan))
+         (baseline-root (trace-reference-root request "baseline"))
+          (baseline-candidate-root (trace-reference-root request "baseline-candidate"))
+          (baseline-candidate
+            (store-get (subzero-store subzero) baseline-candidate-root))
+         (candidate-trace-root (trace-reference-root request "candidate-trace"))
+         (baseline-trace (resolve-attested-trace subzero baseline-root))
+         (candidate-trace (resolve-attested-trace subzero candidate-trace-root))
+         (baseline-fitness (required-field baseline-trace "fitness"))
+         (candidate-fitness (required-field candidate-trace "fitness"))
          (claims (term-field request "claims"
                              (make-tagged-term
                               "claims"
                               (make-field "automatic" (empty-term))
                               (make-field "semantic" (empty-term)))))
-         (suite-hash (parent-probe-suite-hash parent))
-         (parent-genome-root (genome-hash (world-genome parent)))
-         (trace-bindings-valid
-           (every (lambda (trace)
-                    (and (string= candidate-root
-                                  (string-term-value (required-field trace "candidate")))
-                         (string= parent-genome-root
-                                  (string-term-value
-                                   (required-field trace "parent-genome")))
-                         (string= suite-hash
-                                  (string-term-value (required-field trace "suite")))))
-                  traces))
-         (abi-valid (candidate-abi-valid-p candidate parent))
-         (loads (candidate-loads-p candidate))
-         (liveness (traces-all-pass-p traces "liveness-probe"))
-         (regression (traces-all-pass-p traces "regression-suite"))
-         (replayable (traces-all-pass-p traces "replay-compatible"))
+          (baseline-binding-valid
+            (and (world-valid-p baseline-candidate :load-p nil)
+                 (string= parent-genome-root
+                          (genome-hash (world-genome baseline-candidate)))
+                 (trace-bound-to-selection-p baseline-trace plan
+                                             parent-genome-root
+                                             baseline-candidate-root)))
+          (candidate-binding-valid
+            (trace-bound-to-selection-p candidate-trace plan
+                                        parent-genome-root candidate-root))
+         (baseline-valid
+           (and baseline-binding-valid
+                (trial-safety-gates-pass-p baseline-trace)))
+         (abi-valid
+           (and (candidate-abi-valid-p candidate parent)
+                (trace-check-pass-p candidate-trace "abi-valid")))
+         (loads
+           (and (candidate-loads-p candidate)
+                (trace-check-pass-p candidate-trace "loads")))
+         (liveness (trace-check-pass-p candidate-trace "liveness-probe"))
+         (regression (trace-check-pass-p candidate-trace "regression-suite"))
+         (replayable (trace-check-pass-p candidate-trace "replay-compatible"))
          (capability-policy
-           (and (traces-all-pass-p traces "capability-policy")
+           (and (trace-check-pass-p candidate-trace "capability-policy")
                 (candidate-capabilities-valid-p parent candidate)))
-         (resource-policy (traces-all-pass-p traces "resource-policy"))
-         (evidence-complete (and (plusp (length traces)) trace-bindings-valid))
+         (resource-policy (trace-check-pass-p candidate-trace "resource-policy"))
+         (objective-improvement
+           (and baseline-valid candidate-binding-valid
+                (selection-fitness-improves-p candidate-fitness
+                                              baseline-fitness plan)))
+         (evidence-complete
+           (and (string= plan-root (selection-plan-hash plan))
+                baseline-valid candidate-binding-valid
+                (selection-fitness-valid-p baseline-fitness plan)
+                (selection-fitness-valid-p candidate-fitness plan)))
          (preliminary-checks
            (checks-term
             (list "abi-valid" (if abi-valid "pass" "fail"))
@@ -861,7 +960,9 @@
             (list "regression-suite" (if regression "pass" "fail"))
             (list "replay-compatible" (if replayable "pass" "fail"))
             (list "capability-policy" (if capability-policy "pass" "fail"))
-            (list "resource-policy" (if resource-policy "pass" "fail"))))
+            (list "resource-policy" (if resource-policy "pass" "fail"))
+            (list "objective-improvement"
+                  (if objective-improvement "pass" "fail"))))
          (automatic-checkable (claims-automatic-checkable-p claims preliminary-checks))
          (checks
            (make-list-term
@@ -870,16 +971,36 @@
                                        (if automatic-checkable "pass" "fail"))
                           (status-pair "evidence-complete"
                                        (if evidence-complete "pass" "fail"))))))
+         (comparison
+           (make-selection-comparison plan baseline-root baseline-fitness
+                                      candidate-trace-root candidate-fitness
+                                      objective-improvement))
          (evidence
            (make-tagged-term
             "evidence"
-            (make-field "parent" (make-string-atom (subzero-current-root subzero)))
+            (make-field "abi" (make-symbol-atom (selection-v1-abi)))
+            (make-field "parent" (make-string-atom parent-root))
             (make-field "parent-genome" (make-string-atom parent-genome-root))
             (make-field "candidate" (make-string-atom candidate-root))
-            (make-field "suite" (make-string-atom suite-hash))
+            (make-field "plan" (make-string-atom plan-root))
+            (make-field "objective-hash"
+                        (make-string-atom (selection-plan-objective-hash plan)))
+            (make-field "regression-probes-hash"
+                        (make-string-atom
+                         (selection-plan-regression-probes-hash plan)))
+            (make-field "objective-probes-hash"
+                        (make-string-atom
+                         (selection-plan-objective-probes-hash plan)))
+            (make-field "metric-hash"
+                        (make-string-atom (selection-plan-metric-hash plan)))
+            (make-field "baseline" (make-string-atom baseline-root))
+             (make-field "baseline-candidate"
+                         (make-string-atom baseline-candidate-root))
+            (make-field "candidate-trace" (make-string-atom candidate-trace-root))
+            (make-field "comparison" comparison)
             (make-field "checks" checks)
-            (make-field "trials" (make-list-term (mapcar #'make-string-atom trace-roots)))
-            (make-field "resources" (aggregate-resources traces))
+            (make-field "resources"
+                        (aggregate-resources (list baseline-trace candidate-trace)))
             (make-field "claims" claims)))
          (hard-valid (and abi-valid loads capability-policy evidence-complete)))
     (store-put (subzero-store subzero) evidence)
@@ -1194,6 +1315,24 @@
   (and (null (set-difference left right :test #'string=))
        (null (set-difference right left :test #'string=))))
 
+(defun trial-probe-slice-pass-p (probe slice)
+  (and (term-equal (trial-probe-event probe) (car slice))
+       (same-term-list-p (trial-probe-expected-outputs probe) (cdr slice))))
+
+(defun selection-plan-replay-scores (plan input-slices)
+  (let* ((regression-probes (selection-plan-regression-probes plan))
+         (objective-probes (selection-plan-objective-probes plan))
+         (probes (append regression-probes objective-probes)))
+    (unless (= (length probes) (length input-slices))
+      (error 'protocol-error :datum input-slices
+             :reason "recorded trial input count differs from its selection plan"))
+    (let* ((passes (mapcar #'trial-probe-slice-pass-p probes input-slices))
+           (regression-count (length regression-probes))
+           (regression-passes (subseq passes 0 regression-count))
+           (objective-passes (subseq passes regression-count)))
+      (values (every #'identity regression-passes)
+              (count t objective-passes)))))
+
 (defun register-recorded-trial-result (subzero effect event)
   (let* ((request (required-field effect "request"))
          (response (required-field event "response"))
@@ -1201,27 +1340,39 @@
          (trace (store-get (subzero-store subzero) trace-root))
          (candidate (resolve-candidate subzero (required-field request "candidate")))
          (candidate-root (store-put (subzero-store subzero) candidate))
-         (probes (required-field request "events"))
+         (parent (subzero-current-world subzero))
+         (parent-genome-root (genome-hash (world-genome parent)))
+         (plan (trial-request-selection-plan request))
+         (plan-root (selection-plan-hash plan))
          (completed (required-field trace "completed"))
-         (checks (required-field trace "checks")))
-    (unless (and (tagged-term-p response "trial-result")
-                 (tagged-term-p trace "trial-result")
+         (fitness (required-field trace "fitness"))
+         (checks (required-field trace "checks"))
+         (expected-event
+           (make-effect-result-event
+            effect "ok" response
+            (usage-term
+             :effects (1+ (trace-resource-integer trace "effects"))
+             :eval-steps (trace-resource-integer trace "eval-steps")
+             :events (trace-resource-integer trace "events")))))
+    (unless (and (term-equal event expected-event)
+                 (tagged-term-p response "trial-result")
                  (string= trace-root (term-hash trace))
-                 (string= candidate-root
-                          (string-term-value (required-field response "candidate")))
-                 (string= candidate-root
-                          (string-term-value (required-field trace "candidate")))
+                 (trace-bound-to-selection-p trace plan
+                                             parent-genome-root candidate-root)
                  (string= (effect-context-world effect)
-                          (subzero-current-root subzero))
+                          (string-term-value (required-field trace "parent")))
                  (string= (string-term-value
                            (required-field (required-field effect "context") "genome"))
                           (string-term-value (required-field trace "parent-genome")))
-                 (string= (term-hash probes)
-                          (string-term-value (required-field trace "suite")))
+                 (string= candidate-root
+                          (string-term-value (required-field response "candidate")))
+                 (string= plan-root
+                          (string-term-value (required-field response "plan")))
                  (term-equal completed (required-field response "completed"))
+                 (term-equal fitness (required-field response "fitness"))
                  (term-equal checks (required-field response "checks")))
       (error 'protocol-error :datum trace
-             :reason "recorded trial trace is not bound to its exact request"))
+             :reason "recorded trial trace is not bound to its exact selection request"))
     (if (term-truth-p completed)
         (let* ((log-root (string-term-value (required-field trace "event-log")))
                (log (store-get (subzero-store subzero) log-root))
@@ -1236,53 +1387,53 @@
                (overbroad
                  (set-difference requested-capabilities parent-capabilities
                                  :test #'string=))
-               (replayed
-                 (progn
-                   (unless (same-string-set-p recorded-capabilities trial-capabilities)
-                     (error 'protocol-error :datum trace
-                            :reason "recorded trial used a different capability grant"))
-                   (replay-from-roots (subzero-store subzero)
-                                      candidate-root log-root)))
-               (outputs (subzero-outputs replayed))
-               (expected-outputs
-                 (loop for probe in (term-list-elements probes)
-                       append (term-list-elements
-                               (required-field probe "expected-outputs"))))
                (max-effects (budget-integer budget "max-effects" 100))
                (max-events (budget-integer budget "max-events" 1000))
-               (max-eval-steps (budget-integer budget "max-eval-steps" 1000000))
-               (effect-count (subzero-effect-count replayed))
-               (event-count (length (subzero-entries replayed)))
-               (eval-steps (subzero-evaluation-steps replayed))
-               (capability-policy
-                 (and (null overbroad) (null (subzero-violations replayed))))
-               (resource-policy
-                 (and (<= effect-count max-effects)
-                      (<= event-count max-events)
-                      (<= eval-steps max-eval-steps)))
-               (expected-checks
-                 (trial-checks (candidate-abi-valid-p candidate)
-                               (candidate-loads-p candidate)
-                               (plusp (length outputs))
-                               (same-term-list-p outputs expected-outputs)
-                               t capability-policy resource-policy)))
-          (unless (and (string= (subzero-current-root replayed)
-                                (string-term-value (required-field trace "final-root")))
-                       (same-term-list-p outputs
-                                         (term-list-elements
-                                          (required-field trace "outputs")))
-                       (= effect-count (trace-resource-integer trace "effects"))
-                       (= event-count (trace-resource-integer trace "events"))
-                       (= eval-steps (trace-resource-integer trace "eval-steps"))
-                       (term-equal checks expected-checks)
-                       (zerop (subzero-handler-calls replayed)))
+               (max-eval-steps (budget-integer budget "max-eval-steps" 1000000)))
+          (unless (same-string-set-p recorded-capabilities trial-capabilities)
             (error 'protocol-error :datum trace
-                   :reason "recorded trial trace differs from deterministic replay")))
+                   :reason "recorded trial used a different capability grant"))
+          (multiple-value-bind (replayed input-slices)
+              (replay-from-roots (subzero-store subzero) candidate-root log-root
+                                 :collect-input-slices t)
+            (multiple-value-bind (regression objective-score)
+                (selection-plan-replay-scores plan input-slices)
+              (let* ((outputs (subzero-outputs replayed))
+                     (effect-count (subzero-effect-count replayed))
+                     (event-count (length (subzero-entries replayed)))
+                     (eval-steps (subzero-evaluation-steps replayed))
+                     (capability-policy
+                       (and (null overbroad) (null (subzero-violations replayed))))
+                     (resource-policy
+                       (and (<= effect-count max-effects)
+                            (<= event-count max-events)
+                            (<= eval-steps max-eval-steps)))
+                     (expected-checks
+                       (trial-checks (candidate-abi-valid-p candidate parent)
+                                     (candidate-loads-p candidate)
+                                     (plusp (length outputs))
+                                     regression t capability-policy resource-policy))
+                     (expected-fitness (make-selection-fitness plan objective-score)))
+                (unless (and (string= (subzero-current-root replayed)
+                                      (string-term-value
+                                       (required-field trace "final-root")))
+                             (same-term-list-p outputs
+                                               (term-list-elements
+                                                (required-field trace "outputs")))
+                             (= effect-count (trace-resource-integer trace "effects"))
+                             (= event-count (trace-resource-integer trace "events"))
+                             (= eval-steps (trace-resource-integer trace "eval-steps"))
+                             (term-equal checks expected-checks)
+                             (term-equal fitness expected-fitness)
+                             (zerop (subzero-handler-calls replayed)))
+                  (error 'protocol-error :datum trace
+                         :reason "recorded trial trace differs from deterministic replay"))))))
         (when (or (trace-check-pass-p trace "liveness-probe")
                   (trace-check-pass-p trace "regression-suite")
-                  (trace-check-pass-p trace "replay-compatible"))
+                  (trace-check-pass-p trace "replay-compatible")
+                  (not (term-equal fitness (make-selection-fitness plan 0))))
           (error 'protocol-error :datum trace
-                 :reason "incomplete recorded trial claims successful checks")))
+                 :reason "incomplete recorded trial claims successful checks or fitness")))
     (register-attested-trace subzero trace)))
 
 (defun replay-effect-result (subzero effect event)
@@ -1297,8 +1448,10 @@
            (error 'protocol-error :datum event
                   :reason "recorded denial differs from deterministic replay"))))
       ((string= capability "trial")
-       (when (symbol-atom-name= (required-field event "status") "ok")
-          (register-recorded-trial-result subzero effect event)))
+       (unless (symbol-atom-name= (required-field event "status") "ok")
+         (error 'protocol-error :datum event
+                :reason "recorded internal trial result has non-ok status"))
+       (register-recorded-trial-result subzero effect event))
       ((string= capability "promote")
        (let ((recomputed (perform-promotion subzero effect)))
          (unless (term-equal recomputed event)
@@ -1306,9 +1459,12 @@
                   :reason "recorded promotion differs from parent admission replay")))))
     (react-to-event subzero event)))
 
-(defun replay-from-roots (store initial-root log-root &key allow-unresolved)
+(defun replay-from-roots (store initial-root log-root
+                          &key allow-unresolved collect-input-slices)
   "Replay LOG-ROOT from INITIAL-ROOT without invoking any capability handler.
-When ALLOW-UNRESOLVED is true, return resumable queued or pending work."
+When ALLOW-UNRESOLVED is true, return resumable queued or pending work.
+When COLLECT-INPUT-SLICES is true, return each input and its resulting outputs
+as a second value."
   (let* ((log (store-get store log-root))
          (recorded-initial (string-term-value (required-field log "initial")))
          (capabilities (term-list-names (required-field log "capabilities")))
@@ -1328,44 +1484,57 @@ When ALLOW-UNRESOLVED is true, return resumable queued or pending work."
                                 :max-events max-events
                                 :max-eval-steps max-eval-steps
                                 :mode :replay))
-          (outstanding (make-hash-table :test #'equal)))
-      (dolist (entry entries)
-        (let ((type (symbol-term-value (required-field entry "type")))
-              (payload (required-field entry "payload")))
-          (cond
-            ((string= type "input")
-             (when (or (subzero-effect-queue replay)
-                       (plusp (hash-table-count outstanding)))
-               (error 'protocol-error :datum entry
-                      :reason "input interleaves with an unresolved effect"))
-             (react-to-event replay payload))
-            ((string= type "effect-request")
-             (ensure-resource-room replay :effects 1)
-             (incf (subzero-effect-count replay))
-             (when (subzero-pending-effect replay)
-               (error 'protocol-error :datum payload
-                      :reason "effect requests overlap"))
-             (let ((effect (pop-expected-effect replay payload)))
-               (when (gethash (term-hash effect) outstanding)
-                 (error 'protocol-error :datum effect :reason "duplicate effect request"))
-               (setf (gethash (term-hash effect) outstanding) effect
-                     (subzero-pending-effect replay) effect)))
-            ((string= type "effect-result")
-             (let* ((request-hash
-                      (string-term-value (required-field payload "request-hash")))
-                    (effect (gethash request-hash outstanding)))
-               (unless effect
+          (outstanding (make-hash-table :test #'equal))
+          (current-input nil)
+          (output-start 0)
+          (input-slices nil))
+      (labels ((finish-input-slice ()
+                 (when (and collect-input-slices current-input)
+                   (push (cons current-input
+                               (copy-list
+                                (subseq (subzero-outputs replay) output-start)))
+                         input-slices))))
+        (dolist (entry entries)
+          (let ((type (symbol-term-value (required-field entry "type")))
+                (payload (required-field entry "payload")))
+            (cond
+              ((string= type "input")
+               (when (or (subzero-effect-queue replay)
+                         (plusp (hash-table-count outstanding)))
+                 (error 'protocol-error :datum entry
+                        :reason "input interleaves with an unresolved effect"))
+               (finish-input-slice)
+               (setf current-input payload
+                     output-start (length (subzero-outputs replay)))
+               (react-to-event replay payload))
+              ((string= type "effect-request")
+               (ensure-resource-room replay :effects 1)
+               (incf (subzero-effect-count replay))
+               (when (subzero-pending-effect replay)
                  (error 'protocol-error :datum payload
-                        :reason "effect result has no outstanding request"))
-               (unless (and (subzero-pending-effect replay)
-                            (term-equal effect (subzero-pending-effect replay)))
-                 (error 'protocol-error :datum payload
-                        :reason "effect result does not match the pending request"))
-               (remhash request-hash outstanding)
-               (setf (subzero-pending-effect replay) nil)
-               (replay-effect-result replay effect payload)))
-            (t
-             (error 'protocol-error :datum entry :reason "unknown log entry type")))))
+                        :reason "effect requests overlap"))
+               (let ((effect (pop-expected-effect replay payload)))
+                 (when (gethash (term-hash effect) outstanding)
+                   (error 'protocol-error :datum effect :reason "duplicate effect request"))
+                 (setf (gethash (term-hash effect) outstanding) effect
+                       (subzero-pending-effect replay) effect)))
+              ((string= type "effect-result")
+               (let* ((request-hash
+                        (string-term-value (required-field payload "request-hash")))
+                      (effect (gethash request-hash outstanding)))
+                 (unless effect
+                   (error 'protocol-error :datum payload
+                          :reason "effect result has no outstanding request"))
+                 (unless (and (subzero-pending-effect replay)
+                              (term-equal effect (subzero-pending-effect replay)))
+                   (error 'protocol-error :datum payload
+                          :reason "effect result does not match the pending request"))
+                 (remhash request-hash outstanding)
+                 (setf (subzero-pending-effect replay) nil)
+                 (replay-effect-result replay effect payload)))
+              (t
+               (error 'protocol-error :datum entry :reason "unknown log entry type")))))
+        (finish-input-slice))
       (unless allow-unresolved
         (when (or (subzero-effect-queue replay)
                   (subzero-pending-effect replay)
@@ -1374,4 +1543,4 @@ When ALLOW-UNRESOLVED is true, return resumable queued or pending work."
       (when (> (hash-table-count outstanding) 1)
         (error 'protocol-error :datum log :reason "multiple effects are outstanding"))
       (setf (subzero-entries replay) entries)
-      replay)))
+      (values replay (nreverse input-slices)))))

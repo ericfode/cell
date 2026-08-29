@@ -165,7 +165,11 @@
     (register-capability-handler subzero "model" (make-scripted-model-handler))
     (register-capability-handler subzero "tutor" handler)
     (submit-event subzero
-                  (sexp->term '(event (kind evolve) (objective "source child"))))
+                  (sexp->term
+                   `(event
+                     (kind evolve)
+                     (objective "source child")
+                     (objective-probes ,(objective-improvement-probes)))))
     (run-until-idle subzero)
     subzero))
 
@@ -191,7 +195,7 @@
     (is (term-equal missing (term-field genome "admit" missing)))))
 
 (deftest hosted-tutor-artifact-runs-through-standalone-fixture
-  (let ((candidate (make-compatible-candidate)))
+  (let ((candidate (make-objective-improving-candidate)))
     (multiple-value-bind (recording transcript-reader)
         (make-recording-tutor-handler
          (make-scripted-tutor-handler candidate))
@@ -231,6 +235,286 @@
                                   "lessons")))))
     (is (string= "tutor-update"
                  (atom-value (term-tag (first (subzero-outputs subzero))))))))
+
+(defun selection-evidence-for (subzero)
+  (let* ((entry (car (last (cell-zero::subzero-lineage subzero))))
+         (root (cell-zero::string-term-value (term-field entry "evidence"))))
+    (store-get (cell-zero::subzero-store subzero) root)))
+
+(defun recorded-effect-requests (subzero)
+  (loop for entry in (cell-zero::subzero-entries subzero)
+        when (string= "effect-request"
+                      (cell-zero::symbol-term-value (term-field entry "type")))
+          collect (term-field entry "payload")))
+
+(deftest selection-v1-plan-and-fitness-are-content-bound
+  (let* ((objective (make-string-atom "improve the committed objective"))
+         (regression (cell-zero::genesis-probes))
+         (objective-probes (objective-improvement-probes))
+         (plan (make-selection-plan objective regression objective-probes))
+         (same (make-selection-plan objective regression objective-probes))
+         (baseline (make-selection-fitness plan 0))
+         (improved (make-selection-fitness plan 1)))
+    (is (selection-plan-valid-p plan))
+    (is (term-equal plan same))
+    (is (string= (selection-plan-hash plan) (selection-plan-hash same)))
+    (is (string= (selection-plan-objective-hash plan) (term-hash objective)))
+    (is (string= (selection-plan-regression-probes-hash plan)
+                 (term-hash (term-field plan "regression-probes"))))
+    (is (string= (selection-plan-objective-probes-hash plan)
+                 (term-hash (term-field plan "objective-probes"))))
+    (is (string= (selection-plan-metric-hash plan)
+                 (term-hash (selection-plan-metric plan))))
+    (is (selection-fitness-improves-p improved baseline plan))
+    (is (not (selection-fitness-improves-p baseline baseline plan)))
+    (let ((tampered
+            (put-term-field
+             plan "metric-hash"
+             (make-string-atom
+              "0000000000000000000000000000000000000000000000000000000000000000"))))
+      (is (not (selection-plan-valid-p tampered)))
+      (is (signals protocol-error (selection-plan-hash tampered))))
+    (is (signals protocol-error
+          (make-selection-plan objective regression (empty-term))))
+    (is (signals protocol-error
+          (make-selection-plan objective (empty-term) objective-probes)))))
+
+(deftest parent-baseline-precedes-tutor-under-the-committed-plan
+  (let* ((subzero
+           (run-genesis-evolution-with-tutor-handler
+            (make-scripted-tutor-handler nil)))
+         (effect-entries
+           (remove-if-not
+            (lambda (entry)
+              (member (cell-zero::symbol-term-value (term-field entry "type"))
+                      '("effect-request" "effect-result") :test #'string=))
+            (cell-zero::subzero-entries subzero)))
+         (effect-sequence
+           (mapcar
+            (lambda (entry)
+              (let ((payload (term-field entry "payload")))
+                (list (cell-zero::symbol-term-value (term-field entry "type"))
+                      (cell-zero::effect-capability-name payload))))
+            effect-entries))
+         (requests (recorded-effect-requests subzero))
+         (baseline-effect (first requests))
+         (tutor-effect (second requests))
+         (baseline-result (term-field (second effect-entries) "payload"))
+         (baseline-trace
+           (cell-zero::string-term-value
+            (term-field (term-field baseline-result "response") "trace")))
+         (baseline-plan (term-field (term-field baseline-effect "request") "plan"))
+         (tutor-context
+           (term-field (term-field (term-field tutor-effect "request") "context")
+                       "selection-plan")))
+    (is (equal '(("effect-request" "trial")
+                 ("effect-result" "trial")
+                 ("effect-request" "tutor"))
+               (subseq effect-sequence 0 3)))
+    (is (member baseline-trace (subzero-trace-roots subzero) :test #'string=))
+    (is (selection-plan-valid-p baseline-plan))
+    (is (term-equal baseline-plan tutor-context))))
+
+(deftest strict-objective-improvement-controls-promotion
+  (let* ((improved
+           (run-genesis-evolution-with-tutor-handler
+            (make-scripted-tutor-handler (make-objective-improving-candidate))))
+         (unchanged
+           (run-genesis-evolution-with-tutor-handler
+            (make-scripted-tutor-handler (make-compatible-candidate))))
+         (improved-evidence (selection-evidence-for improved))
+         (unchanged-evidence (selection-evidence-for unchanged))
+         (improved-comparison (term-field improved-evidence "comparison"))
+         (unchanged-comparison (term-field unchanged-evidence "comparison")))
+    (is (equal '("accept")
+               (lineage-decisions (cell-zero::subzero-store improved)
+                                  (subzero-lineage-root improved))))
+    (is (equal '("reject")
+               (lineage-decisions (cell-zero::subzero-store unchanged)
+                                  (subzero-lineage-root unchanged))))
+    (is (string= "pass"
+                 (cell-zero::symbol-term-value
+                  (cell-zero::check-status (term-field improved-evidence "checks")
+                                           (make-symbol-atom "objective-improvement")))))
+    (is (string= "fail"
+                 (cell-zero::symbol-term-value
+                  (cell-zero::check-status (term-field unchanged-evidence "checks")
+                                           (make-symbol-atom "objective-improvement")))))
+    (is (term-truth-p (term-field improved-comparison "improved")))
+    (is (not (term-truth-p (term-field unchanged-comparison "improved"))))))
+
+(deftest mismatched-selection-plan-cannot-promote
+  (let* ((store (make-term-store))
+         (subzero (make-subzero store (make-genesis-world)))
+         (parent (subzero-current-world subzero))
+         (candidate (make-objective-improving-candidate))
+         (data (genome-data (world-genome parent)))
+         (budget (term-field data "trial-budget"))
+         (plan-a
+           (make-selection-plan (make-string-atom "objective-a")
+                                (term-field data "probes")
+                                (objective-improvement-probes)))
+         (plan-b
+           (make-selection-plan (make-string-atom "objective-b")
+                                (term-field data "probes")
+                                (objective-improvement-probes))))
+    (register-capability-handler subzero "model" (make-scripted-model-handler))
+    (flet ((trial (id world plan)
+             (cell-zero::perform-trial
+              subzero
+              (cell-zero::seal-effect
+               subzero
+               (cell-zero::make-tagged-term
+                "effect"
+                (cell-zero::make-field "id" (make-integer-atom id))
+                (cell-zero::make-field "capability" (make-symbol-atom "trial"))
+                (cell-zero::make-field
+                 "request"
+                 (cell-zero::make-tagged-term
+                  "trial"
+                  (cell-zero::make-field "candidate" world)
+                  (cell-zero::make-field "plan" plan)))
+                (cell-zero::make-field "budget" budget)))))
+           (promote (id plan baseline-response candidate-response)
+             (let* ((request
+                      (cell-zero::make-tagged-term
+                       "promote"
+                       (cell-zero::make-field "candidate" candidate)
+                       (cell-zero::make-field "plan" plan)
+                       (cell-zero::make-field
+                        "baseline" (term-field baseline-response "trace"))
+                       (cell-zero::make-field
+                        "baseline-candidate"
+                        (term-field baseline-response "candidate"))
+                       (cell-zero::make-field
+                        "candidate-trace" (term-field candidate-response "trace"))
+                       (cell-zero::make-field
+                        "claims"
+                        (sexp->term '(claims (automatic ()) (semantic ()))))))
+                    (effect
+                      (cell-zero::seal-effect
+                       subzero
+                       (cell-zero::make-tagged-term
+                        "effect"
+                        (cell-zero::make-field "id" (make-integer-atom id))
+                        (cell-zero::make-field
+                         "capability" (make-symbol-atom "promote"))
+                        (cell-zero::make-field "request" request)
+                        (cell-zero::make-field
+                         "budget" (term-field data "admission-budget"))))))
+               (cell-zero::perform-promotion subzero effect))))
+      (let* ((baseline-result (trial 90 parent plan-a))
+             (candidate-result (trial 91 candidate plan-b))
+             (baseline-response (term-field baseline-result "response"))
+             (candidate-response (term-field candidate-result "response"))
+             (parent-root (subzero-current-root subzero))
+             (candidate-plan-mismatch
+               (promote 92 plan-a baseline-response candidate-response))
+             (baseline-plan-mismatch
+               (promote 93 plan-b baseline-response candidate-response)))
+        (is (string= "reject"
+                     (cell-zero::symbol-term-value
+                      (term-field candidate-plan-mismatch "decision"))))
+        (is (string= "reject"
+                     (cell-zero::symbol-term-value
+                      (term-field baseline-plan-mismatch "decision"))))
+        (is (string= parent-root (subzero-current-root subzero)))))))
+
+(deftest replay-rejects-fabricated-incomplete-fitness
+  (let* ((store (make-term-store))
+         (world (make-genesis-world))
+         (subzero (make-subzero store world))
+         (candidate (make-compatible-candidate))
+         (candidate-root (store-put store candidate))
+         (data (genome-data (world-genome world)))
+         (plan
+           (make-selection-plan (make-string-atom "reconstruct failed fitness")
+                                (term-field data "probes")
+                                (objective-improvement-probes)))
+         (request
+           (cell-zero::make-tagged-term
+            "trial"
+            (cell-zero::make-field "candidate" candidate)
+            (cell-zero::make-field "plan" plan)))
+         (effect
+           (cell-zero::seal-effect
+            subzero
+            (cell-zero::make-tagged-term
+             "effect"
+             (cell-zero::make-field "id" (make-integer-atom 94))
+             (cell-zero::make-field "capability" (make-symbol-atom "trial"))
+             (cell-zero::make-field "request" request)
+             (cell-zero::make-field "budget" (term-field data "trial-budget")))))
+         (context (term-field effect "context"))
+         (fitness (make-selection-fitness plan 1))
+         (checks (cell-zero::trial-checks nil nil nil nil nil nil nil))
+         (trace
+           (cell-zero::make-tagged-term
+            "trial-result"
+            (cell-zero::make-field "abi" (make-symbol-atom (selection-v1-abi)))
+            (cell-zero::make-field "parent" (term-field context "world"))
+            (cell-zero::make-field "candidate" (make-string-atom candidate-root))
+            (cell-zero::make-field "parent-genome" (term-field context "genome"))
+            (cell-zero::make-field
+             "plan" (make-string-atom (selection-plan-hash plan)))
+            (cell-zero::make-field
+             "objective-hash"
+             (make-string-atom (selection-plan-objective-hash plan)))
+            (cell-zero::make-field
+             "regression-probes-hash"
+             (make-string-atom (selection-plan-regression-probes-hash plan)))
+            (cell-zero::make-field
+             "objective-probes-hash"
+             (make-string-atom (selection-plan-objective-probes-hash plan)))
+            (cell-zero::make-field
+             "metric-hash" (make-string-atom (selection-plan-metric-hash plan)))
+            (cell-zero::make-field "completed" (false-term))
+            (cell-zero::make-field "outputs" (empty-term))
+            (cell-zero::make-field "event-log" (empty-term))
+            (cell-zero::make-field "final-root" (make-string-atom candidate-root))
+            (cell-zero::make-field "fitness" fitness)
+            (cell-zero::make-field
+             "resource-usage" (cell-zero::usage-term :effects 0 :eval-steps 0 :events 0))
+            (cell-zero::make-field "checks" checks)
+            (cell-zero::make-field "violations" (empty-term))))
+         (trace-root (store-put store trace))
+         (response
+           (cell-zero::make-tagged-term
+            "trial-result"
+            (cell-zero::make-field "trace" (make-string-atom trace-root))
+            (cell-zero::make-field "candidate" (make-string-atom candidate-root))
+            (cell-zero::make-field
+             "plan" (make-string-atom (selection-plan-hash plan)))
+            (cell-zero::make-field "completed" (false-term))
+            (cell-zero::make-field "fitness" fitness)
+            (cell-zero::make-field "checks" checks)))
+         (event
+           (cell-zero::make-effect-result-event
+            effect "ok" response
+            (cell-zero::usage-term :effects 1 :eval-steps 0 :events 0))))
+    (is (signals protocol-error
+          (cell-zero::replay-effect-result subzero effect event)))
+    (let* ((zero-fitness (make-selection-fitness plan 0))
+           (zero-trace (put-term-field trace "fitness" zero-fitness))
+           (zero-trace-root (store-put store zero-trace))
+           (zero-response
+             (put-term-field
+              (put-term-field response "trace" (make-string-atom zero-trace-root))
+              "fitness" zero-fitness))
+           (zero-event
+             (cell-zero::make-effect-result-event
+              effect "ok" zero-response
+              (cell-zero::usage-term :effects 1 :eval-steps 0 :events 0)))
+           (bad-usage
+             (put-term-field
+              zero-event "usage"
+              (cell-zero::usage-term :effects 2 :eval-steps 0 :events 0)))
+           (bad-status
+             (put-term-field zero-event "status" (make-symbol-atom "error"))))
+      (is (signals protocol-error
+            (cell-zero::replay-effect-result subzero effect bad-usage)))
+      (is (signals protocol-error
+            (cell-zero::replay-effect-result subzero effect bad-status))))))
 
 (deftest accepted-and-rejected-lineages-replay
   (let* ((demo (run-boot-demo))
@@ -290,7 +574,7 @@
 (deftest semantic-claims-defer
   (let* ((store (make-term-store))
          (world (make-genesis-world))
-         (candidate (make-compatible-candidate))
+          (candidate (make-objective-improving-candidate))
          (claims (sexp->term
                   '(claims
                     (automatic ((preserves-behavior regression-suite)))
@@ -300,7 +584,11 @@
     (register-capability-handler
      subzero "tutor" (make-scripted-tutor-handler candidate :claims claims))
     (submit-event subzero
-                  (sexp->term '(event (kind evolve) (objective "write better"))))
+                  (sexp->term
+                   `(event
+                     (kind evolve)
+                     (objective "write better")
+                     (objective-probes ,(objective-improvement-probes)))))
     (run-until-idle subzero)
     (is (equal '("defer")
                (lineage-decisions store (subzero-lineage-root subzero))))))
@@ -310,15 +598,26 @@
          (world (make-genesis-world))
          (candidate (make-compatible-candidate))
          (subzero (make-subzero store world))
+         (data (genome-data (world-genome world)))
+         (plan
+           (make-selection-plan (make-string-atom "reject fabricated evidence")
+                                (term-field data "probes")
+                                (objective-improvement-probes)))
+         (unattested-root
+           "0000000000000000000000000000000000000000000000000000000000000000")
+         (baseline-candidate-root (store-put store world))
          (request
-           (sexp->term
-            `(promote
-              (candidate ,candidate)
-              (trials ("0000000000000000000000000000000000000000000000000000000000000000"))
-              (claims
-               (claims
-                (automatic ((preserves-behavior regression-suite)))
-                (semantic ()))))))
+           (cell-zero::make-tagged-term
+            "promote"
+            (cell-zero::make-field "candidate" candidate)
+            (cell-zero::make-field "plan" plan)
+            (cell-zero::make-field "baseline" (make-string-atom unattested-root))
+            (cell-zero::make-field
+             "baseline-candidate" (make-string-atom baseline-candidate-root))
+            (cell-zero::make-field
+             "candidate-trace" (make-string-atom unattested-root))
+            (cell-zero::make-field
+             "claims" (sexp->term '(claims (automatic ()) (semantic ()))))))
          (effect
            (cell-zero::seal-effect
             subzero
@@ -327,7 +626,7 @@
              (cell-zero::make-field "id" (make-integer-atom 99))
              (cell-zero::make-field "capability" (make-symbol-atom "promote"))
              (cell-zero::make-field "request" request)
-             (cell-zero::make-field "budget" (sexp->term '(budget))))))
+             (cell-zero::make-field "budget" (term-field data "admission-budget")))))
          (parent-root (subzero-current-root subzero))
          (result (cell-zero::perform-promotion subzero effect)))
     (is (string= "reject"
@@ -442,14 +741,23 @@
   (let ((directory (make-temp-directory)))
     (unwind-protect
          (let* ((store (make-term-store :directory directory))
-                (candidate (make-compatible-candidate))
+                (candidate (make-objective-improving-candidate))
                 (subzero (make-subzero store (make-genesis-world) :name name)))
-           (submit-event subzero
-                         (sexp->term '(event (kind evolve) (objective "recover"))))
+           (submit-event
+            subzero
+            (sexp->term
+             `(event
+               (kind evolve)
+               (objective "recover")
+               (objective-probes ,(objective-improvement-probes)))))
            (is (signals protocol-error
-                 (submit-event subzero
-                               (sexp->term '(event (kind evolve)
-                                                   (objective "interleave"))))))
+                 (submit-event
+                  subzero
+                  (sexp->term
+                   `(event
+                     (kind evolve)
+                     (objective "interleave")
+                     (objective-probes ,(objective-improvement-probes)))))))
            (when reserve-request-p
              (cell-zero::reserve-next-effect subzero))
            (let* ((reopened-store (make-term-store :directory directory))

@@ -10,6 +10,7 @@
   :components ((:file "src/package")
                (:file "src/sha256")
                (:file "src/term")
+               (:file "src/selection")
                (:file "src/evaluator")
                (:file "src/subzero")
                (:file "src/genome")
@@ -19,6 +20,7 @@
                (:file "src/homoiconic")
                (:static-file "genomes/stage0.lisp")
                (:static-file "genomes/inert.lisp")
+               (:static-file "genomes/objective-improvement.lisp")
                (:static-file "scripts/genome-runner.lisp"))
   :in-order-to ((test-op (test-op "cell-zero/tests"))))
 

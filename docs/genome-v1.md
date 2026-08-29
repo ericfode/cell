@@ -40,7 +40,7 @@ Source paths are relative `.lisp` paths without empty, `.` or `..` components. P
 (admit candidate evidence data) => admission-term
 ```
 
-The returned reaction and admission terms are validated by Subzero. Effects, request hashes, trial evidence, lineage entries, and state roots remain canonical content-addressed terms.
+The returned reaction and admission terms are validated by Subzero. Effects, request hashes, [`selection/v1`](selection-v1.md) plans and fitness, trial evidence, lineage entries, and state roots remain canonical content-addressed terms.
 
 ## Mechanical loader
 
@@ -68,6 +68,6 @@ A running world remains:
   (state <canonical term>))
 ```
 
-A candidate must use the same supported genome ABI as its parent. The parent creates the trial envelope, grants only intersected capabilities, verifies replay, constructs evidence, runs its own `admit` entry point, and installs the candidate only after `accept`.
+A candidate must use the same supported genome ABI as its parent. For comparative evolution, the parent commits a `selection/v1` plan, establishes its own attested baseline before tutor invocation, grants only intersected trial capabilities, verifies replay under the same plan, constructs evidence, runs its own `admit` entry point, and installs the candidate only after `accept`. The Stage 0 admission policy requires strict objective-score improvement in addition to its safety and evidence gates.
 
 The legacy `cell-zero/1` interpreted-program world remains supported. The homoiconic Cell-zero/2 capsule API remains a separate optional experiment.

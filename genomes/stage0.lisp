@@ -2,7 +2,7 @@
 
 (defpackage #:cell-zero.stage0.genome
   (:use #:cl)
-  (:export #:react #:admit))
+  (:export #:react #:admit #:react-with-objective-probe))
 
 (in-package #:cell-zero.stage0.genome)
 
@@ -133,20 +133,31 @@
      next-state nil
      (list (effect id "model" request (required data "model-budget"))))))
 
+(defun event-objective-probes (event)
+  (required event "objective-probes"))
+
+(defun trial-request (candidate plan)
+  (tagged "trial"
+          (field-pair "candidate" candidate)
+          (field-pair "plan" plan)))
+
 (defun react-to-evolve (state event data world)
   (let* ((id (next-effect-id state))
-         (request
-           (cell-zero:make-tutor-request
-            (required event "objective") world
-            :context (required data "tutor-context")))
-         (item (pending id "evolve"
-                        (field-pair "request" request)
-                        (field-pair "request-hash" (request-hash-term request))
-                        (field-pair "objective" (required event "objective"))))
+         (objective (required event "objective"))
+         (plan
+           (cell-zero:make-selection-plan
+            objective (required data "probes") (event-objective-probes event)))
+          (item
+            (pending id "baseline"
+                     (field-pair "objective" objective)
+                     (field-pair "plan" plan)
+                     (field-pair "candidate" world)
+                     (field-pair "parent" world)))
          (next-state (state-with-pending (record-event state event) item)))
     (reaction
      next-state nil
-     (list (effect id "tutor" request (required data "tutor-budget"))))))
+     (list (effect id "trial" (trial-request world plan)
+                   (required data "trial-budget"))))))
 
 (defun pending-for-result (state event)
   (find-by-field (required state "pending") "id"
@@ -163,6 +174,34 @@
        (cell-zero:tutor-result-valid-p
         (required event "response")
         (required pending-item "request"))))
+
+(defun trial-gates-pass-p (checks)
+  (every (lambda (name) (string= (or (check-status checks name) "missing") "pass"))
+         '("abi-valid" "loads" "liveness-probe" "regression-suite"
+           "replay-compatible" "capability-policy" "resource-policy")))
+
+(defun trial-result-matches-p (event pending-item &optional require-gates)
+  (handler-case
+      (let* ((response (required event "response"))
+             (candidate (required pending-item "candidate"))
+             (plan (required pending-item "plan"))
+             (trace (required response "trace"))
+             (fitness (required response "fitness"))
+             (checks (required response "checks")))
+        (and (effect-status-ok-p event)
+             (tagged-p response "trial-result")
+             (not (cell-zero:term-equal trace (cell-zero:empty-term)))
+             (cell-zero:term-equal
+              (required response "candidate")
+              (cell-zero:make-string-atom (cell-zero:term-hash candidate)))
+             (cell-zero:term-equal
+              (required response "plan")
+              (cell-zero:make-string-atom (cell-zero:selection-plan-hash plan)))
+             (cell-zero:selection-fitness-valid-p fitness plan)
+             (or (not require-gates)
+                 (and (cell-zero:term-truth-p (required response "completed"))
+                      (trial-gates-pass-p checks)))))
+    (error () nil)))
 
 (defun react-to-task-result (state event pending-item)
   (let ((next-state
@@ -185,6 +224,42 @@
                                     "invalid-model-result"))))
          nil))))
 
+(defun selection-context (data plan)
+  (tagged "selection-context"
+          (field-pair "tutor-context" (required data "tutor-context"))
+          (field-pair "selection-plan" plan)))
+
+(defun react-to-baseline-result (state event pending-item data)
+  (let* ((response (required event "response"))
+         (base-state
+           (state-without-pending state event (required event "effect-id"))))
+    (if (not (trial-result-matches-p event pending-item t))
+        (reaction
+         base-state
+         (list (tagged "baseline-failed" (field-pair "response" response)))
+         nil)
+        (let* ((trace (required response "trace"))
+               (baseline-candidate (required response "candidate"))
+               (id (next-effect-id base-state))
+               (objective (required pending-item "objective"))
+               (plan (required pending-item "plan"))
+               (parent (required pending-item "parent"))
+               (request
+                 (cell-zero:make-tutor-request
+                  objective parent :context (selection-context data plan)))
+               (item
+                 (pending id "evolve"
+                          (field-pair "request" request)
+                          (field-pair "request-hash" (request-hash-term request))
+                          (field-pair "objective" objective)
+                          (field-pair "plan" plan)
+                          (field-pair "baseline" trace)
+                          (field-pair "baseline-candidate" baseline-candidate)))
+               (next-state (state-with-pending base-state item)))
+          (reaction
+           next-state nil
+           (list (effect id "tutor" request (required data "tutor-budget"))))))))
+
 (defun append-lessons (state lessons)
   (reduce (lambda (next lesson)
             (add-list-field next "lessons" lesson))
@@ -199,7 +274,7 @@
          (next-state (add-list-field state "candidate-branches" rejection)))
     (reaction next-state (list rejection) nil)))
 
-(defun candidate-trial-reaction (state data artifact)
+(defun candidate-trial-reaction (state data artifact plan baseline baseline-candidate)
   (if (not (cell-zero:candidate-artifact-valid-p artifact))
       (malformed-candidate-reaction state)
       (let* ((id (next-effect-id state))
@@ -210,23 +285,26 @@
                        (field-pair "artifact" artifact)
                        (field-pair "candidate" candidate)
                        (field-pair "claims" claims)
+                       (field-pair "plan" plan)
+                       (field-pair "baseline" baseline)
+                       (field-pair "baseline-candidate" baseline-candidate)
                        (field-pair "status"
                                    (cell-zero:make-symbol-atom "proposed"))))
              (trial-pending
                (pending id "trial"
                         (field-pair "candidate" candidate)
-                        (field-pair "claims" claims)))
+                        (field-pair "claims" claims)
+                        (field-pair "plan" plan)
+                        (field-pair "baseline" baseline)
+                        (field-pair "baseline-candidate" baseline-candidate)))
              (next-state
                (state-with-pending
                 (add-list-field state "candidate-branches" branch)
-                trial-pending))
-             (request
-               (tagged "trial"
-                       (field-pair "candidate" candidate)
-                       (field-pair "events" (required data "probes")))))
+                trial-pending)))
         (reaction
          next-state nil
-         (list (effect id "trial" request (required data "trial-budget")))))))
+         (list (effect id "trial" (trial-request candidate plan)
+                       (required data "trial-budget")))))))
 
 (defun react-to-tutor-result (state event pending-item data)
   (let ((base-state
@@ -248,7 +326,11 @@
                              nil)))
                (next-state (append-lessons base-state lessons)))
           (if candidate
-              (candidate-trial-reaction next-state data candidate)
+               (candidate-trial-reaction
+                next-state data candidate
+                (required pending-item "plan")
+                (required pending-item "baseline")
+                (required pending-item "baseline-candidate"))
               (reaction
                next-state
                (list (tagged "tutor-update"
@@ -257,28 +339,39 @@
 
 (defun react-to-trial-result (state event pending-item data)
   (let* ((response (required event "response"))
-         (trace (field response "trace"))
          (base-state
            (state-without-pending state event (required event "effect-id"))))
-    (if (cell-zero:term-equal trace (cell-zero:empty-term))
+    (if (not (trial-result-matches-p event pending-item))
         (reaction
          base-state
-         (list (tagged "trial-failed"
-                       (field-pair "response" response)))
+         (list (tagged "trial-failed" (field-pair "response" response)))
          nil)
-        (let* ((id (next-effect-id base-state))
+        (let* ((trace (required response "trace"))
+               (id (next-effect-id base-state))
                (candidate (required pending-item "candidate"))
                (claims (required pending-item "claims"))
-               (promotion-pending
-                 (pending id "promote"
-                          (field-pair "candidate" candidate)
-                          (field-pair "claims" claims)))
-               (next-state (state-with-pending base-state promotion-pending))
+               (plan (required pending-item "plan"))
+               (baseline (required pending-item "baseline"))
+               (baseline-candidate (required pending-item "baseline-candidate"))
                (request
                  (tagged "promote"
                          (field-pair "candidate" candidate)
-                         (field-pair "trials" (list-term trace))
-                         (field-pair "claims" claims))))
+                         (field-pair "plan" plan)
+                         (field-pair "baseline" baseline)
+                         (field-pair "baseline-candidate" baseline-candidate)
+                         (field-pair "candidate-trace" trace)
+                         (field-pair "claims" claims)))
+               (promotion-pending
+                 (pending id "promote"
+                          (field-pair "request" request)
+                          (field-pair "request-hash" (request-hash-term request))
+                          (field-pair "candidate" candidate)
+                          (field-pair "plan" plan)
+                          (field-pair "baseline" baseline)
+                          (field-pair "baseline-candidate" baseline-candidate)
+                          (field-pair "candidate-trace" trace)
+                          (field-pair "claims" claims)))
+               (next-state (state-with-pending base-state promotion-pending)))
           (reaction
            next-state nil
            (list (effect id "promote" request
@@ -292,6 +385,8 @@
           (cond
             ((string= kind "task")
              (react-to-task-result state event pending-item))
+            ((string= kind "baseline")
+             (react-to-baseline-result state event pending-item data))
             ((string= kind "evolve")
              (react-to-tutor-result state event pending-item data))
             ((string= kind "trial")
