@@ -387,7 +387,7 @@
   (make-tagged-term
    "data"
    (make-field "generation" (make-integer-atom generation))
-   (make-field "capabilities" (sexp->term '(model trial promote)))
+   (make-field "capabilities" (sexp->term '(model tutor trial promote)))
    (make-field "task-context" (sexp->term '(context (role cell-zero))))
    (make-field "model-max-output-bytes" (make-integer-atom 262144))
    (make-field
@@ -395,10 +395,16 @@
     (make-string-atom
      (format nil "MODE: answer-task~%Return only the answer text.~%Task:~%")))
    (make-field
-    "evolution-model-prompt"
-    (make-string-atom
-     (format nil "MODE: propose-child~%Return exactly one canonical Cell-zero term and no prose: (proposal (candidate WORLD) (claims CLAIMS)). The candidate must be a complete cell-zero/1 world. Claims must separate automatic and semantic claims.~%")))
+    "tutor-context"
+    (sexp->term
+     '(tutor-context
+       (contract
+        (lessons "Return explicit tutor/v1 lessons as canonical terms")
+        (candidates "Return candidate/v1 artifacts containing genome/v1 source bundles")
+        (authority "The parent runs trials and admission before installation")))))
    (make-field "model-budget"
+               (sexp->term '(budget (max-effects 1))))
+   (make-field "tutor-budget"
                (sexp->term '(budget (max-effects 1))))
    (make-field "trial-budget"
                (sexp->term
@@ -429,10 +435,12 @@
      (history ())
      (pending ())
      (candidate-branches ())
+     (lessons ())
      (memories ())
      (task-state ()))))
 
 (defun make-world (react admit data &optional (state (initial-state)))
+  "Construct a legacy cell-zero/1 interpreted world."
   (make-tagged-term
    "world"
    (make-field
@@ -445,21 +453,42 @@
      (make-field "data" data)))
    (make-field "state" state)))
 
+(defun bundled-source-text (relative-path)
+  (uiop:read-file-string
+   (asdf:system-relative-pathname (asdf:find-system "cell-zero") relative-path)
+   :external-format :utf-8))
+
+(defun make-stage0-source-genome (&key (generation 0))
+  (make-source-genome
+   (list (make-genome-source "stage0.lisp"
+                             (bundled-source-text "genomes/stage0.lisp")))
+   (make-genome-entry-point "CELL-ZERO.STAGE0.GENOME" "REACT")
+   (make-genome-entry-point "CELL-ZERO.STAGE0.GENOME" "ADMIT")
+   (genesis-data :generation generation)))
+
+(defun make-inert-source-genome (&key (generation 1))
+  (make-source-genome
+   (list (make-genome-source "inert.lisp"
+                             (bundled-source-text "genomes/inert.lisp")))
+   (make-genome-entry-point "CELL-ZERO.INERT.GENOME" "REACT")
+   (make-genome-entry-point "CELL-ZERO.INERT.GENOME" "ADMIT")
+   (genesis-data :generation generation)))
+
+(defun make-source-world (genome &optional (state (initial-state)))
+  (make-tagged-term
+   "world"
+   (make-field "genome" genome)
+   (make-field "state" state)))
+
 (defun make-genesis-world ()
-  (make-world (make-genesis-react-program)
-              (make-genesis-admit-program)
-              (genesis-data :generation 0)))
+  (make-source-world (make-stage0-source-genome :generation 0)))
 
 (defun make-compatible-candidate ()
-  (make-world (make-genesis-react-program)
-              (make-genesis-admit-program)
-              (genesis-data :generation 1)))
+  (make-source-world (make-stage0-source-genome :generation 1)))
 
 (defun make-broken-self-accepting-candidate ()
-  "A valid ABI candidate that fails liveness but claims authority over itself."
-  (make-world (make-inert-react-program)
-              (make-always-accept-admit-program)
-              (genesis-data :generation 1)))
+  "A loadable genome/v1 candidate that fails liveness but would admit itself."
+  (make-source-world (make-inert-source-genome :generation 1)))
 
 (defun mechanical-claims ()
   (sexp->term
@@ -469,35 +498,57 @@
        (replayable replay-compatible)))
      (semantic ()))))
 
-(defun model-proposal-text (candidate claims)
-  (with-output-to-string (stream)
-    (write-term
-     (make-tagged-term
-      "proposal"
-      (make-field "candidate" candidate)
-      (make-field "claims" claims))
-     stream)))
+(defun make-compatible-candidate-artifact
+    (&key (candidate (make-compatible-candidate))
+          (claims (mechanical-claims))
+          (lessons nil))
+  (make-candidate-artifact
+   (world-genome candidate) (world-state candidate) claims :lessons lessons))
 
-(defun make-scripted-model-handler (candidate &key (claims (mechanical-claims))
-                                                (answer "pong"))
-  "Return a deterministic model/v1 transport that emits only raw result text."
-  (lambda (subzero request budget effect)
-    (declare (ignore subzero budget effect))
-    (let ((prompt (render-model-prompt request)))
-      (cond
-        ((uiop:string-prefix-p "MODE: answer-task" prompt)
-         (values "ok"
-                 (make-model-result request answer)
-                 (usage-term :effects 1 :events 1)))
-        ((uiop:string-prefix-p "MODE: propose-child" prompt)
-         (values "ok"
-                 (make-model-result request (model-proposal-text candidate claims))
-                 (usage-term :effects 1 :events 1)))
-        (t
-         (values "error"
-                 (make-model-failure request "unknown-request"
-                                     "unknown model/v1 prompt")
-                 (usage-term :effects 1 :events 1)))))))
+(defun scripted-model-option (arguments key default)
+  (let ((tail (member key arguments)))
+    (if (and tail (rest tail)) (second tail) default)))
+
+(defun make-scripted-model-handler (&rest arguments)
+  "Return a deterministic model/v1 task transport.
+Legacy candidate and claims arguments are accepted and ignored."
+  (let ((answer (scripted-model-option arguments :answer "pong")))
+    (lambda (subzero request budget effect)
+      (declare (ignore subzero budget effect))
+      (let ((prompt (render-model-prompt request)))
+        (if (uiop:string-prefix-p "MODE: answer-task" prompt)
+            (values "ok"
+                    (make-model-result request answer)
+                    (usage-term :effects 1 :events 1))
+            (values "error"
+                    (make-model-failure request "unknown-request"
+                                        "unknown model/v1 prompt")
+                    (usage-term :effects 1 :events 1)))))))
+
+(defun make-scripted-tutor-handler
+    (candidate &key (claims (mechanical-claims))
+                    (lessons
+                      (list
+                       (make-tutor-lesson
+                        "instruction"
+                        (sexp->term
+                         '(lesson
+                           (topic source-evolution)
+                           (content "Edit the genome/v1 source bundle; the parent owns admission.")))))))
+  "Return a deterministic hosted tutor/v1 handler.
+CANDIDATE may be a source world, a candidate/v1 artifact, or NIL for lessons only."
+  (let ((artifact
+          (cond
+            ((null candidate) nil)
+            ((candidate-artifact-valid-p candidate) candidate)
+            (t
+             (make-candidate-artifact
+              (world-genome candidate) (world-state candidate) claims)))))
+    (lambda (subzero request budget effect)
+      (declare (ignore subzero budget effect))
+      (values "ok"
+              (make-tutor-result request :lessons lessons :candidate artifact)
+              (usage-term :effects 1 :events 1)))))
 
 (defstruct (boot-demo-result
              (:conc-name boot-demo-)
@@ -525,8 +576,14 @@
     (error 'protocol-error :datum replay :reason "raw-root replay diverged from live execution"))
   t)
 
+(defun register-demo-handlers (subzero candidate)
+  (register-capability-handler subzero "model" (make-scripted-model-handler))
+  (register-capability-handler subzero "tutor"
+                               (make-scripted-tutor-handler candidate))
+  subzero)
+
 (defun run-boot-demo (&key directory)
-  "Produce and replay one accepted and one rejected lineage from raw roots."
+  "Produce and replay one accepted and one rejected genome/v1 lineage."
   (let* ((store (make-term-store :directory directory))
          (genesis (make-genesis-world))
          (initial-root (store-put store genesis))
@@ -534,8 +591,7 @@
          (accepted (make-subzero store genesis))
          (bad-candidate (make-broken-self-accepting-candidate))
          (rejected (make-subzero store genesis)))
-    (register-capability-handler accepted "model"
-                                 (make-scripted-model-handler good-candidate))
+    (register-demo-handlers accepted good-candidate)
     (submit-event accepted
                   (sexp->term
                    '(event
@@ -547,8 +603,7 @@
     (let* ((accepted-log (subzero-log-root accepted))
            (accepted-replay (replay-from-roots store initial-root accepted-log)))
       (assert-replay-match accepted accepted-replay)
-      (register-capability-handler rejected "model"
-                                   (make-scripted-model-handler bad-candidate))
+      (register-demo-handlers rejected bad-candidate)
       (submit-event rejected
                     (sexp->term
                      '(event

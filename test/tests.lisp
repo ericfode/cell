@@ -142,8 +142,7 @@
 (deftest recorded-model-transcript-runs-through-standalone-fixture
   (multiple-value-bind (recording transcript-reader)
       (make-recording-model-handler
-       (make-scripted-model-handler (make-compatible-candidate)
-                                    :answer "STAGE0_OK"))
+       (make-scripted-model-handler nil :answer "STAGE0_OK"))
     (let* ((live (run-genesis-task-with-model-handler recording))
            (transcript (funcall transcript-reader)))
       (is (model-transcript-valid-p transcript))
@@ -160,26 +159,78 @@
                      (subzero-outputs live)
                      (subzero-outputs replayed))))))))
 
-(deftest genesis-constructs-candidate-from-raw-model-text
+(defun run-genesis-evolution-with-tutor-handler (handler)
   (let* ((store (make-term-store))
-         (candidate (make-compatible-candidate))
          (subzero (make-subzero store (make-genesis-world))))
+    (register-capability-handler subzero "model" (make-scripted-model-handler))
+    (register-capability-handler subzero "tutor" handler)
+    (submit-event subzero
+                  (sexp->term '(event (kind evolve) (objective "source child"))))
+    (run-until-idle subzero)
+    subzero))
+
+(deftest stage0-is-an-ordinary-source-bundle
+  (let* ((world (make-genesis-world))
+         (genome (world-genome world))
+         (source (first (source-genome-sources genome)))
+         (tampered
+           (put-term-field source "text"
+                           (make-string-atom "(in-package #:cl-user)")))
+         (missing (make-symbol-atom "missing")))
+    (is (string= "genome/v1" (genome-abi-name genome)))
+    (is (source-genome-valid-p genome))
+    (is (source-genome-loads-p genome))
+    (is (null (find-package "CELL-ZERO.STAGE0.GENOME")))
+    (is (genome-source-valid-p source))
+    (is (not (genome-source-valid-p tampered)))
+    (is (string= (genome-source-hash source)
+                 (cell-zero::genome-source-text-hash
+                  (genome-source-text source))))
+    (is (string= "entry-point" (atom-value (term-tag (genome-react genome)))))
+    (is (term-equal missing (term-field genome "react" missing)))
+    (is (term-equal missing (term-field genome "admit" missing)))))
+
+(deftest hosted-tutor-artifact-runs-through-standalone-fixture
+  (let ((candidate (make-compatible-candidate)))
     (multiple-value-bind (recording transcript-reader)
-        (make-recording-model-handler (make-scripted-model-handler candidate))
-      (register-capability-handler subzero "model" recording)
-      (submit-event subzero
-                    (sexp->term '(event (kind evolve) (objective "raw text child"))))
-      (run-until-idle subzero)
-      (let* ((transcript (funcall transcript-reader))
-             (exchange (first (model-transcript-exchanges transcript)))
-             (response (term-field exchange "response")))
-        (is (string= "model-result" (atom-value (term-tag response))))
-        (is (stringp (model-result-text response)))
-        (let ((missing (make-string-atom "missing")))
-          (is (term-equal missing
-                          (term-field response "candidate" missing))))
-        (is (equal '("accept")
-                   (lineage-decisions store (subzero-lineage-root subzero))))))))
+        (make-recording-tutor-handler
+         (make-scripted-tutor-handler candidate))
+      (let* ((live (run-genesis-evolution-with-tutor-handler recording))
+             (transcript (funcall transcript-reader))
+             (exchange (first (tutor-transcript-exchanges transcript)))
+             (response (term-field exchange "response"))
+             (artifact (tutor-result-candidate response))
+             (missing (make-symbol-atom "missing")))
+        (is (tutor-transcript-valid-p transcript))
+        (is (= 1 (length (tutor-transcript-exchanges transcript))))
+        (is (candidate-artifact-valid-p artifact))
+        (is (string= "genome/v1"
+                     (genome-abi-name (candidate-artifact-genome artifact))))
+        (is (term-equal missing (term-field response "text" missing)))
+        (multiple-value-bind (fixture consumed-p)
+            (make-tutor-fixture-handler transcript)
+          (let ((replayed (run-genesis-evolution-with-tutor-handler fixture)))
+            (is (funcall consumed-p))
+            (is (string= (subzero-current-root live)
+                         (subzero-current-root replayed)))
+            (is (string= (subzero-log-root live)
+                         (subzero-log-root replayed)))
+            (is (string= (subzero-lineage-root live)
+                         (subzero-lineage-root replayed)))
+            (is (every #'term-equal
+                       (subzero-outputs live)
+                       (subzero-outputs replayed)))))))))
+
+(deftest tutor-lessons-are-explicit-without-installation
+  (let ((subzero
+          (run-genesis-evolution-with-tutor-handler
+           (make-scripted-tutor-handler nil))))
+    (is (null (cell-zero::subzero-lineage subzero)))
+    (is (= 1 (length (term-list-elements
+                      (term-field (world-state (subzero-current-world subzero))
+                                  "lessons")))))
+    (is (string= "tutor-update"
+                 (atom-value (term-tag (first (subzero-outputs subzero))))))))
 
 (deftest accepted-and-rejected-lineages-replay
   (let* ((demo (run-boot-demo))
@@ -227,11 +278,8 @@
 (deftest candidate-cannot-admit-itself
   (let* ((candidate (make-broken-self-accepting-candidate))
          (admission
-           (evaluate-program
-            (genome-admit (world-genome candidate))
-            (list (cons 'candidate candidate)
-                  (cons 'evidence (sexp->term '(evidence)))
-                  (cons 'data (genome-data (world-genome candidate))))))
+           (cell-zero::invoke-source-genome-admit
+            (world-genome candidate) candidate (sexp->term '(evidence))))
          (demo (run-boot-demo)))
     (is (string= "accept"
                  (cell-zero::symbol-term-value (term-field admission "decision"))))
@@ -248,8 +296,9 @@
                     (automatic ((preserves-behavior regression-suite)))
                     (semantic ((better-writing human-judgment))))))
          (subzero (make-subzero store world)))
-    (register-capability-handler subzero "model"
-                                 (make-scripted-model-handler candidate :claims claims))
+    (register-capability-handler subzero "model" (make-scripted-model-handler))
+    (register-capability-handler
+     subzero "tutor" (make-scripted-tutor-handler candidate :claims claims))
     (submit-event subzero
                   (sexp->term '(event (kind evolve) (objective "write better"))))
     (run-until-idle subzero)
@@ -395,8 +444,6 @@
          (let* ((store (make-term-store :directory directory))
                 (candidate (make-compatible-candidate))
                 (subzero (make-subzero store (make-genesis-world) :name name)))
-           (register-capability-handler
-            subzero "model" (make-scripted-model-handler candidate))
            (submit-event subzero
                          (sexp->term '(event (kind evolve) (objective "recover"))))
            (is (signals protocol-error
@@ -410,9 +457,11 @@
              (if reserve-request-p
                  (is (cell-zero::subzero-pending-effect reopened))
                  (is (cell-zero::subzero-effect-queue reopened)))
-             (register-capability-handler
-              reopened "model" (make-scripted-model-handler candidate))
-             (run-until-idle reopened)
+            (register-capability-handler
+             reopened "model" (make-scripted-model-handler))
+            (register-capability-handler
+             reopened "tutor" (make-scripted-tutor-handler candidate))
+            (run-until-idle reopened)
              (is (zerop (length (cell-zero::subzero-effect-queue reopened))))
              (is (null (cell-zero::subzero-pending-effect reopened)))
              (is (= 1 (subzero-handler-calls reopened)))

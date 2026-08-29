@@ -70,11 +70,18 @@
 (defun world-state (world)
   (required-field world "state"))
 
+(defun genome-abi-name (genome)
+  (symbol-term-value (required-field genome "abi")))
+
 (defun genome-react (genome)
-  (required-field genome "react"))
+  (if (string= (genome-abi-name genome) "genome/v1")
+      (source-genome-react-entry-point genome)
+      (required-field genome "react")))
 
 (defun genome-admit (genome)
-  (required-field genome "admit"))
+  (if (string= (genome-abi-name genome) "genome/v1")
+      (source-genome-admit-entry-point genome)
+      (required-field genome "admit")))
 
 (defun genome-data (genome)
   (required-field genome "data"))
@@ -87,24 +94,32 @@
       (term-list-names (term-field (genome-data (world-genome world)) "capabilities"))
     (cell-zero-error () nil)))
 
-(defun world-valid-p (world)
-  "Return true when WORLD satisfies the immutable Cell-zero/1 ABI envelope."
+(defun world-valid-p (world &key (load-p t))
+  "Return true when WORLD satisfies a supported immutable genome envelope."
   (handler-case
       (progn
         (unless (tagged-term-p world "world")
           (error 'protocol-error :datum world :reason "world tag is missing"))
         (let* ((genome (world-genome world))
                (state (world-state world))
-               (abi (required-field genome "abi"))
-               (react (genome-react genome))
-               (admit (genome-admit genome))
+               (abi (genome-abi-name genome))
                (data (genome-data genome)))
           (declare (ignore state data))
-          (unless (and (tagged-term-p genome "genome")
-                       (symbol-atom-name= abi "cell-zero/1"))
-            (error 'protocol-error :datum genome :reason "unsupported genome ABI"))
-          (validate-program react)
-          (validate-program admit)
+          (unless (tagged-term-p genome "genome")
+            (error 'protocol-error :datum genome :reason "genome tag is missing"))
+          (cond
+            ((string= abi "cell-zero/1")
+             (validate-program (genome-react genome))
+             (validate-program (genome-admit genome)))
+            ((string= abi "genome/v1")
+             (unless (source-genome-valid-p genome)
+               (error 'protocol-error :datum genome
+                      :reason "invalid genome/v1 source bundle"))
+             (when (and load-p (not (source-genome-loads-p genome)))
+               (error 'protocol-error :datum genome
+                      :reason "genome/v1 source bundle failed to load")))
+            (t
+             (error 'protocol-error :datum genome :reason "unsupported genome ABI")))
           t))
     (cell-zero-error () nil)
     (error () nil)))
@@ -154,7 +169,7 @@
                     (store-get store world-or-root)
                     world-or-root)))
     (unless (world-valid-p world)
-      (error 'protocol-error :datum world :reason "initial world is not Cell-zero/1"))
+      (error 'protocol-error :datum world :reason "initial world has no supported genome ABI"))
     (let* ((root (store-put store world))
            (grant (mapcar #'canonical-symbol-name
                           (or capabilities (world-capability-names world))))
@@ -402,6 +417,27 @@
         (append (subzero-effect-queue subzero)
                 (mapcar (lambda (effect) (seal-effect subzero effect)) effects))))
 
+(defun evaluate-genome-react (genome state event world remaining)
+  (cond
+    ((string= (genome-abi-name genome) "cell-zero/1")
+     (handler-case
+         (evaluate-program
+          (genome-react genome)
+          (list (cons "state" state)
+                (cons "event" event)
+                (cons "data" (genome-data genome))
+                (cons "world" world))
+          :limits (make-evaluation-limits :max-steps (min 50000 remaining)
+                                          :max-depth 512
+                                          :max-output-size 200000))
+       (evaluation-budget-exhausted ()
+         (error 'resource-budget-exhausted :datum genome
+                :reason "evaluation step limit" :kind :eval-steps))))
+    ((string= (genome-abi-name genome) "genome/v1")
+     (invoke-source-genome-react genome state event world))
+    (t
+     (error 'protocol-error :datum genome :reason "unsupported genome ABI"))))
+
 (defun react-to-event (subzero event)
   (unless (valid-event-p event)
     (error 'protocol-error :datum event :reason "malformed event"))
@@ -411,22 +447,9 @@
              :reason "evaluation step limit" :kind :eval-steps))
     (let* ((world (subzero-current-world subzero))
            (genome (world-genome world))
-           (state (world-state world))
-           (data (genome-data genome)))
+           (state (world-state world)))
       (multiple-value-bind (reaction usage)
-          (handler-case
-              (evaluate-program
-               (genome-react genome)
-               (list (cons "state" state)
-                     (cons "event" event)
-                     (cons "data" data)
-                     (cons "world" world))
-               :limits (make-evaluation-limits :max-steps (min 50000 remaining)
-                                               :max-depth 512
-                                               :max-output-size 200000))
-            (evaluation-budget-exhausted ()
-              (error 'resource-budget-exhausted :datum subzero
-                     :reason "evaluation step limit" :kind :eval-steps)))
+          (evaluate-genome-react genome state event world remaining)
         (unless (valid-reaction-p reaction)
           (error 'protocol-error :datum reaction :reason "react returned a malformed reaction"))
         (ensure-resource-room subzero :eval-steps (usage-steps usage))
@@ -556,23 +579,20 @@
      (error 'protocol-error :datum candidate-reference
             :reason "candidate reference is neither a root string nor a term"))))
 
-(defun candidate-abi-valid-p (candidate)
+(defun candidate-abi-valid-p (candidate &optional parent)
   (handler-case
       (let* ((genome (world-genome candidate))
-             (abi (required-field genome "abi")))
+             (abi (genome-abi-name genome)))
         (and (tagged-term-p candidate "world")
              (tagged-term-p genome "genome")
-             (symbol-atom-name= abi "cell-zero/1")))
+             (member abi '("cell-zero/1" "genome/v1") :test #'string=)
+             (or (null parent)
+                 (string= abi (genome-abi-name (world-genome parent))))
+             (world-valid-p candidate :load-p nil)))
     (cell-zero-error () nil)))
 
 (defun candidate-loads-p (candidate)
-  (handler-case
-      (progn
-        (validate-program (genome-react (world-genome candidate)))
-        (validate-program (genome-admit (world-genome candidate)))
-        t)
-    (cell-zero-error () nil)
-    (error () nil)))
+  (world-valid-p candidate :load-p t))
 
 (defun output-slice (outputs start)
   (subseq outputs start))
@@ -608,6 +628,7 @@
 
 (defun perform-trial (subzero effect)
   (let* ((request (required-field effect "request"))
+         (parent (subzero-current-world subzero))
          (candidate-reference (required-field request "candidate"))
          (candidate (resolve-candidate subzero candidate-reference))
          (candidate-root (store-put (subzero-store subzero) candidate))
@@ -622,7 +643,7 @@
          (max-effects (budget-integer budget "max-effects" 100))
          (max-events (budget-integer budget "max-events" 1000))
          (max-eval-steps (budget-integer budget "max-eval-steps" 1000000))
-         (abi-valid (candidate-abi-valid-p candidate))
+         (abi-valid (candidate-abi-valid-p candidate parent))
          (loads (candidate-loads-p candidate))
          (completed (and abi-valid loads))
          (resource-exhausted nil)
@@ -822,7 +843,7 @@
                          (string= suite-hash
                                   (string-term-value (required-field trace "suite")))))
                   traces))
-         (abi-valid (candidate-abi-valid-p candidate))
+         (abi-valid (candidate-abi-valid-p candidate parent))
          (loads (candidate-loads-p candidate))
          (liveness (traces-all-pass-p traces "liveness-probe"))
          (regression (traces-all-pass-p traces "regression-suite"))
@@ -882,17 +903,27 @@
                '("accept" "reject" "defer") :test #'string=)
        (term-p (required-field admission "reason"))))
 
+(defun invoke-parent-admission (parent candidate evidence)
+  (let ((genome (world-genome parent)))
+    (cond
+      ((string= (genome-abi-name genome) "cell-zero/1")
+       (evaluate-program
+        (genome-admit genome)
+        (list (cons "candidate" candidate)
+              (cons "evidence" evidence)
+              (cons "data" (genome-data genome)))
+        :limits (make-evaluation-limits :max-steps 20000
+                                        :max-depth 256
+                                        :max-output-size 10000)))
+      ((string= (genome-abi-name genome) "genome/v1")
+       (invoke-source-genome-admit genome candidate evidence))
+      (t
+       (error 'protocol-error :datum genome :reason "unsupported genome ABI")))))
+
 (defun evaluate-parent-admission (parent candidate evidence)
   (handler-case
       (multiple-value-bind (admission usage)
-          (evaluate-program
-           (genome-admit (world-genome parent))
-           (list (cons "candidate" candidate)
-                 (cons "evidence" evidence)
-                 (cons "data" (genome-data (world-genome parent))))
-           :limits (make-evaluation-limits :max-steps 20000
-                                           :max-depth 256
-                                           :max-output-size 10000))
+          (invoke-parent-admission parent candidate evidence)
         (unless (valid-admission-p admission)
           (error 'protocol-error :datum admission
                  :reason "parent admit returned a malformed admission"))

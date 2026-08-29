@@ -1,8 +1,8 @@
 ;;;; cell-zero.asd
 
 (asdf:defsystem "cell-zero"
-  :description "Cell-zero/2: homoiconic, parent-selected evolutionary capsules"
-  :version "0.2.0"
+  :description "Stage 0 source genomes with replayable parent-gated evolution"
+  :version "0.3.0"
   :author "Eric Fode and Autolith"
   :license "MIT"
   :depends-on ("uiop")
@@ -12,9 +12,14 @@
                (:file "src/term")
                (:file "src/evaluator")
                (:file "src/subzero")
+               (:file "src/genome")
                (:file "src/model")
+               (:file "src/tutor")
                (:file "src/genesis")
-               (:file "src/homoiconic"))
+               (:file "src/homoiconic")
+               (:static-file "genomes/stage0.lisp")
+               (:static-file "genomes/inert.lisp")
+               (:static-file "scripts/genome-runner.lisp"))
   :in-order-to ((test-op (test-op "cell-zero/tests"))))
 
 (asdf:defsystem "cell-zero/tests"

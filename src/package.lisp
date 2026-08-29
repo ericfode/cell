@@ -14,6 +14,8 @@
    #:protocol-error
    #:resource-budget-exhausted
    #:resource-budget-kind
+   #:source-genome-error
+   #:source-genome-error-reason
    ;; Hashes and octets
    #:sha256-octets
    #:sha256-hex
@@ -69,6 +71,20 @@
    #:usage-output-size
    #:validate-program
    #:evaluate-program
+   ;; Ordinary source-bundle genome/v1 ABI
+   #:genome-v1-abi
+   #:make-genome-source
+   #:genome-source-path
+   #:genome-source-text
+   #:genome-source-hash
+   #:genome-source-valid-p
+   #:make-genome-entry-point
+   #:make-source-genome
+   #:source-genome-sources
+   #:source-genome-react-entry-point
+   #:source-genome-admit-entry-point
+   #:source-genome-valid-p
+   #:source-genome-loads-p
    ;; Provider-neutral model/v1 ABI
    #:model-v1-abi
    #:make-model-text-part
@@ -102,6 +118,36 @@
    #:model-transcript-valid-p
    #:make-recording-model-handler
    #:make-model-fixture-handler
+   ;; Structured tutor/v1 ABI
+   #:tutor-v1-abi
+   #:make-tutor-lesson
+   #:tutor-lesson-kind
+   #:tutor-lesson-content
+   #:tutor-lesson-valid-p
+   #:make-candidate-artifact
+   #:candidate-artifact-genome
+   #:candidate-artifact-state
+   #:candidate-artifact-claims
+   #:candidate-artifact-lessons
+   #:candidate-artifact-valid-p
+   #:candidate-artifact-world
+   #:make-tutor-request
+   #:tutor-request-objective
+   #:tutor-request-parent
+   #:tutor-request-context
+   #:tutor-request-valid-p
+   #:tutor-request-hash
+   #:make-tutor-result
+   #:tutor-result-lessons
+   #:tutor-result-candidate
+   #:tutor-result-valid-p
+   #:make-tutor-failure
+   #:tutor-failure-valid-p
+   #:make-tutor-transcript
+   #:tutor-transcript-exchanges
+   #:tutor-transcript-valid-p
+   #:make-recording-tutor-handler
+   #:make-tutor-fixture-handler
    ;; Homoiconic Cell-zero/2
    #:make-homoiconic-evaluator-program
    #:evaluate-homoiconic-program
@@ -160,6 +206,7 @@
    #:world-valid-p
    #:world-genome
    #:world-state
+   #:genome-abi-name
    #:genome-react
    #:genome-admit
    #:genome-data
@@ -168,6 +215,8 @@
    #:make-genesis-world
    #:make-compatible-candidate
    #:make-broken-self-accepting-candidate
+   #:make-compatible-candidate-artifact
+   #:make-scripted-tutor-handler
    #:make-scripted-model-handler
    #:run-boot-demo
    #:boot-demo-result

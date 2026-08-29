@@ -1,29 +1,18 @@
-# Cell-zero/2
+# Cell Zero
 
-A homoiconic Common Lisp substrate for self-describing, parent-selected evolutionary capsules.
+A replayable, parent-gated evolutionary substrate for ordinary Common Lisp source genomes.
 
-Cell Zero represents code, evaluators, capsules, events, effects, traces, and lineage as canonical content-addressed terms. A capsule carries its own evaluator, transition program, state, capability policy, probe policy, and successor-selection rule. Those artifacts are ordinary terms and can be inspected, hashed, interpreted, proposed, trialed, and inherited by the system itself.
+Stage 0 uses [`genome/v1`](docs/genome-v1.md): a content-bound source bundle with compiled `react` and `admit` entry points. Subzero owns canonical storage, effects, resource envelopes, evidence, replay, and lineage publication. The current genome owns requests, state transitions, trials, and admission policy.
 
-## Boundary
+The homoiconic Cell-zero/2 capsule system remains available as an optional experimental lineage.
 
-The immutable host is limited to substrate mechanics:
+## Stage 0 boundaries
 
-- canonical atom and cell terms
-- deterministic SHA-256 identity and storage
-- a bounded recursive reduction kernel
-- capability transport and resource accounting
-- structural capsule loading
-- append-only traces and lineage publication
-
-Semantic behavior lives in the capsule. The Cell-zero/2 evaluator is a Cell Zero program term which interprets the same language it is written in. The capsule step program authors model requests, constructs runner trials, compares their returned observations, and selects the complete successor capsule.
-
-The Cell-zero/1 replayable-world API remains available for compatibility.
-
-## Stage 0 provider bridge
-
-The frozen [`model/v1`](docs/model-v1.md) ABI carries deterministic text-completion requests, bounded results, token usage, failures, and replay transcripts. Provider and credential selection stay outside Genesis. Genesis constructs requests and parses candidate terms through hereditary code.
-
-The initial Autolith adapter calls the low-level provider client directly. It does not enter Autolith's agent loop. A future `tutor/v1` capability can carry demonstrations, critiques, curricula, and bootstrap-compiler lessons as explicit replayable effects.
+- [`model/v1`](docs/model-v1.md) transports deterministic text-completion requests and results. Model text is used for task answers, not interpreted as a hereditary world.
+- [`tutor/v1`](docs/tutor-v1.md) transports explicit lessons and optional `candidate/v1` artifacts.
+- [`genome/v1`](docs/genome-v1.md) carries ordinary Common Lisp source files, source hashes, entry points, and canonical genome data.
+- Subzero runs source genomes through a disposable compiler process and never loads candidate packages into the parent Lisp image.
+- Candidate trials and admission are authored by the current parent and enforced by Subzero.
 
 ## Load and test
 
@@ -33,69 +22,63 @@ The initial Autolith adapter calls the low-level provider client directly. It do
 (asdf:test-system "cell-zero")
 ```
 
-The suite checks self-interpretation, recursive term programs, capsule closure, structural rejection, endogenous candidate trials, hereditary selection policy, lineage, replay, storage, and resource bounds.
+The suite covers source-manifest validation, isolated compilation, model and tutor fixture replay, explicit lessons and artifacts, parent-owned trials and admission, accepted and rejected lineage replay, durable recovery, the legacy evaluator, and the optional homoiconic system.
 
-## Self-interpretation
+## Task execution
+
+```lisp
+(let* ((store (cell-zero:make-term-store))
+       (world (cell-zero:make-genesis-world))
+       (cell (cell-zero:make-subzero store world)))
+  (cell-zero:register-capability-handler
+   cell "model"
+   (cell-zero:make-scripted-model-handler :answer "done"))
+  (cell-zero:submit-event
+   cell (cell-zero:sexp->term
+         '(event (kind task) (task "Implement the requested change."))))
+  (cell-zero:run-until-idle cell)
+  (cell-zero:subzero-outputs cell))
+```
+
+`make-genesis-world` returns a `genome/v1` world. Its controller is the ordinary source file [`genomes/stage0.lisp`](genomes/stage0.lisp), embedded into the canonical source bundle with a SHA-256 manifest.
+
+## Evolution
+
+```lisp
+(let* ((store (cell-zero:make-term-store))
+       (parent (cell-zero:make-genesis-world))
+       (candidate (cell-zero:make-compatible-candidate))
+       (cell (cell-zero:make-subzero store parent)))
+  (cell-zero:register-capability-handler
+   cell "model" (cell-zero:make-scripted-model-handler))
+  (cell-zero:register-capability-handler
+   cell "tutor" (cell-zero:make-scripted-tutor-handler candidate))
+  (cell-zero:submit-event
+   cell (cell-zero:sexp->term
+         '(event (kind evolve) (objective "improve without regressions"))))
+  (cell-zero:run-until-idle cell)
+  (cell-zero:subzero-lineage-root cell))
+```
+
+The tutor returns a structured candidate artifact. The parent constructs the trial request, Subzero compiles and probes the candidate under intersected capabilities, replay verifies the trace, and the parent admission function decides `accept`, `reject`, or `defer`.
+
+`make-recording-tutor-handler` records a hosted run. `make-tutor-fixture-handler` replays the exact requests and artifacts standalone. Raw event-log replay invokes no capability handlers.
+
+## Optional homoiconic lineage
 
 ```lisp
 (cell-zero:homoiconic-evaluator-self-check)
 ;; => T
 ```
 
-A task request is produced entirely by the evaluator and step terms carried inside the capsule:
-
-```lisp
-(let ((capsule (cell-zero:make-homoiconic-genesis-capsule)))
-  (cell-zero:homoiconic-task-prompt capsule "Implement the requested task."))
-```
-
-## Evolution
-
-```lisp
-(let* ((parent (cell-zero:make-homoiconic-genesis-capsule))
-       (candidate
-         (cell-zero:make-homoiconic-genesis-capsule
-          :task-context "Inspect, implement, verify, and repair."))
-       (cell (cell-zero:make-homoiconic-cell
-              (cell-zero:make-term-store) parent)))
-  (cell-zero:register-homoiconic-handler
-   cell "model"
-   (cell-zero:make-scripted-homoiconic-model-handler candidate))
-  (cell-zero:register-homoiconic-handler
-   cell "runner"
-   (cell-zero:make-scripted-homoiconic-runner-handler
-    (lambda (capsule event)
-      (declare (ignore event))
-      (values t (if (cell-zero:term-equal capsule candidate) 1 0)
-              (cell-zero:empty-term)))))
-  (cell-zero:submit-homoiconic-event
-   cell (cell-zero:sexp->term
-         '(event (kind evolve) (objective "improve"))))
-  (cell-zero:run-homoiconic-until-idle cell)
-  (cell-zero:homoiconic-cell-current-root cell))
-```
-
-The model and runner are capability transports. Candidate interpretation, paired trial construction, score comparison, retention, and promotion are capsule behavior.
+`make-homoiconic-genesis-capsule`, `make-homoiconic-cell`, and the related runner APIs preserve the Cell-zero/2 self-interpreting experiment. Stage 0 does not depend on that representation.
 
 ## Harbor and Terminal-Bench
 
-`harbor_adapter.cell_zero:CellZeroCodex` subclasses Harbor's Codex adapter and obtains its task prompt from a live Cell-zero/2 capsule:
-
-```sh
-PYTHONPATH=. harbor run \
-  --path /path/to/terminal-bench-task \
-  --agent harbor_adapter.cell_zero:CellZeroCodex \
-  --model gpt-5.6-sol \
-  --agent-kwarg "task_context=Inspect the interface, implement, and run tests." \
-  --agent-env CODEX_FORCE_AUTH_JSON=true
-```
-
-`scripts/select-harbor-successor.lisp` feeds paired Harbor rewards back through the capsule's runner capability and writes the selected complete capsule plus a content-addressed evolution record.
-
-The reproducible Terminal-Bench run metadata and strict tie-retention result are recorded in [`evidence/`](evidence/README.md). Harbor decimal rewards are normalized to exact integer terms before the hereditary comparison.
+`harbor_adapter.cell_zero:CellZeroCodex` remains the Harbor adapter for the homoiconic experiment. `scripts/select-harbor-successor.lisp` feeds paired rewards through its runner capability and writes the selected capsule plus a content-addressed evolution record. Reproducible run metadata is under [`evidence/`](evidence/README.md).
 
 ## Ecological challenge laboratory
 
-`cell-zero-lab.asd` is an external laboratory system. It keeps hidden generators outside the organism, applies lexicographic promotion gates, maintains separate durable `organism/current` and `lab/champion` refs, and requires three fresh lineages before stage advancement.
+`cell-zero-lab.asd` is the external laboratory system. It keeps hidden generators outside the organism, applies lexicographic promotion gates, maintains separate durable `organism/current` and `lab/champion` refs, and requires three fresh lineages before stage advancement.
 
-C0, Event Eater, passed three independently generated 10,000-history distributions with zero replay mismatches, replay-time effect calls, lost committed events, malformed-event skips, or laboratory errors. The public challenge and sanitized attestations are in [`evidence/ecology/`](evidence/ecology/README.md).
+The prior C0 Event Eater attestations are under [`evidence/ecology/`](evidence/ecology/README.md).

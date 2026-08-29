@@ -2,7 +2,7 @@
 
 `model/v1` is Cell-zero's frozen provider-neutral text-completion ABI. It is a capability transport. It does not contain an agent loop, tool execution, tutor policy, model selection, or credentials.
 
-A future tutor capability may use Autolith to produce demonstrations, critiques, curricula, and candidate successors. That protocol is separate from `model/v1`.
+The separate [`tutor/v1`](tutor-v1.md) capability carries demonstrations, critiques, curricula, and explicit candidate artifacts.
 
 ## Request
 
@@ -104,11 +104,13 @@ A fixture adapter consumes exchanges in order. Each live request must be term-eq
 
 Subzero replay remains stronger: replaying an existing effect log invokes no capability handler at all.
 
-## Genesis authority
+## Stage 0 authority
 
-Genesis constructs `model-request` terms in hereditary code. For candidate generation, the model returns only text. Genesis invokes the bounded `parse-term` evaluator primitive, extracts the proposed candidate, constructs the trial effect, and leaves promotion to the current parent.
+The Stage 0 source genome constructs `model-request` terms for task completion. Model text is emitted as answer text and is never parsed as a hereditary world.
 
-The host adapter may:
+Evolution uses `tutor/v1`. A hosted tutor returns canonical lessons and an optional `candidate/v1` artifact containing a `genome/v1` source bundle. The current parent constructs the trial and promotion effects and executes its own admission entry point.
+
+The model host adapter may:
 
 - render prompt parts
 - call a provider
@@ -116,4 +118,4 @@ The host adapter may:
 - return a bound result or failure
 - record the canonical exchange
 
-It cannot install a child, construct a capsule from provider-specific objects, fabricate trials, or bypass parent admission.
+It cannot install a child, fabricate trials, or bypass parent admission.
