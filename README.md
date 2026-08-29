@@ -91,3 +91,7 @@ Attach `:event-database` to `make-subzero` to project each authoritative log ent
 `cell-zero-lab.asd` is the external laboratory system. It keeps hidden generators outside the organism, applies lexicographic promotion gates, maintains separate durable `organism/current` and `lab/champion` refs, and requires three fresh lineages before stage advancement.
 
 The prior C0 Event Eater attestations are under [`evidence/ecology/`](evidence/ecology/README.md).
+
+## Capability roadmap
+
+The current capability audit and prioritized investment map are in [`docs/capability-audit-2026-08-28.md`](docs/capability-audit-2026-08-28.md). Curated exploration transcripts are in [`docs/transcripts/2026-08-28-capability-exploration.md`](docs/transcripts/2026-08-28-capability-exploration.md).
