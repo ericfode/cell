@@ -191,14 +191,17 @@
     (error () nil)))
 
 (defun source-genome-temporary-directory (genome)
-  (let ((directory
-          (merge-pathnames
-           (format nil "cell-zero-genome-~A-~36R/"
-                   (subseq (term-hash genome) 0 12)
-                   (random most-positive-fixnum))
-           (uiop:temporary-directory))))
-    (ensure-directories-exist (merge-pathnames "placeholder" directory))
-    directory))
+  (uiop:call-with-temporary-file
+   (lambda (pathname)
+     (delete-file pathname)
+     (let ((directory (uiop:ensure-directory-pathname pathname)))
+       (ensure-directories-exist (merge-pathnames "placeholder" directory))
+       directory))
+   :want-stream-p nil
+   :prefix (format nil "cell-zero-genome-~A-"
+                   (subseq (term-hash genome) 0 12))
+   :type nil
+   :keep (constantly t)))
 
 (defun write-utf8-file (pathname text)
   (ensure-directories-exist pathname)
